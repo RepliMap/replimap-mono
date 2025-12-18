@@ -20,8 +20,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Template directory relative to this file
-TEMPLATE_DIR = Path(__file__).parent.parent.parent / "templates"
+# Template directory relative to this file (inside package)
+TEMPLATE_DIR = Path(__file__).parent.parent / "templates"
 
 
 class TerraformRenderer:
