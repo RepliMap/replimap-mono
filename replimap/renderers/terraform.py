@@ -903,7 +903,11 @@ if ! command -v terraform &> /dev/null; then
     exit 1
 fi
 
-TERRAFORM_VERSION=$(terraform version -json | grep -o '"terraform_version":"[^"]*"' | cut -d'"' -f4)
+# Extract version - handle both compact and pretty-printed JSON
+TERRAFORM_VERSION=$(terraform version -json 2>/dev/null | tr -d '[:space:]' | sed 's/.*"terraform_version":"\([^"]*\)".*/\1/')
+if [[ -z "$TERRAFORM_VERSION" ]]; then
+    TERRAFORM_VERSION=$(terraform version | head -1 | sed 's/Terraform v//')
+fi
 echo -e "${GREEN}✓${NC} Terraform version: $TERRAFORM_VERSION"
 echo ""
 
@@ -932,8 +936,8 @@ echo ""
 echo -e "${BLUE}[3/4] Validating configuration...${NC}"
 VALIDATE_OUTPUT=$(terraform validate -json 2>&1)
 
-# Check if valid is true (handle both "valid":true and "valid": true)
-if echo "$VALIDATE_OUTPUT" | grep -q '"valid"[[:space:]]*:[[:space:]]*true'; then
+# Check if valid is true using bash pattern matching (more reliable than grep)
+if [[ "$VALIDATE_OUTPUT" == *'"valid": true'* ]] || [[ "$VALIDATE_OUTPUT" == *'"valid":true'* ]]; then
     echo -e "${GREEN}✓${NC} Configuration is valid"
 else
     echo -e "${RED}✗${NC} Validation failed"
