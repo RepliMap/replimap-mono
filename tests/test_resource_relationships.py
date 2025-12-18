@@ -270,11 +270,12 @@ class TestSecurityGroupEgressRules:
             sg_file = Path(tmpdir) / "security_groups.tf"
             content = sg_file.read_text()
 
-            # Verify egress rule with security_groups reference
-            assert "egress {" in content
-            assert "security_groups" in content
+            # Cross-SG references are now generated as separate aws_security_group_rule
+            # resources to avoid circular dependency issues
+            assert "aws_security_group_rule" in content
+            assert 'type                     = "egress"' in content
             # Should reference the target SG by terraform name
-            assert "aws_security_group." in content or '"sg-target"' in content
+            assert "aws_security_group.target-sg.id" in content
 
     def test_egress_with_cidr_and_sg_reference(self) -> None:
         """Test egress rules can have both CIDR and SG references."""
