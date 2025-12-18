@@ -195,8 +195,8 @@ class PulumiRenderer(BaseRenderer):
 
         # Find VPC reference
         vpc_ref = "vpc.id"  # Default
-        for dep in resource.dependencies:
-            dep_resource = graph.get_resource(dep.target_id)
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
                 vpc_var = self._to_variable_name(dep_resource.terraform_name)
                 vpc_ref = f"{vpc_var}.id"
@@ -227,8 +227,8 @@ class PulumiRenderer(BaseRenderer):
 
         # Find VPC reference
         vpc_ref = "vpc.id"
-        for dep in resource.dependencies:
-            dep_resource = graph.get_resource(dep.target_id)
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
                 vpc_var = self._to_variable_name(dep_resource.terraform_name)
                 vpc_ref = f"{vpc_var}.id"
@@ -277,8 +277,8 @@ class PulumiRenderer(BaseRenderer):
         # Find subnet and security group references
         subnet_ref = "subnet.id"
         sg_refs = []
-        for dep in resource.dependencies:
-            dep_resource = graph.get_resource(dep.target_id)
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
             if dep_resource:
                 dep_var = self._to_variable_name(dep_resource.terraform_name)
                 if dep_resource.resource_type == ResourceType.SUBNET:
@@ -328,8 +328,8 @@ class PulumiRenderer(BaseRenderer):
 
         # Find security group references
         sg_refs = []
-        for dep in resource.dependencies:
-            dep_resource = graph.get_resource(dep.target_id)
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
             if (
                 dep_resource
                 and dep_resource.resource_type == ResourceType.SECURITY_GROUP

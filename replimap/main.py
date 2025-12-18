@@ -313,7 +313,13 @@ def clone(
         Path("./terraform"),
         "--output-dir",
         "-o",
-        help="Output directory for Terraform files",
+        help="Output directory for generated files",
+    ),
+    output_format: str = typer.Option(
+        "terraform",
+        "--format",
+        "-f",
+        help="Output format: 'terraform' (Free+), 'cloudformation' (Solo+), 'pulumi' (Pro+)",
     ),
     mode: str = typer.Option(
         "dry-run",
@@ -333,16 +339,47 @@ def clone(
     ),
 ) -> None:
     """
-    Clone AWS environment to Terraform code.
+    Clone AWS environment to Infrastructure-as-Code.
+
+    Output formats:
+    - terraform: Terraform HCL (Free tier and above)
+    - cloudformation: AWS CloudFormation YAML (Solo plan and above)
+    - pulumi: Pulumi Python (Pro plan and above)
 
     Examples:
         replimap clone --profile prod --region us-west-2 --mode dry-run
-        replimap clone --profile prod --region us-west-2 --output-dir ./staging-tf --mode generate
+        replimap clone --profile prod --region us-west-2 --format terraform --mode generate
+        replimap clone --profile prod --region us-east-1 --format cloudformation -o ./cfn
+        replimap clone --profile prod --region us-east-1 --format pulumi -o ./pulumi
     """
+    from replimap.licensing.gates import FeatureNotAvailableError
+    from replimap.renderers import CloudFormationRenderer, PulumiRenderer
+
+    # Validate output format
+    valid_formats = ("terraform", "cloudformation", "pulumi")
+    if output_format not in valid_formats:
+        console.print(
+            f"[red]Error:[/] Invalid format '{output_format}'. "
+            f"Use one of: {', '.join(valid_formats)}"
+        )
+        raise typer.Exit(1)
+
+    # Get the appropriate renderer
+    format_info = {
+        "terraform": ("Terraform HCL", "Free+"),
+        "cloudformation": ("CloudFormation YAML", "Solo+"),
+        "pulumi": ("Pulumi Python", "Pro+"),
+    }
+    format_name, plan_required = format_info[output_format]
+
+    manager = get_license_manager()
+    plan_badge = f"[dim]({manager.current_plan.value})[/]"
+
     console.print(
         Panel(
-            f"[bold]RepliMap Clone[/] v{__version__}\n"
+            f"[bold]RepliMap Clone[/] v{__version__} {plan_badge}\n"
             f"Region: [cyan]{region}[/]\n"
+            f"Format: [cyan]{format_name}[/] ({plan_required})\n"
             f"Mode: [cyan]{mode}[/]\n"
             f"Output: [cyan]{output_dir}[/]\n"
             f"Downsize: [cyan]{downsize}[/]"
@@ -398,8 +435,15 @@ def clone(
 
     console.print(f"[green]Applied[/] {len(pipeline)} transformers")
 
-    # Preview or generate
-    renderer = TerraformRenderer()
+    # Select renderer based on format
+    if output_format == "terraform":
+        renderer = TerraformRenderer()
+    elif output_format == "cloudformation":
+        renderer = CloudFormationRenderer()
+    else:  # pulumi
+        renderer = PulumiRenderer()
+
+    # Preview
     preview = renderer.preview(graph)
 
     # Show output files table
@@ -424,21 +468,36 @@ def clone(
         )
     else:
         console.print()
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Generating Terraform files...", total=None)
-            written = renderer.render(graph, output_dir)
-            progress.update(task, completed=True)
+        try:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task(
+                    f"Generating {format_name} files...", total=None
+                )
+                written = renderer.render(graph, output_dir)
+                progress.update(task, completed=True)
 
-        console.print(
-            Panel(
-                f"[green]Generated {len(written)} files[/] in [bold]{output_dir}[/]",
-                border_style="green",
+            console.print(
+                Panel(
+                    f"[green]Generated {len(written)} files[/] in [bold]{output_dir}[/]",
+                    border_style="green",
+                )
             )
-        )
+        except FeatureNotAvailableError as e:
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Feature not available:[/] {e}\n\n"
+                    f"Upgrade your plan to use {format_name} output:\n"
+                    f"[bold]https://replimap.io/upgrade[/]",
+                    title="Upgrade Required",
+                    border_style="red",
+                )
+            )
+            raise typer.Exit(1)
 
     console.print()
 

@@ -186,8 +186,8 @@ class CloudFormationRenderer(BaseRenderer):
 
         # Find VPC reference
         vpc_ref = {"Ref": "VPC"}  # Default
-        for dep in resource.dependencies:
-            dep_resource = graph.get_resource(dep.target_id)
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
                 vpc_ref = {"Ref": self._to_logical_id(dep_resource.terraform_name)}
                 break
@@ -211,8 +211,8 @@ class CloudFormationRenderer(BaseRenderer):
 
         # Find VPC reference
         vpc_ref = {"Ref": "VPC"}
-        for dep in resource.dependencies:
-            dep_resource = graph.get_resource(dep.target_id)
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
                 vpc_ref = {"Ref": self._to_logical_id(dep_resource.terraform_name)}
                 break
@@ -252,8 +252,8 @@ class CloudFormationRenderer(BaseRenderer):
         # Find subnet and security group references
         subnet_ref = None
         sg_refs = []
-        for dep in resource.dependencies:
-            dep_resource = graph.get_resource(dep.target_id)
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
             if dep_resource:
                 if dep_resource.resource_type == ResourceType.SUBNET:
                     subnet_ref = {
@@ -302,8 +302,8 @@ class CloudFormationRenderer(BaseRenderer):
 
         # Find security group references
         sg_refs = []
-        for dep in resource.dependencies:
-            dep_resource = graph.get_resource(dep.target_id)
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
             if (
                 dep_resource
                 and dep_resource.resource_type == ResourceType.SECURITY_GROUP
