@@ -1,6 +1,6 @@
 # Subnet: {{ resource.original_name }}
 # Original ID: {{ resource.id }}
-# Availability Zone: {{ resource.config.availability_zone }}
+# Original Availability Zone: {{ resource.config.availability_zone }}
 resource "aws_subnet" "{{ resource.terraform_name }}" {
 {% if resource.config.vpc_id is tf_ref %}
   vpc_id                  = {{ resource.config.vpc_id }}
@@ -14,7 +14,10 @@ resource "aws_subnet" "{{ resource.terraform_name }}" {
 {% endif %}
 {% endif %}
   cidr_block              = "{{ resource.config.cidr_block }}"
-  availability_zone       = "{{ resource.config.availability_zone }}"
+  # NOTE: AZ is dynamically mapped to target region using local.az_map
+  # Original AZ: {{ resource.config.availability_zone }}
+{% set az_suffix = resource.config.availability_zone[-1] %}
+  availability_zone       = local.az_map["{{ az_suffix }}"]
   map_public_ip_on_launch = {{ resource.config.map_public_ip_on_launch | default(false) | lower }}
 
   tags = {

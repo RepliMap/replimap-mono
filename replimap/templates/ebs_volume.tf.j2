@@ -1,6 +1,9 @@
 # EBS Volume: {{ resource.original_name }}
+# Original AZ: {{ resource.config.availability_zone }}
 resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
-  availability_zone = "{{ resource.config.availability_zone }}"
+  # NOTE: AZ is dynamically mapped to target region using local.az_map
+{% set az_suffix = resource.config.availability_zone[-1] %}
+  availability_zone = local.az_map["{{ az_suffix }}"]
   size              = {{ resource.config.size }}
   type              = "{{ resource.config.volume_type }}"
 
@@ -13,10 +16,14 @@ resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
 {% if resource.config.encrypted %}
   encrypted = true
 {% if resource.config.kms_key_id %}
+  # NOTE: KMS key must be accessible in target account/region
+  # Original key: {{ resource.config.kms_key_id }}
   kms_key_id = "{{ resource.config.kms_key_id }}"
 {% endif %}
 {% endif %}
 {% if resource.config.snapshot_id %}
+  # NOTE: EBS snapshot is region-specific. Copy snapshot to target region or remove this line.
+  # Original snapshot: {{ resource.config.snapshot_id }}
   snapshot_id = "{{ resource.config.snapshot_id }}"
 {% endif %}
 
