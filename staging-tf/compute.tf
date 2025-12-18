@@ -6,10 +6,10 @@ resource "aws_launch_template" "lt-083d04a82785704e6" {
   image_id = "ami-0091208de35b8d49b"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
-    aws_security_group.aws_security_group_sg-0e2e9a590c75ed9fe_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e2e9a590c75ed9fe.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -22,14 +22,15 @@ resource "aws_launch_template" "lt-083d04a82785704e6" {
     tags = {
       Name        = "lt-083d04a82785704e6"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-083d04a82785704e6"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-083d04a82785704e6"
   }
 }
 
@@ -41,10 +42,10 @@ resource "aws_launch_template" "lt-02f309985479760cc" {
   image_id = "ami-0091208de35b8d49b"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
-    aws_security_group.aws_security_group_sg-0e2e9a590c75ed9fe_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e2e9a590c75ed9fe.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -57,14 +58,15 @@ resource "aws_launch_template" "lt-02f309985479760cc" {
     tags = {
       Name        = "lt-02f309985479760cc"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-02f309985479760cc"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-02f309985479760cc"
   }
 }
 
@@ -76,9 +78,9 @@ resource "aws_launch_template" "lt-00b6e0c382f1ba833" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -91,14 +93,15 @@ resource "aws_launch_template" "lt-00b6e0c382f1ba833" {
     tags = {
       Name        = "lt-00b6e0c382f1ba833"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-00b6e0c382f1ba833"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-00b6e0c382f1ba833"
   }
 }
 
@@ -110,9 +113,9 @@ resource "aws_launch_template" "lt-0e728efb8f33f7088" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -125,14 +128,15 @@ resource "aws_launch_template" "lt-0e728efb8f33f7088" {
     tags = {
       Name        = "lt-0e728efb8f33f7088"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0e728efb8f33f7088"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0e728efb8f33f7088"
   }
 }
 
@@ -144,9 +148,9 @@ resource "aws_launch_template" "lt-04554c82ad17a666c" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -159,14 +163,15 @@ resource "aws_launch_template" "lt-04554c82ad17a666c" {
     tags = {
       Name        = "lt-04554c82ad17a666c"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-04554c82ad17a666c"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-04554c82ad17a666c"
   }
 }
 
@@ -178,9 +183,9 @@ resource "aws_launch_template" "lt-010dc2097987f7157" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -193,14 +198,15 @@ resource "aws_launch_template" "lt-010dc2097987f7157" {
     tags = {
       Name        = "lt-010dc2097987f7157"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-010dc2097987f7157"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-010dc2097987f7157"
   }
 }
 
@@ -212,9 +218,9 @@ resource "aws_launch_template" "lt-0619ec649ed523863" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -227,14 +233,15 @@ resource "aws_launch_template" "lt-0619ec649ed523863" {
     tags = {
       Name        = "lt-0619ec649ed523863"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0619ec649ed523863"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0619ec649ed523863"
   }
 }
 
@@ -246,9 +253,9 @@ resource "aws_launch_template" "lt-0956f8e744006ef1e" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -261,14 +268,15 @@ resource "aws_launch_template" "lt-0956f8e744006ef1e" {
     tags = {
       Name        = "lt-0956f8e744006ef1e"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0956f8e744006ef1e"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0956f8e744006ef1e"
   }
 }
 
@@ -280,9 +288,9 @@ resource "aws_launch_template" "lt-0c4c3b7bc83ee5b4b" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -295,14 +303,15 @@ resource "aws_launch_template" "lt-0c4c3b7bc83ee5b4b" {
     tags = {
       Name        = "lt-0c4c3b7bc83ee5b4b"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0c4c3b7bc83ee5b4b"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0c4c3b7bc83ee5b4b"
   }
 }
 
@@ -314,9 +323,9 @@ resource "aws_launch_template" "lt-026402e837ad46bc1" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -329,14 +338,15 @@ resource "aws_launch_template" "lt-026402e837ad46bc1" {
     tags = {
       Name        = "lt-026402e837ad46bc1"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-026402e837ad46bc1"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-026402e837ad46bc1"
   }
 }
 
@@ -348,9 +358,9 @@ resource "aws_launch_template" "lt-03e1bae900ffc94bc" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -363,14 +373,15 @@ resource "aws_launch_template" "lt-03e1bae900ffc94bc" {
     tags = {
       Name        = "lt-03e1bae900ffc94bc"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-03e1bae900ffc94bc"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-03e1bae900ffc94bc"
   }
 }
 
@@ -382,9 +393,9 @@ resource "aws_launch_template" "lt-09ae1bebe1240319f" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -397,14 +408,15 @@ resource "aws_launch_template" "lt-09ae1bebe1240319f" {
     tags = {
       Name        = "lt-09ae1bebe1240319f"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-09ae1bebe1240319f"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-09ae1bebe1240319f"
   }
 }
 
@@ -416,9 +428,9 @@ resource "aws_launch_template" "lt-0210f62074b70c53c" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -431,14 +443,15 @@ resource "aws_launch_template" "lt-0210f62074b70c53c" {
     tags = {
       Name        = "lt-0210f62074b70c53c"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0210f62074b70c53c"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0210f62074b70c53c"
   }
 }
 
@@ -450,9 +463,9 @@ resource "aws_launch_template" "lt-0dbd35aafb1de6063" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -465,14 +478,15 @@ resource "aws_launch_template" "lt-0dbd35aafb1de6063" {
     tags = {
       Name        = "lt-0dbd35aafb1de6063"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0dbd35aafb1de6063"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0dbd35aafb1de6063"
   }
 }
 
@@ -484,9 +498,9 @@ resource "aws_launch_template" "lt-03efae88b42d320d5" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -499,14 +513,15 @@ resource "aws_launch_template" "lt-03efae88b42d320d5" {
     tags = {
       Name        = "lt-03efae88b42d320d5"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-03efae88b42d320d5"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-03efae88b42d320d5"
   }
 }
 
@@ -518,9 +533,9 @@ resource "aws_launch_template" "lt-0c2298f8dafed605a" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -533,14 +548,15 @@ resource "aws_launch_template" "lt-0c2298f8dafed605a" {
     tags = {
       Name        = "lt-0c2298f8dafed605a"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0c2298f8dafed605a"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0c2298f8dafed605a"
   }
 }
 
@@ -552,9 +568,9 @@ resource "aws_launch_template" "lt-07317d18625133ffc" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -567,14 +583,15 @@ resource "aws_launch_template" "lt-07317d18625133ffc" {
     tags = {
       Name        = "lt-07317d18625133ffc"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-07317d18625133ffc"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-07317d18625133ffc"
   }
 }
 
@@ -586,9 +603,9 @@ resource "aws_launch_template" "lt-0a25463a25a4f718a" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -601,14 +618,15 @@ resource "aws_launch_template" "lt-0a25463a25a4f718a" {
     tags = {
       Name        = "lt-0a25463a25a4f718a"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0a25463a25a4f718a"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0a25463a25a4f718a"
   }
 }
 
@@ -620,9 +638,9 @@ resource "aws_launch_template" "lt-021f08838ac9cede4" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -635,14 +653,15 @@ resource "aws_launch_template" "lt-021f08838ac9cede4" {
     tags = {
       Name        = "lt-021f08838ac9cede4"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-021f08838ac9cede4"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-021f08838ac9cede4"
   }
 }
 
@@ -654,9 +673,9 @@ resource "aws_launch_template" "lt-068f342622b22f30a" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-06e2817ae86814235_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-06e2817ae86814235.id",
   ]
 
 
@@ -669,14 +688,15 @@ resource "aws_launch_template" "lt-068f342622b22f30a" {
     tags = {
       Name        = "lt-068f342622b22f30a"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-068f342622b22f30a"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-068f342622b22f30a"
   }
 }
 
@@ -688,9 +708,9 @@ resource "aws_launch_template" "lt-0f96ceb7b890bd5a2" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -703,14 +723,15 @@ resource "aws_launch_template" "lt-0f96ceb7b890bd5a2" {
     tags = {
       Name        = "lt-0f96ceb7b890bd5a2"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0f96ceb7b890bd5a2"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0f96ceb7b890bd5a2"
   }
 }
 
@@ -722,9 +743,9 @@ resource "aws_launch_template" "lt-037d270f1eb9eea9c" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -737,14 +758,15 @@ resource "aws_launch_template" "lt-037d270f1eb9eea9c" {
     tags = {
       Name        = "lt-037d270f1eb9eea9c"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-037d270f1eb9eea9c"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-037d270f1eb9eea9c"
   }
 }
 
@@ -756,9 +778,9 @@ resource "aws_launch_template" "lt-0f8a3144cff4dae51" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -771,14 +793,15 @@ resource "aws_launch_template" "lt-0f8a3144cff4dae51" {
     tags = {
       Name        = "lt-0f8a3144cff4dae51"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0f8a3144cff4dae51"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0f8a3144cff4dae51"
   }
 }
 
@@ -790,9 +813,9 @@ resource "aws_launch_template" "lt-06995da340bc7e5c6" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -805,14 +828,15 @@ resource "aws_launch_template" "lt-06995da340bc7e5c6" {
     tags = {
       Name        = "lt-06995da340bc7e5c6"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-06995da340bc7e5c6"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-06995da340bc7e5c6"
   }
 }
 
@@ -824,9 +848,9 @@ resource "aws_launch_template" "lt-0a090a26a2e98751a" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -839,14 +863,15 @@ resource "aws_launch_template" "lt-0a090a26a2e98751a" {
     tags = {
       Name        = "lt-0a090a26a2e98751a"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0a090a26a2e98751a"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0a090a26a2e98751a"
   }
 }
 
@@ -858,9 +883,9 @@ resource "aws_launch_template" "lt-0a9e1a6d54722b12e" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -873,14 +898,15 @@ resource "aws_launch_template" "lt-0a9e1a6d54722b12e" {
     tags = {
       Name        = "lt-0a9e1a6d54722b12e"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0a9e1a6d54722b12e"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0a9e1a6d54722b12e"
   }
 }
 
@@ -892,9 +918,9 @@ resource "aws_launch_template" "lt-0fbfa6b341ae5a01f" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -907,14 +933,15 @@ resource "aws_launch_template" "lt-0fbfa6b341ae5a01f" {
     tags = {
       Name        = "lt-0fbfa6b341ae5a01f"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0fbfa6b341ae5a01f"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0fbfa6b341ae5a01f"
   }
 }
 
@@ -926,9 +953,9 @@ resource "aws_launch_template" "lt-05b0a9a8f291d2dfb" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -941,14 +968,15 @@ resource "aws_launch_template" "lt-05b0a9a8f291d2dfb" {
     tags = {
       Name        = "lt-05b0a9a8f291d2dfb"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-05b0a9a8f291d2dfb"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-05b0a9a8f291d2dfb"
   }
 }
 
@@ -960,9 +988,9 @@ resource "aws_launch_template" "lt-05139e0a9b8cf06e3" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -975,14 +1003,15 @@ resource "aws_launch_template" "lt-05139e0a9b8cf06e3" {
     tags = {
       Name        = "lt-05139e0a9b8cf06e3"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-05139e0a9b8cf06e3"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-05139e0a9b8cf06e3"
   }
 }
 
@@ -994,9 +1023,9 @@ resource "aws_launch_template" "lt-0e7eff28f37b34df9" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1009,14 +1038,15 @@ resource "aws_launch_template" "lt-0e7eff28f37b34df9" {
     tags = {
       Name        = "lt-0e7eff28f37b34df9"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0e7eff28f37b34df9"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0e7eff28f37b34df9"
   }
 }
 
@@ -1028,9 +1058,9 @@ resource "aws_launch_template" "lt-06e7b24f25b1af45d" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1043,14 +1073,15 @@ resource "aws_launch_template" "lt-06e7b24f25b1af45d" {
     tags = {
       Name        = "lt-06e7b24f25b1af45d"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-06e7b24f25b1af45d"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-06e7b24f25b1af45d"
   }
 }
 
@@ -1062,9 +1093,9 @@ resource "aws_launch_template" "lt-0f2b473baa85e32a2" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1077,14 +1108,15 @@ resource "aws_launch_template" "lt-0f2b473baa85e32a2" {
     tags = {
       Name        = "lt-0f2b473baa85e32a2"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0f2b473baa85e32a2"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0f2b473baa85e32a2"
   }
 }
 
@@ -1096,9 +1128,9 @@ resource "aws_launch_template" "lt-090b6efcc2b0d4f99" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1111,14 +1143,15 @@ resource "aws_launch_template" "lt-090b6efcc2b0d4f99" {
     tags = {
       Name        = "lt-090b6efcc2b0d4f99"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-090b6efcc2b0d4f99"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-090b6efcc2b0d4f99"
   }
 }
 
@@ -1130,9 +1163,9 @@ resource "aws_launch_template" "lt-0eab43453208c2377" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1145,14 +1178,15 @@ resource "aws_launch_template" "lt-0eab43453208c2377" {
     tags = {
       Name        = "lt-0eab43453208c2377"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0eab43453208c2377"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0eab43453208c2377"
   }
 }
 
@@ -1164,9 +1198,9 @@ resource "aws_launch_template" "lt-0fe81c28bab290f06" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1179,14 +1213,15 @@ resource "aws_launch_template" "lt-0fe81c28bab290f06" {
     tags = {
       Name        = "lt-0fe81c28bab290f06"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0fe81c28bab290f06"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0fe81c28bab290f06"
   }
 }
 
@@ -1198,9 +1233,9 @@ resource "aws_launch_template" "lt-0b04e638418b62aac" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1213,14 +1248,15 @@ resource "aws_launch_template" "lt-0b04e638418b62aac" {
     tags = {
       Name        = "lt-0b04e638418b62aac"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0b04e638418b62aac"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0b04e638418b62aac"
   }
 }
 
@@ -1232,9 +1268,9 @@ resource "aws_launch_template" "lt-0e57656fe14c138c0" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1247,14 +1283,15 @@ resource "aws_launch_template" "lt-0e57656fe14c138c0" {
     tags = {
       Name        = "lt-0e57656fe14c138c0"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0e57656fe14c138c0"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0e57656fe14c138c0"
   }
 }
 
@@ -1266,9 +1303,9 @@ resource "aws_launch_template" "lt-0e9ca7f6d95b30f52" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_sg-0e9d9aa5c428a5c03_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0e9d9aa5c428a5c03.id",
   ]
 
 
@@ -1281,14 +1318,15 @@ resource "aws_launch_template" "lt-0e9ca7f6d95b30f52" {
     tags = {
       Name        = "lt-0e9ca7f6d95b30f52"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0e9ca7f6d95b30f52"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0e9ca7f6d95b30f52"
   }
 }
 
@@ -1300,10 +1338,10 @@ resource "aws_launch_template" "lt-0432a41ea4785ba95" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
-    aws_security_group.aws_security_group_sg-0d4ca909ae44ef9a4_id.id,
+    "aws_security_group.sg-0d4ca909ae44ef9a4.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1316,14 +1354,15 @@ resource "aws_launch_template" "lt-0432a41ea4785ba95" {
     tags = {
       Name        = "lt-0432a41ea4785ba95"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0432a41ea4785ba95"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0432a41ea4785ba95"
   }
 }
 
@@ -1335,10 +1374,10 @@ resource "aws_launch_template" "lt-0bf2553d035a5590e" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
-    aws_security_group.aws_security_group_sg-0d4ca909ae44ef9a4_id.id,
+    "aws_security_group.sg-0d4ca909ae44ef9a4.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1351,14 +1390,15 @@ resource "aws_launch_template" "lt-0bf2553d035a5590e" {
     tags = {
       Name        = "lt-0bf2553d035a5590e"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0bf2553d035a5590e"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0bf2553d035a5590e"
   }
 }
 
@@ -1370,10 +1410,10 @@ resource "aws_launch_template" "lt-0706143bb0def5e8f" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
-    aws_security_group.aws_security_group_sg-02c028c79d15adf86_id.id,
+    "aws_security_group.sg-02c028c79d15adf86.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1386,14 +1426,15 @@ resource "aws_launch_template" "lt-0706143bb0def5e8f" {
     tags = {
       Name        = "lt-0706143bb0def5e8f"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0706143bb0def5e8f"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0706143bb0def5e8f"
   }
 }
 
@@ -1405,10 +1446,10 @@ resource "aws_launch_template" "lt-0cc8e2d2ee2af8118" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
-    aws_security_group.aws_security_group_sg-02c028c79d15adf86_id.id,
+    "aws_security_group.sg-02c028c79d15adf86.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1421,14 +1462,15 @@ resource "aws_launch_template" "lt-0cc8e2d2ee2af8118" {
     tags = {
       Name        = "lt-0cc8e2d2ee2af8118"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0cc8e2d2ee2af8118"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0cc8e2d2ee2af8118"
   }
 }
 
@@ -1440,10 +1482,10 @@ resource "aws_launch_template" "lt-0f14d9e6488689826" {
   image_id = "ami-0091208de35b8d49b"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0b433a6d6c584ef79_id.id,
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0b433a6d6c584ef79.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1456,14 +1498,15 @@ resource "aws_launch_template" "lt-0f14d9e6488689826" {
     tags = {
       Name        = "lt-0f14d9e6488689826"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0f14d9e6488689826"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0f14d9e6488689826"
   }
 }
 
@@ -1475,10 +1518,10 @@ resource "aws_launch_template" "lt-0b632550e3bf25eaa" {
   image_id = "ami-0091208de35b8d49b"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0b433a6d6c584ef79_id.id,
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0b433a6d6c584ef79.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1491,14 +1534,15 @@ resource "aws_launch_template" "lt-0b632550e3bf25eaa" {
     tags = {
       Name        = "lt-0b632550e3bf25eaa"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0b632550e3bf25eaa"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0b632550e3bf25eaa"
   }
 }
 
@@ -1510,10 +1554,10 @@ resource "aws_launch_template" "lt-0459e774ce8822a2f" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
-    aws_security_group.aws_security_group_sg-0ac562a2b2761e254_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0ac562a2b2761e254.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1526,14 +1570,15 @@ resource "aws_launch_template" "lt-0459e774ce8822a2f" {
     tags = {
       Name        = "lt-0459e774ce8822a2f"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-0459e774ce8822a2f"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-0459e774ce8822a2f"
   }
 }
 
@@ -1545,10 +1590,10 @@ resource "aws_launch_template" "lt-079f444f6bc8a8ec9" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    aws_security_group.aws_security_group_sg-0ea9a1c02b8ef60bd_id.id,
-    aws_security_group.aws_security_group_sg-0ea2aca1e6a8d47fe_id.id,
-    aws_security_group.aws_security_group_elementSeries_prod_vpc_id.id,
-    aws_security_group.aws_security_group_sg-0ac562a2b2761e254_id.id,
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0ac562a2b2761e254.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1561,14 +1606,15 @@ resource "aws_launch_template" "lt-079f444f6bc8a8ec9" {
     tags = {
       Name        = "lt-079f444f6bc8a8ec9"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "lt-079f444f6bc8a8ec9"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "lt-079f444f6bc8a8ec9"
   }
 }
 
@@ -1586,13 +1632,13 @@ resource "aws_autoscaling_group" "asg-ghostrpc-stage-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_ghostrpc-alb-prod-green_e6ea5c97d2d8fce0.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/ghostrpc-alb-prod-green/e6ea5c97d2d8fce0",
   ]
 
   health_check_type         = "EC2"
@@ -1613,7 +1659,115 @@ resource "aws_autoscaling_group" "asg-ghostrpc-stage-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:351788af-e499-48f5-a280-77a99c495aae:autoScalingGroupName/asg-ghostrpc-prod-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-ghostrpc-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "ghostrpc-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "ghostrpc"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-0091208de35b8d49b"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-ghostrpc-stage-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -1632,13 +1786,13 @@ resource "aws_autoscaling_group" "asg-ghostrpc-stage-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_ghostrpc-alb-prod-blue_fe898ecb1068f985.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/ghostrpc-alb-prod-blue/fe898ecb1068f985",
   ]
 
   health_check_type         = "EC2"
@@ -1659,7 +1813,115 @@ resource "aws_autoscaling_group" "asg-ghostrpc-stage-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:be9f5164-bb44-426e-b1f9-bfc73f92950d:autoScalingGroupName/asg-ghostrpc-prod-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-ghostrpc-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "ghostrpc-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "ghostrpc"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-0091208de35b8d49b"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-ghostrpc-stage-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -1678,13 +1940,13 @@ resource "aws_autoscaling_group" "asg-etime-test-skt-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-skt-g-14si_34ce0d4fd832ebee.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-skt-g-14si/34ce0d4fd832ebee",
   ]
 
   health_check_type         = "EC2"
@@ -1705,7 +1967,115 @@ resource "aws_autoscaling_group" "asg-etime-test-skt-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:58392dd4-dd4e-4272-8bcc-c5370d66f93e:autoScalingGroupName/asg-etime-test-skt-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-skt-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-test-skt-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -1724,13 +2094,13 @@ resource "aws_autoscaling_group" "asg-etime-test-skt-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-skt-b-14si_9ce161490594477c.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-skt-b-14si/9ce161490594477c",
   ]
 
   health_check_type         = "EC2"
@@ -1751,7 +2121,115 @@ resource "aws_autoscaling_group" "asg-etime-test-skt-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:257acaea-2ea8-4046-a66c-17cac1b454a7:autoScalingGroupName/asg-etime-test-skt-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-skt-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-test-skt-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -1770,13 +2248,13 @@ resource "aws_autoscaling_group" "asg-etime-test-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-g-14si_a4c818664f160ca3.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-g-14si/a4c818664f160ca3",
   ]
 
   health_check_type         = "EC2"
@@ -1797,7 +2275,115 @@ resource "aws_autoscaling_group" "asg-etime-test-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:b096fbcd-f389-4724-9f46-90bde8699be7:autoScalingGroupName/asg-etime-test-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-test-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -1816,13 +2402,13 @@ resource "aws_autoscaling_group" "asg-etime-test-cmd-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-cmd-g-14si_20b818f5f1bf64b0.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-cmd-g-14si/20b818f5f1bf64b0",
   ]
 
   health_check_type         = "EC2"
@@ -1843,7 +2429,115 @@ resource "aws_autoscaling_group" "asg-etime-test-cmd-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:bf19a68e-6e53-4246-b5d8-2f8b0b47a244:autoScalingGroupName/asg-etime-test-cmd-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-cmd-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-test-cmd-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -1862,13 +2556,13 @@ resource "aws_autoscaling_group" "asg-etime-test-cmd-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-cmd-b-14si_0f5eb0935ae53c51.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-cmd-b-14si/0f5eb0935ae53c51",
   ]
 
   health_check_type         = "EC2"
@@ -1889,7 +2583,115 @@ resource "aws_autoscaling_group" "asg-etime-test-cmd-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:852081d3-61b1-4a5b-8d65-0da210bcfeb2:autoScalingGroupName/asg-etime-test-cmd-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-cmd-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-test-cmd-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -1908,13 +2710,13 @@ resource "aws_autoscaling_group" "asg-etime-test-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-b-14si_63b805c28ac9b7b0.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-b-14si/63b805c28ac9b7b0",
   ]
 
   health_check_type         = "EC2"
@@ -1935,13 +2737,121 @@ resource "aws_autoscaling_group" "asg-etime-test-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:082c0d78-6cc7-48a7-be75-6219718782af:autoScalingGroupName/asg-etime-test-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-test-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-etime-stage-skt-g-14si
-resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si_t_g_14si" {
   name = "asg-etime-stage-skt-g-14si"
 
   min_size         = 0
@@ -1954,13 +2864,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-skt-g-14si_caca675f49518d51.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-skt-g-14si/caca675f49518d51",
   ]
 
   health_check_type         = "EC2"
@@ -1981,13 +2891,121 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:81582dc1-bc9e-46e4-b4a7-9ff875cdb82e:autoScalingGroupName/asg-etime-stage-skt-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-skt-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-skt-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-etime-stage-skt-b-14si
-resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si_t_b_14si" {
   name = "asg-etime-stage-skt-b-14si"
 
   min_size         = 1
@@ -2000,13 +3018,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-skt-b-14si_94e78c753ef07194.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-skt-b-14si/94e78c753ef07194",
   ]
 
   health_check_type         = "EC2"
@@ -2027,13 +3045,121 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:7f170b58-d272-4119-b337-98a613edd8c1:autoScalingGroupName/asg-etime-stage-skt-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-skt-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-skt-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-etime-stage-g-14si
-resource "aws_autoscaling_group" "asg-etime-stage-g-14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-g-14si_e_g_14si" {
   name = "asg-etime-stage-g-14si"
 
   min_size         = 0
@@ -2046,13 +3172,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-g-14si_6f686d10e8e4bdc3.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-g-14si/6f686d10e8e4bdc3",
   ]
 
   health_check_type         = "EC2"
@@ -2073,13 +3199,121 @@ resource "aws_autoscaling_group" "asg-etime-stage-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:0361ec3d-4534-4c1d-830e-9e290a1d7045:autoScalingGroupName/asg-etime-stage-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-etime-stage-cmd-g-14si
-resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si_d_g_14si" {
   name = "asg-etime-stage-cmd-g-14si"
 
   min_size         = 0
@@ -2092,13 +3326,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-cmd-g-14si_92428e2976ec9624.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-cmd-g-14si/92428e2976ec9624",
   ]
 
   health_check_type         = "EC2"
@@ -2119,13 +3353,121 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:2ed62f75-a40f-423b-94f8-2d3c1f8071c5:autoScalingGroupName/asg-etime-stage-cmd-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-cmd-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-cmd-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-etime-stage-cmd-b-14si
-resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si_d_b_14si" {
   name = "asg-etime-stage-cmd-b-14si"
 
   min_size         = 0
@@ -2138,13 +3480,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-cmd-b-14si_8ae6beafa0fab497.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-cmd-b-14si/8ae6beafa0fab497",
   ]
 
   health_check_type         = "EC2"
@@ -2165,13 +3507,121 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:045ef8b4-d4b6-44eb-9ca5-1ea45cebe7cd:autoScalingGroupName/asg-etime-stage-cmd-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-cmd-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-cmd-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-etime-stage-b-14si
-resource "aws_autoscaling_group" "asg-etime-stage-b-14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-b-14si_e_b_14si" {
   name = "asg-etime-stage-b-14si"
 
   min_size         = 1
@@ -2184,13 +3634,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-b-14si_e9649c8e9cfca7bd.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-b-14si/e9649c8e9cfca7bd",
   ]
 
   health_check_type         = "EC2"
@@ -2211,7 +3661,115 @@ resource "aws_autoscaling_group" "asg-etime-stage-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:f7dd2672-4e42-4ac1-a52f-237a77047347:autoScalingGroupName/asg-etime-stage-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2230,13 +3788,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-skt-g-14si_b2ac75ed028f753a.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-skt-g-14si/b2ac75ed028f753a",
   ]
 
   health_check_type         = "EC2"
@@ -2257,7 +3815,115 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:43ddaec5-0c52-426b-b068-322982434238:autoScalingGroupName/asg-etime-prod-skt-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-skt-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-skt-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2276,13 +3942,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-skt-b-14si_f3a1fa1acc3d8aab.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-skt-b-14si/f3a1fa1acc3d8aab",
   ]
 
   health_check_type         = "EC2"
@@ -2303,7 +3969,115 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:421c2efc-fee6-4adb-a576-ff70e5d4caf5:autoScalingGroupName/asg-etime-prod-skt-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-skt-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-skt-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2322,13 +4096,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-g-14si_bb47a23d13331ca0.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-g-14si/bb47a23d13331ca0",
   ]
 
   health_check_type         = "EC2"
@@ -2349,7 +4123,115 @@ resource "aws_autoscaling_group" "asg-etime-stage-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:81cf2d7c-5221-4637-b94d-31f097df4c01:autoScalingGroupName/asg-etime-prod-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2368,13 +4250,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-cmd-g-14si_a48d46b24f2ca9b2.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-cmd-g-14si/a48d46b24f2ca9b2",
   ]
 
   health_check_type         = "EC2"
@@ -2395,7 +4277,115 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:497b4cc4-f6d6-40c4-ad48-6d89efa6f1f3:autoScalingGroupName/asg-etime-prod-cmd-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-cmd-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-cmd-g-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2414,13 +4404,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-cmd-b-14si_5e754f4e63975546.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-cmd-b-14si/5e754f4e63975546",
   ]
 
   health_check_type         = "EC2"
@@ -2441,7 +4431,115 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:1e2285e1-1403-494b-91a1-c13a6f6d2077:autoScalingGroupName/asg-etime-prod-cmd-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-cmd-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-cmd-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2460,13 +4558,13 @@ resource "aws_autoscaling_group" "asg-etime-stage-b-14si" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-b-14si_f643851b073af7fa.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-b-14si/f643851b073af7fa",
   ]
 
   health_check_type         = "EC2"
@@ -2487,7 +4585,115 @@ resource "aws_autoscaling_group" "asg-etime-stage-b-14si" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:caef9fa1-fcb7-4611-8ebb-cd2d932e3e59:autoScalingGroupName/asg-etime-prod-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-new-env-14si.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "etime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "etime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = "14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-etime-stage-b-14si"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2506,13 +4712,13 @@ resource "aws_autoscaling_group" "asg-elementtime-test-socket-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-socket-green_6b1446596a895d1d.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-socket-green/6b1446596a895d1d",
   ]
 
   health_check_type         = "EC2"
@@ -2533,7 +4739,115 @@ resource "aws_autoscaling_group" "asg-elementtime-test-socket-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:cdf0c804-fb3e-44af-b3b0-56c51eb21fdb:autoScalingGroupName/asg-elementtime-test-socket-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-socket.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-test-socket-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2552,13 +4866,13 @@ resource "aws_autoscaling_group" "asg-elementtime-test-socket-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-socket-blue_7702ed0921031361.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-socket-blue/7702ed0921031361",
   ]
 
   health_check_type         = "EC2"
@@ -2579,7 +4893,115 @@ resource "aws_autoscaling_group" "asg-elementtime-test-socket-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:0d5750da-80fe-492f-bd58-0eed755d39ba:autoScalingGroupName/asg-elementtime-test-socket-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-socket.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-test-socket-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2598,13 +5020,13 @@ resource "aws_autoscaling_group" "asg-elementtime-test-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-green_1d8fc63f16d0bd23.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-green/1d8fc63f16d0bd23",
   ]
 
   health_check_type         = "EC2"
@@ -2625,7 +5047,115 @@ resource "aws_autoscaling_group" "asg-elementtime-test-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:2d445db8-68ab-4725-aa0d-0c731c11a2d9:autoScalingGroupName/asg-elementtime-test-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-test-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2644,13 +5174,13 @@ resource "aws_autoscaling_group" "asg-elementtime-test-cmd-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-cmd-green_24c5eed35c12d165.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-cmd-green/24c5eed35c12d165",
   ]
 
   health_check_type         = "EC2"
@@ -2671,7 +5201,115 @@ resource "aws_autoscaling_group" "asg-elementtime-test-cmd-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:be15902b-44fd-44dd-8cfe-ade04181a2b8:autoScalingGroupName/asg-elementtime-test-cmd-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-cmd.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-test-cmd-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2690,13 +5328,13 @@ resource "aws_autoscaling_group" "asg-elementtime-test-cmd-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-cmd-blue_9cb9b9bfb91c728b.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-cmd-blue/9cb9b9bfb91c728b",
   ]
 
   health_check_type         = "EC2"
@@ -2717,7 +5355,115 @@ resource "aws_autoscaling_group" "asg-elementtime-test-cmd-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:6f4bea1c-bddd-4aaa-870c-96b7530cce20:autoScalingGroupName/asg-elementtime-test-cmd-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test-cmd.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-test-cmd-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -2736,13 +5482,13 @@ resource "aws_autoscaling_group" "asg-elementtime-test-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-test-blue_adf00bf65e691a41.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-test-blue/adf00bf65e691a41",
   ]
 
   health_check_type         = "EC2"
@@ -2763,13 +5509,121 @@ resource "aws_autoscaling_group" "asg-elementtime-test-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:165f0a05-a0a6-4d24-a486-8459ef29da63:autoScalingGroupName/asg-elementtime-test-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-test.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "test"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-test-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-elementtime-stage-socket-green
-resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green_et_green" {
   name = "asg-elementtime-stage-socket-green"
 
   min_size         = 0
@@ -2782,13 +5636,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-socket-green_e9d1b115681f2b9a.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-socket-green/e9d1b115681f2b9a",
   ]
 
   health_check_type         = "EC2"
@@ -2809,13 +5663,121 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:8b1c8c43-331a-4262-93a6-2f9e517e28fa:autoScalingGroupName/asg-elementtime-stage-socket-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-socket.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-socket-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-elementtime-stage-socket-blue
-resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue_ket_blue" {
   name = "asg-elementtime-stage-socket-blue"
 
   min_size         = 1
@@ -2828,13 +5790,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-socket-blue_4247d208ae10d096.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-socket-blue/4247d208ae10d096",
   ]
 
   health_check_type         = "EC2"
@@ -2855,13 +5817,121 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:68eb2ebc-70ed-4ff5-9e93-4133184b1288:autoScalingGroupName/asg-elementtime-stage-socket-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-socket.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-socket-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-elementtime-stage-green
-resource "aws_autoscaling_group" "asg-elementtime-stage-green" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-green_ge_green" {
   name = "asg-elementtime-stage-green"
 
   min_size         = 0
@@ -2874,13 +5944,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-green_f3f73cc137565811.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-green/f3f73cc137565811",
   ]
 
   health_check_type         = "EC2"
@@ -2901,13 +5971,121 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:dc4eea7e-593a-4916-b33a-3dccfc17415a:autoScalingGroupName/asg-elementtime-stage-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-elementtime-stage-cmd-green
-resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green_md_green" {
   name = "asg-elementtime-stage-cmd-green"
 
   min_size         = 0
@@ -2920,13 +6098,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-cmd-green_df42649d76cf2a3f.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-cmd-green/df42649d76cf2a3f",
   ]
 
   health_check_type         = "EC2"
@@ -2947,13 +6125,121 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:87943660-4cdc-4d78-b6b7-81ffa03ea808:autoScalingGroupName/asg-elementtime-stage-cmd-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-cmd.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-cmd-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-elementtime-stage-cmd-blue
-resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue_cmd_blue" {
   name = "asg-elementtime-stage-cmd-blue"
 
   min_size         = 0
@@ -2966,13 +6252,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-cmd-blue_372538449cab9357.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-cmd-blue/372538449cab9357",
   ]
 
   health_check_type         = "EC2"
@@ -2993,13 +6279,121 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:d4df912f-5696-496b-8bd2-ebed0490f0e8:autoScalingGroupName/asg-elementtime-stage-cmd-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-cmd.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-cmd-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
 
 # Auto Scaling Group: asg-elementtime-stage-blue
-resource "aws_autoscaling_group" "asg-elementtime-stage-blue" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-blue_age_blue" {
   name = "asg-elementtime-stage-blue"
 
   min_size         = 1
@@ -3012,13 +6406,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-stage-blue_3080d01af67bb17e.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-stage-blue/3080d01af67bb17e",
   ]
 
   health_check_type         = "EC2"
@@ -3039,7 +6433,115 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:0939c802-63d0-4f0f-ae1a-1a96fa74caaa:autoScalingGroupName/asg-elementtime-stage-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3058,13 +6560,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-socket-green_8c70e31eba804609.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-socket-green/8c70e31eba804609",
   ]
 
   health_check_type         = "EC2"
@@ -3085,7 +6587,115 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:94de1253-42be-4692-8629-d11b3a48efc5:autoScalingGroupName/asg-elementtime-prod-socket-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-socket.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-socket-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3104,13 +6714,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-socket-blue_db10ec971800e3af.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-socket-blue/db10ec971800e3af",
   ]
 
   health_check_type         = "EC2"
@@ -3131,7 +6741,115 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:55e95a3c-10dd-434d-a614-a4abd604d049:autoScalingGroupName/asg-elementtime-prod-socket-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-socket.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-socket-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3150,13 +6868,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-green_8c851fcbc83b25c4.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-green/8c851fcbc83b25c4",
   ]
 
   health_check_type         = "EC2"
@@ -3177,7 +6895,115 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:f79048a6-55cc-4d6a-a28b-e6ce2136c7cf:autoScalingGroupName/asg-elementtime-prod-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3196,13 +7022,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-cmd-green_5b4d25ce0fc0a151.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-cmd-green/5b4d25ce0fc0a151",
   ]
 
   health_check_type         = "EC2"
@@ -3223,7 +7049,115 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:d1494b6c-5e23-430f-a08b-e41dc1c0bf9c:autoScalingGroupName/asg-elementtime-prod-cmd-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-cmd.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-cmd-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3242,13 +7176,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-cmd-blue_897ea90d93409140.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-cmd-blue/897ea90d93409140",
   ]
 
   health_check_type         = "EC2"
@@ -3269,7 +7203,115 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:9e0eedf5-2f0c-4f53-a261-ed92090c8763:autoScalingGroupName/asg-elementtime-prod-cmd-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage-cmd.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-cmd-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3288,13 +7330,13 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_etime-alb-prod-blue_435d18369923348c.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/etime-alb-prod-blue/435d18369923348c",
   ]
 
   health_check_type         = "EC2"
@@ -3315,7 +7357,115 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:f8926462-b24e-4cde-be48-fe91629a814a:autoScalingGroupName/asg-elementtime-prod-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-fix-vul-improve"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-etime-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementtime-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementtime"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-04ca030c26a97465a"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementtime-stage-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3334,13 +7484,13 @@ resource "aws_autoscaling_group" "asg-elementsup-stage-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_esup-alb-prod-green_77771596b18edef1.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/esup-alb-prod-green/77771596b18edef1",
   ]
 
   health_check_type         = "EC2"
@@ -3361,7 +7511,115 @@ resource "aws_autoscaling_group" "asg-elementsup-stage-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:05a9723c-68fb-44c2-b9d9-2ad0ca66ffd3:autoScalingGroupName/asg-elementsup-prod-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-elementsup-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementsup-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementsup"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-075beeb4b028a712d"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementsup-stage-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3380,13 +7638,13 @@ resource "aws_autoscaling_group" "asg-elementsup-stage-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_esup-alb-prod-blue_72bf20c9a45fcadb.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/esup-alb-prod-blue/72bf20c9a45fcadb",
   ]
 
   health_check_type         = "EC2"
@@ -3407,7 +7665,115 @@ resource "aws_autoscaling_group" "asg-elementsup-stage-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:8d261fee-045a-4821-82cc-89e7179c7aba:autoScalingGroupName/asg-elementsup-prod-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-elementsup-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementsup-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementsup"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-075beeb4b028a712d"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementsup-stage-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3426,13 +7792,13 @@ resource "aws_autoscaling_group" "asg-elementstaff-stage-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_estaff-alb-prod-green_80e221840808a45f.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/estaff-alb-prod-green/80e221840808a45f",
   ]
 
   health_check_type         = "EC2"
@@ -3453,7 +7819,115 @@ resource "aws_autoscaling_group" "asg-elementstaff-stage-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:68e67b78-5080-420e-bc38-5b111d816628:autoScalingGroupName/asg-elementstaff-prod-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-estaff-new-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementstaff-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementstaff"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-075beeb4b028a712d"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementstaff-stage-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3472,13 +7946,13 @@ resource "aws_autoscaling_group" "asg-elementstaff-stage-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_estaff-alb-prod-blue_9c3174929d979eba.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/estaff-alb-prod-blue/9c3174929d979eba",
   ]
 
   health_check_type         = "EC2"
@@ -3499,7 +7973,115 @@ resource "aws_autoscaling_group" "asg-elementstaff-stage-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:02e852af-1faa-4876-87d0-488e1c50752f:autoScalingGroupName/asg-elementstaff-prod-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-estaff-new-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementstaff-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementstaff"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-075beeb4b028a712d"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementstaff-stage-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3518,13 +8100,13 @@ resource "aws_autoscaling_group" "asg-elementrec-stage-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_erec-alb-prod-green_d2baecf0a6c5cdb7.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/erec-alb-prod-green/d2baecf0a6c5cdb7",
   ]
 
   health_check_type         = "EC2"
@@ -3545,7 +8127,115 @@ resource "aws_autoscaling_group" "asg-elementrec-stage-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:e03c114b-aa94-43a9-8d59-9e7b44ccc4ed:autoScalingGroupName/asg-elementrec-prod-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-elementrec-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementrec-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementrec"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-0091208de35b8d49b"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementrec-stage-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3564,13 +8254,13 @@ resource "aws_autoscaling_group" "asg-elementrec-stage-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_erec-alb-prod-blue_3f8141308c99dc70.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/erec-alb-prod-blue/3f8141308c99dc70",
   ]
 
   health_check_type         = "EC2"
@@ -3591,7 +8281,115 @@ resource "aws_autoscaling_group" "asg-elementrec-stage-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:f3fa7235-37f2-4bf0-802b-57e639b1c1eb:autoScalingGroupName/asg-elementrec-prod-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-elementrec-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementrec-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementrec"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-0091208de35b8d49b"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementrec-stage-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3610,13 +8408,13 @@ resource "aws_autoscaling_group" "asg-elementcentre-stage-green" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_ecentre-alb-prod-green_7b3287f17303e670.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/ecentre-alb-prod-green/7b3287f17303e670",
   ]
 
   health_check_type         = "EC2"
@@ -3637,7 +8435,115 @@ resource "aws_autoscaling_group" "asg-elementcentre-stage-green" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:acc367f3-93ba-4aab-a938-59047b08bde3:autoScalingGroupName/asg-elementcentre-prod-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-elementcentre-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementcentre-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementcentre"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-075beeb4b028a712d"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementcentre-stage-green"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }
@@ -3656,13 +8562,13 @@ resource "aws_autoscaling_group" "asg-elementcentre-stage-blue" {
   }
 
   vpc_zone_identifier = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   target_group_arns = [
-    aws_lb_target_group.arn_aws_elasticloadbalancing_ap-southeast-2___var_aws_account_id__targetgroup_ecentre-alb-prod-blue_eec84dc640ab5474.arn,
+    "arn:aws:elasticloadbalancing:ap-southeast-2:${var.aws_account_id}:targetgroup/ecentre-alb-prod-blue/eec84dc640ab5474",
   ]
 
   health_check_type         = "EC2"
@@ -3683,7 +8589,115 @@ resource "aws_autoscaling_group" "asg-elementcentre-stage-blue" {
 
   tag {
     key                 = "ManagedBy"
-    value               = "RepliMap"
+    value               = "replimap"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "SourceId"
+    value               = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:1be8d6e7-0f37-40f3-951d-01880d1e4c89:autoScalingGroupName/asg-elementcentre-prod-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_BRANCH
+    value               = "upgrade-2204-base"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_DC
+    value               = "stage-ap-southeast-2"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_PLAY
+    value               = "plays/base-ami-elementcentre-stage.yml"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_POOL
+    value               = "ac-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_ROLE
+    value               = "elementcentre-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ANSIBLE_S3_BUCKET
+    value               = "ac-secrets-stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Cost Center"
+    value               = "elementcentre"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ENV_VERSION
+    value               = ""
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = Environment
+    value               = "stage"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshot
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotLongTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = MakeSnapshotShortTerm
+    value               = "False"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "N/A"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = ami_id
+    value               = "ami-075beeb4b028a712d"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = route53_record_prefix
+    value               = "asg-elementcentre-stage-blue"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = vpc_domain
+    value               = "sydney.stage.adroitcreations.org"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = zone_id
+    value               = "Z0510321LZZI860UP8GE"
     propagate_at_launch = true
   }
 }

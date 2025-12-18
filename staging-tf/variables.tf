@@ -22,3 +22,240 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+
+# RDS Database Password Variables
+# IMPORTANT: Set these via terraform.tfvars or environment variables
+
+variable "db_password_database-1-instance-1" {
+  description = "Password for RDS instance database-1-instance-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_database-1-instance-1-upgrade-80" {
+  description = "Password for RDS instance database-1-instance-1-upgrade-80"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_database-1-instance-2" {
+  description = "Password for RDS instance database-1-instance-2"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_database-1-instance-2-upgrade-80" {
+  description = "Password for RDS instance database-1-instance-2-upgrade-80"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_database-2-reader-upgrade-80" {
+  description = "Password for RDS instance database-2-reader-upgrade-80"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_database-2-reader-upgrade-80-griffith" {
+  description = "Password for RDS instance database-2-reader-upgrade-80-griffith"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_database-2-writer-upgrade-80" {
+  description = "Password for RDS instance database-2-writer-upgrade-80"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_database-2-writer-upgrade-80-griffith" {
+  description = "Password for RDS instance database-2-writer-upgrade-80-griffith"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_ecentre-stage" {
+  description = "Password for RDS instance ecentre-prod-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_elementorg-sa-burnoffs" {
+  description = "Password for RDS instance elementorg-sa-burnoffs"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-griffith-stage" {
+  description = "Password for RDS instance eorg-griffith-prod-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-griffith-test" {
+  description = "Password for RDS instance eorg-griffith-test-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-leeton-stage" {
+  description = "Password for RDS instance eorg-leeton-prod-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-leeton-sandbox" {
+  description = "Password for RDS instance eorg-leeton-sandbox-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-ngsc-stage" {
+  description = "Password for RDS instance eorg-ngsc-prod-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-ngsc-test" {
+  description = "Password for RDS instance eorg-ngsc-test-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-ngsc-test-trellis" {
+  description = "Password for RDS instance eorg-ngsc-test-trellis-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-ypc-stage" {
+  description = "Password for RDS instance eorg-ypc-prod-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_eorg-ypc-test" {
+  description = "Password for RDS instance eorg-ypc-test-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_esup-stage" {
+  description = "Password for RDS instance esup-prod-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage" {
+  description = "Password for RDS instance etime-14si-prod-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_rod_1_i2" {
+  description = "Password for RDS instance etime-14si-prod-1-i2"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_rod_1_i4" {
+  description = "Password for RDS instance etime-14si-prod-1-i4"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_i_prod_2" {
+  description = "Password for RDS instance etime-14si-prod-2"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_rod_2_i2" {
+  description = "Password for RDS instance etime-14si-prod-2-i2"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_rod_2_i4" {
+  description = "Password for RDS instance etime-14si-prod-2-i4"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_rod_i3_1" {
+  description = "Password for RDS instance etime-14si-prod-i3-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_rod_i3_2" {
+  description = "Password for RDS instance etime-14si-prod-i3-2"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_grades_1" {
+  description = "Password for RDS instance etime-14si-prod-upgrades-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_grades_2" {
+  description = "Password for RDS instance etime-14si-prod-upgrades-2"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage__stage_1" {
+  description = "Password for RDS instance etime-14si-stage-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_upgrades" {
+  description = "Password for RDS instance etime-14si-stage-1-upgrades"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage__stage_2" {
+  description = "Password for RDS instance etime-14si-stage-2"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-stage_upgrades" {
+  description = "Password for RDS instance etime-14si-stage-2-upgrades"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_etime-14si-test" {
+  description = "Password for RDS instance etime-14si-test-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_postgresql-11-1" {
+  description = "Password for RDS instance postgresql-11-1"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_test-database-3-instance-1-tmp-04" {
+  description = "Password for RDS instance test-database-3-instance-1-tmp-04"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_test-database-3-instance-2-tmp-04" {
+  description = "Password for RDS instance test-database-3-instance-2-tmp-04"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password_test-docdb-etime" {
+  description = "Password for RDS instance test-docdb-etime-1"
+  type        = string
+  sensitive   = true
+}

@@ -4,6 +4,9 @@ resource "aws_db_subnet_group" "test-docdb-etime" {
   description = "Allowed subnets for DB cluster instances"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -20,6 +23,9 @@ resource "aws_db_subnet_group" "default" {
   description = "default"
 
   subnet_ids = [
+    "aws_subnet.public-2c.id",
+    "aws_subnet.public-2a.id",
+    "aws_subnet.public-2b.id",
   ]
 
   tags = {
@@ -36,6 +42,9 @@ resource "aws_db_subnet_group" "esup-stage" {
   description = "For Aurora cluster esup-stage"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -52,6 +61,9 @@ resource "aws_db_subnet_group" "eorg-ypc-test" {
   description = "For Aurora cluster eorg-ypc-test"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -68,6 +80,9 @@ resource "aws_db_subnet_group" "eorg-ypc-stage" {
   description = "For Aurora cluster eorg-ypc-stage"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -84,6 +99,9 @@ resource "aws_db_subnet_group" "eorg-ngsc-test-trellis" {
   description = "For Aurora cluster eorg-ngsc-test-trellis"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -100,6 +118,9 @@ resource "aws_db_subnet_group" "eorg-ngsc-test" {
   description = "For Aurora cluster eorg-ngsc-test"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -116,6 +137,9 @@ resource "aws_db_subnet_group" "eorg-ngsc-stage" {
   description = "For Aurora cluster eorg-ngsc-stage"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -132,6 +156,9 @@ resource "aws_db_subnet_group" "eorg-leeton-sandbox" {
   description = "For Aurora cluster eorg-leeton-sandbox"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -148,6 +175,9 @@ resource "aws_db_subnet_group" "eorg-leeton-stage" {
   description = "For Aurora cluster eorg-leeton-stage"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -164,6 +194,9 @@ resource "aws_db_subnet_group" "eorg-griffith-test" {
   description = "For Aurora cluster eorg-griffith-test"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -180,6 +213,9 @@ resource "aws_db_subnet_group" "eorg-griffith-stage" {
   description = "For Aurora cluster eorg-griffith-stage"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -196,6 +232,9 @@ resource "aws_db_subnet_group" "elementorg-sa-burnoffs-2024012805021859420000000
   description = "elementorg-sa-burnoffs subnet group"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -212,6 +251,9 @@ resource "aws_db_subnet_group" "ecentre-stage" {
   description = "For Aurora cluster ecentre-stage"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -245,7 +287,9 @@ resource "aws_db_instance" "test-docdb-etime" {
   port     = 27017
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.test-docdb-etime.name"
   vpc_security_group_ids = [
+    "aws_security_group.test-docdb-etime.id",
   ]
   publicly_accessible = false
 
@@ -271,11 +315,11 @@ resource "aws_db_instance" "test-docdb-etime" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "test-docdb-etime-1"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
     Environment = "stage"
     Terraform = "true"
-    Project Service = "elementTIME"
+    "Project Service" = "elementTIME"
   }
 }
 
@@ -309,7 +353,9 @@ resource "aws_db_instance" "test-database-3-instance-2-tmp-04" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.sg-0fe556df8fc268379.id",
   ]
   publicly_accessible = false
 
@@ -368,7 +414,9 @@ resource "aws_db_instance" "test-database-3-instance-1-tmp-04" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.sg-0fe556df8fc268379.id",
   ]
   publicly_accessible = false
 
@@ -428,7 +476,10 @@ resource "aws_db_instance" "postgresql-11-1" {
   port     = 5432
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.sg-0f213d73676a37994.id",
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -488,7 +539,11 @@ resource "aws_db_instance" "etime-14si-test" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-test.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-test.id",
   ]
   publicly_accessible = false
 
@@ -514,9 +569,9 @@ resource "aws_db_instance" "etime-14si-test" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-test-1"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "test"
     env_version = "14si"
@@ -533,7 +588,7 @@ resource "aws_db_instance" "etime-14si-test" {
 # RDS Instance: etime-14si-stage-2-upgrades
 # Original Instance Class: db.t4g.medium
 # Engine: aurora-mysql 8.0.mysql_aurora.3.08.2
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_upgrades" {
   identifier = "etime-14si-stage-2-upgrades-${var.environment}"
 
   # Engine configuration
@@ -549,11 +604,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_upgrades
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -579,9 +638,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-stage-2-upgrades"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -589,7 +648,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_upgrades" {
 #   description = "Password for RDS instance etime-14si-stage-2-upgrades"
 #   type        = string
 #   sensitive   = true
@@ -598,7 +657,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-stage-2
 # Original Instance Class: db.t4g.medium
 # Engine: aurora-mysql 8.0.mysql_aurora.3.08.2
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage__stage_2" {
   identifier = "etime-14si-stage-2-${var.environment}"
 
   # Engine configuration
@@ -614,11 +673,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage__stage_2
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -644,9 +707,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-stage-2"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -654,7 +717,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage__stage_2" {
 #   description = "Password for RDS instance etime-14si-stage-2"
 #   type        = string
 #   sensitive   = true
@@ -663,7 +726,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-stage-1-upgrades
 # Original Instance Class: db.t4g.medium
 # Engine: aurora-mysql 8.0.mysql_aurora.3.08.2
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_upgrades" {
   identifier = "etime-14si-stage-1-upgrades-${var.environment}"
 
   # Engine configuration
@@ -679,11 +742,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_upgrades
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -709,9 +776,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-stage-1-upgrades"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -719,7 +786,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_upgrades" {
 #   description = "Password for RDS instance etime-14si-stage-1-upgrades"
 #   type        = string
 #   sensitive   = true
@@ -728,7 +795,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-stage-1
 # Original Instance Class: db.t4g.medium
 # Engine: aurora-mysql 8.0.mysql_aurora.3.08.2
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage__stage_1" {
   identifier = "etime-14si-stage-1-${var.environment}"
 
   # Engine configuration
@@ -744,11 +811,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage__stage_1
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -774,9 +845,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-stage-1"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -784,7 +855,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage__stage_1" {
 #   description = "Password for RDS instance etime-14si-stage-1"
 #   type        = string
 #   sensitive   = true
@@ -793,7 +864,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-upgrades-2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_grades_2" {
   identifier = "etime-14si-stage-upgrades-2-${var.environment}"
 
   # Engine configuration
@@ -809,11 +880,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_grades_2
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -839,9 +914,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-upgrades-2"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -849,7 +924,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_grades_2" {
 #   description = "Password for RDS instance etime-14si-prod-upgrades-2"
 #   type        = string
 #   sensitive   = true
@@ -858,7 +933,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-upgrades-1
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_grades_1" {
   identifier = "etime-14si-stage-upgrades-1-${var.environment}"
 
   # Engine configuration
@@ -874,11 +949,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_grades_1
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -904,9 +983,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-upgrades-1"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -914,7 +993,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_grades_1" {
 #   description = "Password for RDS instance etime-14si-prod-upgrades-1"
 #   type        = string
 #   sensitive   = true
@@ -923,7 +1002,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-i3-2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_rod_i3_2" {
   identifier = "etime-14si-stage-i3-2-${var.environment}"
 
   # Engine configuration
@@ -939,11 +1018,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_rod_i3_2
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -969,9 +1052,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-i3-2"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -979,7 +1062,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_rod_i3_2" {
 #   description = "Password for RDS instance etime-14si-prod-i3-2"
 #   type        = string
 #   sensitive   = true
@@ -988,7 +1071,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-i3-1
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_rod_i3_1" {
   identifier = "etime-14si-stage-i3-1-${var.environment}"
 
   # Engine configuration
@@ -1004,11 +1087,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_rod_i3_1
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -1034,9 +1121,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-i3-1"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -1044,7 +1131,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_rod_i3_1" {
 #   description = "Password for RDS instance etime-14si-prod-i3-1"
 #   type        = string
 #   sensitive   = true
@@ -1053,7 +1140,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-2-i4
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_rod_2_i4" {
   identifier = "etime-14si-stage-2-i4-${var.environment}"
 
   # Engine configuration
@@ -1069,11 +1156,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_rod_2_i4
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -1099,9 +1190,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-2-i4"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -1109,7 +1200,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_rod_2_i4" {
 #   description = "Password for RDS instance etime-14si-prod-2-i4"
 #   type        = string
 #   sensitive   = true
@@ -1118,7 +1209,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-2-i2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_rod_2_i2" {
   identifier = "etime-14si-stage-2-i2-${var.environment}"
 
   # Engine configuration
@@ -1134,11 +1225,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_rod_2_i2
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -1164,9 +1259,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-2-i2"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -1174,7 +1269,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_rod_2_i2" {
 #   description = "Password for RDS instance etime-14si-prod-2-i2"
 #   type        = string
 #   sensitive   = true
@@ -1183,7 +1278,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_i_prod_2" {
   identifier = "etime-14si-stage-2-${var.environment}"
 
   # Engine configuration
@@ -1199,11 +1294,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_i_prod_2
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -1229,9 +1328,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-2"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -1239,7 +1338,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_i_prod_2" {
 #   description = "Password for RDS instance etime-14si-prod-2"
 #   type        = string
 #   sensitive   = true
@@ -1248,7 +1347,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-1-i4
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_rod_1_i4" {
   identifier = "etime-14si-stage-1-i4-${var.environment}"
 
   # Engine configuration
@@ -1264,11 +1363,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_rod_1_i4
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -1294,9 +1397,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-1-i4"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -1304,7 +1407,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_rod_1_i4" {
 #   description = "Password for RDS instance etime-14si-prod-1-i4"
 #   type        = string
 #   sensitive   = true
@@ -1313,7 +1416,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 # RDS Instance: etime-14si-prod-1-i2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage" {
+resource "aws_db_instance" "etime-14si-stage_rod_1_i2" {
   identifier = "etime-14si-stage-1-i2-${var.environment}"
 
   # Engine configuration
@@ -1329,11 +1432,15 @@ resource "aws_db_instance" "etime-14si-stage" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage
+  password = var.db_password_etime-14si-stage_rod_1_i2
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -1359,9 +1466,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-1-i2"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -1369,7 +1476,7 @@ resource "aws_db_instance" "etime-14si-stage" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage" {
+# variable "db_password_etime-14si-stage_rod_1_i2" {
 #   description = "Password for RDS instance etime-14si-prod-1-i2"
 #   type        = string
 #   sensitive   = true
@@ -1398,7 +1505,11 @@ resource "aws_db_instance" "etime-14si-stage" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.etime-14si-stage.id",
+    "aws_security_group.db.id",
+    "aws_security_group.etime-14si-stage.id",
   ]
   publicly_accessible = false
 
@@ -1424,9 +1535,9 @@ resource "aws_db_instance" "etime-14si-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "etime-14si-prod-1"
-    Cost Center = "elementTIME"
-    Project Team = "elementTIME"
-    Project Service = "elementTIME"
+    "Cost Center" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
     env_version = "14si"
@@ -1463,7 +1574,10 @@ resource "aws_db_instance" "esup-stage" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "esup-stage"
   vpc_security_group_ids = [
+    "aws_security_group.esup-stage.id",
+    "aws_security_group.esup-stage.id",
   ]
   publicly_accessible = false
 
@@ -1489,11 +1603,11 @@ resource "aws_db_instance" "esup-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "esup-prod-1"
-    Cost Center = "elementSUP"
-    Project Team = "elementSUP"
+    "Cost Center" = "elementSUP"
+    "Project Team" = "elementSUP"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
-    Project Service = "elementSUP"
+    "Project Service" = "elementSUP"
   }
 }
 
@@ -1527,7 +1641,10 @@ resource "aws_db_instance" "eorg-ypc-test" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.eorg-ypc-test.name"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-ypc-test.id",
+    "aws_security_group.eorg-ypc-test.id",
   ]
   publicly_accessible = false
 
@@ -1553,11 +1670,11 @@ resource "aws_db_instance" "eorg-ypc-test" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-ypc-test-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "test"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -1591,7 +1708,10 @@ resource "aws_db_instance" "eorg-ypc-stage" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "eorg-ypc-stage"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-ypc-stage.id",
+    "aws_security_group.eorg-ypc-stage.id",
   ]
   publicly_accessible = false
 
@@ -1617,11 +1737,11 @@ resource "aws_db_instance" "eorg-ypc-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-ypc-prod-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -1655,7 +1775,10 @@ resource "aws_db_instance" "eorg-ngsc-test-trellis" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.eorg-ngsc-test-trellis.name"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-ngsc-test-trellis.id",
+    "aws_security_group.eorg-ngsc-test-trellis.id",
   ]
   publicly_accessible = false
 
@@ -1681,11 +1804,11 @@ resource "aws_db_instance" "eorg-ngsc-test-trellis" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-ngsc-test-trellis-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "test-trellis"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -1719,7 +1842,10 @@ resource "aws_db_instance" "eorg-ngsc-test" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.eorg-ngsc-test.name"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-ngsc-test.id",
+    "aws_security_group.eorg-ngsc-test.id",
   ]
   publicly_accessible = false
 
@@ -1745,11 +1871,11 @@ resource "aws_db_instance" "eorg-ngsc-test" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-ngsc-test-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "test"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -1783,7 +1909,10 @@ resource "aws_db_instance" "eorg-ngsc-stage" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "eorg-ngsc-stage"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-ngsc-stage.id",
+    "aws_security_group.eorg-ngsc-stage.id",
   ]
   publicly_accessible = false
 
@@ -1809,11 +1938,11 @@ resource "aws_db_instance" "eorg-ngsc-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-ngsc-prod-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -1847,7 +1976,10 @@ resource "aws_db_instance" "eorg-leeton-sandbox" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.eorg-leeton-sandbox.name"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-leeton-sandbox.id",
+    "aws_security_group.eorg-leeton-sandbox.id",
   ]
   publicly_accessible = false
 
@@ -1873,11 +2005,11 @@ resource "aws_db_instance" "eorg-leeton-sandbox" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-leeton-sandbox-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "sandbox"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -1911,7 +2043,10 @@ resource "aws_db_instance" "eorg-leeton-stage" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "eorg-leeton-stage"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-leeton-stage.id",
+    "aws_security_group.eorg-leeton-stage.id",
   ]
   publicly_accessible = false
 
@@ -1937,11 +2072,11 @@ resource "aws_db_instance" "eorg-leeton-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-leeton-prod-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -1975,7 +2110,10 @@ resource "aws_db_instance" "eorg-griffith-test" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.eorg-griffith-test.name"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-griffith-test.id",
+    "aws_security_group.eorg-griffith-test.id",
   ]
   publicly_accessible = false
 
@@ -2001,11 +2139,11 @@ resource "aws_db_instance" "eorg-griffith-test" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-griffith-test-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "test"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -2039,7 +2177,10 @@ resource "aws_db_instance" "eorg-griffith-stage" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "eorg-griffith-stage"
   vpc_security_group_ids = [
+    "aws_security_group.eorg-griffith-stage.id",
+    "aws_security_group.eorg-griffith-stage.id",
   ]
   publicly_accessible = false
 
@@ -2065,11 +2206,11 @@ resource "aws_db_instance" "eorg-griffith-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "eorg-griffith-prod-1"
-    Cost Center = "elementOrg"
-    Project Team = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
-    Project Service = "elementOrg"
+    "Project Service" = "elementOrg"
   }
 }
 
@@ -2104,7 +2245,9 @@ resource "aws_db_instance" "elementorg-sa-burnoffs" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.elementorg-sa-burnoffs-20240128050218594200000002.name"
   vpc_security_group_ids = [
+    "aws_security_group.rds-elementorg-sa-burnoffs.id",
   ]
   publicly_accessible = false
 
@@ -2168,7 +2311,10 @@ resource "aws_db_instance" "ecentre-stage" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "ecentre-stage"
   vpc_security_group_ids = [
+    "aws_security_group.ecentre-stage.id",
+    "aws_security_group.ecentre-stage.id",
   ]
   publicly_accessible = false
 
@@ -2194,11 +2340,11 @@ resource "aws_db_instance" "ecentre-stage" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "ecentre-prod-1"
-    Cost Center = "elementCentre"
-    Project Team = "elementCentre"
+    "Cost Center" = "elementCentre"
+    "Project Team" = "elementCentre"
     MakeSnapshotShortTerm = "True"
     Env = "stage"
-    Project Service = "elementCentre"
+    "Project Service" = "elementCentre"
   }
 }
 
@@ -2232,7 +2378,9 @@ resource "aws_db_instance" "database-2-writer-upgrade-80-griffith" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -2291,7 +2439,9 @@ resource "aws_db_instance" "database-2-writer-upgrade-80" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -2350,7 +2500,9 @@ resource "aws_db_instance" "database-2-reader-upgrade-80-griffith" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -2409,7 +2561,9 @@ resource "aws_db_instance" "database-2-reader-upgrade-80" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -2468,7 +2622,9 @@ resource "aws_db_instance" "database-1-instance-2-upgrade-80" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -2527,7 +2683,9 @@ resource "aws_db_instance" "database-1-instance-2" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -2586,7 +2744,9 @@ resource "aws_db_instance" "database-1-instance-1-upgrade-80" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -2645,7 +2805,9 @@ resource "aws_db_instance" "database-1-instance-1" {
   port     = 3306
 
   # Network configuration
+  db_subnet_group_name = "aws_db_subnet_group.default.name"
   vpc_security_group_ids = [
+    "aws_security_group.db.id",
   ]
   publicly_accessible = false
 
@@ -2687,6 +2849,9 @@ resource "aws_db_subnet_group" "stage-private-ap-southeast-2" {
   description = "Subnet group for RDS instances in new stage VPC (managed)"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -2703,6 +2868,9 @@ resource "aws_db_subnet_group" "elementorg-leeton-sandbox-2023080709563660880000
   description = "elementorg-leeton-sandbox subnet group"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -2719,6 +2887,9 @@ resource "aws_db_subnet_group" "elementorg-leeton-20220118220344887800000001" {
   description = "elementorg-leeton subnet group"
 
   subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
@@ -2739,7 +2910,8 @@ resource "aws_db_parameter_group" "postgres11" {
   tags = {
     Name        = "postgres11"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "postgres11"
   }
 }
 
@@ -2763,7 +2935,8 @@ resource "aws_db_parameter_group" "php-group-56" {
   tags = {
     Name        = "php-group-56"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "php-group-56"
   }
 }
 
@@ -2822,7 +2995,8 @@ resource "aws_db_parameter_group" "php-group" {
   tags = {
     Name        = "php-group"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "php-group"
   }
 }
 
@@ -2846,7 +3020,8 @@ resource "aws_db_parameter_group" "pg17-custom-hba-config" {
   tags = {
     Name        = "pg17-custom-hba-config"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "pg17-custom-hba-config"
   }
 }
 
@@ -2865,7 +3040,8 @@ resource "aws_db_parameter_group" "pg16-custom-hba-config" {
   tags = {
     Name        = "pg16-custom-hba-config"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "pg16-custom-hba-config"
   }
 }
 
@@ -2889,7 +3065,8 @@ resource "aws_db_parameter_group" "mysql57-for-php-cluster" {
   tags = {
     Name        = "mysql57-for-php-cluster"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "mysql57-for-php-cluster"
   }
 }
 
@@ -2913,7 +3090,8 @@ resource "aws_db_parameter_group" "mysql57-for-php" {
   tags = {
     Name        = "mysql57-for-php"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "mysql57-for-php"
   }
 }
 
@@ -2932,7 +3110,8 @@ resource "aws_db_parameter_group" "my-postgres12" {
   tags = {
     Name        = "my-postgres12"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "my-postgres12"
   }
 }
 
@@ -2996,7 +3175,8 @@ resource "aws_db_parameter_group" "etime-mysql8" {
   tags = {
     Name        = "etime-mysql8"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "etime-mysql8"
   }
 }
 
@@ -3045,7 +3225,8 @@ resource "aws_db_parameter_group" "eorg-mysql57-php" {
   tags = {
     Name        = "eorg-mysql57-php"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "eorg-mysql57-php"
   }
 }
 
@@ -3069,7 +3250,8 @@ resource "aws_db_parameter_group" "elementorg-sa-burnoffs-2024012805021859400000
   tags = {
     Name        = "elementorg-sa-burnoffs-20240128050218594000000001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementorg-sa-burnoffs-20240128050218594000000001"
   }
 }
 
@@ -3093,7 +3275,8 @@ resource "aws_db_parameter_group" "elementorg-leeton-sandbox-2023080710084367000
   tags = {
     Name        = "elementorg-leeton-sandbox-20230807100843670000000001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementorg-leeton-sandbox-20230807100843670000000001"
   }
 }
 
@@ -3117,7 +3300,8 @@ resource "aws_db_parameter_group" "elementorg-leeton-20220118220344888200000002"
   tags = {
     Name        = "elementorg-leeton-20220118220344888200000002"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementorg-leeton-20220118220344888200000002"
   }
 }
 
@@ -3176,7 +3360,8 @@ resource "aws_db_parameter_group" "dr-etime-mysql8" {
   tags = {
     Name        = "dr-etime-mysql8"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "dr-etime-mysql8"
   }
 }
 
@@ -3225,6 +3410,7 @@ resource "aws_db_parameter_group" "a-mysql57-php" {
   tags = {
     Name        = "a-mysql57-php"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "a-mysql57-php"
   }
 }

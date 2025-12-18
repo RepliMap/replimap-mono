@@ -4,15 +4,16 @@ resource "aws_elasticache_subnet_group" "test-etime-14si" {
   description = "Elasticache subnet group for test-etime-14si"
 
   subnet_ids = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
     Name        = "test-etime-14si"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "test-etime-14si"
   }
 }
 
@@ -22,15 +23,35 @@ resource "aws_elasticache_subnet_group" "test-elementtime" {
   description = "Elasticache subnet group for test-elementtime"
 
   subnet_ids = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
     Name        = "test-elementtime"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "test-elementtime"
+  }
+}
+
+# ElastiCache Subnet Group: stage-etime-14si
+resource "aws_elasticache_subnet_group" "stage-etime-14si_ime_14si" {
+  name        = "stage-etime-14si"
+  description = "Elasticache subnet group for stage-etime-14si"
+
+  subnet_ids = [
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
+  ]
+
+  tags = {
+    Name        = "stage-etime-14si"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "stage-etime-14si"
   }
 }
 
@@ -40,33 +61,16 @@ resource "aws_elasticache_subnet_group" "stage-etime-14si" {
   description = "Elasticache subnet group for stage-etime-14si"
 
   subnet_ids = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
     Name        = "stage-etime-14si"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
-  }
-}
-
-# ElastiCache Subnet Group: stage-etime-14si
-resource "aws_elasticache_subnet_group" "stage-etime-14si" {
-  name        = "stage-etime-14si"
-  description = "Elasticache subnet group for stage-etime-14si"
-
-  subnet_ids = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
-  ]
-
-  tags = {
-    Name        = "stage-etime-14si"
-    Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "prod-etime-14si"
   }
 }
 
@@ -76,15 +80,16 @@ resource "aws_elasticache_subnet_group" "stage-esup" {
   description = "Elasticache subnet group for stage-esup"
 
   subnet_ids = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
     Name        = "stage-esup"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "prod-esup"
   }
 }
 
@@ -94,15 +99,16 @@ resource "aws_elasticache_subnet_group" "stage-ecentre" {
   description = "Elasticache subnet group for stage-ecentre"
 
   subnet_ids = [
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2b_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2c_id.id,
-    aws_subnet.aws_subnet_stage-subnet-private-ap-southeast-2a_id.id,
+    "aws_subnet.stage-subnet-private-ap-southeast-2b.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2c.id",
+    "aws_subnet.stage-subnet-private-ap-southeast-2a.id",
   ]
 
   tags = {
     Name        = "stage-ecentre"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "prod-ecentre"
   }
 }
 
@@ -112,14 +118,15 @@ resource "aws_elasticache_subnet_group" "redis-group" {
   description = " "
 
   subnet_ids = [
-    aws_subnet.aws_subnet_public-2a_id.id,
-    aws_subnet.aws_subnet_public-2c_id.id,
+    "aws_subnet.public-2a.id",
+    "aws_subnet.public-2c.id",
   ]
 
   tags = {
     Name        = "redis-group"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "redis-group"
   }
 }
 
@@ -129,15 +136,16 @@ resource "aws_elasticache_subnet_group" "elementsup-redis-subnet" {
   description = "elementsup-redis-subnet-group (managed)"
 
   subnet_ids = [
-    aws_subnet.aws_subnet_public-2b_id.id,
-    aws_subnet.aws_subnet_public-2c_id.id,
-    aws_subnet.aws_subnet_public-2a_id.id,
+    "aws_subnet.public-2b.id",
+    "aws_subnet.public-2c.id",
+    "aws_subnet.public-2a.id",
   ]
 
   tags = {
     Name        = "elementsup-redis-subnet"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementsup-redis-subnet"
   }
 }
 
@@ -147,15 +155,16 @@ resource "aws_elasticache_subnet_group" "elementcentre-redis-subnet" {
   description = "elementcentre-redis-subnet-group (managed)"
 
   subnet_ids = [
-    aws_subnet.aws_subnet_public-2b_id.id,
-    aws_subnet.aws_subnet_public-2c_id.id,
-    aws_subnet.aws_subnet_public-2a_id.id,
+    "aws_subnet.public-2b.id",
+    "aws_subnet.public-2c.id",
+    "aws_subnet.public-2a.id",
   ]
 
   tags = {
     Name        = "elementcentre-redis-subnet"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementcentre-redis-subnet"
   }
 }
 
@@ -171,7 +180,7 @@ resource "aws_elasticache_cluster" "test-etime-14si-001" {
   subnet_group_name = aws_elasticache_subnet_group.test-etime-14si.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_test-etime-14si_id.id,
+    "aws_security_group.test-etime-14si.id",
   ]
 
   parameter_group_name = "test-etime-14si-redis6-x"
@@ -182,7 +191,8 @@ resource "aws_elasticache_cluster" "test-etime-14si-001" {
   tags = {
     Name        = "test-etime-14si-001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "test-etime-14si-001"
   }
 }
 
@@ -198,7 +208,7 @@ resource "aws_elasticache_cluster" "test-elementtime-001" {
   subnet_group_name = aws_elasticache_subnet_group.test-elementtime.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_test-elementtime_id.id,
+    "aws_security_group.test-elementtime.id",
   ]
 
   parameter_group_name = "test-elementtime-redis6-x"
@@ -209,12 +219,13 @@ resource "aws_elasticache_cluster" "test-elementtime-001" {
   tags = {
     Name        = "test-elementtime-001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "test-elementtime-001"
   }
 }
 
 # ElastiCache Cluster: stage-etime-14si-001
-resource "aws_elasticache_cluster" "stage-etime-14si-001" {
+resource "aws_elasticache_cluster" "stage-etime-14si-001_14si_001" {
   cluster_id           = "stage-etime-14si-001"
   engine               = "redis"
   engine_version       = "6.2.6"
@@ -222,10 +233,10 @@ resource "aws_elasticache_cluster" "stage-etime-14si-001" {
   num_cache_nodes      = 1
   port                 = 6379
 
-  subnet_group_name = aws_elasticache_subnet_group.stage-etime-14si.name
+  subnet_group_name = aws_elasticache_subnet_group.stage-etime-14si_ime_14si.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_stage-etime-14si_id.id,
+    "aws_security_group.stage-etime-14si.id",
   ]
 
   parameter_group_name = "stage-etime-14si-redis6-x"
@@ -236,7 +247,8 @@ resource "aws_elasticache_cluster" "stage-etime-14si-001" {
   tags = {
     Name        = "stage-etime-14si-001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "stage-etime-14si-001"
   }
 }
 
@@ -249,10 +261,10 @@ resource "aws_elasticache_cluster" "stage-etime-14si-001" {
   num_cache_nodes      = 1
   port                 = 6379
 
-  subnet_group_name = aws_elasticache_subnet_group.stage-etime-14si.name
+  subnet_group_name = aws_elasticache_subnet_group.stage-etime-14si_ime_14si.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_stage-etime-14si_id.id,
+    "aws_security_group.stage-etime-14si.id",
   ]
 
   parameter_group_name = "stage-etime-14si-redis6-x"
@@ -263,7 +275,8 @@ resource "aws_elasticache_cluster" "stage-etime-14si-001" {
   tags = {
     Name        = "stage-etime-14si-001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "prod-etime-14si-001"
   }
 }
 
@@ -276,10 +289,10 @@ resource "aws_elasticache_cluster" "stage-esup-001" {
   num_cache_nodes      = 1
   port                 = 6379
 
-  subnet_group_name = aws_elasticache_subnet_group.stage-esup.name
+  subnet_group_name = "stage-esup"
 
   security_group_ids = [
-    aws_security_group.aws_security_group_stage-esup_id.id,
+    "aws_security_group.stage-esup.id",
   ]
 
   parameter_group_name = "stage-esup-redis7"
@@ -290,7 +303,8 @@ resource "aws_elasticache_cluster" "stage-esup-001" {
   tags = {
     Name        = "stage-esup-001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "prod-esup-001"
   }
 }
 
@@ -303,10 +317,10 @@ resource "aws_elasticache_cluster" "stage-ecentre-001" {
   num_cache_nodes      = 1
   port                 = 6379
 
-  subnet_group_name = aws_elasticache_subnet_group.stage-ecentre.name
+  subnet_group_name = "stage-ecentre"
 
   security_group_ids = [
-    aws_security_group.aws_security_group_stage-ecentre_id.id,
+    "aws_security_group.stage-ecentre.id",
   ]
 
   parameter_group_name = "stage-ecentre-redis7"
@@ -317,7 +331,8 @@ resource "aws_elasticache_cluster" "stage-ecentre-001" {
   tags = {
     Name        = "stage-ecentre-001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "prod-ecentre-001"
   }
 }
 
@@ -333,7 +348,7 @@ resource "aws_elasticache_cluster" "elementtime-app-001" {
   subnet_group_name = aws_elasticache_subnet_group.redis-group.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_sg-0b914bf14337d2ac1_id.id,
+    "aws_security_group.sg-0b914bf14337d2ac1.id",
   ]
 
   parameter_group_name = "default.redis7"
@@ -344,7 +359,8 @@ resource "aws_elasticache_cluster" "elementtime-app-001" {
   tags = {
     Name        = "elementtime-app-001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementtime-app-001"
   }
 }
 
@@ -360,7 +376,7 @@ resource "aws_elasticache_cluster" "elementtime2" {
   subnet_group_name = aws_elasticache_subnet_group.redis-group.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_sg-0b914bf14337d2ac1_id.id,
+    "aws_security_group.sg-0b914bf14337d2ac1.id",
   ]
 
   parameter_group_name = "default.redis5.0"
@@ -372,7 +388,8 @@ resource "aws_elasticache_cluster" "elementtime2" {
   tags = {
     Name        = "elementtime2"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementtime2"
   }
 }
 
@@ -388,7 +405,7 @@ resource "aws_elasticache_cluster" "elementsup-redis" {
   subnet_group_name = aws_elasticache_subnet_group.elementsup-redis-subnet.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_elementsup-redis_id.id,
+    "aws_security_group.elementsup-redis.id",
   ]
 
   parameter_group_name = "default.redis7"
@@ -400,7 +417,8 @@ resource "aws_elasticache_cluster" "elementsup-redis" {
   tags = {
     Name        = "elementsup-redis"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementsup-redis"
   }
 }
 
@@ -416,7 +434,7 @@ resource "aws_elasticache_cluster" "elementstaff-app-001" {
   subnet_group_name = aws_elasticache_subnet_group.redis-group.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_sg-0b914bf14337d2ac1_id.id,
+    "aws_security_group.sg-0b914bf14337d2ac1.id",
   ]
 
   parameter_group_name = "default.redis7"
@@ -427,7 +445,8 @@ resource "aws_elasticache_cluster" "elementstaff-app-001" {
   tags = {
     Name        = "elementstaff-app-001"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementstaff-app-001"
   }
 }
 
@@ -443,7 +462,7 @@ resource "aws_elasticache_cluster" "elementcentre-redis" {
   subnet_group_name = aws_elasticache_subnet_group.elementcentre-redis-subnet.name
 
   security_group_ids = [
-    aws_security_group.aws_security_group_elementcentre-redis_id.id,
+    "aws_security_group.elementcentre-redis.id",
   ]
 
   parameter_group_name = "default.redis7"
@@ -455,6 +474,7 @@ resource "aws_elasticache_cluster" "elementcentre-redis" {
   tags = {
     Name        = "elementcentre-redis"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "elementcentre-redis"
   }
 }
