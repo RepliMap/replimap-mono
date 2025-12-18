@@ -4,11 +4,15 @@ RepliMap CLI Entry Point.
 Usage:
     replimap scan --profile <aws-profile> --region <region> [--output graph.json]
     replimap clone --profile <source-profile> --region <region> --output-dir ./terraform
+    replimap license activate <key>
+    replimap license status
 """
 
 from __future__ import annotations
 
 import logging
+import time
+import uuid
 from pathlib import Path
 
 import boto3
@@ -22,6 +26,13 @@ from rich.table import Table
 
 from replimap import __version__
 from replimap.core import GraphEngine
+from replimap.licensing import (
+    Feature,
+    LicenseStatus,
+    LicenseValidationError,
+)
+from replimap.licensing.manager import get_license_manager
+from replimap.licensing.tracker import get_usage_tracker
 from replimap.renderers import TerraformRenderer
 from replimap.scanners.base import run_all_scanners
 from replimap.transformers import create_default_pipeline
@@ -179,9 +190,30 @@ def scan(
         replimap scan --profile prod --region us-west-2
         replimap scan --profile prod --region us-east-1 --output graph.json
     """
+    # Check license and quotas
+    manager = get_license_manager()
+    tracker = get_usage_tracker()
+    features = manager.current_features
+
+    # Check scan quota
+    if features.max_scans_per_month is not None:
+        scans_this_month = tracker.get_scans_this_month()
+        if scans_this_month >= features.max_scans_per_month:
+            console.print(
+                Panel(
+                    f"[red]Scan limit reached![/]\n\n"
+                    f"You have used {scans_this_month}/{features.max_scans_per_month} scans this month.\n"
+                    f"Upgrade your plan for unlimited scans: [bold]https://replimap.io/upgrade[/]",
+                    title="Quota Exceeded",
+                    border_style="red",
+                )
+            )
+            raise typer.Exit(1)
+
+    plan_badge = f"[dim]({manager.current_plan.value})[/]"
     console.print(
         Panel(
-            f"[bold]RepliMap Scanner[/] v{__version__}\n"
+            f"[bold]RepliMap Scanner[/] v{__version__} {plan_badge}\n"
             f"Region: [cyan]{region}[/]"
             + (f"\nProfile: [cyan]{profile}[/]" if profile else ""),
             title="Configuration",
@@ -196,6 +228,7 @@ def scan(
     graph = GraphEngine()
 
     # Run all registered scanners with progress
+    scan_start = time.time()
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -204,6 +237,37 @@ def scan(
         task = progress.add_task("Scanning AWS resources...", total=None)
         results = run_all_scanners(session, region, graph)
         progress.update(task, completed=True)
+    scan_duration = time.time() - scan_start
+
+    # Check resource limit
+    stats = graph.statistics()
+    resource_count = stats["total_resources"]
+
+    if features.max_resources_per_scan is not None:
+        if resource_count > features.max_resources_per_scan:
+            console.print()
+            console.print(
+                Panel(
+                    f"[yellow]Resource limit reached![/]\n\n"
+                    f"Found {resource_count} resources, but your plan allows "
+                    f"{features.max_resources_per_scan} per scan.\n"
+                    f"Results are truncated. Upgrade for unlimited resources: "
+                    f"[bold]https://replimap.io/upgrade[/]",
+                    title="Limit Warning",
+                    border_style="yellow",
+                )
+            )
+
+    # Record usage
+    tracker.record_scan(
+        scan_id=str(uuid.uuid4()),
+        region=region,
+        resource_count=resource_count,
+        resource_types=stats.get("resources_by_type", {}),
+        duration_seconds=scan_duration,
+        profile=profile,
+        success=True,
+    )
 
     # Report results
     console.print()
@@ -431,6 +495,266 @@ def load(
     stats = graph.statistics()
     if stats["total_resources"] > 20:
         console.print(f"[dim]... and {stats['total_resources'] - 20} more[/]")
+
+    console.print()
+
+
+# License subcommand group
+license_app = typer.Typer(
+    name="license",
+    help="License management commands",
+    rich_markup_mode="rich",
+)
+app.add_typer(license_app, name="license")
+
+
+@license_app.command("activate")
+def license_activate(
+    license_key: str = typer.Argument(
+        ...,
+        help="License key (format: XXXX-XXXX-XXXX-XXXX)",
+    ),
+) -> None:
+    """
+    Activate a license key.
+
+    Examples:
+        replimap license activate SOLO-XXXX-XXXX-XXXX
+    """
+    manager = get_license_manager()
+
+    try:
+        license_obj = manager.activate(license_key)
+        console.print(
+            Panel(
+                f"[green]License activated successfully![/]\n\n"
+                f"Plan: [bold cyan]{license_obj.plan.value.upper()}[/]\n"
+                f"Email: {license_obj.email}\n"
+                f"Expires: {license_obj.expires_at.strftime('%Y-%m-%d') if license_obj.expires_at else 'Never'}",
+                title="License Activated",
+                border_style="green",
+            )
+        )
+    except LicenseValidationError as e:
+        console.print(
+            Panel(
+                f"[red]License activation failed:[/]\n{e}",
+                title="Activation Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+
+
+@license_app.command("status")
+def license_status() -> None:
+    """
+    Show current license status.
+
+    Examples:
+        replimap license status
+    """
+    manager = get_license_manager()
+    status, message = manager.validate()
+    license_obj = manager.current_license
+    features = manager.current_features
+
+    # Status panel
+    if status == LicenseStatus.VALID:
+        status_color = "green"
+        status_icon = "[green]Valid[/]"
+    elif status == LicenseStatus.EXPIRED:
+        status_color = "red"
+        status_icon = "[red]Expired[/]"
+    else:
+        status_color = "yellow"
+        status_icon = f"[yellow]{status.value}[/]"
+
+    plan_name = manager.current_plan.value.upper()
+    if license_obj:
+        info = (
+            f"Plan: [bold cyan]{plan_name}[/]\n"
+            f"Status: {status_icon}\n"
+            f"Email: {license_obj.email}\n"
+            f"Expires: {license_obj.expires_at.strftime('%Y-%m-%d') if license_obj.expires_at else 'Never'}"
+        )
+    else:
+        info = (
+            f"Plan: [bold cyan]{plan_name}[/]\n"
+            f"Status: {status_icon}\n"
+            f"[dim]No license key activated. Using free tier.[/]"
+        )
+
+    console.print(
+        Panel(
+            info,
+            title="License Status",
+            border_style=status_color,
+        )
+    )
+
+    # Features table
+    console.print()
+    table = Table(title="Plan Features", show_header=True, header_style="bold cyan")
+    table.add_column("Feature", style="dim")
+    table.add_column("Available", justify="center")
+
+    feature_display = [
+        (Feature.UNLIMITED_RESOURCES, "Unlimited Resources"),
+        (Feature.ASYNC_SCANNING, "Async Scanning"),
+        (Feature.MULTI_ACCOUNT, "Multi-Account Support"),
+        (Feature.CUSTOM_TEMPLATES, "Custom Templates"),
+        (Feature.WEB_DASHBOARD, "Web Dashboard"),
+        (Feature.COLLABORATION, "Team Collaboration"),
+        (Feature.SSO, "SSO Integration"),
+        (Feature.AUDIT_LOGS, "Audit Logs"),
+    ]
+
+    for feature, display_name in feature_display:
+        available = features.has_feature(feature)
+        icon = "[green]Yes[/]" if available else "[dim]No[/]"
+        table.add_row(display_name, icon)
+
+    console.print(table)
+
+    # Limits
+    console.print()
+    limits_table = Table(
+        title="Usage Limits", show_header=True, header_style="bold cyan"
+    )
+    limits_table.add_column("Limit", style="dim")
+    limits_table.add_column("Value", justify="right")
+
+    limits_table.add_row(
+        "Resources per Scan",
+        str(features.max_resources_per_scan)
+        if features.max_resources_per_scan
+        else "Unlimited",
+    )
+    limits_table.add_row(
+        "Scans per Month",
+        str(features.max_scans_per_month)
+        if features.max_scans_per_month
+        else "Unlimited",
+    )
+    limits_table.add_row(
+        "AWS Accounts",
+        str(features.max_aws_accounts) if features.max_aws_accounts else "Unlimited",
+    )
+
+    console.print(limits_table)
+
+    # Usage stats
+    tracker = get_usage_tracker()
+    stats = tracker.get_stats()
+
+    if stats.total_scans > 0:
+        console.print()
+        usage_table = Table(
+            title="Usage This Month", show_header=True, header_style="bold cyan"
+        )
+        usage_table.add_column("Metric", style="dim")
+        usage_table.add_column("Value", justify="right")
+
+        usage_table.add_row("Scans", str(stats.scans_this_month))
+        usage_table.add_row("Resources Scanned", str(stats.resources_this_month))
+        usage_table.add_row("Regions Used", str(len(stats.unique_regions)))
+
+        console.print(usage_table)
+
+    console.print()
+
+
+@license_app.command("deactivate")
+def license_deactivate(
+    confirm: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation",
+    ),
+) -> None:
+    """
+    Deactivate the current license.
+
+    Examples:
+        replimap license deactivate --yes
+    """
+    manager = get_license_manager()
+
+    if manager.current_license is None:
+        console.print("[yellow]No license is currently active.[/]")
+        raise typer.Exit(0)
+
+    if not confirm:
+        confirm = typer.confirm("Are you sure you want to deactivate your license?")
+        if not confirm:
+            console.print("[dim]Cancelled.[/]")
+            raise typer.Exit(0)
+
+    manager.deactivate()
+    console.print("[green]License deactivated.[/] You are now on the free tier.")
+
+
+@license_app.command("usage")
+def license_usage() -> None:
+    """
+    Show detailed usage statistics.
+
+    Examples:
+        replimap license usage
+    """
+    tracker = get_usage_tracker()
+    stats = tracker.get_stats()
+
+    console.print(
+        Panel(
+            f"Total Scans: [bold]{stats.total_scans}[/]\n"
+            f"Total Resources Scanned: [bold]{stats.total_resources_scanned}[/]\n"
+            f"Unique Regions: [bold]{len(stats.unique_regions)}[/]\n"
+            f"Last Scan: [bold]{stats.last_scan.strftime('%Y-%m-%d %H:%M') if stats.last_scan else 'Never'}[/]",
+            title="Usage Overview",
+            border_style="cyan",
+        )
+    )
+
+    # Recent scans
+    recent = tracker.get_recent_scans(10)
+    if recent:
+        console.print()
+        table = Table(title="Recent Scans", show_header=True, header_style="bold cyan")
+        table.add_column("Date", style="dim")
+        table.add_column("Region")
+        table.add_column("Resources", justify="right")
+        table.add_column("Duration", justify="right")
+
+        for scan in recent:
+            table.add_row(
+                scan.timestamp.strftime("%Y-%m-%d %H:%M"),
+                scan.region,
+                str(scan.resource_count),
+                f"{scan.duration_seconds:.1f}s",
+            )
+
+        console.print(table)
+
+    # Resource type breakdown
+    if stats.resource_type_counts:
+        console.print()
+        type_table = Table(
+            title="Resources by Type", show_header=True, header_style="bold cyan"
+        )
+        type_table.add_column("Resource Type", style="dim")
+        type_table.add_column("Count", justify="right")
+
+        for rtype, count in sorted(
+            stats.resource_type_counts.items(),
+            key=lambda x: x[1],
+            reverse=True,
+        ):
+            type_table.add_row(rtype, str(count))
+
+        console.print(type_table)
 
     console.print()
 

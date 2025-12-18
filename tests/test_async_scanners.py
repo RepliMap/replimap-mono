@@ -1,9 +1,7 @@
 """Tests for async scanners."""
 
-import pytest
 
 from replimap.scanners.async_base import (
-    AsyncBaseScanner,
     AsyncScannerRegistry,
 )
 from replimap.scanners.async_vpc_scanner import AsyncVPCScanner
