@@ -36,9 +36,7 @@ SENSITIVE_FIELD_PATTERNS = [
 ]
 
 # Compile patterns for efficiency
-SENSITIVE_REGEX = re.compile(
-    "|".join(SENSITIVE_FIELD_PATTERNS), re.IGNORECASE
-)
+SENSITIVE_REGEX = re.compile("|".join(SENSITIVE_FIELD_PATTERNS), re.IGNORECASE)
 
 # Pattern for AWS account IDs (12 digits)
 ACCOUNT_ID_PATTERN = re.compile(r"\b\d{12}\b")
@@ -237,6 +235,7 @@ class SanitizationTransformer(BaseTransformer):
         Returns:
             String with account IDs replaced
         """
+
         # Replace in ARNs first (more specific)
         def replace_arn(match: re.Match) -> str:
             arn = match.group(0)

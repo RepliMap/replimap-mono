@@ -8,7 +8,6 @@ renaming, and network remapping.
 
 from __future__ import annotations
 
-import copy
 import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
@@ -84,7 +83,9 @@ class TransformationPipeline:
         Returns:
             The transformed GraphEngine
         """
-        logger.info(f"Executing transformation pipeline ({len(self._transformers)} transformers)")
+        logger.info(
+            f"Executing transformation pipeline ({len(self._transformers)} transformers)"
+        )
 
         current = graph
         for transformer in self._transformers:

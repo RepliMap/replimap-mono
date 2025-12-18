@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, ClassVar
 
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import ClientError
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -132,7 +132,11 @@ class BaseScanner(ABC):
         error_code = error.response.get("Error", {}).get("Code", "Unknown")
         error_message = error.response.get("Error", {}).get("Message", str(error))
 
-        if error_code in ("AccessDenied", "UnauthorizedAccess", "AccessDeniedException"):
+        if error_code in (
+            "AccessDenied",
+            "UnauthorizedAccess",
+            "AccessDeniedException",
+        ):
             logger.error(f"Permission denied: {operation} - {error_message}")
             raise PermissionError(
                 f"Insufficient permissions for {operation}: {error_message}"

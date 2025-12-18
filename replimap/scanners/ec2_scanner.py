@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 
-from .base import BaseScanner, ScannerError, ScannerRegistry
+from .base import BaseScanner, ScannerRegistry
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -81,30 +81,32 @@ class EC2Scanner(BaseScanner):
         vpc_id = instance.get("VpcId")
 
         # Extract security group IDs
-        security_groups = [
-            sg["GroupId"] for sg in instance.get("SecurityGroups", [])
-        ]
+        security_groups = [sg["GroupId"] for sg in instance.get("SecurityGroups", [])]
 
         # Extract block device mappings (EBS volumes)
         block_devices = []
         for mapping in instance.get("BlockDeviceMappings", []):
             ebs = mapping.get("Ebs", {})
-            block_devices.append({
-                "device_name": mapping["DeviceName"],
-                "volume_id": ebs.get("VolumeId"),
-                "delete_on_termination": ebs.get("DeleteOnTermination", True),
-            })
+            block_devices.append(
+                {
+                    "device_name": mapping["DeviceName"],
+                    "volume_id": ebs.get("VolumeId"),
+                    "delete_on_termination": ebs.get("DeleteOnTermination", True),
+                }
+            )
 
         # Extract network interfaces
         network_interfaces = []
         for eni in instance.get("NetworkInterfaces", []):
-            network_interfaces.append({
-                "network_interface_id": eni["NetworkInterfaceId"],
-                "device_index": eni["Attachment"]["DeviceIndex"],
-                "subnet_id": eni.get("SubnetId"),
-                "private_ip_address": eni.get("PrivateIpAddress"),
-                "security_groups": [sg["GroupId"] for sg in eni.get("Groups", [])],
-            })
+            network_interfaces.append(
+                {
+                    "network_interface_id": eni["NetworkInterfaceId"],
+                    "device_index": eni["Attachment"]["DeviceIndex"],
+                    "subnet_id": eni.get("SubnetId"),
+                    "private_ip_address": eni.get("PrivateIpAddress"),
+                    "security_groups": [sg["GroupId"] for sg in eni.get("Groups", [])],
+                }
+            )
 
         # Build config dictionary
         config = {
@@ -116,9 +118,7 @@ class EC2Scanner(BaseScanner):
             "security_group_ids": security_groups,
             "private_ip_address": instance.get("PrivateIpAddress"),
             "public_ip_address": instance.get("PublicIpAddress"),
-            "availability_zone": instance.get("Placement", {}).get(
-                "AvailabilityZone"
-            ),
+            "availability_zone": instance.get("Placement", {}).get("AvailabilityZone"),
             "tenancy": instance.get("Placement", {}).get("Tenancy", "default"),
             "ebs_optimized": instance.get("EbsOptimized", False),
             "monitoring": instance.get("Monitoring", {}).get("State") == "enabled",
@@ -189,19 +189,13 @@ class EC2Scanner(BaseScanner):
             "name": profile.get("Arn", "").split("/")[-1] if profile.get("Arn") else "",
         }
 
-    def _extract_metadata_options(
-        self, options: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _extract_metadata_options(self, options: dict[str, Any]) -> dict[str, Any]:
         """Extract instance metadata options."""
         return {
             "http_endpoint": options.get("HttpEndpoint", "enabled"),
             "http_tokens": options.get("HttpTokens", "optional"),
-            "http_put_response_hop_limit": options.get(
-                "HttpPutResponseHopLimit", 1
-            ),
-            "instance_metadata_tags": options.get(
-                "InstanceMetadataTags", "disabled"
-            ),
+            "http_put_response_hop_limit": options.get("HttpPutResponseHopLimit", 1),
+            "instance_metadata_tags": options.get("InstanceMetadataTags", "disabled"),
         }
 
     def _get_root_volume_config(

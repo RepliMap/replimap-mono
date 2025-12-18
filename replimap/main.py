@@ -8,35 +8,33 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import logging
-import sys
 from pathlib import Path
-from typing import Optional
 
 import boto3
 import typer
-from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
+from botocore.exceptions import ClientError, NoCredentialsError
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 from replimap import __version__
 from replimap.core import GraphEngine
-from replimap.scanners import (
-    EC2Scanner,
-    RDSScanner,
-    S3Scanner,
-    ScannerRegistry,
-    VPCScanner,
-)
-from replimap.scanners.base import run_all_scanners
 from replimap.renderers import TerraformRenderer
+from replimap.scanners.base import run_all_scanners
 from replimap.transformers import create_default_pipeline
 
+# Initialize rich console
+console = Console()
 
-# Configure logging
+# Configure logging with rich handler
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    datefmt="%H:%M:%S",
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler(console=console, rich_tracebacks=True)],
 )
 logger = logging.getLogger("replimap")
 
@@ -45,13 +43,14 @@ app = typer.Typer(
     name="replimap",
     help="AWS Environment Replication Tool - Clone your production to staging in minutes",
     add_completion=False,
+    rich_markup_mode="rich",
 )
 
 
 def version_callback(value: bool) -> None:
     """Print version and exit."""
     if value:
-        typer.echo(f"RepliMap v{__version__}")
+        console.print(f"[bold cyan]RepliMap[/] v{__version__}")
         raise typer.Exit()
 
 
@@ -76,24 +75,58 @@ def get_aws_session(profile: str | None, region: str) -> boto3.Session:
         sts = session.client("sts")
         identity = sts.get_caller_identity()
 
-        logger.info(
-            f"Authenticated as {identity['Arn']} "
+        console.print(
+            f"[green]Authenticated[/] as [bold]{identity['Arn']}[/] "
             f"(Account: {identity['Account']})"
         )
 
         return session
 
     except NoCredentialsError:
-        typer.secho(
-            "Error: No AWS credentials found. Configure credentials with "
-            "'aws configure' or set environment variables.",
-            fg=typer.colors.RED,
+        console.print(
+            Panel(
+                "[red]No AWS credentials found.[/]\n\n"
+                "Configure credentials with 'aws configure' or set environment variables.",
+                title="Authentication Error",
+                border_style="red",
+            )
         )
         raise typer.Exit(1)
 
     except ClientError as e:
-        typer.secho(f"Error: AWS authentication failed: {e}", fg=typer.colors.RED)
+        console.print(
+            Panel(
+                f"[red]AWS authentication failed:[/]\n{e}",
+                title="Authentication Error",
+                border_style="red",
+            )
+        )
         raise typer.Exit(1)
+
+
+def print_graph_stats(graph: GraphEngine) -> None:
+    """Print graph statistics in a rich table."""
+    stats = graph.statistics()
+
+    table = Table(title="Graph Statistics", show_header=True, header_style="bold cyan")
+    table.add_column("Metric", style="dim")
+    table.add_column("Value", justify="right")
+
+    table.add_row("Total Resources", str(stats["total_resources"]))
+    table.add_row("Total Dependencies", str(stats["total_dependencies"]))
+
+    if stats["resources_by_type"]:
+        table.add_section()
+        for rtype, count in sorted(stats["resources_by_type"].items()):
+            table.add_row(f"  {rtype}", str(count))
+
+    console.print(table)
+
+    if stats["has_cycles"]:
+        console.print(
+            "[yellow]Warning:[/] Dependency graph contains cycles!",
+            style="bold yellow",
+        )
 
 
 @app.callback()
@@ -120,7 +153,7 @@ def main(
 
 @app.command()
 def scan(
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None,
         "--profile",
         "-p",
@@ -132,7 +165,7 @@ def scan(
         "-r",
         help="AWS region to scan",
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -146,11 +179,15 @@ def scan(
         replimap scan --profile prod --region us-west-2
         replimap scan --profile prod --region us-east-1 --output graph.json
     """
-    typer.secho(f"\n🔍 RepliMap Scanner v{__version__}", fg=typer.colors.CYAN, bold=True)
-    typer.secho(f"   Region: {region}", fg=typer.colors.CYAN)
-    if profile:
-        typer.secho(f"   Profile: {profile}", fg=typer.colors.CYAN)
-    typer.echo()
+    console.print(
+        Panel(
+            f"[bold]RepliMap Scanner[/] v{__version__}\n"
+            f"Region: [cyan]{region}[/]"
+            + (f"\nProfile: [cyan]{profile}[/]" if profile else ""),
+            title="Configuration",
+            border_style="cyan",
+        )
+    )
 
     # Get AWS session
     session = get_aws_session(profile, region)
@@ -158,51 +195,45 @@ def scan(
     # Initialize graph
     graph = GraphEngine()
 
-    # Run all registered scanners
-    typer.secho("📡 Scanning AWS resources...", fg=typer.colors.YELLOW)
-    results = run_all_scanners(session, region, graph)
+    # Run all registered scanners with progress
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning AWS resources...", total=None)
+        results = run_all_scanners(session, region, graph)
+        progress.update(task, completed=True)
 
     # Report results
-    typer.echo()
-    typer.secho("━" * 50, fg=typer.colors.WHITE)
+    console.print()
 
     failed = [name for name, err in results.items() if err is not None]
     succeeded = [name for name, err in results.items() if err is None]
 
     if succeeded:
-        typer.secho(f"✅ Completed: {', '.join(succeeded)}", fg=typer.colors.GREEN)
+        console.print(f"[green]Completed:[/] {', '.join(succeeded)}")
     if failed:
-        typer.secho(f"❌ Failed: {', '.join(failed)}", fg=typer.colors.RED)
+        console.print(f"[red]Failed:[/] {', '.join(failed)}")
         for name, err in results.items():
             if err:
-                typer.secho(f"   - {name}: {err}", fg=typer.colors.RED)
+                console.print(f"  [red]-[/] {name}: {err}")
 
     # Print statistics
-    stats = graph.statistics()
-    typer.echo()
-    typer.secho("📊 Graph Statistics:", fg=typer.colors.CYAN, bold=True)
-    typer.echo(f"   Total Resources: {stats['total_resources']}")
-    typer.echo(f"   Total Dependencies: {stats['total_dependencies']}")
-
-    if stats["resources_by_type"]:
-        typer.echo("   Resources by Type:")
-        for rtype, count in sorted(stats["resources_by_type"].items()):
-            typer.echo(f"      - {rtype}: {count}")
-
-    if stats["has_cycles"]:
-        typer.secho("   ⚠️  Warning: Dependency graph has cycles!", fg=typer.colors.YELLOW)
+    console.print()
+    print_graph_stats(graph)
 
     # Save output if requested
     if output:
         graph.save(output)
-        typer.secho(f"\n💾 Graph saved to {output}", fg=typer.colors.GREEN)
+        console.print(f"\n[green]Graph saved to[/] {output}")
 
-    typer.echo()
+    console.print()
 
 
 @app.command()
 def clone(
-    profile: Optional[str] = typer.Option(
+    profile: str | None = typer.Option(
         None,
         "--profile",
         "-p",
@@ -231,7 +262,7 @@ def clone(
         "--downsize/--no-downsize",
         help="Enable instance downsizing for cost savings",
     ),
-    rename_pattern: Optional[str] = typer.Option(
+    rename_pattern: str | None = typer.Option(
         None,
         "--rename-pattern",
         help="Renaming pattern, e.g., 'prod:stage'",
@@ -244,16 +275,22 @@ def clone(
         replimap clone --profile prod --region us-west-2 --mode dry-run
         replimap clone --profile prod --region us-west-2 --output-dir ./staging-tf --mode generate
     """
-    typer.secho(f"\n🚀 RepliMap Clone v{__version__}", fg=typer.colors.CYAN, bold=True)
-    typer.secho(f"   Region: {region}", fg=typer.colors.CYAN)
-    typer.secho(f"   Mode: {mode}", fg=typer.colors.CYAN)
-    typer.secho(f"   Output: {output_dir}", fg=typer.colors.CYAN)
-    typer.echo()
+    console.print(
+        Panel(
+            f"[bold]RepliMap Clone[/] v{__version__}\n"
+            f"Region: [cyan]{region}[/]\n"
+            f"Mode: [cyan]{mode}[/]\n"
+            f"Output: [cyan]{output_dir}[/]\n"
+            f"Downsize: [cyan]{downsize}[/]"
+            + (f"\nRename: [cyan]{rename_pattern}[/]" if rename_pattern else ""),
+            title="Configuration",
+            border_style="cyan",
+        )
+    )
 
     if mode not in ("dry-run", "generate"):
-        typer.secho(
-            f"Error: Invalid mode '{mode}'. Use 'dry-run' or 'generate'.",
-            fg=typer.colors.RED,
+        console.print(
+            f"[red]Error:[/] Invalid mode '{mode}'. Use 'dry-run' or 'generate'."
         )
         raise typer.Exit(1)
 
@@ -263,55 +300,83 @@ def clone(
     # Initialize graph
     graph = GraphEngine()
 
-    # Run all scanners
-    typer.secho("📡 Scanning AWS resources...", fg=typer.colors.YELLOW)
-    run_all_scanners(session, region, graph)
+    # Run all scanners with progress
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning AWS resources...", total=None)
+        run_all_scanners(session, region, graph)
+        progress.update(task, completed=True)
 
     stats = graph.statistics()
-    typer.secho(
-        f"   Found {stats['total_resources']} resources with "
-        f"{stats['total_dependencies']} dependencies",
-        fg=typer.colors.GREEN,
+    console.print(
+        f"[green]Found[/] {stats['total_resources']} resources "
+        f"with {stats['total_dependencies']} dependencies"
     )
 
     # Apply transformations
-    typer.echo()
-    typer.secho("🔄 Applying transformations...", fg=typer.colors.YELLOW)
-    pipeline = create_default_pipeline(
-        downsize=downsize,
-        rename_pattern=rename_pattern,
-        sanitize=True,
-    )
-    typer.secho(f"   Pipeline: {len(pipeline)} transformers", fg=typer.colors.CYAN)
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Applying transformations...", total=None)
+        pipeline = create_default_pipeline(
+            downsize=downsize,
+            rename_pattern=rename_pattern,
+            sanitize=True,
+        )
+        graph = pipeline.execute(graph)
+        progress.update(task, completed=True)
 
-    graph = pipeline.execute(graph)
-    typer.secho("   Transformations complete", fg=typer.colors.GREEN)
+    console.print(f"[green]Applied[/] {len(pipeline)} transformers")
 
     # Preview or generate
     renderer = TerraformRenderer()
     preview = renderer.preview(graph)
 
-    typer.echo()
-    typer.secho("📁 Output files:", fg=typer.colors.CYAN, bold=True)
+    # Show output files table
+    console.print()
+    table = Table(title="Output Files", show_header=True, header_style="bold cyan")
+    table.add_column("File", style="dim")
+    table.add_column("Resources", justify="right")
+
     for filename, resources in sorted(preview.items()):
-        typer.echo(f"   {filename}: {len(resources)} resources")
+        table.add_row(filename, str(len(resources)))
+
+    console.print(table)
 
     if mode == "dry-run":
-        typer.echo()
-        typer.secho(
-            "ℹ️  This is a dry-run. Use --mode generate to create files.",
-            fg=typer.colors.YELLOW,
+        console.print()
+        console.print(
+            Panel(
+                "[yellow]This is a dry-run.[/]\n"
+                "Use [bold]--mode generate[/] to create files.",
+                border_style="yellow",
+            )
         )
     else:
-        typer.echo()
-        typer.secho("⚙️  Generating Terraform files...", fg=typer.colors.YELLOW)
-        written = renderer.render(graph, output_dir)
-        typer.secho(
-            f"✅ Generated {len(written)} files in {output_dir}",
-            fg=typer.colors.GREEN,
+        console.print()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Generating Terraform files...", total=None)
+            written = renderer.render(graph, output_dir)
+            progress.update(task, completed=True)
+
+        console.print(
+            Panel(
+                f"[green]Generated {len(written)} files[/] in [bold]{output_dir}[/]",
+                border_style="green",
+            )
         )
 
-    typer.echo()
+    console.print()
 
 
 @app.command()
@@ -328,33 +393,46 @@ def load(
         replimap load graph.json
     """
     if not input_file.exists():
-        typer.secho(f"Error: File not found: {input_file}", fg=typer.colors.RED)
+        console.print(f"[red]Error:[/] File not found: {input_file}")
         raise typer.Exit(1)
 
     graph = GraphEngine.load(input_file)
-    stats = graph.statistics()
 
-    typer.secho(f"\n📊 Graph from {input_file}:", fg=typer.colors.CYAN, bold=True)
-    typer.echo(f"   Total Resources: {stats['total_resources']}")
-    typer.echo(f"   Total Dependencies: {stats['total_dependencies']}")
+    console.print(
+        Panel(
+            f"Loaded graph from [bold]{input_file}[/]",
+            title="Graph Loaded",
+            border_style="green",
+        )
+    )
 
-    if stats["resources_by_type"]:
-        typer.echo("   Resources by Type:")
-        for rtype, count in sorted(stats["resources_by_type"].items()):
-            typer.echo(f"      - {rtype}: {count}")
+    # Print statistics
+    print_graph_stats(graph)
 
-    # Show resources
-    typer.echo()
-    typer.secho("📦 Resources:", fg=typer.colors.CYAN, bold=True)
-    for resource in graph.topological_sort()[:20]:  # Limit output
+    # Show resources table
+    console.print()
+    table = Table(
+        title="Resources (first 20)", show_header=True, header_style="bold cyan"
+    )
+    table.add_column("Type", style="dim")
+    table.add_column("ID")
+    table.add_column("Dependencies", justify="right")
+
+    for resource in graph.topological_sort()[:20]:
         deps = graph.get_dependencies(resource.id)
-        dep_str = f" → depends on {len(deps)} resources" if deps else ""
-        typer.echo(f"   [{resource.resource_type}] {resource.id}{dep_str}")
+        table.add_row(
+            str(resource.resource_type),
+            resource.id,
+            str(len(deps)) if deps else "-",
+        )
 
+    console.print(table)
+
+    stats = graph.statistics()
     if stats["total_resources"] > 20:
-        typer.echo(f"   ... and {stats['total_resources'] - 20} more")
+        console.print(f"[dim]... and {stats['total_resources'] - 20} more[/]")
 
-    typer.echo()
+    console.print()
 
 
 def cli() -> None:

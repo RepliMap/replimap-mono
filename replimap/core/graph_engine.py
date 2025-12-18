@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator, Optional
+from typing import Any
 
 import networkx as nx
 
 from .models import DependencyType, ResourceNode, ResourceType
-
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class GraphEngine:
             f"Added dependency: {source_id} --[{relation_type}]--> {target_id}"
         )
 
-    def get_resource(self, resource_id: str) -> Optional[ResourceNode]:
+    def get_resource(self, resource_id: str) -> ResourceNode | None:
         """
         Get a resource by its ID.
 
@@ -114,9 +114,7 @@ class GraphEngine:
         """Get all resources in the graph."""
         return list(self._resources.values())
 
-    def get_resources_by_type(
-        self, resource_type: ResourceType
-    ) -> list[ResourceNode]:
+    def get_resources_by_type(self, resource_type: ResourceType) -> list[ResourceNode]:
         """
         Get all resources of a specific type.
 
@@ -217,9 +215,7 @@ class GraphEngine:
         logger.debug(f"Removed resource: {resource_id}")
         return True
 
-    def get_subgraph(
-        self, resource_ids: list[str]
-    ) -> GraphEngine:
+    def get_subgraph(self, resource_ids: list[str]) -> GraphEngine:
         """
         Create a new GraphEngine containing only the specified resources.
 
@@ -278,11 +274,13 @@ class GraphEngine:
 
         edges = []
         for source, target, data in self._graph.edges(data=True):
-            edges.append({
-                "source": source,
-                "target": target,
-                "relation": data.get("relation", "belongs_to"),
-            })
+            edges.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "relation": data.get("relation", "belongs_to"),
+                }
+            )
 
         return {
             "version": "1.0",

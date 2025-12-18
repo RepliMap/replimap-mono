@@ -1,6 +1,5 @@
 """Tests for GraphEngine."""
 
-import json
 import tempfile
 from pathlib import Path
 
@@ -112,15 +111,17 @@ class TestGraphEngine:
         """Test filtering resources by type."""
         graph = GraphEngine()
 
-        graph.add_resource(ResourceNode(
-            id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1"
-        ))
-        graph.add_resource(ResourceNode(
-            id="vpc-2", resource_type=ResourceType.VPC, region="us-east-1"
-        ))
-        graph.add_resource(ResourceNode(
-            id="subnet-1", resource_type=ResourceType.SUBNET, region="us-east-1"
-        ))
+        graph.add_resource(
+            ResourceNode(id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1")
+        )
+        graph.add_resource(
+            ResourceNode(id="vpc-2", resource_type=ResourceType.VPC, region="us-east-1")
+        )
+        graph.add_resource(
+            ResourceNode(
+                id="subnet-1", resource_type=ResourceType.SUBNET, region="us-east-1"
+            )
+        )
 
         vpcs = graph.get_resources_by_type(ResourceType.VPC)
         assert len(vpcs) == 2
@@ -179,12 +180,14 @@ class TestGraphEngine:
         """Test graph statistics."""
         graph = GraphEngine()
 
-        graph.add_resource(ResourceNode(
-            id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1"
-        ))
-        graph.add_resource(ResourceNode(
-            id="subnet-1", resource_type=ResourceType.SUBNET, region="us-east-1"
-        ))
+        graph.add_resource(
+            ResourceNode(id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1")
+        )
+        graph.add_resource(
+            ResourceNode(
+                id="subnet-1", resource_type=ResourceType.SUBNET, region="us-east-1"
+            )
+        )
         graph.add_dependency("subnet-1", "vpc-1")
 
         stats = graph.statistics()
@@ -199,19 +202,23 @@ class TestGraphEngine:
         """Test saving and loading graph from file."""
         graph = GraphEngine()
 
-        graph.add_resource(ResourceNode(
-            id="vpc-1",
-            resource_type=ResourceType.VPC,
-            region="us-east-1",
-            config={"cidr_block": "10.0.0.0/16"},
-            tags={"Name": "test-vpc"},
-        ))
-        graph.add_resource(ResourceNode(
-            id="subnet-1",
-            resource_type=ResourceType.SUBNET,
-            region="us-east-1",
-            config={"vpc_id": "vpc-1"},
-        ))
+        graph.add_resource(
+            ResourceNode(
+                id="vpc-1",
+                resource_type=ResourceType.VPC,
+                region="us-east-1",
+                config={"cidr_block": "10.0.0.0/16"},
+                tags={"Name": "test-vpc"},
+            )
+        )
+        graph.add_resource(
+            ResourceNode(
+                id="subnet-1",
+                resource_type=ResourceType.SUBNET,
+                region="us-east-1",
+                config={"vpc_id": "vpc-1"},
+            )
+        )
         graph.add_dependency("subnet-1", "vpc-1")
 
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
@@ -236,12 +243,14 @@ class TestGraphEngine:
         """Test converting graph to dictionary."""
         graph = GraphEngine()
 
-        graph.add_resource(ResourceNode(
-            id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1"
-        ))
-        graph.add_resource(ResourceNode(
-            id="subnet-1", resource_type=ResourceType.SUBNET, region="us-east-1"
-        ))
+        graph.add_resource(
+            ResourceNode(id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1")
+        )
+        graph.add_resource(
+            ResourceNode(
+                id="subnet-1", resource_type=ResourceType.SUBNET, region="us-east-1"
+            )
+        )
         graph.add_dependency("subnet-1", "vpc-1")
 
         data = graph.to_dict()
@@ -257,15 +266,17 @@ class TestGraphEngine:
         """Test creating a subgraph with specific resources."""
         graph = GraphEngine()
 
-        graph.add_resource(ResourceNode(
-            id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1"
-        ))
-        graph.add_resource(ResourceNode(
-            id="vpc-2", resource_type=ResourceType.VPC, region="us-east-1"
-        ))
-        graph.add_resource(ResourceNode(
-            id="subnet-1", resource_type=ResourceType.SUBNET, region="us-east-1"
-        ))
+        graph.add_resource(
+            ResourceNode(id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1")
+        )
+        graph.add_resource(
+            ResourceNode(id="vpc-2", resource_type=ResourceType.VPC, region="us-east-1")
+        )
+        graph.add_resource(
+            ResourceNode(
+                id="subnet-1", resource_type=ResourceType.SUBNET, region="us-east-1"
+            )
+        )
         graph.add_dependency("subnet-1", "vpc-1")
 
         subgraph = graph.get_subgraph(["vpc-1", "subnet-1"])

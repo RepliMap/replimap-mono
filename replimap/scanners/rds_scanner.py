@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 
-from .base import BaseScanner, ScannerError, ScannerRegistry
+from .base import BaseScanner, ScannerRegistry
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -73,8 +73,7 @@ class RDSScanner(BaseScanner):
 
                 # Extract subnet IDs
                 subnet_ids = [
-                    subnet["SubnetIdentifier"]
-                    for subnet in group.get("Subnets", [])
+                    subnet["SubnetIdentifier"] for subnet in group.get("Subnets", [])
                 ]
 
                 # Get the VPC ID from the first subnet if available
@@ -139,8 +138,7 @@ class RDSScanner(BaseScanner):
 
         # Extract security group IDs
         security_groups = [
-            sg["VpcSecurityGroupId"]
-            for sg in instance.get("VpcSecurityGroups", [])
+            sg["VpcSecurityGroupId"] for sg in instance.get("VpcSecurityGroups", [])
         ]
 
         # Extract parameter groups
@@ -154,8 +152,7 @@ class RDSScanner(BaseScanner):
 
         # Extract option groups
         option_groups = [
-            og["OptionGroupName"]
-            for og in instance.get("OptionGroupMemberships", [])
+            og["OptionGroupName"] for og in instance.get("OptionGroupMemberships", [])
         ]
 
         config = {
@@ -180,13 +177,12 @@ class RDSScanner(BaseScanner):
             "backup_retention_period": instance.get("BackupRetentionPeriod", 0),
             "backup_window": instance.get("PreferredBackupWindow"),
             "maintenance_window": instance.get("PreferredMaintenanceWindow"),
-            "auto_minor_version_upgrade": instance.get(
-                "AutoMinorVersionUpgrade", True
-            ),
+            "auto_minor_version_upgrade": instance.get("AutoMinorVersionUpgrade", True),
             "publicly_accessible": instance.get("PubliclyAccessible", False),
             "deletion_protection": instance.get("DeletionProtection", False),
             "db_name": instance.get("DBName"),
-            "port": instance.get("DbInstancePort") or instance.get("Endpoint", {}).get("Port"),
+            "port": instance.get("DbInstancePort")
+            or instance.get("Endpoint", {}).get("Port"),
             "master_username": instance.get("MasterUsername"),
             # Note: password is NOT captured
             "iam_database_authentication_enabled": instance.get(

@@ -1,7 +1,5 @@
 """Tests for core models."""
 
-import pytest
-
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 
 

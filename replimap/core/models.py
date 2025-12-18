@@ -8,8 +8,8 @@ becomes a node with its configuration, dependencies, and metadata.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
 from enum import Enum
+from typing import Any
 
 
 class ResourceType(str, Enum):
@@ -31,7 +31,7 @@ class DependencyType(str, Enum):
     """Types of relationships between resources."""
 
     BELONGS_TO = "belongs_to"  # e.g., Subnet belongs to VPC
-    USES = "uses"              # e.g., EC2 uses Security Group
+    USES = "uses"  # e.g., EC2 uses Security Group
     REFERENCES = "references"  # e.g., RDS references DB Subnet Group
 
     def __str__(self) -> str:
@@ -62,11 +62,11 @@ class ResourceNode:
     resource_type: ResourceType
     region: str
     config: dict[str, Any] = field(default_factory=dict)
-    arn: Optional[str] = None
+    arn: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
     dependencies: list[str] = field(default_factory=list)
-    terraform_name: Optional[str] = None
-    original_name: Optional[str] = None
+    terraform_name: str | None = None
+    original_name: str | None = None
 
     def __post_init__(self) -> None:
         """Generate terraform_name from tags if not provided."""
@@ -118,7 +118,7 @@ class ResourceNode:
         if resource_id not in self.dependencies:
             self.dependencies.append(resource_id)
 
-    def get_tag(self, key: str, default: Optional[str] = None) -> Optional[str]:
+    def get_tag(self, key: str, default: str | None = None) -> str | None:
         """Get a tag value by key."""
         return self.tags.get(key, default)
 

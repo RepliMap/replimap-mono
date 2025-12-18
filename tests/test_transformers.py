@@ -1,7 +1,5 @@
 """Tests for Transformers."""
 
-import pytest
-
 from replimap.core.graph_engine import GraphEngine
 from replimap.core.models import ResourceNode, ResourceType
 from replimap.transformers import (

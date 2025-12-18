@@ -9,10 +9,10 @@ Transformers modify the resource graph before Terraform generation:
 """
 
 from .base import BaseTransformer, TransformationPipeline
-from .sanitizer import SanitizationTransformer
 from .downsizer import DownsizeTransformer
-from .renamer import RenamingTransformer
 from .network_remapper import NetworkRemapTransformer
+from .renamer import RenamingTransformer
+from .sanitizer import SanitizationTransformer
 
 __all__ = [
     "BaseTransformer",

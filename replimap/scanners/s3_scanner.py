@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 
 from replimap.core.models import ResourceNode, ResourceType
 
-from .base import BaseScanner, ScannerError, ScannerRegistry
+from .base import BaseScanner, ScannerRegistry
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -72,16 +72,12 @@ class S3Scanner(BaseScanner):
                 location = s3.get_bucket_location(Bucket=bucket_name)
                 bucket_region = location.get("LocationConstraint") or "us-east-1"
             except ClientError as e:
-                logger.warning(
-                    f"Could not get region for bucket {bucket_name}: {e}"
-                )
+                logger.warning(f"Could not get region for bucket {bucket_name}: {e}")
                 continue
 
             # Only process buckets in the target region
             if bucket_region != self.region:
-                logger.debug(
-                    f"Skipping bucket {bucket_name} (region: {bucket_region})"
-                )
+                logger.debug(f"Skipping bucket {bucket_name} (region: {bucket_region})")
                 continue
 
             self._process_bucket(s3, bucket_name, bucket_region, graph)

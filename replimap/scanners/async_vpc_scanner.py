@@ -1,12 +1,13 @@
 """
-VPC Scanner for RepliMap.
+Async VPC Scanner for RepliMap.
 
-Scans VPCs, Subnets, and Security Groups - the foundational networking
-resources that most other resources depend on.
+Scans VPCs, Subnets, and Security Groups asynchronously for improved
+performance when dealing with large AWS environments.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -14,7 +15,7 @@ from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 
-from .base import BaseScanner, ScannerRegistry
+from .async_base import AsyncBaseScanner, AsyncScannerRegistry
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -23,15 +24,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@ScannerRegistry.register
-class VPCScanner(BaseScanner):
+@AsyncScannerRegistry.register
+class AsyncVPCScanner(AsyncBaseScanner):
     """
-    Scans VPC, Subnet, and Security Group resources.
+    Async scanner for VPC, Subnet, and Security Group resources.
 
-    These are foundational resources that form the network topology.
-    The dependency chain is:
-        VPC <- Subnet <- EC2/RDS
-        VPC <- SecurityGroup <- EC2/RDS
+    Uses aiobotocore for concurrent API calls within each resource type,
+    significantly reducing scan time for environments with many resources.
     """
 
     resource_types: ClassVar[list[str]] = [
@@ -40,31 +39,35 @@ class VPCScanner(BaseScanner):
         "aws_security_group",
     ]
 
-    def scan(self, graph: GraphEngine) -> None:
+    async def scan(self, graph: GraphEngine) -> None:
         """
-        Scan all VPC-related resources and add to graph.
+        Scan all VPC-related resources asynchronously.
 
-        Order matters: VPCs first, then Subnets and Security Groups.
+        VPCs are scanned first as they are dependencies for subnets and SGs.
+        Then subnets and security groups are scanned concurrently.
         """
-        logger.info(f"Scanning VPC resources in {self.region}...")
+        logger.info(f"Async scanning VPC resources in {self.region}...")
 
         try:
-            ec2 = self.get_client("ec2")
+            async with self.get_client("ec2") as ec2:
+                # Scan VPCs first (they are the root dependencies)
+                await self._scan_vpcs(ec2, graph)
 
-            # Scan in dependency order
-            self._scan_vpcs(ec2, graph)
-            self._scan_subnets(ec2, graph)
-            self._scan_security_groups(ec2, graph)
+                # Scan subnets and security groups concurrently
+                await asyncio.gather(
+                    self._scan_subnets(ec2, graph),
+                    self._scan_security_groups(ec2, graph),
+                )
 
         except ClientError as e:
-            self._handle_aws_error(e, "VPC scanning")
+            await self._handle_aws_error(e, "VPC scanning")
 
-    def _scan_vpcs(self, ec2: Any, graph: GraphEngine) -> None:
+    async def _scan_vpcs(self, ec2: Any, graph: GraphEngine) -> None:
         """Scan all VPCs in the region."""
-        logger.debug("Scanning VPCs...")
+        logger.debug("Async scanning VPCs...")
 
         paginator = ec2.get_paginator("describe_vpcs")
-        for page in paginator.paginate():
+        async for page in paginator.paginate():
             for vpc in page.get("Vpcs", []):
                 vpc_id = vpc["VpcId"]
                 tags = self._extract_tags(vpc.get("Tags"))
@@ -76,7 +79,7 @@ class VPCScanner(BaseScanner):
                     config={
                         "cidr_block": vpc["CidrBlock"],
                         "instance_tenancy": vpc.get("InstanceTenancy", "default"),
-                        "enable_dns_support": True,  # Default, could query
+                        "enable_dns_support": True,
                         "enable_dns_hostnames": vpc.get("EnableDnsHostnames", False),
                         "cidr_block_association_set": [
                             {
@@ -93,12 +96,12 @@ class VPCScanner(BaseScanner):
                 graph.add_resource(node)
                 logger.debug(f"Added VPC: {vpc_id} ({tags.get('Name', 'unnamed')})")
 
-    def _scan_subnets(self, ec2: Any, graph: GraphEngine) -> None:
+    async def _scan_subnets(self, ec2: Any, graph: GraphEngine) -> None:
         """Scan all Subnets in the region."""
-        logger.debug("Scanning Subnets...")
+        logger.debug("Async scanning Subnets...")
 
         paginator = ec2.get_paginator("describe_subnets")
-        for page in paginator.paginate():
+        async for page in paginator.paginate():
             for subnet in page.get("Subnets", []):
                 subnet_id = subnet["SubnetId"]
                 vpc_id = subnet["VpcId"]
@@ -133,26 +136,27 @@ class VPCScanner(BaseScanner):
                     f"Added Subnet: {subnet_id} in {subnet['AvailabilityZone']}"
                 )
 
-    def _scan_security_groups(self, ec2: Any, graph: GraphEngine) -> None:
+    async def _scan_security_groups(self, ec2: Any, graph: GraphEngine) -> None:
         """Scan all Security Groups in the region."""
-        logger.debug("Scanning Security Groups...")
+        logger.debug("Async scanning Security Groups...")
 
         paginator = ec2.get_paginator("describe_security_groups")
-        for page in paginator.paginate():
+        async for page in paginator.paginate():
             for sg in page.get("SecurityGroups", []):
                 sg_id = sg["GroupId"]
                 vpc_id = sg.get("VpcId")
                 tags = self._extract_tags(sg.get("Tags"))
 
                 # Process ingress rules
-                ingress_rules = []
-                for rule in sg.get("IpPermissions", []):
-                    ingress_rules.append(self._process_rule(rule))
+                ingress_rules = [
+                    self._process_rule(rule) for rule in sg.get("IpPermissions", [])
+                ]
 
                 # Process egress rules
-                egress_rules = []
-                for rule in sg.get("IpPermissionsEgress", []):
-                    egress_rules.append(self._process_rule(rule))
+                egress_rules = [
+                    self._process_rule(rule)
+                    for rule in sg.get("IpPermissionsEgress", [])
+                ]
 
                 node = ResourceNode(
                     id=sg_id,
@@ -187,7 +191,7 @@ class VPCScanner(BaseScanner):
         Returns:
             Cleaned rule dictionary
         """
-        processed = {
+        processed: dict[str, Any] = {
             "protocol": rule.get("IpProtocol", "-1"),
             "from_port": rule.get("FromPort", 0),
             "to_port": rule.get("ToPort", 0),
