@@ -161,7 +161,71 @@ replimap license activate KEY
 replimap license status
 replimap license usage
 replimap license deactivate [--yes]
+
+# Credential cache management
+replimap cache status      # Show cached credentials
+replimap cache clear       # Clear credential cache
+
+# List AWS profiles
+replimap profiles
 ```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REPLIMAP_DEV_MODE` | `false` | Enable dev mode (bypasses license limits) |
+| `REPLIMAP_MAX_WORKERS` | `4` | Max parallel scanner threads |
+| `REPLIMAP_MAX_RETRIES` | `5` | Max retries for AWS rate limiting |
+| `REPLIMAP_RETRY_DELAY` | `1.0` | Base delay (seconds) for retry backoff |
+| `REPLIMAP_MAX_DELAY` | `30.0` | Maximum delay (seconds) between retries |
+
+### Dev Mode
+
+For local development and testing, enable dev mode to bypass license restrictions:
+
+```bash
+# Enable dev mode (unlimited resources, parallel scanning, all outputs)
+export REPLIMAP_DEV_MODE=1
+
+# Or inline with command
+REPLIMAP_DEV_MODE=1 replimap scan --profile prod
+
+# Values accepted: 1, true, yes (case-insensitive)
+```
+
+### AWS Credential Caching
+
+RepliMap caches MFA-authenticated credentials for 12 hours to avoid repeated prompts:
+
+```bash
+# View cached credentials
+replimap cache status
+
+# Clear cache when switching accounts
+replimap cache clear
+
+# Disable cache for a single command
+replimap scan --profile prod --no-cache
+```
+
+### Parallel Scanning
+
+Scanners run in parallel for faster execution (requires Solo+ plan or dev mode):
+
+- Default: 4 parallel workers
+- Configure with `REPLIMAP_MAX_WORKERS` environment variable
+- Free tier runs scanners sequentially
+
+### AWS Rate Limiting
+
+Built-in retry with exponential backoff handles AWS throttling automatically:
+
+- Retries on: `Throttling`, `RequestLimitExceeded`, `TooManyRequestsException`, etc.
+- Exponential backoff: 1s → 2s → 4s → 8s → 16s (up to 30s max)
+- Configurable via environment variables
 
 ## Security
 
