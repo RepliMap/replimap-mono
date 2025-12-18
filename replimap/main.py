@@ -29,6 +29,7 @@ from replimap.scanners import (
 )
 from replimap.scanners.base import run_all_scanners
 from replimap.renderers import TerraformRenderer
+from replimap.transformers import create_default_pipeline
 
 
 # Configure logging
@@ -272,6 +273,19 @@ def clone(
         f"{stats['total_dependencies']} dependencies",
         fg=typer.colors.GREEN,
     )
+
+    # Apply transformations
+    typer.echo()
+    typer.secho("🔄 Applying transformations...", fg=typer.colors.YELLOW)
+    pipeline = create_default_pipeline(
+        downsize=downsize,
+        rename_pattern=rename_pattern,
+        sanitize=True,
+    )
+    typer.secho(f"   Pipeline: {len(pipeline)} transformers", fg=typer.colors.CYAN)
+
+    graph = pipeline.execute(graph)
+    typer.secho("   Transformations complete", fg=typer.colors.GREEN)
 
     # Preview or generate
     renderer = TerraformRenderer()
