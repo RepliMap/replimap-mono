@@ -10,19 +10,25 @@ Usage:
 
 from __future__ import annotations
 
+import configparser
+import hashlib
+import json
 import logging
+import os
 import time
 import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import boto3
 import typer
-from botocore.exceptions import ClientError, NoCredentialsError
+from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
+from rich.prompt import Prompt, Confirm
 
 from replimap import __version__
 from replimap.core import GraphEngine
@@ -36,6 +42,12 @@ from replimap.licensing.tracker import get_usage_tracker
 from replimap.renderers import TerraformRenderer
 from replimap.scanners.base import run_all_scanners
 from replimap.transformers import create_default_pipeline
+
+
+# Credential cache directory
+CACHE_DIR = Path.home() / ".replimap" / "cache"
+CREDENTIAL_CACHE_FILE = CACHE_DIR / "credentials.json"
+CREDENTIAL_CACHE_TTL = timedelta(hours=12)  # Cache MFA credentials for 12 hours
 
 # Initialize rich console
 console = Console()
@@ -65,13 +77,161 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def get_aws_session(profile: str | None, region: str) -> boto3.Session:
+def get_available_profiles() -> list[str]:
+    """Get list of available AWS profiles from config."""
+    profiles = ["default"]
+    config_path = Path.home() / ".aws" / "config"
+    credentials_path = Path.home() / ".aws" / "credentials"
+
+    for path in [config_path, credentials_path]:
+        if path.exists():
+            config = configparser.ConfigParser()
+            config.read(path)
+            for section in config.sections():
+                # Config file uses "profile xxx" format, credentials uses just "xxx"
+                if section.startswith("profile "):
+                    profiles.append(section.replace("profile ", ""))
+                elif section != "default":
+                    profiles.append(section)
+
+    return sorted(set(profiles))
+
+
+def get_profile_region(profile: str | None) -> str | None:
+    """
+    Get the default region for a profile from AWS config.
+
+    Args:
+        profile: AWS profile name
+
+    Returns:
+        Region string if found, None otherwise
+    """
+    config_path = Path.home() / ".aws" / "config"
+    if not config_path.exists():
+        return None
+
+    config = configparser.ConfigParser()
+    config.read(config_path)
+
+    # Determine section name
+    if profile and profile != "default":
+        section = f"profile {profile}"
+    else:
+        section = "default"
+
+    if section in config and "region" in config[section]:
+        return config[section]["region"]
+
+    # Also check environment variable
+    return os.environ.get("AWS_DEFAULT_REGION")
+
+
+def get_credential_cache_key(profile: str | None) -> str:
+    """Generate a cache key for credentials."""
+    key = f"profile:{profile or 'default'}"
+    return hashlib.md5(key.encode()).hexdigest()
+
+
+def get_cached_credentials(profile: str | None) -> dict | None:
+    """
+    Get cached credentials if valid.
+
+    Returns cached session credentials to avoid repeated MFA prompts.
+    """
+    if not CREDENTIAL_CACHE_FILE.exists():
+        return None
+
+    try:
+        with open(CREDENTIAL_CACHE_FILE) as f:
+            cache = json.load(f)
+
+        cache_key = get_credential_cache_key(profile)
+        if cache_key not in cache:
+            return None
+
+        entry = cache[cache_key]
+        expires_at = datetime.fromisoformat(entry["expires_at"])
+
+        if datetime.now() >= expires_at:
+            return None
+
+        return entry["credentials"]
+    except (json.JSONDecodeError, KeyError, ValueError):
+        return None
+
+
+def save_cached_credentials(
+    profile: str | None,
+    credentials: dict,
+    expiration: datetime | None = None,
+) -> None:
+    """Save credentials to cache."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    cache = {}
+    if CREDENTIAL_CACHE_FILE.exists():
+        try:
+            with open(CREDENTIAL_CACHE_FILE) as f:
+                cache = json.load(f)
+        except json.JSONDecodeError:
+            cache = {}
+
+    cache_key = get_credential_cache_key(profile)
+
+    # Use provided expiration or default TTL
+    if expiration:
+        expires_at = expiration
+    else:
+        expires_at = datetime.now() + CREDENTIAL_CACHE_TTL
+
+    cache[cache_key] = {
+        "credentials": credentials,
+        "expires_at": expires_at.isoformat(),
+        "profile": profile,
+    }
+
+    with open(CREDENTIAL_CACHE_FILE, "w") as f:
+        json.dump(cache, f, indent=2)
+
+    # Secure the cache file
+    os.chmod(CREDENTIAL_CACHE_FILE, 0o600)
+
+
+def clear_credential_cache(profile: str | None = None) -> None:
+    """Clear credential cache for a profile or all profiles."""
+    if not CREDENTIAL_CACHE_FILE.exists():
+        return
+
+    if profile is None:
+        # Clear all
+        CREDENTIAL_CACHE_FILE.unlink()
+        return
+
+    try:
+        with open(CREDENTIAL_CACHE_FILE) as f:
+            cache = json.load(f)
+
+        cache_key = get_credential_cache_key(profile)
+        if cache_key in cache:
+            del cache[cache_key]
+
+        with open(CREDENTIAL_CACHE_FILE, "w") as f:
+            json.dump(cache, f, indent=2)
+    except (json.JSONDecodeError, KeyError):
+        pass
+
+
+def get_aws_session(profile: str | None, region: str, use_cache: bool = True) -> boto3.Session:
     """
     Create a boto3 session with the specified profile and region.
+
+    Supports credential caching to avoid repeated MFA prompts.
 
     Args:
         profile: AWS profile name (optional)
         region: AWS region
+        use_cache: Whether to use credential caching (default: True)
 
     Returns:
         Configured boto3 Session
@@ -79,6 +239,28 @@ def get_aws_session(profile: str | None, region: str) -> boto3.Session:
     Raises:
         typer.Exit: If credentials are invalid
     """
+    # Try cached credentials first (for MFA sessions)
+    if use_cache:
+        cached = get_cached_credentials(profile)
+        if cached:
+            try:
+                session = boto3.Session(
+                    aws_access_key_id=cached["access_key"],
+                    aws_secret_access_key=cached["secret_key"],
+                    aws_session_token=cached.get("session_token"),
+                    region_name=region,
+                )
+                sts = session.client("sts")
+                identity = sts.get_caller_identity()
+                console.print(
+                    f"[green]Authenticated[/] as [bold]{identity['Arn']}[/] "
+                    f"[dim](cached credentials)[/]"
+                )
+                return session
+            except (ClientError, NoCredentialsError):
+                # Cache invalid, continue with normal auth
+                clear_credential_cache(profile)
+
     try:
         session = boto3.Session(profile_name=profile, region_name=region)
 
@@ -86,18 +268,60 @@ def get_aws_session(profile: str | None, region: str) -> boto3.Session:
         sts = session.client("sts")
         identity = sts.get_caller_identity()
 
-        console.print(
-            f"[green]Authenticated[/] as [bold]{identity['Arn']}[/] "
-            f"(Account: {identity['Account']})"
-        )
+        # Cache the credentials if they're temporary (MFA)
+        credentials = session.get_credentials()
+        if credentials and use_cache:
+            frozen = credentials.get_frozen_credentials()
+            if frozen.token:  # Has session token = temporary credentials
+                save_cached_credentials(
+                    profile,
+                    {
+                        "access_key": frozen.access_key,
+                        "secret_key": frozen.secret_key,
+                        "session_token": frozen.token,
+                    },
+                )
+                console.print(
+                    f"[green]Authenticated[/] as [bold]{identity['Arn']}[/] "
+                    f"[dim](credentials cached for 12h)[/]"
+                )
+            else:
+                console.print(
+                    f"[green]Authenticated[/] as [bold]{identity['Arn']}[/] "
+                    f"(Account: {identity['Account']})"
+                )
+        else:
+            console.print(
+                f"[green]Authenticated[/] as [bold]{identity['Arn']}[/] "
+                f"(Account: {identity['Account']})"
+            )
 
         return session
+
+    except ProfileNotFound:
+        available = get_available_profiles()
+        console.print(
+            Panel(
+                f"[red]Profile '{profile}' not found.[/]\n\n"
+                f"Available profiles: [cyan]{', '.join(available)}[/]\n\n"
+                "Configure a new profile with: [bold]aws configure --profile <name>[/]",
+                title="Profile Not Found",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
 
     except NoCredentialsError:
         console.print(
             Panel(
                 "[red]No AWS credentials found.[/]\n\n"
-                "Configure credentials with 'aws configure' or set environment variables.",
+                "Configure credentials with:\n"
+                "  [bold]aws configure[/] (for default profile)\n"
+                "  [bold]aws configure --profile <name>[/] (for named profile)\n\n"
+                "Or set environment variables:\n"
+                "  [dim]AWS_ACCESS_KEY_ID[/]\n"
+                "  [dim]AWS_SECRET_ACCESS_KEY[/]\n"
+                "  [dim]AWS_SESSION_TOKEN[/] (optional)",
                 title="Authentication Error",
                 border_style="red",
             )
@@ -105,13 +329,25 @@ def get_aws_session(profile: str | None, region: str) -> boto3.Session:
         raise typer.Exit(1)
 
     except ClientError as e:
-        console.print(
-            Panel(
-                f"[red]AWS authentication failed:[/]\n{e}",
-                title="Authentication Error",
-                border_style="red",
+        error_code = e.response.get("Error", {}).get("Code", "")
+        if error_code == "ExpiredToken":
+            clear_credential_cache(profile)
+            console.print(
+                Panel(
+                    "[yellow]Session token expired.[/]\n\n"
+                    "Please re-authenticate. Your cached credentials have been cleared.",
+                    title="Session Expired",
+                    border_style="yellow",
+                )
             )
-        )
+        else:
+            console.print(
+                Panel(
+                    f"[red]AWS authentication failed:[/]\n{e}",
+                    title="Authentication Error",
+                    border_style="red",
+                )
+            )
         raise typer.Exit(1)
 
 
@@ -168,13 +404,13 @@ def scan(
         None,
         "--profile",
         "-p",
-        help="AWS profile name",
+        help="AWS profile name (uses 'default' if not specified)",
     ),
-    region: str = typer.Option(
-        "us-east-1",
+    region: str | None = typer.Option(
+        None,
         "--region",
         "-r",
-        help="AWS region to scan",
+        help="AWS region to scan (uses profile's region or us-east-1)",
     ),
     output: Path | None = typer.Option(
         None,
@@ -182,14 +418,66 @@ def scan(
         "-o",
         help="Output path for graph JSON (optional)",
     ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Interactive mode - prompt for missing options",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials (re-authenticate)",
+    ),
 ) -> None:
     """
     Scan AWS resources and build dependency graph.
 
+    The region is determined in this order:
+    1. --region flag (if provided)
+    2. Profile's configured region (from ~/.aws/config)
+    3. AWS_DEFAULT_REGION environment variable
+    4. us-east-1 (fallback)
+
     Examples:
+        replimap scan --profile prod
         replimap scan --profile prod --region us-west-2
-        replimap scan --profile prod --region us-east-1 --output graph.json
+        replimap scan -i  # Interactive mode
+        replimap scan --profile prod --output graph.json
     """
+    # Interactive mode - prompt for missing options
+    if interactive:
+        if not profile:
+            available = get_available_profiles()
+            console.print("\n[bold]Available AWS Profiles:[/]")
+            for i, p in enumerate(available, 1):
+                console.print(f"  {i}. {p}")
+            console.print()
+            profile = Prompt.ask(
+                "Select profile",
+                default="default",
+                choices=available,
+            )
+
+    # Determine region: flag > profile config > env var > default
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    if interactive and not region:
+        console.print(f"\n[dim]Detected region: {effective_region} (from {region_source})[/]")
+        if not Confirm.ask("Use this region?", default=True):
+            effective_region = Prompt.ask("Enter region", default=effective_region)
+            region_source = "user input"
+
     # Check license and quotas
     manager = get_license_manager()
     tracker = get_usage_tracker()
@@ -214,15 +502,15 @@ def scan(
     console.print(
         Panel(
             f"[bold]RepliMap Scanner[/] v{__version__} {plan_badge}\n"
-            f"Region: [cyan]{region}[/]"
-            + (f"\nProfile: [cyan]{profile}[/]" if profile else ""),
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]"
+            + (f"\nProfile: [cyan]{profile}[/]" if profile else "\nProfile: [cyan]default[/]"),
             title="Configuration",
             border_style="cyan",
         )
     )
 
     # Get AWS session
-    session = get_aws_session(profile, region)
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
     # Initialize graph
     graph = GraphEngine()
@@ -235,7 +523,7 @@ def scan(
         console=console,
     ) as progress:
         task = progress.add_task("Scanning AWS resources...", total=None)
-        results = run_all_scanners(session, region, graph)
+        results = run_all_scanners(session, effective_region, graph)
         progress.update(task, completed=True)
     scan_duration = time.time() - scan_start
 
@@ -261,7 +549,7 @@ def scan(
     # Record usage
     tracker.record_scan(
         scan_id=str(uuid.uuid4()),
-        region=region,
+        region=effective_region,
         resource_count=resource_count,
         resource_types=stats.get("resources_by_type", {}),
         duration_seconds=scan_duration,
@@ -303,11 +591,11 @@ def clone(
         "-p",
         help="AWS source profile name",
     ),
-    region: str = typer.Option(
-        "us-east-1",
+    region: str | None = typer.Option(
+        None,
         "--region",
         "-r",
-        help="AWS region to scan",
+        help="AWS region to scan (uses profile's region or us-east-1)",
     ),
     output_dir: Path = typer.Option(
         Path("./terraform"),
@@ -337,9 +625,26 @@ def clone(
         "--rename-pattern",
         help="Renaming pattern, e.g., 'prod:stage'",
     ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Interactive mode - prompt for missing options",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials (re-authenticate)",
+    ),
 ) -> None:
     """
     Clone AWS environment to Infrastructure-as-Code.
+
+    The region is determined in this order:
+    1. --region flag (if provided)
+    2. Profile's configured region (from ~/.aws/config)
+    3. AWS_DEFAULT_REGION environment variable
+    4. us-east-1 (fallback)
 
     Output formats:
     - terraform: Terraform HCL (Free tier and above)
@@ -347,13 +652,45 @@ def clone(
     - pulumi: Pulumi Python (Pro plan and above)
 
     Examples:
-        replimap clone --profile prod --region us-west-2 --mode dry-run
-        replimap clone --profile prod --region us-west-2 --format terraform --mode generate
-        replimap clone --profile prod --region us-east-1 --format cloudformation -o ./cfn
-        replimap clone --profile prod --region us-east-1 --format pulumi -o ./pulumi
+        replimap clone --profile prod --mode dry-run
+        replimap clone --profile prod --format terraform --mode generate
+        replimap clone -i  # Interactive mode
+        replimap clone --profile prod --format cloudformation -o ./cfn
     """
     from replimap.licensing.gates import FeatureNotAvailableError
     from replimap.renderers import CloudFormationRenderer, PulumiRenderer
+
+    # Interactive mode - prompt for missing options
+    if interactive:
+        if not profile:
+            available = get_available_profiles()
+            console.print("\n[bold]Available AWS Profiles:[/]")
+            for i, p in enumerate(available, 1):
+                console.print(f"  {i}. {p}")
+            console.print()
+            profile = Prompt.ask(
+                "Select profile",
+                default="default",
+                choices=available,
+            )
+
+    # Determine region: flag > profile config > env var > default
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    if interactive and not region:
+        console.print(f"\n[dim]Detected region: {effective_region} (from {region_source})[/]")
+        if not Confirm.ask("Use this region?", default=True):
+            effective_region = Prompt.ask("Enter region", default=effective_region)
 
     # Validate output format
     valid_formats = ("terraform", "cloudformation", "pulumi")
@@ -363,6 +700,15 @@ def clone(
             f"Use one of: {', '.join(valid_formats)}"
         )
         raise typer.Exit(1)
+
+    if interactive:
+        console.print(f"\n[dim]Current format: {output_format}[/]")
+        if not Confirm.ask("Use this format?", default=True):
+            output_format = Prompt.ask(
+                "Select format",
+                default="terraform",
+                choices=list(valid_formats),
+            )
 
     # Get the appropriate renderer
     format_info = {
@@ -378,7 +724,8 @@ def clone(
     console.print(
         Panel(
             f"[bold]RepliMap Clone[/] v{__version__} {plan_badge}\n"
-            f"Region: [cyan]{region}[/]\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]\n"
             f"Format: [cyan]{format_name}[/] ({plan_required})\n"
             f"Mode: [cyan]{mode}[/]\n"
             f"Output: [cyan]{output_dir}[/]\n"
@@ -396,7 +743,7 @@ def clone(
         raise typer.Exit(1)
 
     # Get AWS session
-    session = get_aws_session(profile, region)
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
     # Initialize graph
     graph = GraphEngine()
@@ -408,7 +755,7 @@ def clone(
         console=console,
     ) as progress:
         task = progress.add_task("Scanning AWS resources...", total=None)
-        run_all_scanners(session, region, graph)
+        run_all_scanners(session, effective_region, graph)
         progress.update(task, completed=True)
 
     stats = graph.statistics()
@@ -555,6 +902,140 @@ def load(
     if stats["total_resources"] > 20:
         console.print(f"[dim]... and {stats['total_resources'] - 20} more[/]")
 
+    console.print()
+
+
+@app.command()
+def profiles() -> None:
+    """
+    List available AWS profiles.
+
+    Shows all configured AWS profiles from ~/.aws/config and ~/.aws/credentials.
+
+    Examples:
+        replimap profiles
+    """
+    available = get_available_profiles()
+
+    table = Table(title="Available AWS Profiles", show_header=True, header_style="bold cyan")
+    table.add_column("Profile", style="cyan")
+    table.add_column("Region", style="dim")
+    table.add_column("Status")
+
+    for profile_name in available:
+        region = get_profile_region(profile_name) or "[dim]not set[/]"
+
+        # Check if credentials are cached
+        cached = get_cached_credentials(profile_name)
+        if cached:
+            status = "[green]cached[/]"
+        else:
+            status = "[dim]-[/]"
+
+        table.add_row(profile_name, region, status)
+
+    console.print(table)
+
+    console.print()
+    console.print("[dim]Tip: Use --profile <name> to select a profile[/]")
+    console.print("[dim]Tip: Use --interactive or -i for guided setup[/]")
+    console.print()
+
+
+# Cache subcommand group
+cache_app = typer.Typer(
+    name="cache",
+    help="Credential cache management",
+    rich_markup_mode="rich",
+)
+app.add_typer(cache_app, name="cache")
+
+
+@cache_app.command("clear")
+def cache_clear(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Clear cache for specific profile (all if not specified)",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation",
+    ),
+) -> None:
+    """
+    Clear cached AWS credentials.
+
+    Examples:
+        replimap cache clear
+        replimap cache clear --profile prod
+    """
+    if not yes:
+        if profile:
+            confirm = Confirm.ask(f"Clear cached credentials for profile '{profile}'?")
+        else:
+            confirm = Confirm.ask("Clear all cached credentials?")
+        if not confirm:
+            console.print("[dim]Cancelled.[/]")
+            raise typer.Exit(0)
+
+    clear_credential_cache(profile)
+
+    if profile:
+        console.print(f"[green]Cleared cached credentials for profile '{profile}'[/]")
+    else:
+        console.print("[green]Cleared all cached credentials[/]")
+
+
+@cache_app.command("status")
+def cache_status() -> None:
+    """
+    Show credential cache status.
+
+    Examples:
+        replimap cache status
+    """
+    if not CREDENTIAL_CACHE_FILE.exists():
+        console.print("[dim]No cached credentials.[/]")
+        return
+
+    try:
+        with open(CREDENTIAL_CACHE_FILE) as f:
+            cache = json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        console.print("[dim]No cached credentials.[/]")
+        return
+
+    if not cache:
+        console.print("[dim]No cached credentials.[/]")
+        return
+
+    table = Table(title="Cached Credentials", show_header=True, header_style="bold cyan")
+    table.add_column("Profile")
+    table.add_column("Expires", style="dim")
+    table.add_column("Status")
+
+    now = datetime.now()
+    for cache_key, entry in cache.items():
+        profile_name = entry.get("profile") or "default"
+        expires_at = datetime.fromisoformat(entry["expires_at"])
+
+        if now >= expires_at:
+            status = "[red]expired[/]"
+            expires_str = expires_at.strftime("%Y-%m-%d %H:%M")
+        else:
+            remaining = expires_at - now
+            hours = remaining.seconds // 3600
+            minutes = (remaining.seconds % 3600) // 60
+            status = f"[green]valid ({hours}h {minutes}m remaining)[/]"
+            expires_str = expires_at.strftime("%Y-%m-%d %H:%M")
+
+        table.add_row(profile_name, expires_str, status)
+
+    console.print(table)
     console.print()
 
 
