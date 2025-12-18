@@ -22,8 +22,10 @@ resource "aws_lb_listener" "{{ resource.terraform_name }}" {
   certificate_arn   = var.acm_certificate_arn
 {% endif %}
 
+{% set has_action = [] %}
 {% for action in resource.config.default_actions %}
 {% if action.type == 'forward' and action.target_group_arn %}
+{% set _ = has_action.append(1) %}
   default_action {
     type             = "forward"
 {% if action.target_group_arn is tf_ref %}
@@ -38,6 +40,7 @@ resource "aws_lb_listener" "{{ resource.terraform_name }}" {
 {% endif %}
   }
 {% elif action.type == 'fixed-response' %}
+{% set _ = has_action.append(1) %}
   default_action {
     type = "fixed-response"
     fixed_response {
@@ -46,6 +49,53 @@ resource "aws_lb_listener" "{{ resource.terraform_name }}" {
       status_code  = "{{ action.fixed_response.StatusCode | default('200') }}"
     }
   }
+{% elif action.type == 'redirect' %}
+{% set _ = has_action.append(1) %}
+  default_action {
+    type = "redirect"
+    redirect {
+      protocol    = "{{ action.redirect.Protocol | default('HTTPS') }}"
+      port        = "{{ action.redirect.Port | default('443') }}"
+      host        = "{{ action.redirect.Host | default('#{host}') }}"
+      path        = "{{ action.redirect.Path | default('/#{path}') }}"
+      query       = "{{ action.redirect.Query | default('#{query}') }}"
+      status_code = "{{ action.redirect.StatusCode | default('HTTP_301') }}"
+    }
+  }
+{% elif action.type == 'authenticate-cognito' %}
+{% set _ = has_action.append(1) %}
+  default_action {
+    type = "authenticate-cognito"
+    authenticate_cognito {
+      user_pool_arn       = "{{ action.authenticate_cognito.UserPoolArn }}"
+      user_pool_client_id = "{{ action.authenticate_cognito.UserPoolClientId }}"
+      user_pool_domain    = "{{ action.authenticate_cognito.UserPoolDomain }}"
+    }
+  }
+{% elif action.type == 'authenticate-oidc' %}
+{% set _ = has_action.append(1) %}
+  default_action {
+    type = "authenticate-oidc"
+    authenticate_oidc {
+      authorization_endpoint = "{{ action.authenticate_oidc.AuthorizationEndpoint }}"
+      client_id              = "{{ action.authenticate_oidc.ClientId }}"
+      client_secret          = "PLACEHOLDER_OIDC_SECRET"
+      issuer                 = "{{ action.authenticate_oidc.Issuer }}"
+      token_endpoint         = "{{ action.authenticate_oidc.TokenEndpoint }}"
+      user_info_endpoint     = "{{ action.authenticate_oidc.UserInfoEndpoint }}"
+    }
+  }
 {% endif %}
 {% endfor %}
+{% if not has_action %}
+  # FALLBACK: No default action found from source. Update this placeholder.
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Service Unavailable - Configure default action"
+      status_code  = "503"
+    }
+  }
+{% endif %}
 }

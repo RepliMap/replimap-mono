@@ -336,7 +336,7 @@ data "aws_availability_zones" "available" {
 # Locals for commonly used values
 locals {
   account_id = data.aws_caller_identity.current.account_id
-  region     = data.aws_region.current.name
+  region     = data.aws_region.current.id
 
   # Availability zones - use these for cross-region cloning
   # Maps index to AZ: local.azs[0] = first AZ (e.g., us-east-1a -> ap-southeast-2a)
