@@ -2,8 +2,6 @@
 Pytest configuration and fixtures for RepliMap tests.
 """
 
-import os
-
 import pytest
 
 

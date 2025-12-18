@@ -16,6 +16,7 @@ from .base import BaseTransformer
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
+    from replimap.core.models import ResourceNode
 
 
 logger = logging.getLogger(__name__)
@@ -216,7 +217,7 @@ class DownsizeTransformer(BaseTransformer):
 
         return graph
 
-    def _downsize_ec2(self, resource) -> None:
+    def _downsize_ec2(self, resource: ResourceNode) -> None:
         """
         Downsize an EC2 instance.
 
@@ -246,7 +247,7 @@ class DownsizeTransformer(BaseTransformer):
                 resource.config["_original_instance_type"] = current_type
                 self._ec2_downsized += 1
 
-    def _downsize_rds(self, resource) -> None:
+    def _downsize_rds(self, resource: ResourceNode) -> None:
         """
         Downsize an RDS instance.
 
@@ -295,7 +296,7 @@ class DownsizeTransformer(BaseTransformer):
                 resource.config["allocated_storage"] = new_storage
                 resource.config["_original_allocated_storage"] = current_storage
 
-    def _downsize_elasticache(self, resource) -> None:
+    def _downsize_elasticache(self, resource: ResourceNode) -> None:
         """
         Downsize an ElastiCache cluster.
 
@@ -333,7 +334,7 @@ class DownsizeTransformer(BaseTransformer):
             resource.config["num_cache_nodes"] = 1
             resource.config["_original_num_cache_nodes"] = num_nodes
 
-    def _downsize_launch_template(self, resource) -> None:
+    def _downsize_launch_template(self, resource: ResourceNode) -> None:
         """
         Downsize a Launch Template.
 
@@ -362,7 +363,7 @@ class DownsizeTransformer(BaseTransformer):
             resource.config["_original_instance_type"] = current_type
             self._launch_template_downsized += 1
 
-    def _downsize_asg(self, resource) -> None:
+    def _downsize_asg(self, resource: ResourceNode) -> None:
         """
         Downsize an Auto Scaling Group.
 

@@ -167,7 +167,7 @@ class PulumiRenderer(BaseRenderer):
         # Generate exports
         lines.append("# Exports")
         for resource in resources:
-            var_name = self._to_variable_name(resource.terraform_name)
+            var_name = self._to_variable_name(resource.terraform_name or resource.id)
             if resource.resource_type == ResourceType.VPC:
                 lines.append(f"pulumi.export('{var_name}_id', {var_name}.id)")
             elif resource.resource_type == ResourceType.SUBNET:
@@ -209,7 +209,7 @@ class PulumiRenderer(BaseRenderer):
     def _convert_vpc(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert VPC to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         return f'''{var_name} = aws.ec2.Vpc(
     "{resource.terraform_name}",
@@ -225,14 +225,14 @@ class PulumiRenderer(BaseRenderer):
     def _convert_subnet(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert Subnet to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         # Find VPC reference
         vpc_ref = "vpc.id"  # Default
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name)
+                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -257,14 +257,14 @@ class PulumiRenderer(BaseRenderer):
     ) -> str:
         """Convert Security Group to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         # Find VPC reference
         vpc_ref = "vpc.id"
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name)
+                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -306,7 +306,7 @@ class PulumiRenderer(BaseRenderer):
     def _convert_ec2(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert EC2 Instance to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         # Find subnet and security group references
         subnet_ref = "subnet.id"
@@ -314,7 +314,7 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource:
-                dep_var = self._to_variable_name(dep_resource.terraform_name)
+                dep_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 if dep_resource.resource_type == ResourceType.SUBNET:
                     subnet_ref = f"{dep_var}.id"
                 elif dep_resource.resource_type == ResourceType.SECURITY_GROUP:
@@ -339,7 +339,7 @@ class PulumiRenderer(BaseRenderer):
     def _convert_s3(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert S3 Bucket to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         bucket_name = config.get("bucket_name", resource.terraform_name)
 
@@ -358,7 +358,7 @@ class PulumiRenderer(BaseRenderer):
     def _convert_rds(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert RDS Instance to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         # Find security group references
         sg_refs = []
@@ -368,7 +368,7 @@ class PulumiRenderer(BaseRenderer):
                 dep_resource
                 and dep_resource.resource_type == ResourceType.SECURITY_GROUP
             ):
-                dep_var = self._to_variable_name(dep_resource.terraform_name)
+                dep_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 sg_refs.append(f"{dep_var}.id")
 
         sg_list = ", ".join(sg_refs) if sg_refs else "[]"
@@ -397,14 +397,14 @@ class PulumiRenderer(BaseRenderer):
 
     def _convert_igw(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert Internet Gateway to Pulumi."""
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         # Find VPC reference
         vpc_ref = "vpc.id"
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name)
+                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -420,14 +420,14 @@ class PulumiRenderer(BaseRenderer):
     def _convert_nat(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert NAT Gateway to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         # Find subnet reference
         subnet_ref = "subnet.id"
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.SUBNET:
-                subnet_var = self._to_variable_name(dep_resource.terraform_name)
+                subnet_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 subnet_ref = f"{subnet_var}.id"
                 break
 
@@ -459,14 +459,14 @@ class PulumiRenderer(BaseRenderer):
     def _convert_route_table(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert Route Table to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         # Find VPC reference
         vpc_ref = "vpc.id"
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name)
+                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -496,7 +496,7 @@ class PulumiRenderer(BaseRenderer):
     def _convert_lb(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert Load Balancer to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         lb_type = config.get("load_balancer_type", "application")
         internal = config.get("internal", False)
@@ -507,7 +507,7 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource:
-                dep_var = self._to_variable_name(dep_resource.terraform_name)
+                dep_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 if dep_resource.resource_type == ResourceType.SUBNET:
                     subnet_refs.append(f"{dep_var}.id")
                 elif dep_resource.resource_type == ResourceType.SECURITY_GROUP:
@@ -531,14 +531,14 @@ class PulumiRenderer(BaseRenderer):
     def _convert_target_group(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert Target Group to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         # Find VPC reference
         vpc_ref = "vpc.id"
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name)
+                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -566,9 +566,9 @@ class PulumiRenderer(BaseRenderer):
     def _convert_elasticache(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert ElastiCache Cluster to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
-        cluster_id = config.get("cluster_id", resource.terraform_name)
+        cluster_id = config.get("cluster_id", resource.terraform_name or resource.id)
         engine = config.get("engine", "redis")
         node_type = config.get("node_type", "cache.t3.micro")
         num_nodes = config.get("num_cache_nodes", 1)
@@ -581,7 +581,7 @@ class PulumiRenderer(BaseRenderer):
                 dep_resource
                 and dep_resource.resource_type == ResourceType.SECURITY_GROUP
             ):
-                dep_var = self._to_variable_name(dep_resource.terraform_name)
+                dep_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
                 sg_refs.append(f"{dep_var}.id")
 
         sg_str = ", ".join(sg_refs) if sg_refs else ""
@@ -602,7 +602,7 @@ class PulumiRenderer(BaseRenderer):
     def _convert_sqs(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert SQS Queue to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         name = config.get("name", resource.terraform_name)
         visibility_timeout = config.get("visibility_timeout_seconds", 30)
@@ -628,7 +628,7 @@ class PulumiRenderer(BaseRenderer):
     def _convert_sns(self, resource: ResourceNode, graph: GraphEngine) -> str:
         """Convert SNS Topic to Pulumi."""
         config = resource.config
-        var_name = self._to_variable_name(resource.terraform_name)
+        var_name = self._to_variable_name(resource.terraform_name or resource.id)
 
         name = config.get("name", resource.terraform_name)
 

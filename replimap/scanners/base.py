@@ -397,16 +397,10 @@ def _compute_scanner_phases(
                 if provider != sc:  # Avoid self-dependency
                     scanner_deps[sc].add(provider)
 
-    # Compute in-degree for each scanner
-    in_degree: dict[type[BaseScanner], int] = {sc: 0 for sc in scanner_classes}
-    for sc, deps in scanner_deps.items():
-        for dep in deps:
-            # sc depends on dep, so when dep is processed, sc's in-degree decreases
-            pass  # We count incoming edges below
-
-    # Recompute: in_degree[sc] = number of scanners that sc depends on
-    for sc in scanner_classes:
-        in_degree[sc] = len(scanner_deps[sc])
+    # Compute in-degree: for each scanner, count the number of dependencies it has
+    in_degree: dict[type[BaseScanner], int] = {
+        sc: len(scanner_deps[sc]) for sc in scanner_classes
+    }
 
     # Kahn's algorithm for topological sort with level grouping
     phases: list[list[type[BaseScanner]]] = []

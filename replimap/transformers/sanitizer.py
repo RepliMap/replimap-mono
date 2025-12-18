@@ -121,7 +121,7 @@ class SanitizationTransformer(BaseTransformer):
         Returns:
             Sanitized dictionary
         """
-        result = {}
+        result: dict[str, Any] = {}
 
         for key, value in data.items():
             # Check if this is a sensitive field
@@ -152,7 +152,7 @@ class SanitizationTransformer(BaseTransformer):
         Returns:
             Sanitized list
         """
-        result = []
+        result: list[Any] = []
 
         for item in data:
             if isinstance(item, dict):

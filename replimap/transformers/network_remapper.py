@@ -120,7 +120,7 @@ class NetworkRemapTransformer(BaseTransformer):
         Returns:
             Configuration with remapped IDs
         """
-        result = {}
+        result: dict[str, Any] = {}
 
         # Fields that contain network resource IDs
         id_fields = {
@@ -176,7 +176,7 @@ class NetworkRemapTransformer(BaseTransformer):
         Returns:
             List with remapped IDs
         """
-        result = []
+        result: list[Any] = []
         for item in data:
             if isinstance(item, dict):
                 result.append(self._remap_config(item))

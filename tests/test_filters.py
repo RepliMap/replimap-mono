@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from replimap.core.filters import (
     ScanFilter,
     apply_filter_to_graph,

@@ -631,8 +631,8 @@ def scan(
         try:
             sts = session.client("sts")
             account_id = sts.get_caller_identity()["Account"]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"Could not get AWS account ID for cache key: {e}")
 
     # Initialize graph
     graph = GraphEngine()
