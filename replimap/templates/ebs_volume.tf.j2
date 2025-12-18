@@ -30,3 +30,29 @@ resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
 {% endfor %}
   }
 }
+
+{% for attachment in resource.config.attachments %}
+{% if attachment.instance_id and attachment.device and attachment.state == 'attached' %}
+# Volume Attachment for {{ resource.original_name }} -> {{ attachment.instance_id }}
+resource "aws_volume_attachment" "{{ resource.terraform_name }}_att_{{ loop.index }}" {
+{% if attachment.instance_id is tf_ref %}
+  instance_id = {{ attachment.instance_id }}
+{% else %}
+{% set instance_resource = graph.get_resource(attachment.instance_id) %}
+{% if instance_resource and instance_resource.terraform_name %}
+  instance_id = aws_instance.{{ instance_resource.terraform_name }}.id
+{% else %}
+  # WARNING: Instance {{ attachment.instance_id }} not found in graph - may be stopped/terminated
+  instance_id = "{{ attachment.instance_id }}"
+{% endif %}
+{% endif %}
+  volume_id   = aws_ebs_volume.{{ resource.terraform_name }}.id
+  device_name = "{{ attachment.device }}"
+
+  # Set to true if volume should be destroyed when instance is destroyed
+  force_detach = true
+  skip_destroy = false
+}
+
+{% endif %}
+{% endfor %}

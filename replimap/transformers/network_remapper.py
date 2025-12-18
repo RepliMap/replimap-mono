@@ -109,6 +109,10 @@ class NetworkRemapTransformer(BaseTransformer):
                     self._id_map[resource.id] = (
                         f"aws_db_subnet_group.{resource.terraform_name}.name"
                     )
+                elif resource.resource_type == ResourceType.EC2_INSTANCE:
+                    self._id_map[resource.id] = (
+                        f"aws_instance.{resource.terraform_name}.id"
+                    )
 
     def _remap_config(self, config: dict[str, Any]) -> dict[str, Any]:
         """
@@ -122,12 +126,13 @@ class NetworkRemapTransformer(BaseTransformer):
         """
         result: dict[str, Any] = {}
 
-        # Fields that contain network resource IDs
+        # Fields that contain network/compute resource IDs
         id_fields = {
             "vpc_id",
             "subnet_id",
             "security_group_id",
             "db_subnet_group_name",
+            "instance_id",
         }
         list_id_fields = {
             "subnet_ids",
@@ -190,13 +195,13 @@ class NetworkRemapTransformer(BaseTransformer):
 
     def _looks_like_network_id(self, value: str) -> bool:
         """
-        Check if a string looks like a network resource ID.
+        Check if a string looks like a network or compute resource ID.
 
         Args:
             value: String to check
 
         Returns:
-            True if it looks like vpc-*, subnet-*, or sg-*
+            True if it looks like vpc-*, subnet-*, sg-*, or i-*
         """
-        prefixes = ("vpc-", "subnet-", "sg-")
+        prefixes = ("vpc-", "subnet-", "sg-", "i-")
         return any(value.startswith(prefix) for prefix in prefixes)
