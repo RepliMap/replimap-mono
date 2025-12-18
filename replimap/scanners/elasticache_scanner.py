@@ -39,6 +39,12 @@ class ElastiCacheScanner(BaseScanner):
         "aws_elasticache_subnet_group",
     ]
 
+    # ElastiCache resources reference subnets and security groups for dependency edges
+    depends_on_types: ClassVar[list[str]] = [
+        "aws_subnet",
+        "aws_security_group",
+    ]
+
     def scan(self, graph: GraphEngine) -> None:
         """Scan all ElastiCache resources and add to graph."""
         logger.info(f"Scanning ElastiCache resources in {self.region}...")

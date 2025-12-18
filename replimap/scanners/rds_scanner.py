@@ -48,6 +48,12 @@ class RDSScanner(BaseScanner):
         "aws_db_subnet_group",
     ]
 
+    # RDS resources reference subnets and security groups for dependency edges
+    depends_on_types: ClassVar[list[str]] = [
+        "aws_subnet",
+        "aws_security_group",
+    ]
+
     def scan(self, graph: GraphEngine) -> None:
         """Scan all RDS resources and add to graph."""
         logger.info(f"Scanning RDS resources in {self.region}...")

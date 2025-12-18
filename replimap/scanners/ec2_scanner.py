@@ -39,6 +39,12 @@ class EC2Scanner(BaseScanner):
 
     resource_types: ClassVar[list[str]] = ["aws_instance"]
 
+    # EC2 instances reference subnets and security groups for dependency edges
+    depends_on_types: ClassVar[list[str]] = [
+        "aws_subnet",
+        "aws_security_group",
+    ]
+
     def scan(self, graph: GraphEngine) -> None:
         """Scan all EC2 instances and add to graph."""
         logger.info(f"Scanning EC2 instances in {self.region}...")
