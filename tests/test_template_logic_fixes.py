@@ -644,3 +644,170 @@ class TestLaunchTemplateBlockDeviceMappings:
             assert "volume_size = 100" in content
             assert "volume_type" in content
             assert "gp3" in content
+
+
+class TestVariablesGeneration:
+    """Test variables.tf generation includes all new variables."""
+
+    def test_ami_variable_generated(self):
+        """Verify ami_id variable is generated for EC2 instances."""
+        graph = GraphEngine()
+
+        ec2 = ResourceNode(
+            id="i-123",
+            resource_type=ResourceType.EC2_INSTANCE,
+            region="us-east-1",
+            original_name="app-server",
+            config={"ami": "ami-0123456", "instance_type": "t3.micro"},
+            tags={"Name": "app-server"},
+        )
+        graph.add_resource(ec2)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            renderer = TerraformRenderer()
+            renderer.render(graph, Path(tmpdir))
+
+            vars_file = Path(tmpdir) / "variables.tf"
+            content = vars_file.read_text()
+
+            assert 'variable "ami_id"' in content
+            assert "ami-0123456" in content  # Original AMI in comment
+
+    def test_key_name_variable_generated(self):
+        """Verify key_name variable is generated when EC2 has key."""
+        graph = GraphEngine()
+
+        ec2 = ResourceNode(
+            id="i-123",
+            resource_type=ResourceType.EC2_INSTANCE,
+            region="us-east-1",
+            original_name="app-server",
+            config={
+                "ami": "ami-123",
+                "instance_type": "t3.micro",
+                "key_name": "my-key",
+            },
+            tags={"Name": "app-server"},
+        )
+        graph.add_resource(ec2)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            renderer = TerraformRenderer()
+            renderer.render(graph, Path(tmpdir))
+
+            vars_file = Path(tmpdir) / "variables.tf"
+            content = vars_file.read_text()
+
+            assert 'variable "key_name"' in content
+
+    def test_acm_certificate_variable_generated(self):
+        """Verify acm_certificate_arn variable is generated for HTTPS listeners."""
+        graph = GraphEngine()
+
+        lb = ResourceNode(
+            id="arn:aws:elasticloadbalancing:us-east-1:123:lb/app/my-lb/123",
+            resource_type=ResourceType.LB,
+            region="us-east-1",
+            original_name="my-lb",
+            config={"name": "my-lb", "type": "application"},
+            tags={"Name": "my-lb"},
+        )
+        graph.add_resource(lb)
+
+        listener = ResourceNode(
+            id="arn:aws:elasticloadbalancing:us-east-1:123:listener/app/my-lb/123/456",
+            resource_type=ResourceType.LB_LISTENER,
+            region="us-east-1",
+            original_name="https-listener",
+            config={
+                "load_balancer_arn": lb.id,
+                "port": 443,
+                "protocol": "HTTPS",
+                "certificate_arn": "arn:aws:acm:us-east-1:123:certificate/abc",
+                "default_actions": [],
+            },
+            tags={},
+        )
+        graph.add_resource(listener)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            renderer = TerraformRenderer()
+            renderer.render(graph, Path(tmpdir))
+
+            vars_file = Path(tmpdir) / "variables.tf"
+            content = vars_file.read_text()
+
+            assert 'variable "acm_certificate_arn"' in content
+            assert "arn:aws:acm" in content  # Original cert in comment
+
+
+class TestDataSourcesGeneration:
+    """Test data.tf generation for dynamic values."""
+
+    def test_data_sources_generated(self):
+        """Verify data.tf is generated with account_id and region."""
+        graph = GraphEngine()
+
+        # Add minimal resource
+        vpc = ResourceNode(
+            id="vpc-123",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            original_name="main-vpc",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "main-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            renderer = TerraformRenderer()
+            renderer.render(graph, Path(tmpdir))
+
+            data_file = Path(tmpdir) / "data.tf"
+            assert data_file.exists()
+
+            content = data_file.read_text()
+            assert 'data "aws_caller_identity" "current"' in content
+            assert 'data "aws_region" "current"' in content
+            assert "local.account_id" in content
+            assert "local.region" in content
+
+
+class TestRDSSnapshotHandling:
+    """Test RDS snapshot_identifier variabilization."""
+
+    def test_snapshot_variable_generated(self):
+        """Verify snapshot variable is generated when RDS has snapshot."""
+        graph = GraphEngine()
+
+        rds = ResourceNode(
+            id="rds-123",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="us-east-1",
+            original_name="app-db",
+            config={
+                "identifier": "app-db",
+                "engine": "postgres",
+                "engine_version": "14.9",
+                "instance_class": "db.t3.micro",
+                "master_username": "admin",
+                "snapshot_identifier": "rds:app-db-2024-01-01",
+            },
+            tags={"Name": "app-db"},
+        )
+        graph.add_resource(rds)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            renderer = TerraformRenderer()
+            renderer.render(graph, Path(tmpdir))
+
+            # Check variables.tf has snapshot variable
+            vars_file = Path(tmpdir) / "variables.tf"
+            vars_content = vars_file.read_text()
+            assert 'variable "db_snapshot_' in vars_content
+            assert "rds:app-db-2024-01-01" in vars_content  # Original snapshot
+
+            # Check rds.tf has conditional snapshot
+            rds_file = Path(tmpdir) / "rds.tf"
+            rds_content = rds_file.read_text()
+            assert "snapshot_identifier" in rds_content

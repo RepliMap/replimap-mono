@@ -73,6 +73,12 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   maintenance_window      = "{{ resource.config.maintenance_window }}"
 {% endif %}
 
+{% if resource.config.snapshot_identifier %}
+  # NOTE: Optionally restore from a snapshot. Leave empty to create fresh DB.
+  # Original snapshot: {{ resource.config.snapshot_identifier }}
+  snapshot_identifier = var.db_snapshot_{{ resource.terraform_name }} != "" ? var.db_snapshot_{{ resource.terraform_name }} : null
+{% endif %}
+
   # Other settings
   auto_minor_version_upgrade  = {{ resource.config.auto_minor_version_upgrade | default(true) | lower }}
   deletion_protection         = {{ resource.config.deletion_protection | default(false) | lower }}
