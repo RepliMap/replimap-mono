@@ -7,7 +7,7 @@ from .async_base import (
     run_all_async_scanners,
 )
 from .async_vpc_scanner import AsyncVPCScanner
-from .base import BaseScanner, ScannerRegistry
+from .base import BaseScanner, ScannerRegistry, run_all_scanners, with_retry
 from .compute_scanner import ComputeScanner
 from .ec2_scanner import EC2Scanner
 from .elasticache_scanner import DBParameterGroupScanner, ElastiCacheScanner
@@ -21,9 +21,11 @@ from .storage_scanner import EBSScanner, S3PolicyScanner
 from .vpc_scanner import VPCScanner
 
 __all__ = [
-    # Base classes
+    # Base classes and utilities
     "BaseScanner",
     "ScannerRegistry",
+    "run_all_scanners",
+    "with_retry",
     # Phase 1 Sync scanners
     "VPCScanner",
     "EC2Scanner",

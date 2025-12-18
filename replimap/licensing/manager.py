@@ -33,6 +33,19 @@ LICENSE_CACHE_FILE = "license.json"
 LICENSE_CACHE_TTL = timedelta(hours=24)  # Re-validate after 24 hours
 
 
+def is_dev_mode() -> bool:
+    """
+    Check if dev mode is enabled.
+
+    Dev mode bypasses license restrictions for local development and testing.
+    Enable with: REPLIMAP_DEV_MODE=1
+
+    Returns:
+        True if dev mode is enabled
+    """
+    return os.environ.get("REPLIMAP_DEV_MODE", "").lower() in ("1", "true", "yes")
+
+
 class LicenseManager:
     """
     Manages license validation and caching.
@@ -76,6 +89,10 @@ class LicenseManager:
     @property
     def current_plan(self) -> Plan:
         """Get the current plan (FREE if no license)."""
+        # Dev mode bypasses all license restrictions
+        if is_dev_mode():
+            return Plan.ENTERPRISE
+
         if self.current_license is None:
             return Plan.FREE
         if self.current_license.is_expired:
@@ -86,6 +103,11 @@ class LicenseManager:
     def current_features(self) -> PlanFeatures:
         """Get the features for the current plan."""
         return get_plan_features(self.current_plan)
+
+    @property
+    def is_dev_mode(self) -> bool:
+        """Check if running in dev mode."""
+        return is_dev_mode()
 
     def activate(self, license_key: str) -> License:
         """

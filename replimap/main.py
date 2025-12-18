@@ -506,7 +506,12 @@ def scan(
             )
             raise typer.Exit(1)
 
-    plan_badge = f"[dim]({manager.current_plan.value})[/]"
+    # Show plan badge with dev mode indicator
+    if manager.is_dev_mode:
+        plan_badge = "[yellow](dev mode)[/]"
+    else:
+        plan_badge = f"[dim]({manager.current_plan.value})[/]"
+
     console.print(
         Panel(
             f"[bold]RepliMap Scanner[/] v{__version__} {plan_badge}\n"
@@ -528,14 +533,19 @@ def scan(
     graph = GraphEngine()
 
     # Run all registered scanners with progress
+    # Use parallel scanning if license allows (ASYNC_SCANNING feature)
+    use_parallel = features.has_feature(Feature.ASYNC_SCANNING)
+    scan_mode = "parallel" if use_parallel else "sequential"
     scan_start = time.time()
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
-        results = run_all_scanners(session, effective_region, graph)
+        task = progress.add_task(f"Scanning AWS resources ({scan_mode})...", total=None)
+        results = run_all_scanners(
+            session, effective_region, graph, parallel=use_parallel
+        )
         progress.update(task, completed=True)
     scan_duration = time.time() - scan_start
 
