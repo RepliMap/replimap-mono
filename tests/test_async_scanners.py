@@ -1,6 +1,5 @@
 """Tests for async scanners."""
 
-
 from replimap.scanners.async_base import (
     AsyncScannerRegistry,
 )
