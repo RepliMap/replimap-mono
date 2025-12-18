@@ -7,7 +7,13 @@ from .async_base import (
     run_all_async_scanners,
 )
 from .async_vpc_scanner import AsyncVPCScanner
-from .base import BaseScanner, ScannerRegistry, run_all_scanners, with_retry
+from .base import (
+    BaseScanner,
+    ScannerRegistry,
+    parallel_process_items,
+    run_all_scanners,
+    with_retry,
+)
 from .compute_scanner import ComputeScanner
 from .ec2_scanner import EC2Scanner
 from .elasticache_scanner import DBParameterGroupScanner, ElastiCacheScanner
@@ -26,6 +32,7 @@ __all__ = [
     "ScannerRegistry",
     "run_all_scanners",
     "with_retry",
+    "parallel_process_items",
     # Phase 1 Sync scanners
     "VPCScanner",
     "EC2Scanner",

@@ -99,6 +99,71 @@ def with_retry(
     return decorator
 
 
+# Intra-scanner parallelization config
+INTRA_SCANNER_WORKERS = int(os.environ.get("REPLIMAP_INTRA_SCANNER_WORKERS", "8"))
+
+
+def parallel_process_items(
+    items: list[Any],
+    processor: Callable[[Any], Any],
+    max_workers: int | None = None,
+    description: str = "items",
+) -> tuple[list[Any], list[tuple[Any, Exception]]]:
+    """
+    Process a list of items in parallel.
+
+    Useful for intra-scanner parallelization (e.g., processing S3 buckets).
+
+    Args:
+        items: List of items to process
+        processor: Function to process each item
+        max_workers: Maximum parallel workers (default: REPLIMAP_INTRA_SCANNER_WORKERS)
+        description: Description for logging
+
+    Returns:
+        Tuple of (successful_results, failed_items_with_errors)
+    """
+    if not items:
+        return [], []
+
+    workers = max_workers or INTRA_SCANNER_WORKERS
+    results: list[Any] = []
+    failures: list[tuple[Any, Exception]] = []
+
+    # For small batches, process sequentially
+    if len(items) <= 2 or workers <= 1:
+        for item in items:
+            try:
+                result = processor(item)
+                if result is not None:
+                    results.append(result)
+            except Exception as e:
+                failures.append((item, e))
+                logger.warning(f"Failed to process {description} item: {e}")
+        return results, failures
+
+    # Process in parallel
+    with ThreadPoolExecutor(max_workers=min(workers, len(items))) as executor:
+        future_to_item = {executor.submit(processor, item): item for item in items}
+
+        for future in as_completed(future_to_item):
+            item = future_to_item[future]
+            try:
+                result = future.result()
+                if result is not None:
+                    results.append(result)
+            except Exception as e:
+                failures.append((item, e))
+                logger.warning(f"Failed to process {description} item: {e}")
+
+    if failures:
+        logger.warning(
+            f"Parallel processing: {len(results)} succeeded, {len(failures)} failed"
+        )
+
+    return results, failures
+
+
 class ScannerError(Exception):
     """Base exception for scanner errors."""
 

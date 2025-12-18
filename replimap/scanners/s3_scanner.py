@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 
 from replimap.core.models import ResourceNode, ResourceType
 
-from .base import BaseScanner, ScannerRegistry
+from .base import BaseScanner, ScannerRegistry, parallel_process_items
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -55,7 +55,7 @@ class S3Scanner(BaseScanner):
             self._handle_aws_error(e, "S3 scanning")
 
     def _scan_buckets(self, s3: Any, graph: GraphEngine) -> None:
-        """Scan all S3 buckets."""
+        """Scan all S3 buckets with parallel processing."""
         logger.debug("Listing S3 buckets...")
 
         try:
@@ -64,6 +64,8 @@ class S3Scanner(BaseScanner):
             self._handle_aws_error(e, "list S3 buckets")
             return
 
+        # First pass: identify buckets in target region
+        buckets_to_process: list[str] = []
         for bucket in response.get("Buckets", []):
             bucket_name = bucket["Name"]
 
@@ -80,7 +82,28 @@ class S3Scanner(BaseScanner):
                 logger.debug(f"Skipping bucket {bucket_name} (region: {bucket_region})")
                 continue
 
-            self._process_bucket(s3, bucket_name, bucket_region, graph)
+            buckets_to_process.append(bucket_name)
+
+        if not buckets_to_process:
+            logger.debug("No S3 buckets found in target region")
+            return
+
+        logger.debug(f"Processing {len(buckets_to_process)} S3 buckets in parallel...")
+
+        # Process buckets in parallel
+        def process_bucket(bucket_name: str) -> ResourceNode | None:
+            return self._process_bucket(s3, bucket_name, self.region, graph)
+
+        results, failures = parallel_process_items(
+            buckets_to_process,
+            process_bucket,
+            description="S3 bucket",
+        )
+
+        logger.debug(
+            f"S3 scanning complete: {len(results)} buckets processed, "
+            f"{len(failures)} failed"
+        )
 
     def _process_bucket(
         self,
@@ -88,7 +111,7 @@ class S3Scanner(BaseScanner):
         bucket_name: str,
         bucket_region: str,
         graph: GraphEngine,
-    ) -> None:
+    ) -> ResourceNode | None:
         """
         Process a single S3 bucket.
 
@@ -97,6 +120,9 @@ class S3Scanner(BaseScanner):
             bucket_name: Name of the bucket
             bucket_region: Region of the bucket
             graph: Graph to add the resource to
+
+        Returns:
+            ResourceNode if successful, None otherwise
         """
         config: dict[str, Any] = {
             "bucket": bucket_name,
@@ -176,6 +202,7 @@ class S3Scanner(BaseScanner):
 
         graph.add_resource(node)
         logger.debug(f"Added S3 bucket: {bucket_name}")
+        return node
 
     def _simplify_lifecycle_rule(self, rule: dict[str, Any]) -> dict[str, Any]:
         """
