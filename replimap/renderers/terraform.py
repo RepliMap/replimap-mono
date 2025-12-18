@@ -931,9 +931,9 @@ echo ""
 # Phase 3: Validate
 echo -e "${BLUE}[3/4] Validating configuration...${NC}"
 VALIDATE_OUTPUT=$(terraform validate -json 2>&1)
-VALID=$(echo "$VALIDATE_OUTPUT" | grep -o '"valid":[^,]*' | cut -d':' -f2)
 
-if [[ "$VALID" == "true" ]]; then
+# Check if valid is true (handle both "valid":true and "valid": true)
+if echo "$VALIDATE_OUTPUT" | grep -q '"valid"[[:space:]]*:[[:space:]]*true'; then
     echo -e "${GREEN}✓${NC} Configuration is valid"
 else
     echo -e "${RED}✗${NC} Validation failed"
