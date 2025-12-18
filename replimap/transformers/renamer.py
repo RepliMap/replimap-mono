@@ -162,7 +162,7 @@ class RenamingTransformer(BaseTransformer):
         Returns:
             Configuration with renamed values
         """
-        result = {}
+        result: dict[str, Any] = {}
 
         # Fields that should be renamed
         name_fields = {
@@ -200,7 +200,7 @@ class RenamingTransformer(BaseTransformer):
         Returns:
             List with renamed elements
         """
-        result = []
+        result: list[Any] = []
         for item in data:
             if isinstance(item, dict):
                 result.append(self._rename_config(item))

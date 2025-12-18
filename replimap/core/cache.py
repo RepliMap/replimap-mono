@@ -413,6 +413,8 @@ class ScanCache:
         cache_path = self._get_cache_path()
         with open(cache_path, "w") as f:
             json.dump(cache_data, f, indent=2)
+        # Set restrictive permissions on cache file (contains resource metadata)
+        os.chmod(cache_path, 0o600)
 
         logger.info(f"Saved cache to {cache_path} ({len(self._entries)} resources)")
         return cache_path

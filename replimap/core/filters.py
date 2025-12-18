@@ -103,7 +103,7 @@ class ScanFilter:
 
         # Check excluded name patterns
         if self.exclude_patterns:
-            name = resource.original_name or resource.terraform_name
+            name = resource.original_name or resource.terraform_name or resource.id
             for pattern in self.exclude_patterns:
                 if fnmatch.fnmatch(name.lower(), pattern.lower()):
                     return True
@@ -150,7 +150,7 @@ class ScanFilter:
 
         # Check name patterns
         if self.name_patterns:
-            name = resource.original_name or resource.terraform_name
+            name = resource.original_name or resource.terraform_name or resource.id
             if not any(
                 fnmatch.fnmatch(name.lower(), pattern.lower())
                 for pattern in self.name_patterns
@@ -171,7 +171,7 @@ class ScanFilter:
 
         # For VPC resources, the ID is the resource ID
         if resource.resource_type.value == "aws_vpc":
-            return resource.resource_id
+            return resource.id
 
         return None
 
@@ -334,7 +334,7 @@ def apply_filter_to_graph(
     # Second pass: if retaining dependencies, add back required dependencies
     if retain_dependencies:
         # Traverse dependencies of kept resources
-        dependencies_to_keep = set()
+        dependencies_to_keep: set[str] = set()
         for resource_id in resources_to_keep:
             resource = graph.get_resource(resource_id)
             if resource:
