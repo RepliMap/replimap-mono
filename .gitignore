@@ -48,7 +48,7 @@ dmypy.json
 
 # Generated outputs
 terraform/
-*.tf
+#*.tf
 !templates/*.j2
 
 # Logs
