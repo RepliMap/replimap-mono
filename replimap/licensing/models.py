@@ -228,7 +228,7 @@ class License:
     plan: Plan
     email: str
     organization: str | None = None
-    issued_at: datetime = field(default_factory=datetime.utcnow)
+    issued_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime | None = None
     machine_fingerprint: str | None = None
     max_machines: int = 1
