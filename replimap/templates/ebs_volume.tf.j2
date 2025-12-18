@@ -4,14 +4,14 @@ resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
   # NOTE: AZ is dynamically mapped to target region using local.az_map
 {% set az_suffix = resource.config.availability_zone[-1] %}
   availability_zone = local.az_map["{{ az_suffix }}"]
-  size              = {{ resource.config.size }}
-  type              = "{{ resource.config.volume_type }}"
+  size              = {{ resource.config.size | d(8) }}
+  type              = "{{ resource.config.volume_type | d('gp3') }}"
 
 {% if resource.config.iops and resource.config.volume_type in ['io1', 'io2', 'gp3'] %}
-  iops = {{ resource.config.iops }}
+  iops = {{ resource.config.iops | d(3000) }}
 {% endif %}
 {% if resource.config.throughput and resource.config.volume_type == 'gp3' %}
-  throughput = {{ resource.config.throughput }}
+  throughput = {{ resource.config.throughput | d(125) }}
 {% endif %}
 {% if resource.config.encrypted %}
   encrypted = true

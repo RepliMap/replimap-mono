@@ -811,3 +811,115 @@ class TestRDSSnapshotHandling:
             rds_file = Path(tmpdir) / "rds.tf"
             rds_content = rds_file.read_text()
             assert "snapshot_identifier" in rds_content
+
+
+class TestNoneValueHandling:
+    """Test that None values from AWS API are properly handled."""
+
+    def test_rds_port_none_uses_default(self):
+        """Verify RDS port=None uses default value instead of literal 'None'."""
+        graph = GraphEngine()
+
+        rds = ResourceNode(
+            id="rds-none-port",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="us-east-1",
+            original_name="app-db",
+            config={
+                "identifier": "app-db",
+                "engine": "postgres",
+                "engine_version": "14.9",
+                "instance_class": "db.t3.micro",
+                "master_username": "admin",
+                "port": None,  # Explicitly None
+                "allocated_storage": None,
+                "backup_retention_period": None,
+            },
+            tags={"Name": "app-db"},
+        )
+        graph.add_resource(rds)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            renderer = TerraformRenderer()
+            renderer.render(graph, Path(tmpdir))
+
+            rds_file = Path(tmpdir) / "rds.tf"
+            content = rds_file.read_text()
+
+            # Should NOT have literal "None"
+            assert "= None" not in content
+            # Should have proper default values
+            assert "port     = 5432" in content or "port" not in content
+
+    def test_sqs_none_values_use_defaults(self):
+        """Verify SQS None values use defaults."""
+        graph = GraphEngine()
+
+        sqs = ResourceNode(
+            id="sqs-none",
+            resource_type=ResourceType.SQS_QUEUE,
+            region="us-east-1",
+            original_name="test-queue",
+            config={
+                "name": "test-queue",
+                "visibility_timeout_seconds": None,
+                "message_retention_seconds": None,
+                "max_message_size": None,
+                "delay_seconds": None,
+                "receive_wait_time_seconds": None,
+            },
+            tags={"Name": "test-queue"},
+        )
+        graph.add_resource(sqs)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            renderer = TerraformRenderer()
+            renderer.render(graph, Path(tmpdir))
+
+            sqs_file = Path(tmpdir) / "messaging.tf"
+            content = sqs_file.read_text()
+
+            # Should NOT have literal "None"
+            assert "= None" not in content
+            # Should have proper numeric defaults
+            assert "visibility_timeout_seconds  = 30" in content
+
+    def test_lb_target_group_none_port_uses_default(self):
+        """Verify LB Target Group port=None uses default."""
+        graph = GraphEngine()
+
+        tg = ResourceNode(
+            id="tg-none-port",
+            resource_type=ResourceType.LB_TARGET_GROUP,
+            region="us-east-1",
+            original_name="test-tg",
+            config={
+                "name": "test-tg",
+                "port": None,  # Explicitly None
+                "protocol": None,
+                "vpc_id": "vpc-123",
+                "target_type": None,
+                "health_check": {
+                    "enabled": None,
+                    "healthy_threshold": None,
+                    "unhealthy_threshold": None,
+                    "timeout_seconds": None,
+                    "interval_seconds": None,
+                },
+                "targets": [],
+            },
+            tags={"Name": "test-tg"},
+        )
+        graph.add_resource(tg)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            renderer = TerraformRenderer()
+            renderer.render(graph, Path(tmpdir))
+
+            alb_file = Path(tmpdir) / "alb.tf"
+            content = alb_file.read_text()
+
+            # Should NOT have literal "None"
+            assert "= None" not in content
+            # Should have proper defaults
+            assert "port        = 80" in content

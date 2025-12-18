@@ -18,7 +18,7 @@ resource "aws_subnet" "{{ resource.terraform_name }}" {
   # Original AZ: {{ resource.config.availability_zone }}
 {% set az_suffix = resource.config.availability_zone[-1] %}
   availability_zone       = local.az_map["{{ az_suffix }}"]
-  map_public_ip_on_launch = {{ resource.config.map_public_ip_on_launch | default(false) | lower }}
+  map_public_ip_on_launch = {{ resource.config.map_public_ip_on_launch | d(false) | lower }}
 
   tags = {
     Name        = "{{ resource.tags.get('Name', resource.terraform_name) }}"

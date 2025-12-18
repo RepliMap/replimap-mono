@@ -10,9 +10,9 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 
   # Instance configuration
   instance_class        = "{{ resource.config.instance_class }}"
-  allocated_storage     = {{ resource.config.allocated_storage | default(20) }}
-  storage_type          = "{{ resource.config.storage_type | default('gp2') }}"
-  storage_encrypted     = {{ resource.config.storage_encrypted | default(false) | lower }}
+  allocated_storage     = {{ resource.config.allocated_storage | d(20) }}
+  storage_type          = "{{ resource.config.storage_type | d('gp2') }}"
+  storage_encrypted     = {{ resource.config.storage_encrypted | d(false) | lower }}
 {% if resource.config.kms_key_id %}
   # NOTE: KMS key must be accessible in target account/region
   kms_key_id            = "{{ resource.config.kms_key_id }}"
@@ -22,10 +22,10 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% if resource.config.db_name %}
   db_name  = "{{ resource.config.db_name }}"
 {% endif %}
-  username = "{{ resource.config.master_username | default('admin') }}"
+  username = "{{ resource.config.master_username | d('admin') }}"
   # IMPORTANT: Set password via variable or secrets manager
   password = var.db_password_{{ resource.terraform_name }}
-  port     = {{ resource.config.port | default(5432) }}
+  port     = {{ resource.config.port | d(5432) }}
 
   # Network configuration
 {% if resource.config.db_subnet_group_name %}
@@ -56,16 +56,16 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% endfor %}
   ]
 {% endif %}
-  publicly_accessible = {{ resource.config.publicly_accessible | default(false) | lower }}
+  publicly_accessible = {{ resource.config.publicly_accessible | d(false) | lower }}
 
   # High availability
-  multi_az = {{ resource.config.multi_az | default(false) | lower }}
+  multi_az = {{ resource.config.multi_az | d(false) | lower }}
 {% if resource.config.availability_zone and not resource.config.multi_az %}
   availability_zone = "{{ resource.config.availability_zone }}"
 {% endif %}
 
   # Backup configuration
-  backup_retention_period = {{ resource.config.backup_retention_period | default(7) }}
+  backup_retention_period = {{ resource.config.backup_retention_period | d(7) }}
 {% if resource.config.backup_window %}
   backup_window           = "{{ resource.config.backup_window }}"
 {% endif %}
@@ -80,8 +80,8 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% endif %}
 
   # Other settings
-  auto_minor_version_upgrade  = {{ resource.config.auto_minor_version_upgrade | default(true) | lower }}
-  deletion_protection         = {{ resource.config.deletion_protection | default(false) | lower }}
+  auto_minor_version_upgrade  = {{ resource.config.auto_minor_version_upgrade | d(true) | lower }}
+  deletion_protection         = {{ resource.config.deletion_protection | d(false) | lower }}
   skip_final_snapshot         = true
   final_snapshot_identifier   = "{{ resource.config.identifier }}-final-${var.environment}"
 

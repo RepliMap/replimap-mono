@@ -124,6 +124,7 @@ class TerraformRenderer:
         self.env.filters["quote"] = self._quote_filter
         self.env.filters["quote_key"] = self._quote_key_filter
         self.env.filters["tf_ref"] = self._tf_ref_filter
+        self.env.filters["d"] = self._default_if_none_filter  # Short alias
 
         # Add custom tests
         self.env.tests["tf_ref"] = self._is_tf_ref_test
@@ -719,3 +720,23 @@ locals {
         )
 
         return any(value.startswith(prefix) for prefix in tf_ref_prefixes)
+
+    @staticmethod
+    def _default_if_none_filter(value: object, default: object) -> object:
+        """
+        Return default value if value is None or undefined.
+
+        Unlike Jinja2's built-in default filter which only handles undefined,
+        this filter also handles Python None values which commonly come from
+        AWS API responses.
+
+        Args:
+            value: The value to check
+            default: The default value to return if value is None
+
+        Returns:
+            value if not None, otherwise default
+        """
+        if value is None:
+            return default
+        return value

@@ -1,4 +1,4 @@
-# LB Listener: {{ resource.config.protocol }}:{{ resource.config.port }}
+# LB Listener: {{ resource.config.protocol | d('HTTP') }}:{{ resource.config.port | d(80) }}
 resource "aws_lb_listener" "{{ resource.terraform_name }}" {
 {% if resource.config.load_balancer_arn is tf_ref %}
   load_balancer_arn = {{ resource.config.load_balancer_arn }}
@@ -10,8 +10,8 @@ resource "aws_lb_listener" "{{ resource.terraform_name }}" {
   load_balancer_arn = "{{ resource.config.load_balancer_arn }}"
 {% endif %}
 {% endif %}
-  port              = {{ resource.config.port }}
-  protocol          = "{{ resource.config.protocol }}"
+  port              = {{ resource.config.port | d(80) }}
+  protocol          = "{{ resource.config.protocol | d('HTTP') }}"
 
 {% if resource.config.ssl_policy %}
   ssl_policy        = "{{ resource.config.ssl_policy }}"

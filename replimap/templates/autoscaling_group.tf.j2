@@ -2,9 +2,9 @@
 resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
   name = "{{ resource.config.name }}"
 
-  min_size         = {{ resource.config.min_size }}
-  max_size         = {{ resource.config.max_size }}
-  desired_capacity = {{ resource.config.desired_capacity }}
+  min_size         = {{ resource.config.min_size | d(0) }}
+  max_size         = {{ resource.config.max_size | d(1) }}
+  desired_capacity = {{ resource.config.desired_capacity | d(1) }}
 
 {% if resource.config.launch_template.id %}
   launch_template {
@@ -58,9 +58,9 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
   ]
 {% endif %}
 
-  health_check_type         = "{{ resource.config.health_check_type }}"
-  health_check_grace_period = {{ resource.config.health_check_grace_period }}
-  default_cooldown          = {{ resource.config.default_cooldown }}
+  health_check_type         = "{{ resource.config.health_check_type | d('EC2') }}"
+  health_check_grace_period = {{ resource.config.health_check_grace_period | d(300) }}
+  default_cooldown          = {{ resource.config.default_cooldown | d(300) }}
 
   tag {
     key                 = "Name"

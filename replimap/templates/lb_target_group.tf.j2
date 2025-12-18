@@ -1,8 +1,8 @@
 # Target Group: {{ resource.original_name }}
 resource "aws_lb_target_group" "{{ resource.terraform_name }}" {
   name        = "{{ resource.config.name }}"
-  port        = {{ resource.config.port }}
-  protocol    = "{{ resource.config.protocol }}"
+  port        = {{ resource.config.port | d(80) }}
+  protocol    = "{{ resource.config.protocol | d('HTTP') }}"
 {% if resource.config.vpc_id is tf_ref %}
   vpc_id      = {{ resource.config.vpc_id }}
 {% else %}
@@ -14,19 +14,19 @@ resource "aws_lb_target_group" "{{ resource.terraform_name }}" {
   vpc_id      = "{{ resource.config.vpc_id }}"
 {% endif %}
 {% endif %}
-  target_type = "{{ resource.config.target_type | default('instance') }}"
+  target_type = "{{ resource.config.target_type | d('instance') }}"
 
   health_check {
-    enabled             = {{ resource.config.health_check.enabled | lower }}
-    path                = "{{ resource.config.health_check.path | default('/') }}"
-    port                = "{{ resource.config.health_check.port | default('traffic-port') }}"
-    protocol            = "{{ resource.config.health_check.protocol | default('HTTP') }}"
-    healthy_threshold   = {{ resource.config.health_check.healthy_threshold | default(3) }}
-    unhealthy_threshold = {{ resource.config.health_check.unhealthy_threshold | default(3) }}
-    timeout             = {{ resource.config.health_check.timeout_seconds | default(5) }}
-    interval            = {{ resource.config.health_check.interval_seconds | default(30) }}
+    enabled             = {{ resource.config.health_check.enabled | d(true) | lower }}
+    path                = "{{ resource.config.health_check.path | d('/') }}"
+    port                = "{{ resource.config.health_check.port | d('traffic-port') }}"
+    protocol            = "{{ resource.config.health_check.protocol | d('HTTP') }}"
+    healthy_threshold   = {{ resource.config.health_check.healthy_threshold | d(3) }}
+    unhealthy_threshold = {{ resource.config.health_check.unhealthy_threshold | d(3) }}
+    timeout             = {{ resource.config.health_check.timeout_seconds | d(5) }}
+    interval            = {{ resource.config.health_check.interval_seconds | d(30) }}
 {% if resource.config.health_check.matcher %}
-    matcher             = "{{ resource.config.health_check.matcher.HttpCode | default('200') }}"
+    matcher             = "{{ resource.config.health_check.matcher.HttpCode | d('200') }}"
 {% endif %}
   }
 
