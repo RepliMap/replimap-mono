@@ -188,10 +188,17 @@ class BaseScanner(ABC):
     Subclasses must implement:
     - resource_types: List of Terraform resource types this scanner handles
     - scan(): The main scanning logic
+
+    Optionally set:
+    - depends_on_types: Resource types that must be scanned first
     """
 
     # Terraform resource types this scanner handles
     resource_types: ClassVar[list[str]] = []
+
+    # Resource types this scanner depends on (must be scanned first)
+    # Scanners with dependencies run in phase 2, after phase 1 completes
+    depends_on_types: ClassVar[list[str]] = []
 
     def __init__(self, session: boto3.Session, region: str) -> None:
         """
@@ -357,6 +364,13 @@ def run_all_scanners(
     """
     Run all registered scanners.
 
+    Scanners are executed in two phases:
+    - Phase 1: Scanners with no dependencies (depends_on_types is empty)
+    - Phase 2: Scanners with dependencies (run after phase 1 completes)
+
+    This ensures scanners that query the graph for resources populated by
+    other scanners will find those resources.
+
     Args:
         session: Configured boto3 session
         region: AWS region to scan
@@ -373,14 +387,43 @@ def run_all_scanners(
     if not scanner_classes:
         return results
 
+    # Partition scanners into phases based on dependencies
+    phase1_scanners = [sc for sc in scanner_classes if not sc.depends_on_types]
+    phase2_scanners = [sc for sc in scanner_classes if sc.depends_on_types]
+
     workers = max_workers or MAX_SCANNER_WORKERS
 
     if parallel and workers > 1:
-        # Parallel execution using ThreadPoolExecutor
-        return _run_scanners_parallel(session, region, graph, scanner_classes, workers)
+        # Phase 1: Run independent scanners in parallel
+        if phase1_scanners:
+            logger.debug(
+                f"Phase 1: Running {len(phase1_scanners)} independent scanners"
+            )
+            phase1_results = _run_scanners_parallel(
+                session, region, graph, phase1_scanners, workers
+            )
+            results.update(phase1_results)
+
+        # Phase 2: Run dependent scanners in parallel (after phase 1 completes)
+        if phase2_scanners:
+            logger.debug(
+                f"Phase 2: Running {len(phase2_scanners)} dependent scanners"
+            )
+            phase2_results = _run_scanners_parallel(
+                session, region, graph, phase2_scanners, workers
+            )
+            results.update(phase2_results)
     else:
         # Sequential execution (for debugging or when parallel disabled)
-        return _run_scanners_sequential(session, region, graph, scanner_classes)
+        # Run phase 1 first, then phase 2
+        results.update(
+            _run_scanners_sequential(session, region, graph, phase1_scanners)
+        )
+        results.update(
+            _run_scanners_sequential(session, region, graph, phase2_scanners)
+        )
+
+    return results
 
 
 def _run_scanners_sequential(
