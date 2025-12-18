@@ -21,12 +21,16 @@ resource "aws_sqs_queue" "{{ resource.terraform_name }}" {
 {% endif %}
 
 {% if resource.config.redrive_policy.deadLetterTargetArn %}
-{% set dlq_resource = graph.get_resource(resource.config.redrive_policy.deadLetterTargetArn) %}
   redrive_policy = jsonencode({
+{% if resource.config.redrive_policy.deadLetterTargetArn is tf_ref %}
+    deadLetterTargetArn = {{ resource.config.redrive_policy.deadLetterTargetArn }}
+{% else %}
+{% set dlq_resource = graph.get_resource(resource.config.redrive_policy.deadLetterTargetArn) %}
 {% if dlq_resource and dlq_resource.terraform_name %}
     deadLetterTargetArn = aws_sqs_queue.{{ dlq_resource.terraform_name }}.arn
 {% else %}
     deadLetterTargetArn = "{{ resource.config.redrive_policy.deadLetterTargetArn }}"
+{% endif %}
 {% endif %}
     maxReceiveCount     = {{ resource.config.redrive_policy.maxReceiveCount | default(5) }}
   })

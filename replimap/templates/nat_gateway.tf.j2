@@ -34,8 +34,12 @@ resource "aws_nat_gateway" "{{ resource.terraform_name }}" {
 {% endfor %}
   }
 
+{% if resource.config.vpc_id is tf_ref %}
+  # Note: depends_on with pre-remapped reference requires manual adjustment
+{% else %}
 {% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
 {% if vpc_resource and vpc_resource.terraform_name %}
   depends_on = [aws_internet_gateway.{{ vpc_resource.terraform_name }}]
+{% endif %}
 {% endif %}
 }

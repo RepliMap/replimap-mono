@@ -447,7 +447,7 @@ class PulumiRenderer(BaseRenderer):
         lines.append(
             '''    tags={
         "Name": "'''
-            + resource.original_name
+            + (resource.original_name or resource.terraform_name or "unnamed")
             + """",
         "ManagedBy": "RepliMap",
     },
