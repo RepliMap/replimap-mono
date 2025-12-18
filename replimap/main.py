@@ -39,7 +39,10 @@ from replimap.core import (
     GraphEngine,
     ScanCache,
     ScanFilter,
+    SelectionStrategy,
     apply_filter_to_graph,
+    apply_selection,
+    build_subgraph_from_selection,
     update_cache_from_graph,
 )
 from replimap.licensing import (
@@ -441,27 +444,46 @@ def scan(
         "--no-cache",
         help="Don't use cached credentials (re-authenticate)",
     ),
-    # Filter options
+    # New graph-based selection options
+    scope: str | None = typer.Option(
+        None,
+        "--scope",
+        "-s",
+        help="Selection scope: vpc:<id>, vpc-name:<pattern>, or VPC ID directly",
+    ),
+    entry: str | None = typer.Option(
+        None,
+        "--entry",
+        "-e",
+        help="Entry point: tag:Key=Value, <type>:<name>, or resource ID",
+    ),
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to YAML selection config file",
+    ),
+    # Legacy filter options (still supported for backwards compatibility)
     vpc: str | None = typer.Option(
         None,
         "--vpc",
-        help="Filter by VPC ID(s), comma-separated",
+        help="[Legacy] Filter by VPC ID(s), comma-separated",
     ),
     vpc_name: str | None = typer.Option(
         None,
         "--vpc-name",
-        help="Filter by VPC name pattern (supports wildcards)",
+        help="[Legacy] Filter by VPC name pattern (supports wildcards)",
     ),
     types: str | None = typer.Option(
         None,
         "--types",
         "-t",
-        help="Filter by resource types, comma-separated (e.g., vpc,subnet,ec2)",
+        help="[Legacy] Filter by resource types, comma-separated",
     ),
     tag: list[str] | None = typer.Option(
         None,
         "--tag",
-        help="Filter by tag (Key=Value), can be repeated",
+        help="Select by tag (Key=Value), can be repeated",
     ),
     exclude_types: str | None = typer.Option(
         None,
@@ -472,6 +494,11 @@ def scan(
         None,
         "--exclude-tag",
         help="Exclude by tag (Key=Value), can be repeated",
+    ),
+    exclude_patterns: str | None = typer.Option(
+        None,
+        "--exclude-patterns",
+        help="Exclude by name patterns, comma-separated (supports wildcards)",
     ),
     # Scan cache options
     use_scan_cache: bool = typer.Option(
@@ -500,11 +527,21 @@ def scan(
         replimap scan -i  # Interactive mode
         replimap scan --profile prod --output graph.json
 
-    Filter Examples:
+    Selection Examples (Graph-Based - Recommended):
+        replimap scan --profile prod --scope vpc:vpc-12345678
+        replimap scan --profile prod --scope vpc-name:Production*
+        replimap scan --profile prod --entry alb:my-app-alb
+        replimap scan --profile prod --entry tag:Application=MyApp
+        replimap scan --profile prod --tag Environment=Production
+
+    Filter Examples (Legacy, still supported):
         replimap scan --profile prod --vpc vpc-12345678
         replimap scan --profile prod --types vpc,subnet,ec2,rds
-        replimap scan --profile prod --tag Environment=Production
         replimap scan --profile prod --exclude-types sns,sqs
+
+    Advanced Examples:
+        replimap scan --profile prod --scope vpc:vpc-123 --exclude-patterns "test-*"
+        replimap scan --profile prod --config selection.yaml
 
     Cache Examples:
         replimap scan --profile prod --cache  # Use cached results
@@ -652,25 +689,65 @@ def scan(
         cache_path = scan_cache.save()
         console.print(f"[dim]Scan cache saved to {cache_path}[/]")
 
-    # Apply filters if specified
-    scan_filter = ScanFilter.from_cli_args(
-        vpc=vpc,
-        vpc_name=vpc_name,
-        types=types,
-        tags=tag,
-        exclude_types=exclude_types,
-        exclude_tags=exclude_tag,
-    )
+    # Apply selection or filters
+    # Check if new graph-based selection is being used
+    use_new_selection = scope or entry or config
 
-    if not scan_filter.is_empty():
-        console.print(f"\n[dim]Applying filters: {scan_filter.describe()}[/]")
-        pre_filter_count = graph.statistics()["total_resources"]
-        removed_count = apply_filter_to_graph(
-            graph, scan_filter, retain_dependencies=True
+    if use_new_selection:
+        # Load config from YAML if provided
+        if config and config.exists():
+            import yaml
+
+            with open(config) as f:
+                config_data = yaml.safe_load(f)
+            selection_strategy = SelectionStrategy.from_dict(config_data.get("selection", {}))
+        else:
+            # Build strategy from CLI args
+            selection_strategy = SelectionStrategy.from_cli_args(
+                scope=scope,
+                entry=entry,
+                tag=tag,
+                exclude_types=exclude_types,
+                exclude_patterns=exclude_patterns,
+            )
+
+        if not selection_strategy.is_empty():
+            console.print(f"\n[dim]Applying selection: {selection_strategy.describe()}[/]")
+            pre_select_count = graph.statistics()["total_resources"]
+
+            # Apply graph-based selection
+            selection_result = apply_selection(graph, selection_strategy)
+
+            # Build subgraph from selection
+            graph = build_subgraph_from_selection(graph, selection_result)
+
+            post_select_count = graph.statistics()["total_resources"]
+            console.print(
+                f"[dim]Selected: {post_select_count} of {pre_select_count} resources "
+                f"({selection_result.summary()['clone']} to clone, "
+                f"{selection_result.summary()['reference']} to reference)[/]"
+            )
+
+    else:
+        # Legacy filter support (backwards compatibility)
+        scan_filter = ScanFilter.from_cli_args(
+            vpc=vpc,
+            vpc_name=vpc_name,
+            types=types,
+            tags=tag,
+            exclude_types=exclude_types,
+            exclude_tags=exclude_tag,
         )
-        console.print(
-            f"[dim]Filtered: {pre_filter_count} → {pre_filter_count - removed_count} resources[/]"
-        )
+
+        if not scan_filter.is_empty():
+            console.print(f"\n[dim]Applying filters: {scan_filter.describe()}[/]")
+            pre_filter_count = graph.statistics()["total_resources"]
+            removed_count = apply_filter_to_graph(
+                graph, scan_filter, retain_dependencies=True
+            )
+            console.print(
+                f"[dim]Filtered: {pre_filter_count} → {pre_filter_count - removed_count} resources[/]"
+            )
 
     # Check resource limit
     stats = graph.statistics()
