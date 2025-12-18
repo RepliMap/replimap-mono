@@ -54,13 +54,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `replimap license status`: Show current license and plan
 - `replimap license usage`: Display usage statistics
 - `replimap license deactivate`: Remove license
+- `replimap profiles`: List available AWS profiles
+- `replimap cache status`: Show cached credentials
+- `replimap cache clear`: Clear credential cache
+
+#### CLI UX Improvements
+- Interactive mode (`-i`) for guided setup
+- AWS profile region auto-detection from `~/.aws/config`
+- MFA credential caching (12-hour TTL) to avoid repeated prompts
+- Short `-h` option for help on all commands
+
+#### Performance & Reliability
+- Parallel scanning with ThreadPoolExecutor (4 workers default)
+- AWS rate limit handling with exponential backoff retry
+- Configurable via environment variables (`REPLIMAP_MAX_WORKERS`, `REPLIMAP_MAX_RETRIES`)
+- Dev mode (`REPLIMAP_DEV_MODE=1`) for local development without license limits
 
 #### Developer Experience
 - Rich console output with progress spinners and tables
-- Comprehensive test suite with 154 tests
-- CI/CD with GitHub Actions
+- Comprehensive test suite with 181 tests
+- CI/CD with GitHub Actions (Python 3.11, 3.12, 3.13, 3.14)
 - ruff for formatting and linting
 - mypy for type checking
+- Timezone-aware datetime handling throughout
 
 ### Security
 - Read-only AWS permissions only

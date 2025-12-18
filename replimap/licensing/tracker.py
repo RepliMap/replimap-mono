@@ -17,6 +17,25 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def ensure_utc(dt: datetime) -> datetime:
+    """
+    Ensure a datetime is timezone-aware (UTC).
+
+    Handles both naive and aware datetimes for compatibility
+    with older saved data.
+
+    Args:
+        dt: A datetime object (naive or aware)
+
+    Returns:
+        A timezone-aware datetime in UTC
+    """
+    if dt.tzinfo is None:
+        # Naive datetime - assume it was UTC
+        return dt.replace(tzinfo=UTC)
+    return dt
+
+
 @dataclass
 class ScanRecord:
     """Record of a single scan operation."""
@@ -48,9 +67,11 @@ class ScanRecord:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ScanRecord:
         """Create from dictionary."""
+        # Ensure timestamp is timezone-aware for comparison compatibility
+        timestamp = ensure_utc(datetime.fromisoformat(data["timestamp"]))
         return cls(
             scan_id=data["scan_id"],
-            timestamp=datetime.fromisoformat(data["timestamp"]),
+            timestamp=timestamp,
             region=data["region"],
             resource_count=data["resource_count"],
             resource_types=data["resource_types"],

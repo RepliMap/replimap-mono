@@ -585,3 +585,103 @@ class TestUsageStats:
         data = stats.to_dict()
         assert data["total_scans"] == 10
         assert "us-east-1" in data["unique_regions"]
+
+
+class TestDevMode:
+    """Tests for dev mode functionality."""
+
+    def test_dev_mode_disabled_by_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that dev mode is disabled by default."""
+        monkeypatch.delenv("REPLIMAP_DEV_MODE", raising=False)
+        from replimap.licensing.manager import is_dev_mode
+
+        assert is_dev_mode() is False
+
+    def test_dev_mode_enabled_with_1(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that dev mode is enabled with '1'."""
+        monkeypatch.setenv("REPLIMAP_DEV_MODE", "1")
+        from replimap.licensing.manager import is_dev_mode
+
+        assert is_dev_mode() is True
+
+    def test_dev_mode_enabled_with_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that dev mode is enabled with 'true'."""
+        monkeypatch.setenv("REPLIMAP_DEV_MODE", "true")
+        from replimap.licensing.manager import is_dev_mode
+
+        assert is_dev_mode() is True
+
+    def test_dev_mode_enabled_with_yes(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that dev mode is enabled with 'yes'."""
+        monkeypatch.setenv("REPLIMAP_DEV_MODE", "yes")
+        from replimap.licensing.manager import is_dev_mode
+
+        assert is_dev_mode() is True
+
+    def test_dev_mode_case_insensitive(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that dev mode check is case insensitive."""
+        monkeypatch.setenv("REPLIMAP_DEV_MODE", "TRUE")
+        from replimap.licensing.manager import is_dev_mode
+
+        assert is_dev_mode() is True
+
+    def test_dev_mode_returns_enterprise_plan(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that dev mode enables enterprise plan."""
+        monkeypatch.setenv("REPLIMAP_DEV_MODE", "1")
+        manager = LicenseManager()
+        assert manager.current_plan == Plan.ENTERPRISE
+        assert manager.is_dev_mode is True
+
+
+class TestEnsureUtc:
+    """Tests for ensure_utc helper function."""
+
+    def test_naive_datetime_becomes_utc(self) -> None:
+        """Test that naive datetime is converted to UTC."""
+        from replimap.licensing.tracker import ensure_utc
+
+        naive = datetime(2024, 1, 15, 12, 30, 0)
+        result = ensure_utc(naive)
+        assert result.tzinfo == UTC
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 15
+
+    def test_aware_datetime_unchanged(self) -> None:
+        """Test that aware datetime is not modified."""
+        from replimap.licensing.tracker import ensure_utc
+
+        aware = datetime(2024, 1, 15, 12, 30, 0, tzinfo=UTC)
+        result = ensure_utc(aware)
+        assert result.tzinfo == UTC
+        assert result == aware
+
+    def test_scan_record_from_dict_handles_naive_timestamp(self) -> None:
+        """Test that ScanRecord.from_dict handles naive timestamps."""
+        data = {
+            "scan_id": "test-123",
+            "timestamp": "2024-01-15T12:30:00",  # No timezone info
+            "region": "us-east-1",
+            "resource_count": 10,
+            "resource_types": {"aws_vpc": 1},
+            "duration_seconds": 5.0,
+        }
+        record = ScanRecord.from_dict(data)
+        assert record.timestamp.tzinfo == UTC
+
+    def test_scan_record_from_dict_handles_aware_timestamp(self) -> None:
+        """Test that ScanRecord.from_dict handles aware timestamps."""
+        data = {
+            "scan_id": "test-123",
+            "timestamp": "2024-01-15T12:30:00+00:00",  # With timezone
+            "region": "us-east-1",
+            "resource_count": 10,
+            "resource_types": {"aws_vpc": 1},
+            "duration_seconds": 5.0,
+        }
+        record = ScanRecord.from_dict(data)
+        assert record.timestamp.tzinfo is not None
