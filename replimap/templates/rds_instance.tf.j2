@@ -1,6 +1,19 @@
 # RDS Instance: {{ resource.id }}
 # Original Instance Class: {{ resource.config.instance_class }}
 # Engine: {{ resource.config.engine }} {{ resource.config.engine_version }}
+{# Determine default port based on database engine #}
+{% set engine = resource.config.engine | lower %}
+{% if engine in ['mysql', 'mariadb', 'aurora', 'aurora-mysql'] %}
+{% set default_port = 3306 %}
+{% elif engine in ['postgres', 'aurora-postgresql'] %}
+{% set default_port = 5432 %}
+{% elif engine in ['sqlserver-ee', 'sqlserver-se', 'sqlserver-ex', 'sqlserver-web'] %}
+{% set default_port = 1433 %}
+{% elif engine in ['oracle-ee', 'oracle-se2', 'oracle-se1', 'oracle-se'] %}
+{% set default_port = 1521 %}
+{% else %}
+{% set default_port = 5432 %}
+{% endif %}
 resource "aws_db_instance" "{{ resource.terraform_name }}" {
   identifier = "{{ resource.config.identifier }}-${var.environment}"
 
@@ -25,7 +38,7 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   username = "{{ resource.config.master_username | d('admin') }}"
   # IMPORTANT: Set password via variable or secrets manager
   password = var.db_password_{{ resource.terraform_name }}
-  port     = {{ resource.config.port | d(5432) }}
+  port     = {{ resource.config.port | d(default_port) }}
 
   # Network configuration
 {% if resource.config.db_subnet_group_name %}

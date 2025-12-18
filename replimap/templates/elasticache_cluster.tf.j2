@@ -1,4 +1,11 @@
 # ElastiCache Cluster: {{ resource.original_name }}
+{# Determine default port based on cache engine #}
+{% set cache_engine = resource.config.engine | lower %}
+{% if cache_engine == 'memcached' %}
+{% set default_port = 11211 %}
+{% else %}
+{% set default_port = 6379 %}
+{% endif %}
 resource "aws_elasticache_cluster" "{{ resource.terraform_name }}" {
   cluster_id           = "{{ resource.config.cluster_id }}"
   engine               = "{{ resource.config.engine }}"
@@ -8,7 +15,7 @@ resource "aws_elasticache_cluster" "{{ resource.terraform_name }}" {
   node_type            = "{{ resource.config.node_type }}"
   num_cache_nodes      = {{ resource.config.num_cache_nodes | d(1) }}
 {% if resource.config.port %}
-  port                 = {{ resource.config.port | d(6379) }}
+  port                 = {{ resource.config.port | d(default_port) }}
 {% endif %}
 
 {% if resource.config.cache_subnet_group_name %}
