@@ -142,6 +142,23 @@ class ComputeScanner(BaseScanner):
                     if tag_desc["ResourceArn"] == tg_arn:
                         tags = self._extract_tags(tag_desc.get("Tags"))
 
+                # Get registered targets for this target group
+                targets: list[dict[str, Any]] = []
+                try:
+                    target_health_resp = elbv2.describe_target_health(
+                        TargetGroupArn=tg_arn
+                    )
+                    for th in target_health_resp.get("TargetHealthDescriptions", []):
+                        target = th.get("Target", {})
+                        targets.append({
+                            "id": target.get("Id"),
+                            "port": target.get("Port"),
+                            "availability_zone": target.get("AvailabilityZone"),
+                            "health_state": th.get("TargetHealth", {}).get("State"),
+                        })
+                except ClientError as e:
+                    logger.debug(f"Could not get targets for {tg_name}: {e}")
+
                 node = ResourceNode(
                     id=tg_arn,
                     resource_type=ResourceType.LB_TARGET_GROUP,
@@ -152,6 +169,7 @@ class ComputeScanner(BaseScanner):
                         "protocol": tg.get("Protocol"),
                         "port": tg.get("Port"),
                         "target_type": tg.get("TargetType"),
+                        "targets": targets,
                         "health_check": {
                             "enabled": tg.get("HealthCheckEnabled"),
                             "protocol": tg.get("HealthCheckProtocol"),

@@ -56,6 +56,18 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
 {% if rule.ipv6_cidr_blocks %}
     ipv6_cidr_blocks = {{ rule.ipv6_cidr_blocks | tojson }}
 {% endif %}
+{% if rule.security_groups %}
+    security_groups  = [
+{% for sg in rule.security_groups %}
+{% if sg.security_group_id is tf_ref %}
+      {{ sg.security_group_id }},
+{% else %}
+{% set sg_resource = graph.get_resource(sg.security_group_id) %}
+      {% if sg_resource and sg_resource.terraform_name %}aws_security_group.{{ sg_resource.terraform_name }}.id{% else %}"{{ sg.security_group_id }}"{% endif %},
+{% endif %}
+{% endfor %}
+    ]
+{% endif %}
   }
 
 {% endfor %}
