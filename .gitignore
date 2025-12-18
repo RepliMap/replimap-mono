@@ -46,9 +46,9 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
-# Generated outputs
+# Generated outputs (can be regenerated with `replimap clone`)
 terraform/
-#*.tf
+staging-tf/
 !templates/*.j2
 
 # Terraform
