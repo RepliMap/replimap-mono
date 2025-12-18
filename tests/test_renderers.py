@@ -623,6 +623,70 @@ class TestTerraformRendererAdvanced:
             names = [vpc1.terraform_name, vpc2.terraform_name]
             assert len(names) == len(set(names)), "Terraform names should be unique"
 
+    def test_unique_name_generation_with_similar_id_endings(self) -> None:
+        """Test that duplicate names are unique even when IDs have similar endings."""
+        graph = GraphEngine()
+
+        # Add multiple RDS instances with same Name tag and similar ID endings
+        # This tests the bug where using ID[-8:] as suffix could create duplicates
+        rds1 = ResourceNode(
+            id="etime-14si-stage-1-upgrades",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="ap-southeast-2",
+            config={
+                "identifier": "etime-14si-stage-1-upgrades",
+                "engine": "aurora-mysql",
+                "engine_version": "8.0",
+                "instance_class": "db.t4g.medium",
+            },
+            tags={"Name": "etime-14si-stage"},  # Same Name tag
+        )
+        graph.add_resource(rds1)
+
+        rds2 = ResourceNode(
+            id="etime-14si-stage-2-upgrades",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="ap-southeast-2",
+            config={
+                "identifier": "etime-14si-stage-2-upgrades",
+                "engine": "aurora-mysql",
+                "engine_version": "8.0",
+                "instance_class": "db.t4g.medium",
+            },
+            tags={"Name": "etime-14si-stage"},  # Same Name tag
+        )
+        graph.add_resource(rds2)
+
+        rds3 = ResourceNode(
+            id="etime-14si-stage-3-upgrades",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="ap-southeast-2",
+            config={
+                "identifier": "etime-14si-stage-3-upgrades",
+                "engine": "aurora-mysql",
+                "engine_version": "8.0",
+                "instance_class": "db.t4g.medium",
+            },
+            tags={"Name": "etime-14si-stage"},  # Same Name tag
+        )
+        graph.add_resource(rds3)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            renderer.render(graph, output_dir)
+
+            # All terraform_names should be unique
+            names = [rds1.terraform_name, rds2.terraform_name, rds3.terraform_name]
+            assert len(names) == len(set(names)), f"Terraform names should be unique: {names}"
+
+            # Verify the rendered output has unique resource names
+            rds_content = (output_dir / "rds.tf").read_text()
+            # Count occurrences of each terraform_name in the rendered output
+            for name in names:
+                occurrences = rds_content.count(f'resource "aws_db_instance" "{name}"')
+                assert occurrences == 1, f"Resource {name} should appear exactly once"
+
     def test_vpc_reference_resolution_in_subnet(self) -> None:
         """Test that subnet template properly resolves VPC reference."""
         graph = GraphEngine()

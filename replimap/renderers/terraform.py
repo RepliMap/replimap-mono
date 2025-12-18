@@ -206,7 +206,7 @@ class TerraformRenderer:
                 type_names[resource_type][name] = []
             type_names[resource_type][name].append(resource)
 
-        # Resolve duplicates
+        # Resolve duplicates using numeric suffixes
         for resource_type, names in type_names.items():
             for name, resources in names.items():
                 if len(resources) > 1:
@@ -214,14 +214,20 @@ class TerraformRenderer:
                         f"Found {len(resources)} {resource_type} resources "
                         f"with terraform_name '{name}', making unique"
                     )
+                    # Track all names used to ensure uniqueness
+                    used_names: set[str] = {name}
                     for i, resource in enumerate(resources):
                         if i > 0:
-                            # Append resource ID suffix to make unique
-                            # Use last 8 chars of ID for brevity
-                            suffix = resource.id.replace("-", "_")[-8:]
-                            new_name = f"{name}_{suffix}"
+                            # Use numeric suffix to guarantee uniqueness
+                            suffix_num = i
+                            new_name = f"{name}_{suffix_num}"
+                            # Ensure the new name isn't already used
+                            while new_name in used_names:
+                                suffix_num += 1
+                                new_name = f"{name}_{suffix_num}"
+                            used_names.add(new_name)
                             resource.terraform_name = new_name
-                            logger.debug(
+                            logger.info(
                                 f"Renamed {resource.id} from '{name}' to '{new_name}'"
                             )
 

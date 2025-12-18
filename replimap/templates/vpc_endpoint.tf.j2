@@ -33,7 +33,7 @@ resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
 {% endfor %}
   ]
 
-  private_dns_enabled = {{ resource.config.private_dns_enabled | lower }}
+  private_dns_enabled = {{ resource.config.private_dns_enabled | default(false) | lower }}
 {% elif resource.config.vpc_endpoint_type == "Gateway" %}
   route_table_ids = [
 {% for rt_id in resource.config.route_table_ids %}
