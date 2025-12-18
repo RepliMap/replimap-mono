@@ -2,10 +2,13 @@
 # Original ID: {{ resource.id }}
 # Original Type: {{ resource.config.instance_type }}
 resource "aws_instance" "{{ resource.terraform_name }}" {
-  ami           = "{{ resource.config.ami }}"
+  # NOTE: AMI IDs are region-specific. Set via variable or use data source.
+  # Original AMI: {{ resource.config.ami }}
+  ami           = var.ami_id
   instance_type = "{{ resource.config.instance_type }}"
 {% if resource.config.key_name %}
-  key_name      = "{{ resource.config.key_name }}"
+  # NOTE: Key pair must exist in target account/region
+  key_name      = var.key_name
 {% endif %}
 
 {% if resource.config.subnet_id %}

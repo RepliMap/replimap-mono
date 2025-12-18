@@ -29,9 +29,18 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
 {% if rule.ipv6_cidr_blocks %}
     ipv6_cidr_blocks = {{ rule.ipv6_cidr_blocks | tojson }}
 {% endif %}
+{% if rule.prefix_list_ids %}
+    prefix_list_ids  = {{ rule.prefix_list_ids | tojson }}
+{% endif %}
 {% if rule.security_groups %}
+{% set self_ref = rule.security_groups | selectattr('security_group_id', 'equalto', resource.id) | list %}
+{% set other_refs = rule.security_groups | rejectattr('security_group_id', 'equalto', resource.id) | list %}
+{% if self_ref %}
+    self             = true
+{% endif %}
+{% if other_refs %}
     security_groups  = [
-{% for sg in rule.security_groups %}
+{% for sg in other_refs %}
 {% if sg.security_group_id is tf_ref %}
       {{ sg.security_group_id }},
 {% else %}
@@ -40,6 +49,7 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
 {% endif %}
 {% endfor %}
     ]
+{% endif %}
 {% endif %}
   }
 
@@ -56,9 +66,18 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
 {% if rule.ipv6_cidr_blocks %}
     ipv6_cidr_blocks = {{ rule.ipv6_cidr_blocks | tojson }}
 {% endif %}
+{% if rule.prefix_list_ids %}
+    prefix_list_ids  = {{ rule.prefix_list_ids | tojson }}
+{% endif %}
 {% if rule.security_groups %}
+{% set self_ref = rule.security_groups | selectattr('security_group_id', 'equalto', resource.id) | list %}
+{% set other_refs = rule.security_groups | rejectattr('security_group_id', 'equalto', resource.id) | list %}
+{% if self_ref %}
+    self             = true
+{% endif %}
+{% if other_refs %}
     security_groups  = [
-{% for sg in rule.security_groups %}
+{% for sg in other_refs %}
 {% if sg.security_group_id is tf_ref %}
       {{ sg.security_group_id }},
 {% else %}
@@ -67,6 +86,7 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
 {% endif %}
 {% endfor %}
     ]
+{% endif %}
 {% endif %}
   }
 

@@ -14,6 +14,7 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   storage_type          = "{{ resource.config.storage_type | default('gp2') }}"
   storage_encrypted     = {{ resource.config.storage_encrypted | default(false) | lower }}
 {% if resource.config.kms_key_id %}
+  # NOTE: KMS key must be accessible in target account/region
   kms_key_id            = "{{ resource.config.kms_key_id }}"
 {% endif %}
 
@@ -90,6 +91,11 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% for key, value in resource.tags.items() if key != 'Name' %}
     {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
+  }
+
+  # Prevent password changes from triggering instance recreation
+  lifecycle {
+    ignore_changes = [password]
   }
 }
 

@@ -113,6 +113,27 @@ class NetworkRemapTransformer(BaseTransformer):
                     self._id_map[resource.id] = (
                         f"aws_instance.{resource.terraform_name}.id"
                     )
+                elif resource.resource_type == ResourceType.ROUTE_TABLE:
+                    self._id_map[resource.id] = (
+                        f"aws_route_table.{resource.terraform_name}.id"
+                    )
+                elif resource.resource_type == ResourceType.INTERNET_GATEWAY:
+                    self._id_map[resource.id] = (
+                        f"aws_internet_gateway.{resource.terraform_name}.id"
+                    )
+                elif resource.resource_type == ResourceType.NAT_GATEWAY:
+                    self._id_map[resource.id] = (
+                        f"aws_nat_gateway.{resource.terraform_name}.id"
+                    )
+                elif resource.resource_type == ResourceType.LAUNCH_TEMPLATE:
+                    self._id_map[resource.id] = (
+                        f"aws_launch_template.{resource.terraform_name}.id"
+                    )
+                elif resource.resource_type == ResourceType.LB_TARGET_GROUP:
+                    # For target groups, also map the ARN pattern
+                    self._id_map[resource.id] = (
+                        f"aws_lb_target_group.{resource.terraform_name}.arn"
+                    )
 
     def _remap_config(self, config: dict[str, Any]) -> dict[str, Any]:
         """
@@ -133,11 +154,19 @@ class NetworkRemapTransformer(BaseTransformer):
             "security_group_id",
             "db_subnet_group_name",
             "instance_id",
+            "route_table_id",
+            "gateway_id",
+            "nat_gateway_id",
+            "network_interface_id",
+            "launch_template_id",
+            "target_group_arn",
         }
         list_id_fields = {
             "subnet_ids",
             "security_group_ids",
             "vpc_security_group_ids",
+            "route_table_ids",
+            "target_group_arns",
         }
 
         for key, value in config.items():
@@ -201,7 +230,17 @@ class NetworkRemapTransformer(BaseTransformer):
             value: String to check
 
         Returns:
-            True if it looks like vpc-*, subnet-*, sg-*, or i-*
+            True if it looks like a known AWS resource ID pattern
         """
-        prefixes = ("vpc-", "subnet-", "sg-", "i-")
+        prefixes = (
+            "vpc-",      # VPC
+            "subnet-",   # Subnet
+            "sg-",       # Security Group
+            "i-",        # EC2 Instance
+            "rtb-",      # Route Table
+            "igw-",      # Internet Gateway
+            "nat-",      # NAT Gateway
+            "eni-",      # Network Interface
+            "lt-",       # Launch Template
+        )
         return any(value.startswith(prefix) for prefix in prefixes)

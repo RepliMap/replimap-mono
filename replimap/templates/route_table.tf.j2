@@ -41,8 +41,48 @@ resource "aws_route_table" "{{ resource.terraform_name }}" {
 {% endif %}
 {% endif %}
   }
+{% elif route.vpc_peering_connection_id %}
+  route {
+    cidr_block                = "{{ route.destination_cidr_block }}"
+    # NOTE: VPC Peering Connection is a boundary resource - verify it exists in target account
+    vpc_peering_connection_id = "{{ route.vpc_peering_connection_id }}"
+  }
+{% elif route.transit_gateway_id %}
+  route {
+    cidr_block         = "{{ route.destination_cidr_block }}"
+    # NOTE: Transit Gateway is a boundary resource - verify it exists in target account
+    transit_gateway_id = "{{ route.transit_gateway_id }}"
+  }
+{% elif route.network_interface_id %}
+  route {
+    cidr_block = "{{ route.destination_cidr_block }}"
+{% if route.network_interface_id is tf_ref %}
+    network_interface_id = {{ route.network_interface_id }}
+{% else %}
+{% set eni_resource = graph.get_resource(route.network_interface_id) %}
+{% if eni_resource and eni_resource.terraform_name %}
+    network_interface_id = aws_network_interface.{{ eni_resource.terraform_name }}.id
+{% else %}
+    network_interface_id = "{{ route.network_interface_id }}"
+{% endif %}
+{% endif %}
+  }
+{% elif route.instance_id %}
+  route {
+    cidr_block = "{{ route.destination_cidr_block }}"
+{% if route.instance_id is tf_ref %}
+    instance_id = {{ route.instance_id }}
+{% else %}
+{% set instance_resource = graph.get_resource(route.instance_id) %}
+{% if instance_resource and instance_resource.terraform_name %}
+    instance_id = aws_instance.{{ instance_resource.terraform_name }}.id
+{% else %}
+    instance_id = "{{ route.instance_id }}"
+{% endif %}
+{% endif %}
+  }
 {% elif route.destination_cidr_block == "0.0.0.0/0" %}
-  # Default route placeholder
+  # Default route placeholder - no target specified
 {% endif %}
 {% endfor %}
 
