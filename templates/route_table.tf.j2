@@ -1,0 +1,35 @@
+# Route Table: {{ resource.original_name }}
+resource "aws_route_table" "{{ resource.terraform_name }}" {
+  vpc_id = aws_vpc.{{ resource.config.vpc_id | terraform_name }}.id
+
+{% for route in resource.config.routes %}
+{% if route.gateway_id and route.gateway_id.startswith('igw-') %}
+  route {
+    cidr_block = "{{ route.destination_cidr_block }}"
+    gateway_id = aws_internet_gateway.{{ route.gateway_id | terraform_name }}.id
+  }
+{% elif route.nat_gateway_id %}
+  route {
+    cidr_block     = "{{ route.destination_cidr_block }}"
+    nat_gateway_id = aws_nat_gateway.{{ route.nat_gateway_id | terraform_name }}.id
+  }
+{% elif route.destination_cidr_block == "0.0.0.0/0" %}
+  # Default route placeholder
+{% endif %}
+{% endfor %}
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}
+
+{% for assoc in resource.config.associations %}
+{% if assoc.subnet_id and not assoc.main %}
+resource "aws_route_table_association" "{{ resource.terraform_name }}_{{ assoc.subnet_id | terraform_name }}" {
+  subnet_id      = aws_subnet.{{ assoc.subnet_id | terraform_name }}.id
+  route_table_id = aws_route_table.{{ resource.terraform_name }}.id
+}
+{% endif %}
+{% endfor %}

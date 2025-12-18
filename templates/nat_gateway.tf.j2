@@ -1,0 +1,23 @@
+# NAT Gateway: {{ resource.original_name }}
+resource "aws_eip" "{{ resource.terraform_name }}_eip" {
+  domain = "vpc"
+
+  tags = {
+    Name        = "{{ resource.original_name }}-eip"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}
+
+resource "aws_nat_gateway" "{{ resource.terraform_name }}" {
+  allocation_id = aws_eip.{{ resource.terraform_name }}_eip.id
+  subnet_id     = aws_subnet.{{ resource.config.subnet_id | terraform_name }}.id
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+
+  depends_on = [aws_internet_gateway.{{ resource.config.vpc_id | terraform_name }}]
+}

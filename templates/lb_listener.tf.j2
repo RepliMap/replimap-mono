@@ -1,0 +1,31 @@
+# LB Listener: {{ resource.config.protocol }}:{{ resource.config.port }}
+resource "aws_lb_listener" "{{ resource.terraform_name }}" {
+  load_balancer_arn = aws_lb.{{ resource.config.load_balancer_arn | terraform_name }}.arn
+  port              = {{ resource.config.port }}
+  protocol          = "{{ resource.config.protocol }}"
+
+{% if resource.config.ssl_policy %}
+  ssl_policy        = "{{ resource.config.ssl_policy }}"
+{% endif %}
+{% if resource.config.certificate_arn %}
+  certificate_arn   = "{{ resource.config.certificate_arn }}"
+{% endif %}
+
+{% for action in resource.config.default_actions %}
+{% if action.type == 'forward' and action.target_group_arn %}
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.{{ action.target_group_arn | terraform_name }}.arn
+  }
+{% elif action.type == 'fixed-response' %}
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "{{ action.fixed_response.ContentType | default('text/plain') }}"
+      message_body = "{{ action.fixed_response.MessageBody | default('OK') }}"
+      status_code  = "{{ action.fixed_response.StatusCode | default('200') }}"
+    }
+  }
+{% endif %}
+{% endfor %}
+}

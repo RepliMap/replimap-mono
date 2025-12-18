@@ -1,0 +1,35 @@
+# SQS Queue: {{ resource.original_name }}
+resource "aws_sqs_queue" "{{ resource.terraform_name }}" {
+  name = "{{ resource.config.name }}"
+
+{% if resource.config.fifo_queue %}
+  fifo_queue                  = true
+  content_based_deduplication = {{ resource.config.content_based_deduplication | lower }}
+{% endif %}
+
+  visibility_timeout_seconds  = {{ resource.config.visibility_timeout_seconds }}
+  message_retention_seconds   = {{ resource.config.message_retention_seconds }}
+  max_message_size            = {{ resource.config.max_message_size }}
+  delay_seconds               = {{ resource.config.delay_seconds }}
+  receive_wait_time_seconds   = {{ resource.config.receive_wait_time_seconds }}
+
+{% if resource.config.kms_master_key_id %}
+  kms_master_key_id                 = "{{ resource.config.kms_master_key_id }}"
+  kms_data_key_reuse_period_seconds = {{ resource.config.kms_data_key_reuse_period_seconds | default(300) }}
+{% elif resource.config.sqs_managed_sse_enabled %}
+  sqs_managed_sse_enabled = true
+{% endif %}
+
+{% if resource.config.redrive_policy.deadLetterTargetArn %}
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.{{ resource.config.redrive_policy.deadLetterTargetArn | terraform_name }}.arn
+    maxReceiveCount     = {{ resource.config.redrive_policy.maxReceiveCount | default(5) }}
+  })
+{% endif %}
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}

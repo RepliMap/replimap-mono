@@ -1,0 +1,28 @@
+# EBS Volume: {{ resource.original_name }}
+resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
+  availability_zone = "{{ resource.config.availability_zone }}"
+  size              = {{ resource.config.size }}
+  type              = "{{ resource.config.volume_type }}"
+
+{% if resource.config.iops and resource.config.volume_type in ['io1', 'io2', 'gp3'] %}
+  iops = {{ resource.config.iops }}
+{% endif %}
+{% if resource.config.throughput and resource.config.volume_type == 'gp3' %}
+  throughput = {{ resource.config.throughput }}
+{% endif %}
+{% if resource.config.encrypted %}
+  encrypted = true
+{% if resource.config.kms_key_id %}
+  kms_key_id = "{{ resource.config.kms_key_id }}"
+{% endif %}
+{% endif %}
+{% if resource.config.snapshot_id %}
+  snapshot_id = "{{ resource.config.snapshot_id }}"
+{% endif %}
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}

@@ -1,0 +1,85 @@
+# RDS Instance: {{ resource.id }}
+# Original Instance Class: {{ resource.config.instance_class }}
+# Engine: {{ resource.config.engine }} {{ resource.config.engine_version }}
+resource "aws_db_instance" "{{ resource.terraform_name }}" {
+  identifier = "{{ resource.config.identifier }}-${var.environment}"
+
+  # Engine configuration
+  engine         = "{{ resource.config.engine }}"
+  engine_version = "{{ resource.config.engine_version }}"
+
+  # Instance configuration
+  instance_class        = "{{ resource.config.instance_class }}"
+  allocated_storage     = {{ resource.config.allocated_storage | default(20) }}
+  storage_type          = "{{ resource.config.storage_type | default('gp2') }}"
+  storage_encrypted     = {{ resource.config.storage_encrypted | default(false) | lower }}
+{% if resource.config.kms_key_id %}
+  kms_key_id            = "{{ resource.config.kms_key_id }}"
+{% endif %}
+
+  # Database configuration
+{% if resource.config.db_name %}
+  db_name  = "{{ resource.config.db_name }}"
+{% endif %}
+  username = "{{ resource.config.master_username | default('admin') }}"
+  # IMPORTANT: Set password via variable or secrets manager
+  password = var.db_password_{{ resource.terraform_name }}
+  port     = {{ resource.config.port | default(5432) }}
+
+  # Network configuration
+{% if resource.config.db_subnet_group_name and graph.get_resource(resource.config.db_subnet_group_name) %}
+  db_subnet_group_name = aws_db_subnet_group.{{ graph.get_resource(resource.config.db_subnet_group_name).terraform_name }}.name
+{% endif %}
+{% if resource.config.vpc_security_group_ids %}
+  vpc_security_group_ids = [
+{% for sg_id in resource.config.vpc_security_group_ids %}
+{% if graph.get_resource(sg_id) %}
+    aws_security_group.{{ graph.get_resource(sg_id).terraform_name }}.id,
+{% endif %}
+{% endfor %}
+  ]
+{% endif %}
+  publicly_accessible = {{ resource.config.publicly_accessible | default(false) | lower }}
+
+  # High availability
+  multi_az = {{ resource.config.multi_az | default(false) | lower }}
+{% if resource.config.availability_zone and not resource.config.multi_az %}
+  availability_zone = "{{ resource.config.availability_zone }}"
+{% endif %}
+
+  # Backup configuration
+  backup_retention_period = {{ resource.config.backup_retention_period | default(7) }}
+{% if resource.config.backup_window %}
+  backup_window           = "{{ resource.config.backup_window }}"
+{% endif %}
+{% if resource.config.maintenance_window %}
+  maintenance_window      = "{{ resource.config.maintenance_window }}"
+{% endif %}
+
+  # Other settings
+  auto_minor_version_upgrade  = {{ resource.config.auto_minor_version_upgrade | default(true) | lower }}
+  deletion_protection         = {{ resource.config.deletion_protection | default(false) | lower }}
+  skip_final_snapshot         = true
+  final_snapshot_identifier   = "{{ resource.config.identifier }}-final-${var.environment}"
+
+{% if resource.config.parameter_group_name %}
+  parameter_group_name = "{{ resource.config.parameter_group_name }}"
+{% endif %}
+
+  tags = {
+    Name        = "{{ resource.tags.get('Name', resource.id) }}"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key }} = {{ value | quote }}
+{% endfor %}
+  }
+}
+
+# Add password variable to variables.tf
+# variable "db_password_{{ resource.terraform_name }}" {
+#   description = "Password for RDS instance {{ resource.id }}"
+#   type        = string
+#   sensitive   = true
+# }

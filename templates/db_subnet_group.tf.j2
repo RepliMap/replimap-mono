@@ -1,0 +1,20 @@
+# DB Subnet Group: {{ resource.id }}
+resource "aws_db_subnet_group" "{{ resource.terraform_name }}" {
+  name        = "{{ resource.config.name }}-${var.environment}"
+  description = {{ resource.config.description | default("Managed by RepliMap") | quote }}
+
+  subnet_ids = [
+{% for subnet_id in resource.config.subnet_ids %}
+{% if graph.get_resource(subnet_id) %}
+    aws_subnet.{{ graph.get_resource(subnet_id).terraform_name }}.id,
+{% endif %}
+{% endfor %}
+  ]
+
+  tags = {
+    Name        = "{{ resource.tags.get('Name', resource.id) }}"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+  }
+}

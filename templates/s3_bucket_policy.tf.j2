@@ -1,0 +1,6 @@
+# S3 Bucket Policy: {{ resource.config.bucket }}
+resource "aws_s3_bucket_policy" "{{ resource.terraform_name }}" {
+  bucket = aws_s3_bucket.{{ resource.config.bucket | terraform_name }}.id
+
+  policy = jsonencode({{ resource.config.policy | tojson }})
+}

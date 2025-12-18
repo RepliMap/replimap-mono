@@ -1,0 +1,17 @@
+# ElastiCache Subnet Group: {{ resource.original_name }}
+resource "aws_elasticache_subnet_group" "{{ resource.terraform_name }}" {
+  name        = "{{ resource.config.name }}"
+  description = "{{ resource.config.description | default('Managed by RepliMap') }}"
+
+  subnet_ids = [
+{% for subnet_id in resource.config.subnet_ids %}
+    aws_subnet.{{ subnet_id | terraform_name }}.id,
+{% endfor %}
+  ]
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}

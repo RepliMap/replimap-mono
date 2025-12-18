@@ -1,0 +1,23 @@
+# SNS Topic: {{ resource.original_name }}
+resource "aws_sns_topic" "{{ resource.terraform_name }}" {
+  name = "{{ resource.config.name }}"
+
+{% if resource.config.fifo_topic %}
+  fifo_topic                  = true
+  content_based_deduplication = {{ resource.config.content_based_deduplication | lower }}
+{% endif %}
+
+{% if resource.config.display_name %}
+  display_name = "{{ resource.config.display_name }}"
+{% endif %}
+
+{% if resource.config.kms_master_key_id %}
+  kms_master_key_id = "{{ resource.config.kms_master_key_id }}"
+{% endif %}
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}

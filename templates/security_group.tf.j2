@@ -1,0 +1,60 @@
+# Security Group: {{ resource.config.name }}
+# Original ID: {{ resource.id }}
+resource "aws_security_group" "{{ resource.terraform_name }}" {
+  name        = "{{ resource.config.name }}"
+  description = {{ resource.config.description | quote }}
+{% if resource.config.vpc_id %}
+  vpc_id      = aws_vpc.{{ graph.get_resource(resource.config.vpc_id).terraform_name }}.id
+{% endif %}
+
+{% for rule in resource.config.ingress %}
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "{{ rule.protocol }}"
+    from_port        = {{ rule.from_port | default(0) }}
+    to_port          = {{ rule.to_port | default(0) }}
+{% if rule.cidr_blocks %}
+    cidr_blocks      = {{ rule.cidr_blocks | tojson }}
+{% endif %}
+{% if rule.ipv6_cidr_blocks %}
+    ipv6_cidr_blocks = {{ rule.ipv6_cidr_blocks | tojson }}
+{% endif %}
+{% if rule.security_groups %}
+    security_groups  = [
+{% for sg in rule.security_groups %}
+      {% if graph.get_resource(sg.security_group_id) %}aws_security_group.{{ graph.get_resource(sg.security_group_id).terraform_name }}.id{% else %}"{{ sg.security_group_id }}"{% endif %},
+{% endfor %}
+    ]
+{% endif %}
+  }
+
+{% endfor %}
+{% for rule in resource.config.egress %}
+  egress {
+    description      = "Egress rule"
+    protocol         = "{{ rule.protocol }}"
+    from_port        = {{ rule.from_port | default(0) }}
+    to_port          = {{ rule.to_port | default(0) }}
+{% if rule.cidr_blocks %}
+    cidr_blocks      = {{ rule.cidr_blocks | tojson }}
+{% endif %}
+{% if rule.ipv6_cidr_blocks %}
+    ipv6_cidr_blocks = {{ rule.ipv6_cidr_blocks | tojson }}
+{% endif %}
+  }
+
+{% endfor %}
+  tags = {
+    Name        = "{{ resource.tags.get('Name', resource.config.name) }}"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key }} = {{ value | quote }}
+{% endfor %}
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}

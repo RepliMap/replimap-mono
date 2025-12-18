@@ -1,0 +1,55 @@
+# Auto Scaling Group: {{ resource.original_name }}
+resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
+  name = "{{ resource.config.name }}"
+
+  min_size         = {{ resource.config.min_size }}
+  max_size         = {{ resource.config.max_size }}
+  desired_capacity = {{ resource.config.desired_capacity }}
+
+{% if resource.config.launch_template.id %}
+  launch_template {
+    id      = aws_launch_template.{{ resource.config.launch_template.id | terraform_name }}.id
+    version = "$Latest"
+  }
+{% endif %}
+
+{% if resource.config.subnet_ids %}
+  vpc_zone_identifier = [
+{% for subnet_id in resource.config.subnet_ids %}
+{% if subnet_id %}
+    aws_subnet.{{ subnet_id | terraform_name }}.id,
+{% endif %}
+{% endfor %}
+  ]
+{% endif %}
+
+{% if resource.config.target_group_arns %}
+  target_group_arns = [
+{% for tg_arn in resource.config.target_group_arns %}
+    aws_lb_target_group.{{ tg_arn | terraform_name }}.arn,
+{% endfor %}
+  ]
+{% endif %}
+
+  health_check_type         = "{{ resource.config.health_check_type }}"
+  health_check_grace_period = {{ resource.config.health_check_grace_period }}
+  default_cooldown          = {{ resource.config.default_cooldown }}
+
+  tag {
+    key                 = "Name"
+    value               = "{{ resource.original_name }}"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Environment"
+    value               = var.environment
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "ManagedBy"
+    value               = "RepliMap"
+    propagate_at_launch = true
+  }
+}

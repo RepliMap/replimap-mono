@@ -1,0 +1,10 @@
+# Internet Gateway: {{ resource.original_name }}
+resource "aws_internet_gateway" "{{ resource.terraform_name }}" {
+  vpc_id = aws_vpc.{{ resource.config.vpc_id | terraform_name }}.id
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}

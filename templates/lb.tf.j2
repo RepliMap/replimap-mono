@@ -1,0 +1,28 @@
+# Load Balancer: {{ resource.original_name }}
+resource "aws_lb" "{{ resource.terraform_name }}" {
+  name               = "{{ resource.config.name }}"
+  internal           = {{ (resource.config.scheme == 'internal') | lower }}
+  load_balancer_type = "{{ resource.config.type | lower }}"
+
+{% if resource.config.type == 'application' %}
+  security_groups = [
+{% for sg_id in resource.config.security_group_ids %}
+    aws_security_group.{{ sg_id | terraform_name }}.id,
+{% endfor %}
+  ]
+{% endif %}
+
+  subnets = [
+{% for subnet_id in resource.config.subnet_ids %}
+    aws_subnet.{{ subnet_id | terraform_name }}.id,
+{% endfor %}
+  ]
+
+  enable_deletion_protection = false
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}
