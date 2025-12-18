@@ -27,14 +27,22 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   port     = {{ resource.config.port | default(5432) }}
 
   # Network configuration
-{% if resource.config.db_subnet_group_name and graph.get_resource(resource.config.db_subnet_group_name) %}
-  db_subnet_group_name = aws_db_subnet_group.{{ graph.get_resource(resource.config.db_subnet_group_name).terraform_name }}.name
+{% if resource.config.db_subnet_group_name %}
+{% set subnet_group = graph.get_resource(resource.config.db_subnet_group_name) %}
+{% if subnet_group and subnet_group.terraform_name %}
+  db_subnet_group_name = aws_db_subnet_group.{{ subnet_group.terraform_name }}.name
+{% else %}
+  db_subnet_group_name = "{{ resource.config.db_subnet_group_name }}"
+{% endif %}
 {% endif %}
 {% if resource.config.vpc_security_group_ids %}
   vpc_security_group_ids = [
 {% for sg_id in resource.config.vpc_security_group_ids %}
-{% if graph.get_resource(sg_id) %}
-    aws_security_group.{{ graph.get_resource(sg_id).terraform_name }}.id,
+{% set sg_resource = graph.get_resource(sg_id) %}
+{% if sg_resource and sg_resource.terraform_name %}
+    aws_security_group.{{ sg_resource.terraform_name }}.id,
+{% else %}
+    "{{ sg_id }}",
 {% endif %}
 {% endfor %}
   ]
@@ -72,7 +80,7 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
     ManagedBy   = "replimap"
     SourceId    = "{{ resource.id }}"
 {% for key, value in resource.tags.items() if key != 'Name' %}
-    {{ key }} = {{ value | quote }}
+    {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
   }
 }

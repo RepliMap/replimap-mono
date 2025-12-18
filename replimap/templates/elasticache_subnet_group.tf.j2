@@ -5,13 +5,22 @@ resource "aws_elasticache_subnet_group" "{{ resource.terraform_name }}" {
 
   subnet_ids = [
 {% for subnet_id in resource.config.subnet_ids %}
-    aws_subnet.{{ subnet_id | terraform_name }}.id,
+{% set subnet_resource = graph.get_resource(subnet_id) %}
+{% if subnet_resource and subnet_resource.terraform_name %}
+    aws_subnet.{{ subnet_resource.terraform_name }}.id,
+{% else %}
+    "{{ subnet_id }}",
+{% endif %}
 {% endfor %}
   ]
 
   tags = {
     Name        = "{{ resource.original_name }}"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key | quote_key }} = {{ value | quote }}
+{% endfor %}
   }
 }

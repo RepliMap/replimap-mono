@@ -12,13 +12,23 @@ resource "aws_elasticache_cluster" "{{ resource.terraform_name }}" {
 {% endif %}
 
 {% if resource.config.cache_subnet_group_name %}
-  subnet_group_name = aws_elasticache_subnet_group.{{ resource.config.cache_subnet_group_name | terraform_name }}.name
+{% set subnet_group = graph.get_resource(resource.config.cache_subnet_group_name) %}
+{% if subnet_group and subnet_group.terraform_name %}
+  subnet_group_name = aws_elasticache_subnet_group.{{ subnet_group.terraform_name }}.name
+{% else %}
+  subnet_group_name = "{{ resource.config.cache_subnet_group_name }}"
+{% endif %}
 {% endif %}
 
 {% if resource.config.security_group_ids %}
   security_group_ids = [
 {% for sg_id in resource.config.security_group_ids %}
-    aws_security_group.{{ sg_id | terraform_name }}.id,
+{% set sg_resource = graph.get_resource(sg_id) %}
+{% if sg_resource and sg_resource.terraform_name %}
+    aws_security_group.{{ sg_resource.terraform_name }}.id,
+{% else %}
+    "{{ sg_id }}",
+{% endif %}
 {% endfor %}
   ]
 {% endif %}
@@ -38,6 +48,10 @@ resource "aws_elasticache_cluster" "{{ resource.terraform_name }}" {
   tags = {
     Name        = "{{ resource.original_name }}"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key | quote_key }} = {{ value | quote }}
+{% endfor %}
   }
 }

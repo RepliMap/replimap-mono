@@ -122,6 +122,11 @@ class TerraformRenderer:
         # Add custom filters
         self.env.filters["terraform_name"] = self._terraform_name_filter
         self.env.filters["quote"] = self._quote_filter
+        self.env.filters["quote_key"] = self._quote_key_filter
+        self.env.filters["tf_ref"] = self._tf_ref_filter
+
+        # Track used terraform names for uniqueness
+        self._used_names: dict[str, set[str]] = {}
 
     def render(self, graph: GraphEngine, output_dir: Path) -> dict[str, Path]:
         """
@@ -136,6 +141,9 @@ class TerraformRenderer:
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Rendering Terraform to {output_dir}")
+
+        # Ensure unique terraform names before rendering
+        self._ensure_unique_names(graph)
 
         # Group resources by output file
         file_contents: dict[str, list[str]] = {}
@@ -175,6 +183,45 @@ class TerraformRenderer:
         self._generate_outputs(graph, output_dir, written_files)
 
         return written_files
+
+    def _ensure_unique_names(self, graph: GraphEngine) -> None:
+        """
+        Ensure all resources have unique terraform names within their type.
+
+        If multiple resources of the same type have the same terraform_name,
+        append a numeric suffix to make them unique.
+        """
+        # Group resources by type and terraform_name
+        type_names: dict[str, dict[str, list[object]]] = {}
+
+        for resource in graph.iter_resources():
+            resource_type = str(resource.resource_type)
+            if resource_type not in type_names:
+                type_names[resource_type] = {}
+
+            name = resource.terraform_name or "unnamed"
+            if name not in type_names[resource_type]:
+                type_names[resource_type][name] = []
+            type_names[resource_type][name].append(resource)
+
+        # Resolve duplicates
+        for resource_type, names in type_names.items():
+            for name, resources in names.items():
+                if len(resources) > 1:
+                    logger.warning(
+                        f"Found {len(resources)} {resource_type} resources "
+                        f"with terraform_name '{name}', making unique"
+                    )
+                    for i, resource in enumerate(resources):
+                        if i > 0:
+                            # Append resource ID suffix to make unique
+                            # Use last 8 chars of ID for brevity
+                            suffix = resource.id.replace("-", "_")[-8:]
+                            new_name = f"{name}_{suffix}"
+                            resource.terraform_name = new_name
+                            logger.debug(
+                                f"Renamed {resource.id} from '{name}' to '{new_name}'"
+                            )
 
     def preview(self, graph: GraphEngine) -> dict[str, list[str]]:
         """
@@ -283,3 +330,40 @@ variable "common_tags" {
             return '""'
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
         return f'"{escaped}"'
+
+    @staticmethod
+    def _quote_key_filter(key: str) -> str:
+        """
+        Quote a tag key for Terraform if necessary.
+
+        Terraform keys must be valid identifiers or quoted strings.
+        Keys with spaces, special characters, or starting with digits need quotes.
+        """
+        if not key:
+            return '""'
+        # Check if key is a valid Terraform identifier
+        # Must start with letter or underscore, contain only alphanumeric, underscore, hyphen
+        is_valid_identifier = (
+            (key[0].isalpha() or key[0] == "_")
+            and all(c.isalnum() or c in "_-" for c in key)
+        )
+        if is_valid_identifier:
+            return key
+        # Quote the key
+        escaped = key.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+
+    @staticmethod
+    def _tf_ref_filter(resource_node: object, resource_type: str) -> str:
+        """
+        Generate a Terraform resource reference.
+
+        Returns the reference (e.g., 'aws_vpc.my_vpc.id') or an empty string
+        if the resource is not valid.
+        """
+        if resource_node is None:
+            return ""
+        terraform_name = getattr(resource_node, "terraform_name", None)
+        if not terraform_name:
+            return ""
+        return f"{resource_type}.{terraform_name}.id"

@@ -1,17 +1,33 @@
 # Route Table: {{ resource.original_name }}
 resource "aws_route_table" "{{ resource.terraform_name }}" {
-  vpc_id = aws_vpc.{{ resource.config.vpc_id | terraform_name }}.id
+{% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
+{% if vpc_resource and vpc_resource.terraform_name %}
+  vpc_id = aws_vpc.{{ vpc_resource.terraform_name }}.id
+{% else %}
+  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph
+  vpc_id = "{{ resource.config.vpc_id }}"
+{% endif %}
 
 {% for route in resource.config.routes %}
 {% if route.gateway_id and route.gateway_id.startswith('igw-') %}
+{% set igw_resource = graph.get_resource(route.gateway_id) %}
   route {
     cidr_block = "{{ route.destination_cidr_block }}"
-    gateway_id = aws_internet_gateway.{{ route.gateway_id | terraform_name }}.id
+{% if igw_resource and igw_resource.terraform_name %}
+    gateway_id = aws_internet_gateway.{{ igw_resource.terraform_name }}.id
+{% else %}
+    gateway_id = "{{ route.gateway_id }}"
+{% endif %}
   }
 {% elif route.nat_gateway_id %}
+{% set nat_resource = graph.get_resource(route.nat_gateway_id) %}
   route {
     cidr_block     = "{{ route.destination_cidr_block }}"
-    nat_gateway_id = aws_nat_gateway.{{ route.nat_gateway_id | terraform_name }}.id
+{% if nat_resource and nat_resource.terraform_name %}
+    nat_gateway_id = aws_nat_gateway.{{ nat_resource.terraform_name }}.id
+{% else %}
+    nat_gateway_id = "{{ route.nat_gateway_id }}"
+{% endif %}
   }
 {% elif route.destination_cidr_block == "0.0.0.0/0" %}
   # Default route placeholder
@@ -21,15 +37,24 @@ resource "aws_route_table" "{{ resource.terraform_name }}" {
   tags = {
     Name        = "{{ resource.original_name }}"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key | quote_key }} = {{ value | quote }}
+{% endfor %}
   }
 }
 
 {% for assoc in resource.config.associations %}
 {% if assoc.subnet_id and not assoc.main %}
-resource "aws_route_table_association" "{{ resource.terraform_name }}_{{ assoc.subnet_id | terraform_name }}" {
-  subnet_id      = aws_subnet.{{ assoc.subnet_id | terraform_name }}.id
+{% set subnet_resource = graph.get_resource(assoc.subnet_id) %}
+{% if subnet_resource and subnet_resource.terraform_name %}
+resource "aws_route_table_association" "{{ resource.terraform_name }}_{{ subnet_resource.terraform_name }}" {
+  subnet_id      = aws_subnet.{{ subnet_resource.terraform_name }}.id
   route_table_id = aws_route_table.{{ resource.terraform_name }}.id
 }
+{% else %}
+# WARNING: Subnet {{ assoc.subnet_id }} not found in graph
+{% endif %}
 {% endif %}
 {% endfor %}

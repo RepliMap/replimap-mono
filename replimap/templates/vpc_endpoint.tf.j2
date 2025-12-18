@@ -1,19 +1,35 @@
 # VPC Endpoint: {{ resource.original_name }}
 resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
-  vpc_id            = aws_vpc.{{ resource.config.vpc_id | terraform_name }}.id
+{% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
+{% if vpc_resource and vpc_resource.terraform_name %}
+  vpc_id            = aws_vpc.{{ vpc_resource.terraform_name }}.id
+{% else %}
+  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph
+  vpc_id            = "{{ resource.config.vpc_id }}"
+{% endif %}
   service_name      = "{{ resource.config.service_name }}"
   vpc_endpoint_type = "{{ resource.config.vpc_endpoint_type }}"
 
 {% if resource.config.vpc_endpoint_type == "Interface" %}
   subnet_ids = [
 {% for subnet_id in resource.config.subnet_ids %}
-    aws_subnet.{{ subnet_id | terraform_name }}.id,
+{% set subnet_resource = graph.get_resource(subnet_id) %}
+{% if subnet_resource and subnet_resource.terraform_name %}
+    aws_subnet.{{ subnet_resource.terraform_name }}.id,
+{% else %}
+    "{{ subnet_id }}",
+{% endif %}
 {% endfor %}
   ]
 
   security_group_ids = [
 {% for sg_id in resource.config.security_group_ids %}
-    aws_security_group.{{ sg_id | terraform_name }}.id,
+{% set sg_resource = graph.get_resource(sg_id) %}
+{% if sg_resource and sg_resource.terraform_name %}
+    aws_security_group.{{ sg_resource.terraform_name }}.id,
+{% else %}
+    "{{ sg_id }}",
+{% endif %}
 {% endfor %}
   ]
 
@@ -21,7 +37,12 @@ resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
 {% elif resource.config.vpc_endpoint_type == "Gateway" %}
   route_table_ids = [
 {% for rt_id in resource.config.route_table_ids %}
-    aws_route_table.{{ rt_id | terraform_name }}.id,
+{% set rt_resource = graph.get_resource(rt_id) %}
+{% if rt_resource and rt_resource.terraform_name %}
+    aws_route_table.{{ rt_resource.terraform_name }}.id,
+{% else %}
+    "{{ rt_id }}",
+{% endif %}
 {% endfor %}
   ]
 {% endif %}
@@ -29,6 +50,10 @@ resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
   tags = {
     Name        = "{{ resource.original_name }}"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key | quote_key }} = {{ value | quote }}
+{% endfor %}
   }
 }

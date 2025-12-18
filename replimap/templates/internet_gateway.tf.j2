@@ -1,10 +1,20 @@
 # Internet Gateway: {{ resource.original_name }}
 resource "aws_internet_gateway" "{{ resource.terraform_name }}" {
-  vpc_id = aws_vpc.{{ resource.config.vpc_id | terraform_name }}.id
+{% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
+{% if vpc_resource and vpc_resource.terraform_name %}
+  vpc_id = aws_vpc.{{ vpc_resource.terraform_name }}.id
+{% else %}
+  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph
+  vpc_id = "{{ resource.config.vpc_id }}"
+{% endif %}
 
   tags = {
     Name        = "{{ resource.original_name }}"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key | quote_key }} = {{ value | quote }}
+{% endfor %}
   }
 }

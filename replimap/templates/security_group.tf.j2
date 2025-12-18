@@ -4,7 +4,13 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
   name        = "{{ resource.config.name }}"
   description = {{ resource.config.description | quote }}
 {% if resource.config.vpc_id %}
-  vpc_id      = aws_vpc.{{ graph.get_resource(resource.config.vpc_id).terraform_name }}.id
+{% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
+{% if vpc_resource and vpc_resource.terraform_name %}
+  vpc_id      = aws_vpc.{{ vpc_resource.terraform_name }}.id
+{% else %}
+  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph
+  vpc_id      = "{{ resource.config.vpc_id }}"
+{% endif %}
 {% endif %}
 
 {% for rule in resource.config.ingress %}
@@ -22,7 +28,8 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
 {% if rule.security_groups %}
     security_groups  = [
 {% for sg in rule.security_groups %}
-      {% if graph.get_resource(sg.security_group_id) %}aws_security_group.{{ graph.get_resource(sg.security_group_id).terraform_name }}.id{% else %}"{{ sg.security_group_id }}"{% endif %},
+{% set sg_resource = graph.get_resource(sg.security_group_id) %}
+      {% if sg_resource and sg_resource.terraform_name %}aws_security_group.{{ sg_resource.terraform_name }}.id{% else %}"{{ sg.security_group_id }}"{% endif %},
 {% endfor %}
     ]
 {% endif %}
@@ -50,7 +57,7 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
     ManagedBy   = "replimap"
     SourceId    = "{{ resource.id }}"
 {% for key, value in resource.tags.items() if key != 'Name' %}
-    {{ key }} = {{ value | quote }}
+    {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
   }
 
