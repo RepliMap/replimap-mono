@@ -17,16 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dependency tracking between resources (VPC → Subnet → EC2)
 - Topological sorting for correct Terraform resource ordering
 
-#### Scanners
+#### Scanners (24 Resource Types)
 - VPC Scanner: Scans VPCs, Subnets, and Security Groups
 - EC2 Scanner: Scans EC2 instances with AMI and security group associations
 - RDS Scanner: Scans RDS instances and DB Subnet Groups
 - S3 Scanner: Scans S3 bucket configurations
+- Networking Scanner: Internet Gateways, NAT Gateways, Route Tables, VPC Endpoints
+- Compute Scanner: Launch Templates, Auto Scaling Groups, ALB/NLB, Target Groups, Listeners
+- ElastiCache Scanner: ElastiCache Clusters and Subnet Groups, DB Parameter Groups
+- Storage Scanner: EBS Volumes, S3 Bucket Policies
+- Messaging Scanner: SQS Queues, SNS Topics
 - Async Scanner Base: Support for concurrent scanning with aiobotocore
 
 #### Transformers
 - Sanitization Transformer: Removes secrets, passwords, and sensitive data
-- Downsize Transformer: Reduces instance sizes for cost optimization
+- Downsize Transformer: Reduces EC2, RDS, ElastiCache, Launch Template, and ASG sizes
 - Renaming Transformer: Converts prod → staging naming conventions
 - Network Remapper: Updates resource references for new environment
 
@@ -52,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Developer Experience
 - Rich console output with progress spinners and tables
-- Comprehensive test suite with 95+ tests
+- Comprehensive test suite with 154 tests
 - CI/CD with GitHub Actions
 - ruff for formatting and linting
 - mypy for type checking

@@ -49,17 +49,47 @@ replimap license status
 | CloudFormation YAML | Solo+ | ✅ Available |
 | Pulumi Python | Pro+ | ✅ Available |
 
-## Supported Resources
+## Supported Resources (24 Types)
 
+### Core Infrastructure
 | Resource Type | Scan | Transform | Generate |
 |--------------|------|-----------|----------|
 | VPC | ✅ | ✅ | ✅ |
 | Subnets | ✅ | ✅ | ✅ |
 | Security Groups | ✅ | ✅ | ✅ |
+| Internet Gateway | ✅ | ✅ | ✅ |
+| NAT Gateway | ✅ | ✅ | ✅ |
+| Route Tables | ✅ | ✅ | ✅ |
+| VPC Endpoints | ✅ | ✅ | ✅ |
+
+### Compute
+| Resource Type | Scan | Transform | Generate |
+|--------------|------|-----------|----------|
 | EC2 Instances | ✅ | ✅ | ✅ |
-| S3 Buckets | ✅ | ✅ | ✅ |
+| Launch Templates | ✅ | ✅ | ✅ |
+| Auto Scaling Groups | ✅ | ✅ | ✅ |
+| Application Load Balancers | ✅ | ✅ | ✅ |
+| Network Load Balancers | ✅ | ✅ | ✅ |
+| Target Groups | ✅ | ✅ | ✅ |
+| LB Listeners | ✅ | ✅ | ✅ |
+
+### Database
+| Resource Type | Scan | Transform | Generate |
+|--------------|------|-----------|----------|
 | RDS Instances | ✅ | ✅ | ✅ |
 | DB Subnet Groups | ✅ | ✅ | ✅ |
+| DB Parameter Groups | ✅ | ✅ | ✅ |
+| ElastiCache Clusters | ✅ | ✅ | ✅ |
+| ElastiCache Subnet Groups | ✅ | ✅ | ✅ |
+
+### Storage & Messaging
+| Resource Type | Scan | Transform | Generate |
+|--------------|------|-----------|----------|
+| S3 Buckets | ✅ | ✅ | ✅ |
+| S3 Bucket Policies | ✅ | ✅ | ✅ |
+| EBS Volumes | ✅ | ✅ | ✅ |
+| SQS Queues | ✅ | ✅ | ✅ |
+| SNS Topics | ✅ | ✅ | ✅ |
 
 ## Pricing
 
@@ -192,12 +222,17 @@ replimap/
 │   │   ├── graph_engine.py  # NetworkX graph wrapper
 │   │   └── models.py        # ResourceNode dataclass
 │   ├── scanners/
-│   │   ├── base.py          # Scanner base class
-│   │   ├── async_base.py    # Async scanner support
-│   │   ├── vpc_scanner.py   # VPC/Subnet/SG scanner
-│   │   ├── ec2_scanner.py   # EC2 scanner
-│   │   ├── s3_scanner.py    # S3 scanner
-│   │   └── rds_scanner.py   # RDS scanner
+│   │   ├── base.py              # Scanner base class
+│   │   ├── async_base.py        # Async scanner support
+│   │   ├── vpc_scanner.py       # VPC/Subnet/SG scanner
+│   │   ├── ec2_scanner.py       # EC2 scanner
+│   │   ├── s3_scanner.py        # S3 scanner
+│   │   ├── rds_scanner.py       # RDS scanner
+│   │   ├── networking_scanner.py # IGW/NAT/Route Tables
+│   │   ├── compute_scanner.py   # ALB/ASG/Launch Templates
+│   │   ├── elasticache_scanner.py # ElastiCache clusters
+│   │   ├── storage_scanner.py   # EBS/S3 policies
+│   │   └── messaging_scanner.py # SQS/SNS
 │   ├── transformers/
 │   │   ├── base.py          # Transformer pipeline
 │   │   ├── sanitizer.py     # Sensitive data removal
