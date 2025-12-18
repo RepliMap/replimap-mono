@@ -25,11 +25,15 @@ resource "aws_instance" "{{ resource.terraform_name }}" {
 {% if resource.config.security_group_ids %}
   vpc_security_group_ids = [
 {% for sg_id in resource.config.security_group_ids %}
+{% if sg_id is tf_ref %}
+    {{ sg_id }},
+{% else %}
 {% set sg_resource = graph.get_resource(sg_id) %}
 {% if sg_resource and sg_resource.terraform_name %}
     aws_security_group.{{ sg_resource.terraform_name }}.id,
 {% else %}
     "{{ sg_id }}",
+{% endif %}
 {% endif %}
 {% endfor %}
   ]

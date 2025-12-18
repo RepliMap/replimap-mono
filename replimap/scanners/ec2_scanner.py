@@ -77,9 +77,9 @@ class EC2Scanner(BaseScanner):
         instance_id = instance["InstanceId"]
         state = instance.get("State", {}).get("Name", "unknown")
 
-        # Skip terminated instances
-        if state == "terminated":
-            logger.debug(f"Skipping terminated instance: {instance_id}")
+        # Only include running instances - skip stopped, terminated, etc.
+        if state != "running":
+            logger.debug(f"Skipping {state} instance: {instance_id}")
             return
 
         tags = self._extract_tags(instance.get("Tags"))
