@@ -43,6 +43,13 @@ class NetworkingScanner(BaseScanner):
         "aws_vpc_endpoint",
     ]
 
+    # These resources reference VPCs and subnets for dependency edges
+    depends_on_types: ClassVar[list[str]] = [
+        "aws_vpc",
+        "aws_subnet",
+        "aws_security_group",
+    ]
+
     def scan(self, graph: GraphEngine) -> None:
         """Scan all networking resources and add to graph."""
         logger.info(f"Scanning networking resources in {self.region}...")

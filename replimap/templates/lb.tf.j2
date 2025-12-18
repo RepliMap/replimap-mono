@@ -7,14 +7,24 @@ resource "aws_lb" "{{ resource.terraform_name }}" {
 {% if resource.config.type == 'application' %}
   security_groups = [
 {% for sg_id in resource.config.security_group_ids %}
-    aws_security_group.{{ sg_id | terraform_name }}.id,
+{% set sg_resource = graph.get_resource(sg_id) %}
+{% if sg_resource and sg_resource.terraform_name %}
+    aws_security_group.{{ sg_resource.terraform_name }}.id,
+{% else %}
+    "{{ sg_id }}",
+{% endif %}
 {% endfor %}
   ]
 {% endif %}
 
   subnets = [
 {% for subnet_id in resource.config.subnet_ids %}
-    aws_subnet.{{ subnet_id | terraform_name }}.id,
+{% set subnet_resource = graph.get_resource(subnet_id) %}
+{% if subnet_resource and subnet_resource.terraform_name %}
+    aws_subnet.{{ subnet_resource.terraform_name }}.id,
+{% else %}
+    "{{ subnet_id }}",
+{% endif %}
 {% endfor %}
   ]
 
@@ -23,6 +33,10 @@ resource "aws_lb" "{{ resource.terraform_name }}" {
   tags = {
     Name        = "{{ resource.original_name }}"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key | quote_key }} = {{ value | quote }}
+{% endfor %}
   }
 }

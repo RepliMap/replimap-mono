@@ -12,7 +12,7 @@ resource "aws_vpc" "{{ resource.terraform_name }}" {
     ManagedBy   = "replimap"
     SourceId    = "{{ resource.id }}"
 {% for key, value in resource.tags.items() if key != 'Name' %}
-    {{ key }} = {{ value | quote }}
+    {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
   }
 }

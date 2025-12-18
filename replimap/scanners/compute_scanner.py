@@ -44,6 +44,13 @@ class ComputeScanner(BaseScanner):
         "aws_lb_target_group",
     ]
 
+    # LBs and ASGs reference VPC resources for dependency edges
+    depends_on_types: ClassVar[list[str]] = [
+        "aws_vpc",
+        "aws_subnet",
+        "aws_security_group",
+    ]
+
     def scan(self, graph: GraphEngine) -> None:
         """Scan all compute resources and add to graph."""
         logger.info(f"Scanning compute resources in {self.region}...")

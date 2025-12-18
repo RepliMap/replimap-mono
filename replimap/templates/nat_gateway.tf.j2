@@ -5,19 +5,33 @@ resource "aws_eip" "{{ resource.terraform_name }}_eip" {
   tags = {
     Name        = "{{ resource.original_name }}-eip"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
   }
 }
 
 resource "aws_nat_gateway" "{{ resource.terraform_name }}" {
   allocation_id = aws_eip.{{ resource.terraform_name }}_eip.id
-  subnet_id     = aws_subnet.{{ resource.config.subnet_id | terraform_name }}.id
+{% set subnet_resource = graph.get_resource(resource.config.subnet_id) %}
+{% if subnet_resource and subnet_resource.terraform_name %}
+  subnet_id     = aws_subnet.{{ subnet_resource.terraform_name }}.id
+{% else %}
+  # WARNING: Subnet {{ resource.config.subnet_id }} not found in graph
+  subnet_id     = "{{ resource.config.subnet_id }}"
+{% endif %}
 
   tags = {
     Name        = "{{ resource.original_name }}"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key | quote_key }} = {{ value | quote }}
+{% endfor %}
   }
 
-  depends_on = [aws_internet_gateway.{{ resource.config.vpc_id | terraform_name }}]
+{% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
+{% if vpc_resource and vpc_resource.terraform_name %}
+  depends_on = [aws_internet_gateway.{{ vpc_resource.terraform_name }}]
+{% endif %}
 }

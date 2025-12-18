@@ -15,7 +15,12 @@ resource "aws_launch_template" "{{ resource.terraform_name }}" {
 {% if resource.config.security_group_ids %}
   vpc_security_group_ids = [
 {% for sg_id in resource.config.security_group_ids %}
-    aws_security_group.{{ sg_id | terraform_name }}.id,
+{% set sg_resource = graph.get_resource(sg_id) %}
+{% if sg_resource and sg_resource.terraform_name %}
+    aws_security_group.{{ sg_resource.terraform_name }}.id,
+{% else %}
+    "{{ sg_id }}",
+{% endif %}
 {% endfor %}
   ]
 {% endif %}
@@ -37,13 +42,17 @@ resource "aws_launch_template" "{{ resource.terraform_name }}" {
     tags = {
       Name        = "{{ resource.original_name }}"
       Environment = var.environment
-      ManagedBy   = "RepliMap"
+      ManagedBy   = "replimap"
     }
   }
 
   tags = {
     Name        = "{{ resource.original_name }}"
     Environment = var.environment
-    ManagedBy   = "RepliMap"
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key | quote_key }} = {{ value | quote }}
+{% endfor %}
   }
 }

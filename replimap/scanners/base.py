@@ -188,10 +188,17 @@ class BaseScanner(ABC):
     Subclasses must implement:
     - resource_types: List of Terraform resource types this scanner handles
     - scan(): The main scanning logic
+
+    Optionally set:
+    - depends_on_types: Resource types that must be scanned first
     """
 
     # Terraform resource types this scanner handles
     resource_types: ClassVar[list[str]] = []
+
+    # Resource types this scanner depends on (must be scanned first)
+    # Scanners with dependencies run in phase 2, after phase 1 completes
+    depends_on_types: ClassVar[list[str]] = []
 
     def __init__(self, session: boto3.Session, region: str) -> None:
         """
@@ -347,6 +354,90 @@ class ScannerRegistry:
         cls._scanners.clear()
 
 
+def _compute_scanner_phases(
+    scanner_classes: list[type[BaseScanner]],
+) -> list[list[type[BaseScanner]]]:
+    """
+    Compute execution phases for scanners based on dependency graph.
+
+    Uses topological sorting to determine the correct order, grouping
+    scanners into phases where all scanners in a phase can run in parallel.
+
+    Algorithm:
+    1. Build resource_type -> scanner mapping
+    2. Build scanner dependency graph (scanner A depends on scanner B if
+       A.depends_on_types includes any type produced by B)
+    3. Topologically sort and group into levels
+
+    Args:
+        scanner_classes: List of scanner classes to organize
+
+    Returns:
+        List of phases, where each phase is a list of scanner classes
+        that can run in parallel
+    """
+    if not scanner_classes:
+        return []
+
+    # Build resource_type -> scanner mapping
+    type_to_scanner: dict[str, type[BaseScanner]] = {}
+    for sc in scanner_classes:
+        for resource_type in sc.resource_types:
+            type_to_scanner[resource_type] = sc
+
+    # Build scanner dependency graph (adjacency list: scanner -> scanners it depends on)
+    scanner_deps: dict[type[BaseScanner], set[type[BaseScanner]]] = {
+        sc: set() for sc in scanner_classes
+    }
+
+    for sc in scanner_classes:
+        for dep_type in sc.depends_on_types:
+            if dep_type in type_to_scanner:
+                provider = type_to_scanner[dep_type]
+                if provider != sc:  # Avoid self-dependency
+                    scanner_deps[sc].add(provider)
+
+    # Compute in-degree for each scanner
+    in_degree: dict[type[BaseScanner], int] = {sc: 0 for sc in scanner_classes}
+    for sc, deps in scanner_deps.items():
+        for dep in deps:
+            # sc depends on dep, so when dep is processed, sc's in-degree decreases
+            pass  # We count incoming edges below
+
+    # Recompute: in_degree[sc] = number of scanners that sc depends on
+    for sc in scanner_classes:
+        in_degree[sc] = len(scanner_deps[sc])
+
+    # Kahn's algorithm for topological sort with level grouping
+    phases: list[list[type[BaseScanner]]] = []
+    remaining = set(scanner_classes)
+
+    while remaining:
+        # Find all scanners with in-degree 0 (no unprocessed dependencies)
+        ready = [sc for sc in remaining if in_degree[sc] == 0]
+
+        if not ready:
+            # Cycle detected - fall back to running remaining scanners together
+            logger.warning(
+                f"Dependency cycle detected among scanners: {[s.__name__ for s in remaining]}"
+            )
+            phases.append(list(remaining))
+            break
+
+        phases.append(ready)
+
+        # Remove processed scanners and update in-degrees
+        for sc in ready:
+            remaining.remove(sc)
+            # Decrease in-degree of scanners that depended on this one
+            for other in remaining:
+                if sc in scanner_deps[other]:
+                    scanner_deps[other].remove(sc)
+                    in_degree[other] -= 1
+
+    return phases
+
+
 def run_all_scanners(
     session: boto3.Session,
     region: str,
@@ -356,6 +447,14 @@ def run_all_scanners(
 ) -> dict[str, Exception | None]:
     """
     Run all registered scanners.
+
+    Scanners are executed in phases determined by their dependency graph:
+    - Scanners with no dependencies run first
+    - Scanners depending on those run next, and so on
+    - Scanners within each phase run in parallel
+
+    This ensures scanners that query the graph for resources populated by
+    other scanners will find those resources (handles transitive dependencies).
 
     Args:
         session: Configured boto3 session
@@ -373,14 +472,29 @@ def run_all_scanners(
     if not scanner_classes:
         return results
 
+    # Compute phases based on dependency graph
+    phases = _compute_scanner_phases(scanner_classes)
     workers = max_workers or MAX_SCANNER_WORKERS
 
-    if parallel and workers > 1:
-        # Parallel execution using ThreadPoolExecutor
-        return _run_scanners_parallel(session, region, graph, scanner_classes, workers)
-    else:
-        # Sequential execution (for debugging or when parallel disabled)
-        return _run_scanners_sequential(session, region, graph, scanner_classes)
+    for i, phase_scanners in enumerate(phases, 1):
+        if not phase_scanners:
+            continue
+
+        scanner_names = [sc.__name__ for sc in phase_scanners]
+        logger.debug(f"Phase {i}: Running {len(phase_scanners)} scanners: {scanner_names}")
+
+        if parallel and workers > 1 and len(phase_scanners) > 1:
+            phase_results = _run_scanners_parallel(
+                session, region, graph, phase_scanners, workers
+            )
+        else:
+            phase_results = _run_scanners_sequential(
+                session, region, graph, phase_scanners
+            )
+
+        results.update(phase_results)
+
+    return results
 
 
 def _run_scanners_sequential(

@@ -29,10 +29,16 @@ class EBSScanner(BaseScanner):
     Scans EBS Volumes.
 
     Only scans unattached volumes or volumes not already captured via EC2.
+    Depends on EC2Scanner to establish instance-volume dependency edges.
     """
 
     resource_types: ClassVar[list[str]] = [
         "aws_ebs_volume",
+    ]
+
+    # EBS volumes reference EC2 instances for attachment dependencies
+    depends_on_types: ClassVar[list[str]] = [
+        "aws_instance",
     ]
 
     def scan(self, graph: GraphEngine) -> None:
@@ -109,10 +115,16 @@ class S3PolicyScanner(BaseScanner):
     Scans S3 Bucket Policies.
 
     Captures bucket policies separately for easier policy management.
+    Depends on S3Scanner to discover buckets first.
     """
 
     resource_types: ClassVar[list[str]] = [
         "aws_s3_bucket_policy",
+    ]
+
+    # Must run after S3Scanner populates buckets in the graph
+    depends_on_types: ClassVar[list[str]] = [
+        "aws_s3_bucket",
     ]
 
     def scan(self, graph: GraphEngine) -> None:

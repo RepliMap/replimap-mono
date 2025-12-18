@@ -46,10 +46,23 @@ htmlcov/
 .dmypy.json
 dmypy.json
 
-# Generated outputs
+# Generated outputs (can be regenerated with `replimap clone`)
 terraform/
-*.tf
+staging-tf/
 !templates/*.j2
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
 
 # Logs
 *.log

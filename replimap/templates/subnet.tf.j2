@@ -2,7 +2,13 @@
 # Original ID: {{ resource.id }}
 # Availability Zone: {{ resource.config.availability_zone }}
 resource "aws_subnet" "{{ resource.terraform_name }}" {
-  vpc_id                  = aws_vpc.{{ graph.get_resource(resource.config.vpc_id).terraform_name }}.id
+{% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
+{% if vpc_resource and vpc_resource.terraform_name %}
+  vpc_id                  = aws_vpc.{{ vpc_resource.terraform_name }}.id
+{% else %}
+  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph
+  vpc_id                  = "{{ resource.config.vpc_id }}"
+{% endif %}
   cidr_block              = "{{ resource.config.cidr_block }}"
   availability_zone       = "{{ resource.config.availability_zone }}"
   map_public_ip_on_launch = {{ resource.config.map_public_ip_on_launch | default(false) | lower }}
@@ -13,7 +19,7 @@ resource "aws_subnet" "{{ resource.terraform_name }}" {
     ManagedBy   = "replimap"
     SourceId    = "{{ resource.id }}"
 {% for key, value in resource.tags.items() if key != 'Name' %}
-    {{ key }} = {{ value | quote }}
+    {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
   }
 }

@@ -4,12 +4,17 @@ Graph Engine for RepliMap.
 The GraphEngine is the core data structure that maintains the dependency
 graph of AWS resources. It wraps networkx.DiGraph and provides domain-specific
 methods for resource management and traversal.
+
+Thread Safety:
+    GraphEngine uses a threading.RLock to protect all mutations.
+    This allows safe concurrent access from multiple scanner threads.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -39,6 +44,7 @@ class GraphEngine:
         """Initialize an empty graph."""
         self._graph: nx.DiGraph = nx.DiGraph()
         self._resources: dict[str, ResourceNode] = {}
+        self._lock: threading.RLock = threading.RLock()
 
     @property
     def node_count(self) -> int:
@@ -55,16 +61,18 @@ class GraphEngine:
         Add a resource node to the graph.
 
         If a resource with the same ID already exists, it will be updated.
+        Thread-safe: uses internal lock for concurrent access.
 
         Args:
             node: The ResourceNode to add
         """
-        self._resources[node.id] = node
-        self._graph.add_node(
-            node.id,
-            resource_type=str(node.resource_type),
-            terraform_name=node.terraform_name,
-        )
+        with self._lock:
+            self._resources[node.id] = node
+            self._graph.add_node(
+                node.id,
+                resource_type=str(node.resource_type),
+                terraform_name=node.terraform_name,
+            )
         logger.debug(f"Added resource: {node.id} ({node.resource_type})")
 
     def add_dependency(
@@ -78,6 +86,7 @@ class GraphEngine:
 
         The direction is: source depends on target.
         In Terraform terms, source must reference target.
+        Thread-safe: uses internal lock for concurrent access.
 
         Args:
             source_id: ID of the dependent resource
@@ -87,13 +96,14 @@ class GraphEngine:
         Raises:
             ValueError: If either resource doesn't exist in the graph
         """
-        if source_id not in self._resources:
-            raise ValueError(f"Source resource not found: {source_id}")
-        if target_id not in self._resources:
-            raise ValueError(f"Target resource not found: {target_id}")
+        with self._lock:
+            if source_id not in self._resources:
+                raise ValueError(f"Source resource not found: {source_id}")
+            if target_id not in self._resources:
+                raise ValueError(f"Target resource not found: {target_id}")
 
-        self._graph.add_edge(source_id, target_id, relation=str(relation_type))
-        self._resources[source_id].add_dependency(target_id)
+            self._graph.add_edge(source_id, target_id, relation=str(relation_type))
+            self._resources[source_id].add_dependency(target_id)
         logger.debug(
             f"Added dependency: {source_id} --[{relation_type}]--> {target_id}"
         )
@@ -102,21 +112,27 @@ class GraphEngine:
         """
         Get a resource by its ID.
 
+        Thread-safe: uses internal lock for concurrent access.
+
         Args:
             resource_id: The AWS resource ID
 
         Returns:
             The ResourceNode if found, None otherwise
         """
-        return self._resources.get(resource_id)
+        with self._lock:
+            return self._resources.get(resource_id)
 
     def get_all_resources(self) -> list[ResourceNode]:
-        """Get all resources in the graph."""
-        return list(self._resources.values())
+        """Get all resources in the graph. Thread-safe."""
+        with self._lock:
+            return list(self._resources.values())
 
     def get_resources_by_type(self, resource_type: ResourceType) -> list[ResourceNode]:
         """
         Get all resources of a specific type.
+
+        Thread-safe: uses internal lock for concurrent access.
 
         Args:
             resource_type: The type of resources to retrieve
@@ -124,11 +140,12 @@ class GraphEngine:
         Returns:
             List of ResourceNodes matching the type
         """
-        return [
-            node
-            for node in self._resources.values()
-            if node.resource_type == resource_type
-        ]
+        with self._lock:
+            return [
+                node
+                for node in self._resources.values()
+                if node.resource_type == resource_type
+            ]
 
     def get_dependencies(self, resource_id: str) -> list[ResourceNode]:
         """

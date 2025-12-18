@@ -484,3 +484,344 @@ class TestRendererFeatureGating:
             # Should work without raising
             files = renderer.render(sample_graph, output_dir)
             assert len(files) > 0
+
+
+class TestTerraformRendererAdvanced:
+    """Advanced tests for TerraformRenderer functionality."""
+
+    def test_render_creates_versions_file(self, sample_graph: GraphEngine) -> None:
+        """Test that render creates versions.tf with terraform requirements."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(sample_graph, output_dir)
+
+            assert "versions.tf" in files
+            content = files["versions.tf"].read_text()
+            assert "terraform {" in content
+            assert "required_version" in content
+            assert "required_providers" in content
+            assert "hashicorp/aws" in content
+
+    def test_render_creates_providers_file(self, sample_graph: GraphEngine) -> None:
+        """Test that render creates providers.tf with AWS configuration."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(sample_graph, output_dir)
+
+            assert "providers.tf" in files
+            content = files["providers.tf"].read_text()
+            assert 'provider "aws"' in content
+            assert "region = var.aws_region" in content
+            assert "default_tags" in content
+
+    def test_render_creates_tfvars_example(self, sample_graph: GraphEngine) -> None:
+        """Test that render creates terraform.tfvars.example."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(sample_graph, output_dir)
+
+            assert "terraform.tfvars.example" in files
+            content = files["terraform.tfvars.example"].read_text()
+            assert "environment" in content
+            assert "aws_account_id" in content
+            assert "aws_region" in content
+
+    def test_render_generates_rds_password_variables(self) -> None:
+        """Test that RDS instances get password variables generated."""
+        graph = GraphEngine()
+
+        # Add VPC
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        # Add RDS Instance
+        rds = ResourceNode(
+            id="db-12345",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="us-east-1",
+            config={
+                "identifier": "test-db",
+                "engine": "postgres",
+                "engine_version": "14.7",
+                "instance_class": "db.t3.micro",
+            },
+            tags={"Name": "test-db"},
+        )
+        graph.add_resource(rds)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            # Check variables.tf has RDS password variable
+            variables_content = files["variables.tf"].read_text()
+            assert "db_password_" in variables_content
+            assert "sensitive   = true" in variables_content
+
+            # Check tfvars example has placeholder
+            tfvars_content = files["terraform.tfvars.example"].read_text()
+            assert "db_password_" in tfvars_content
+
+    def test_quote_key_filter_quotes_special_keys(self) -> None:
+        """Test that quote_key filter properly quotes keys with spaces."""
+        renderer = TerraformRenderer()
+
+        # Valid identifier - should not be quoted
+        assert renderer._quote_key_filter("Environment") == "Environment"
+        assert renderer._quote_key_filter("Name") == "Name"
+        assert renderer._quote_key_filter("my_tag") == "my_tag"
+
+        # Keys with spaces - should be quoted
+        assert renderer._quote_key_filter("Cost Center") == '"Cost Center"'
+        assert renderer._quote_key_filter("My Tag Name") == '"My Tag Name"'
+
+        # Keys starting with numbers - should be quoted
+        assert renderer._quote_key_filter("123tag") == '"123tag"'
+
+        # Empty key - should return empty quoted string
+        assert renderer._quote_key_filter("") == '""'
+
+    def test_unique_name_generation_for_duplicates(self) -> None:
+        """Test that duplicate terraform names get unique suffixes."""
+        graph = GraphEngine()
+
+        # Add two VPCs with the same Name tag
+        vpc1 = ResourceNode(
+            id="vpc-11111111",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "shared-vpc"},
+        )
+        graph.add_resource(vpc1)
+
+        vpc2 = ResourceNode(
+            id="vpc-22222222",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.1.0.0/16"},
+            tags={"Name": "shared-vpc"},
+        )
+        graph.add_resource(vpc2)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            renderer.render(graph, output_dir)
+
+            # After rendering, terraform_names should be unique
+            names = [vpc1.terraform_name, vpc2.terraform_name]
+            assert len(names) == len(set(names)), "Terraform names should be unique"
+
+    def test_unique_name_generation_with_similar_id_endings(self) -> None:
+        """Test that duplicate names are unique even when IDs have similar endings."""
+        graph = GraphEngine()
+
+        # Add multiple RDS instances with same Name tag and similar ID endings
+        # This tests the bug where using ID[-8:] as suffix could create duplicates
+        rds1 = ResourceNode(
+            id="etime-14si-stage-1-upgrades",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="ap-southeast-2",
+            config={
+                "identifier": "etime-14si-stage-1-upgrades",
+                "engine": "aurora-mysql",
+                "engine_version": "8.0",
+                "instance_class": "db.t4g.medium",
+            },
+            tags={"Name": "etime-14si-stage"},  # Same Name tag
+        )
+        graph.add_resource(rds1)
+
+        rds2 = ResourceNode(
+            id="etime-14si-stage-2-upgrades",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="ap-southeast-2",
+            config={
+                "identifier": "etime-14si-stage-2-upgrades",
+                "engine": "aurora-mysql",
+                "engine_version": "8.0",
+                "instance_class": "db.t4g.medium",
+            },
+            tags={"Name": "etime-14si-stage"},  # Same Name tag
+        )
+        graph.add_resource(rds2)
+
+        rds3 = ResourceNode(
+            id="etime-14si-stage-3-upgrades",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="ap-southeast-2",
+            config={
+                "identifier": "etime-14si-stage-3-upgrades",
+                "engine": "aurora-mysql",
+                "engine_version": "8.0",
+                "instance_class": "db.t4g.medium",
+            },
+            tags={"Name": "etime-14si-stage"},  # Same Name tag
+        )
+        graph.add_resource(rds3)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            renderer.render(graph, output_dir)
+
+            # All terraform_names should be unique
+            names = [rds1.terraform_name, rds2.terraform_name, rds3.terraform_name]
+            assert len(names) == len(set(names)), f"Terraform names should be unique: {names}"
+
+            # Verify the rendered output has unique resource names
+            rds_content = (output_dir / "rds.tf").read_text()
+            # Count occurrences of each terraform_name in the rendered output
+            for name in names:
+                occurrences = rds_content.count(f'resource "aws_db_instance" "{name}"')
+                assert occurrences == 1, f"Resource {name} should appear exactly once"
+
+    def test_vpc_reference_resolution_in_subnet(self) -> None:
+        """Test that subnet template properly resolves VPC reference."""
+        graph = GraphEngine()
+
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "my-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        subnet = ResourceNode(
+            id="subnet-12345",
+            resource_type=ResourceType.SUBNET,
+            region="us-east-1",
+            config={
+                "vpc_id": "vpc-12345",
+                "cidr_block": "10.0.1.0/24",
+                "availability_zone": "us-east-1a",
+            },
+            tags={"Name": "my-subnet"},
+        )
+        graph.add_resource(subnet)
+        graph.add_dependency("subnet-12345", "vpc-12345", "belongs_to")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            vpc_content = files["vpc.tf"].read_text()
+            # Should have proper VPC reference, not aws_vpc..id
+            assert "aws_vpc.my-vpc.id" in vpc_content
+            assert "aws_vpc..id" not in vpc_content
+
+    def test_tag_key_quoting_in_output(self) -> None:
+        """Test that tags with special characters are properly quoted."""
+        graph = GraphEngine()
+
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={
+                "Name": "test-vpc",
+                "Cost Center": "Platform",
+                "Environment": "staging",
+            },
+        )
+        graph.add_resource(vpc)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            vpc_content = files["vpc.tf"].read_text()
+            # "Cost Center" should be quoted, Environment should not
+            assert '"Cost Center"' in vpc_content
+            assert 'Environment' in vpc_content  # Not quoted
+            # Verify it's not double-quoted
+            assert '""Cost Center""' not in vpc_content
+
+    def test_outputs_include_rds_endpoints(self) -> None:
+        """Test that outputs.tf includes RDS endpoint outputs."""
+        graph = GraphEngine()
+
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        rds = ResourceNode(
+            id="db-12345",
+            resource_type=ResourceType.RDS_INSTANCE,
+            region="us-east-1",
+            config={
+                "identifier": "mydb",
+                "engine": "postgres",
+                "engine_version": "14.7",
+                "instance_class": "db.t3.micro",
+            },
+            tags={"Name": "mydb"},
+        )
+        graph.add_resource(rds)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            outputs_content = files["outputs.tf"].read_text()
+            assert "_endpoint" in outputs_content
+            assert "aws_db_instance" in outputs_content
+
+    def test_outputs_include_lb_dns(self) -> None:
+        """Test that outputs.tf includes LB DNS name outputs."""
+        graph = GraphEngine()
+
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        lb = ResourceNode(
+            id="arn:aws:elasticloadbalancing:us-east-1:123456789:loadbalancer/app/my-lb/123",
+            resource_type=ResourceType.LB,
+            region="us-east-1",
+            config={
+                "name": "my-lb",
+                "type": "application",
+                "scheme": "internet-facing",
+                "subnet_ids": [],
+                "security_group_ids": [],
+            },
+            tags={"Name": "my-lb"},
+        )
+        graph.add_resource(lb)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            outputs_content = files["outputs.tf"].read_text()
+            assert "_dns_name" in outputs_content
+            assert "aws_lb" in outputs_content
