@@ -1,10 +1,14 @@
 # LB Listener: {{ resource.config.protocol }}:{{ resource.config.port }}
 resource "aws_lb_listener" "{{ resource.terraform_name }}" {
+{% if resource.config.load_balancer_arn is tf_ref %}
+  load_balancer_arn = {{ resource.config.load_balancer_arn }}
+{% else %}
 {% set lb_resource = graph.get_resource(resource.config.load_balancer_arn) %}
 {% if lb_resource and lb_resource.terraform_name %}
   load_balancer_arn = aws_lb.{{ lb_resource.terraform_name }}.arn
 {% else %}
   load_balancer_arn = "{{ resource.config.load_balancer_arn }}"
+{% endif %}
 {% endif %}
   port              = {{ resource.config.port }}
   protocol          = "{{ resource.config.protocol }}"
@@ -18,13 +22,17 @@ resource "aws_lb_listener" "{{ resource.terraform_name }}" {
 
 {% for action in resource.config.default_actions %}
 {% if action.type == 'forward' and action.target_group_arn %}
-{% set tg_resource = graph.get_resource(action.target_group_arn) %}
   default_action {
     type             = "forward"
+{% if action.target_group_arn is tf_ref %}
+    target_group_arn = {{ action.target_group_arn }}
+{% else %}
+{% set tg_resource = graph.get_resource(action.target_group_arn) %}
 {% if tg_resource and tg_resource.terraform_name %}
     target_group_arn = aws_lb_target_group.{{ tg_resource.terraform_name }}.arn
 {% else %}
     target_group_arn = "{{ action.target_group_arn }}"
+{% endif %}
 {% endif %}
   }
 {% elif action.type == 'fixed-response' %}

@@ -7,12 +7,16 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
   desired_capacity = {{ resource.config.desired_capacity }}
 
 {% if resource.config.launch_template.id %}
-{% set lt_resource = graph.get_resource(resource.config.launch_template.id) %}
   launch_template {
+{% if resource.config.launch_template.id is tf_ref %}
+    id      = {{ resource.config.launch_template.id }}
+{% else %}
+{% set lt_resource = graph.get_resource(resource.config.launch_template.id) %}
 {% if lt_resource and lt_resource.terraform_name %}
     id      = aws_launch_template.{{ lt_resource.terraform_name }}.id
 {% else %}
     id      = "{{ resource.config.launch_template.id }}"
+{% endif %}
 {% endif %}
     version = "$Latest"
   }
@@ -22,11 +26,15 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
   vpc_zone_identifier = [
 {% for subnet_id in resource.config.subnet_ids %}
 {% if subnet_id %}
+{% if subnet_id is tf_ref %}
+    {{ subnet_id }},
+{% else %}
 {% set subnet_resource = graph.get_resource(subnet_id) %}
 {% if subnet_resource and subnet_resource.terraform_name %}
     aws_subnet.{{ subnet_resource.terraform_name }}.id,
 {% else %}
     "{{ subnet_id }}",
+{% endif %}
 {% endif %}
 {% endif %}
 {% endfor %}
@@ -36,11 +44,15 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
 {% if resource.config.target_group_arns %}
   target_group_arns = [
 {% for tg_arn in resource.config.target_group_arns %}
+{% if tg_arn is tf_ref %}
+    {{ tg_arn }},
+{% else %}
 {% set tg_resource = graph.get_resource(tg_arn) %}
 {% if tg_resource and tg_resource.terraform_name %}
     aws_lb_target_group.{{ tg_resource.terraform_name }}.arn,
 {% else %}
     "{{ tg_arn }}",
+{% endif %}
 {% endif %}
 {% endfor %}
   ]

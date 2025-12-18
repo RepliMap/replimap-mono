@@ -9,12 +9,16 @@ resource "aws_instance" "{{ resource.terraform_name }}" {
 {% endif %}
 
 {% if resource.config.subnet_id %}
+{% if resource.config.subnet_id is tf_ref %}
+  subnet_id     = {{ resource.config.subnet_id }}
+{% else %}
 {% set subnet_resource = graph.get_resource(resource.config.subnet_id) %}
 {% if subnet_resource and subnet_resource.terraform_name %}
   subnet_id     = aws_subnet.{{ subnet_resource.terraform_name }}.id
 {% else %}
-  # WARNING: Subnet {{ resource.config.subnet_id }} not found in graph
+  # WARNING: Subnet {{ resource.config.subnet_id }} not found in graph - using original ID
   subnet_id     = "{{ resource.config.subnet_id }}"
+{% endif %}
 {% endif %}
 {% endif %}
 

@@ -5,11 +5,15 @@ resource "aws_db_subnet_group" "{{ resource.terraform_name }}" {
 
   subnet_ids = [
 {% for subnet_id in resource.config.subnet_ids %}
+{% if subnet_id is tf_ref %}
+    {{ subnet_id }},
+{% else %}
 {% set subnet_resource = graph.get_resource(subnet_id) %}
 {% if subnet_resource and subnet_resource.terraform_name %}
     aws_subnet.{{ subnet_resource.terraform_name }}.id,
 {% else %}
     "{{ subnet_id }}",
+{% endif %}
 {% endif %}
 {% endfor %}
   ]

@@ -4,12 +4,16 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
   name        = "{{ resource.config.name }}"
   description = {{ resource.config.description | quote }}
 {% if resource.config.vpc_id %}
+{% if resource.config.vpc_id is tf_ref %}
+  vpc_id      = {{ resource.config.vpc_id }}
+{% else %}
 {% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
 {% if vpc_resource and vpc_resource.terraform_name %}
   vpc_id      = aws_vpc.{{ vpc_resource.terraform_name }}.id
 {% else %}
-  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph
+  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph - using original ID
   vpc_id      = "{{ resource.config.vpc_id }}"
+{% endif %}
 {% endif %}
 {% endif %}
 
@@ -28,8 +32,12 @@ resource "aws_security_group" "{{ resource.terraform_name }}" {
 {% if rule.security_groups %}
     security_groups  = [
 {% for sg in rule.security_groups %}
+{% if sg.security_group_id is tf_ref %}
+      {{ sg.security_group_id }},
+{% else %}
 {% set sg_resource = graph.get_resource(sg.security_group_id) %}
       {% if sg_resource and sg_resource.terraform_name %}aws_security_group.{{ sg_resource.terraform_name }}.id{% else %}"{{ sg.security_group_id }}"{% endif %},
+{% endif %}
 {% endfor %}
     ]
 {% endif %}

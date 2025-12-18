@@ -125,6 +125,9 @@ class TerraformRenderer:
         self.env.filters["quote_key"] = self._quote_key_filter
         self.env.filters["tf_ref"] = self._tf_ref_filter
 
+        # Add custom tests
+        self.env.tests["tf_ref"] = self._is_tf_ref_test
+
         # Track used terraform names for uniqueness
         self._used_names: dict[str, set[str]] = {}
 
@@ -518,3 +521,46 @@ provider "aws" {
         if not terraform_name:
             return ""
         return f"{resource_type}.{terraform_name}.id"
+
+    @staticmethod
+    def _is_tf_ref_test(value: str) -> bool:
+        """
+        Test if a value is already a Terraform resource reference.
+
+        Terraform references look like: aws_vpc.name.id, aws_subnet.name.id, etc.
+        This is used to detect when NetworkRemapTransformer has already converted
+        an ID to a Terraform reference, so templates should output it without quotes.
+
+        Args:
+            value: The string to test
+
+        Returns:
+            True if the value looks like a Terraform reference
+        """
+        if not isinstance(value, str):
+            return False
+
+        # Terraform references pattern: aws_<type>.<name>.<attribute>
+        # Common patterns: aws_vpc.name.id, aws_subnet.name.id, aws_security_group.name.id
+        tf_ref_prefixes = (
+            "aws_vpc.",
+            "aws_subnet.",
+            "aws_security_group.",
+            "aws_instance.",
+            "aws_db_instance.",
+            "aws_db_subnet_group.",
+            "aws_lb.",
+            "aws_lb_target_group.",
+            "aws_s3_bucket.",
+            "aws_elasticache_cluster.",
+            "aws_internet_gateway.",
+            "aws_nat_gateway.",
+            "aws_route_table.",
+            "aws_ebs_volume.",
+            "aws_sqs_queue.",
+            "aws_sns_topic.",
+            "aws_launch_template.",
+            "aws_autoscaling_group.",
+        )
+
+        return any(value.startswith(prefix) for prefix in tf_ref_prefixes)

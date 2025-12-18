@@ -12,6 +12,9 @@ resource "aws_elasticache_cluster" "{{ resource.terraform_name }}" {
 {% endif %}
 
 {% if resource.config.cache_subnet_group_name %}
+{% if resource.config.cache_subnet_group_name is tf_ref %}
+  subnet_group_name = {{ resource.config.cache_subnet_group_name }}
+{% else %}
 {% set subnet_group = graph.get_resource(resource.config.cache_subnet_group_name) %}
 {% if subnet_group and subnet_group.terraform_name %}
   subnet_group_name = aws_elasticache_subnet_group.{{ subnet_group.terraform_name }}.name
@@ -19,15 +22,20 @@ resource "aws_elasticache_cluster" "{{ resource.terraform_name }}" {
   subnet_group_name = "{{ resource.config.cache_subnet_group_name }}"
 {% endif %}
 {% endif %}
+{% endif %}
 
 {% if resource.config.security_group_ids %}
   security_group_ids = [
 {% for sg_id in resource.config.security_group_ids %}
+{% if sg_id is tf_ref %}
+    {{ sg_id }},
+{% else %}
 {% set sg_resource = graph.get_resource(sg_id) %}
 {% if sg_resource and sg_resource.terraform_name %}
     aws_security_group.{{ sg_resource.terraform_name }}.id,
 {% else %}
     "{{ sg_id }}",
+{% endif %}
 {% endif %}
 {% endfor %}
   ]
