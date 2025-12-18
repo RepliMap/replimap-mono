@@ -10,7 +10,7 @@ import hashlib
 import platform
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -239,7 +239,7 @@ class License:
         """Check if the license has expired."""
         if self.expires_at is None:
             return False
-        return datetime.utcnow() > self.expires_at
+        return datetime.now(UTC) > self.expires_at
 
     @property
     def features(self) -> PlanFeatures:

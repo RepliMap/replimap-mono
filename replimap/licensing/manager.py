@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -31,6 +31,19 @@ logger = logging.getLogger(__name__)
 DEFAULT_CACHE_DIR = Path.home() / ".replimap"
 LICENSE_CACHE_FILE = "license.json"
 LICENSE_CACHE_TTL = timedelta(hours=24)  # Re-validate after 24 hours
+
+
+def is_dev_mode() -> bool:
+    """
+    Check if dev mode is enabled.
+
+    Dev mode bypasses license restrictions for local development and testing.
+    Enable with: REPLIMAP_DEV_MODE=1
+
+    Returns:
+        True if dev mode is enabled
+    """
+    return os.environ.get("REPLIMAP_DEV_MODE", "").lower() in ("1", "true", "yes")
 
 
 class LicenseManager:
@@ -76,6 +89,10 @@ class LicenseManager:
     @property
     def current_plan(self) -> Plan:
         """Get the current plan (FREE if no license)."""
+        # Dev mode bypasses all license restrictions
+        if is_dev_mode():
+            return Plan.ENTERPRISE
+
         if self.current_license is None:
             return Plan.FREE
         if self.current_license.is_expired:
@@ -86,6 +103,11 @@ class LicenseManager:
     def current_features(self) -> PlanFeatures:
         """Get the features for the current plan."""
         return get_plan_features(self.current_plan)
+
+    @property
+    def is_dev_mode(self) -> bool:
+        """Check if running in dev mode."""
+        return is_dev_mode()
 
     def activate(self, license_key: str) -> License:
         """
@@ -254,8 +276,8 @@ class LicenseManager:
             license_key=license_key.upper(),
             plan=plan,
             email="user@example.com",
-            issued_at=datetime.utcnow(),
-            expires_at=datetime.utcnow() + timedelta(days=365),
+            issued_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(days=365),
             machine_fingerprint=get_machine_fingerprint(),
         )
 
@@ -266,17 +288,17 @@ class LicenseManager:
 
         # TODO: Implement actual API revalidation
         logger.debug("Revalidation would happen here")
-        self._cached_at = datetime.utcnow()
+        self._cached_at = datetime.now(UTC)
 
     def _cache_license(self, license_obj: License) -> None:
         """Cache the license to disk."""
         cache_data = {
             "license": license_obj.to_dict(),
-            "cached_at": datetime.utcnow().isoformat(),
+            "cached_at": datetime.now(UTC).isoformat(),
             "fingerprint": get_machine_fingerprint(),
         }
         self.cache_path.write_text(json.dumps(cache_data, indent=2))
-        self._cached_at = datetime.utcnow()
+        self._cached_at = datetime.now(UTC)
         logger.debug(f"License cached to {self.cache_path}")
 
     def _load_cached_license(self) -> License | None:
@@ -300,14 +322,14 @@ class LicenseManager:
         """Check if the cache needs revalidation."""
         if self._cached_at is None:
             return True
-        return datetime.utcnow() - self._cached_at > LICENSE_CACHE_TTL
+        return datetime.now(UTC) - self._cached_at > LICENSE_CACHE_TTL
 
     def _is_grace_period_expired(self) -> bool:
         """Check if the offline grace period has expired."""
         grace_period = timedelta(days=7)  # 7 day grace period
         if self._cached_at is None:
             return True
-        return datetime.utcnow() - self._cached_at > grace_period
+        return datetime.now(UTC) - self._cached_at > grace_period
 
 
 # Global license manager instance

@@ -1,7 +1,7 @@
 """Tests for the licensing module."""
 
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -109,7 +109,7 @@ class TestLicense:
             license_key="TEST-1234-5678-ABCD",
             plan=Plan.SOLO,
             email="test@example.com",
-            expires_at=datetime.utcnow() + timedelta(days=30),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
         )
         assert not license_obj.is_expired
 
@@ -118,7 +118,7 @@ class TestLicense:
             license_key="TEST-1234-5678-ABCD",
             plan=Plan.SOLO,
             email="test@example.com",
-            expires_at=datetime.utcnow() - timedelta(days=1),
+            expires_at=datetime.now(UTC) - timedelta(days=1),
         )
         assert expired_license.is_expired
 
@@ -531,7 +531,7 @@ class TestScanRecord:
         """Test creating a scan record."""
         record = ScanRecord(
             scan_id="test-123",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             region="us-east-1",
             resource_count=100,
             resource_types={"aws_vpc": 10, "aws_subnet": 50},
@@ -546,7 +546,7 @@ class TestScanRecord:
         """Test scan record to/from dict."""
         record = ScanRecord(
             scan_id="test-123",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             region="us-west-2",
             resource_count=50,
             resource_types={"aws_vpc": 5},
