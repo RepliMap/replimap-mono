@@ -70,6 +70,7 @@ app = typer.Typer(
     help="AWS Environment Replication Tool - Clone your production to staging in minutes",
     add_completion=False,
     rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 
@@ -962,6 +963,7 @@ cache_app = typer.Typer(
     name="cache",
     help="Credential cache management",
     rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 app.add_typer(cache_app, name="cache")
 
@@ -1061,6 +1063,7 @@ license_app = typer.Typer(
     name="license",
     help="License management commands",
     rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 app.add_typer(license_app, name="license")
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -254,8 +254,8 @@ class LicenseManager:
             license_key=license_key.upper(),
             plan=plan,
             email="user@example.com",
-            issued_at=datetime.utcnow(),
-            expires_at=datetime.utcnow() + timedelta(days=365),
+            issued_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(days=365),
             machine_fingerprint=get_machine_fingerprint(),
         )
 
@@ -266,17 +266,17 @@ class LicenseManager:
 
         # TODO: Implement actual API revalidation
         logger.debug("Revalidation would happen here")
-        self._cached_at = datetime.utcnow()
+        self._cached_at = datetime.now(UTC)
 
     def _cache_license(self, license_obj: License) -> None:
         """Cache the license to disk."""
         cache_data = {
             "license": license_obj.to_dict(),
-            "cached_at": datetime.utcnow().isoformat(),
+            "cached_at": datetime.now(UTC).isoformat(),
             "fingerprint": get_machine_fingerprint(),
         }
         self.cache_path.write_text(json.dumps(cache_data, indent=2))
-        self._cached_at = datetime.utcnow()
+        self._cached_at = datetime.now(UTC)
         logger.debug(f"License cached to {self.cache_path}")
 
     def _load_cached_license(self) -> License | None:
@@ -300,14 +300,14 @@ class LicenseManager:
         """Check if the cache needs revalidation."""
         if self._cached_at is None:
             return True
-        return datetime.utcnow() - self._cached_at > LICENSE_CACHE_TTL
+        return datetime.now(UTC) - self._cached_at > LICENSE_CACHE_TTL
 
     def _is_grace_period_expired(self) -> bool:
         """Check if the offline grace period has expired."""
         grace_period = timedelta(days=7)  # 7 day grace period
         if self._cached_at is None:
             return True
-        return datetime.utcnow() - self._cached_at > grace_period
+        return datetime.now(UTC) - self._cached_at > grace_period
 
 
 # Global license manager instance

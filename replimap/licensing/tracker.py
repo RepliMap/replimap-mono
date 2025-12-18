@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -142,7 +142,7 @@ class UsageTracker:
         """
         record = ScanRecord(
             scan_id=scan_id,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
             region=region,
             resource_count=resource_count,
             resource_types=resource_types,
@@ -167,7 +167,7 @@ class UsageTracker:
         """
         stats = UsageStats()
 
-        current_month = datetime.utcnow().replace(
+        current_month = datetime.now(UTC).replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
 
@@ -198,14 +198,14 @@ class UsageTracker:
 
     def get_scans_this_month(self) -> int:
         """Get the number of scans performed this month."""
-        current_month = datetime.utcnow().replace(
+        current_month = datetime.now(UTC).replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
         return sum(1 for s in self._scans if s.timestamp >= current_month)
 
     def get_resources_this_month(self) -> int:
         """Get the total resources scanned this month."""
-        current_month = datetime.utcnow().replace(
+        current_month = datetime.now(UTC).replace(
             day=1, hour=0, minute=0, second=0, microsecond=0
         )
         return sum(
@@ -289,7 +289,7 @@ class UsageTracker:
         return {
             "stats": stats.to_dict(),
             "recent_scans": [s.to_dict() for s in self.get_recent_scans(50)],
-            "exported_at": datetime.utcnow().isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
         }
 
 
