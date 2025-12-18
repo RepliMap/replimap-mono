@@ -37,7 +37,7 @@ resource "aws_elasticache_subnet_group" "test-elementtime" {
 }
 
 # ElastiCache Subnet Group: stage-etime-14si
-resource "aws_elasticache_subnet_group" "stage-etime-14si_ime_14si" {
+resource "aws_elasticache_subnet_group" "stage-etime-14si_1" {
   name        = "stage-etime-14si"
   description = "Elasticache subnet group for stage-etime-14si"
 
@@ -225,7 +225,7 @@ resource "aws_elasticache_cluster" "test-elementtime-001" {
 }
 
 # ElastiCache Cluster: stage-etime-14si-001
-resource "aws_elasticache_cluster" "stage-etime-14si-001_14si_001" {
+resource "aws_elasticache_cluster" "stage-etime-14si-001_1" {
   cluster_id           = "stage-etime-14si-001"
   engine               = "redis"
   engine_version       = "6.2.6"
@@ -233,7 +233,7 @@ resource "aws_elasticache_cluster" "stage-etime-14si-001_14si_001" {
   num_cache_nodes      = 1
   port                 = 6379
 
-  subnet_group_name = aws_elasticache_subnet_group.stage-etime-14si_ime_14si.name
+  subnet_group_name = aws_elasticache_subnet_group.stage-etime-14si_1.name
 
   security_group_ids = [
     "aws_security_group.stage-etime-14si.id",
@@ -261,7 +261,7 @@ resource "aws_elasticache_cluster" "stage-etime-14si-001" {
   num_cache_nodes      = 1
   port                 = 6379
 
-  subnet_group_name = aws_elasticache_subnet_group.stage-etime-14si_ime_14si.name
+  subnet_group_name = aws_elasticache_subnet_group.stage-etime-14si_1.name
 
   security_group_ids = [
     "aws_security_group.stage-etime-14si.id",

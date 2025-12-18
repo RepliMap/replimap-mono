@@ -138,7 +138,7 @@ resource "aws_vpc_endpoint" "vpce-002c74882de88640a" {
     "aws_security_group.rds-proxy-etime-14si-stage.id",
   ]
 
-  private_dns_enabled = 
+  private_dns_enabled = false
 
   tags = {
     Name        = "vpce-002c74882de88640a"
@@ -165,7 +165,7 @@ resource "aws_vpc_endpoint" "vpce-0b2bd52e7f833cfff" {
     "aws_security_group.rds-proxy-etime-14si-stage.id",
   ]
 
-  private_dns_enabled = 
+  private_dns_enabled = false
 
   tags = {
     Name        = "vpce-0b2bd52e7f833cfff"
@@ -192,7 +192,7 @@ resource "aws_vpc_endpoint" "vpce-0f2fd50f594473181" {
     "aws_security_group.rds-proxy-etime-14si-stage-i3.id",
   ]
 
-  private_dns_enabled = 
+  private_dns_enabled = false
 
   tags = {
     Name        = "vpce-0f2fd50f594473181"
@@ -219,7 +219,7 @@ resource "aws_vpc_endpoint" "vpce-089e31664c9e683af" {
     "aws_security_group.rds-proxy-etime-14si-stage-i3.id",
   ]
 
-  private_dns_enabled = 
+  private_dns_enabled = false
 
   tags = {
     Name        = "vpce-089e31664c9e683af"
@@ -245,7 +245,7 @@ resource "aws_vpc_endpoint" "vpce-02b95255d01ef9ef9" {
     "aws_security_group.rds-proxy-etime-14si-stage-i3.id",
   ]
 
-  private_dns_enabled = 
+  private_dns_enabled = false
 
   tags = {
     Name        = "vpce-02b95255d01ef9ef9"
@@ -271,7 +271,7 @@ resource "aws_vpc_endpoint" "vpce-06bce7c8f5743f882" {
     "aws_security_group.rds-proxy-etime-14si-stage.id",
   ]
 
-  private_dns_enabled = 
+  private_dns_enabled = false
 
   tags = {
     Name        = "vpce-06bce7c8f5743f882"
@@ -302,9 +302,9 @@ resource "aws_route_table" "lifesupport-rt-public" {
   }
 }
 
-# WARNING: Subnet aws_subnet.lifesupport-subnet-public-ap-southeast-2c.id not found in graph
-# WARNING: Subnet aws_subnet.lifesupport-subnet-public-ap-southeast-2a.id not found in graph
 # WARNING: Subnet aws_subnet.lifesupport-subnet-public-ap-southeast-2b.id not found in graph
+# WARNING: Subnet aws_subnet.lifesupport-subnet-public-ap-southeast-2a.id not found in graph
+# WARNING: Subnet aws_subnet.lifesupport-subnet-public-ap-southeast-2c.id not found in graph
 
 
 # Route Table: stage-rt-private-ap-southeast-2b
@@ -526,9 +526,9 @@ resource "aws_route_table" "stage-rt-public" {
   }
 }
 
-# WARNING: Subnet aws_subnet.stage-subnet-public-ap-southeast-2b.id not found in graph
 # WARNING: Subnet aws_subnet.stage-subnet-public-ap-southeast-2c.id not found in graph
 # WARNING: Subnet aws_subnet.stage-subnet-public-ap-southeast-2a.id not found in graph
+# WARNING: Subnet aws_subnet.stage-subnet-public-ap-southeast-2b.id not found in graph
 
 
 # Route Table: stage-rt-private-ap-southeast-2a

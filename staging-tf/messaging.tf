@@ -1314,7 +1314,7 @@ resource "aws_sqs_queue" "etime-14si-test-broadcasts" {
 }
 
 # SQS Queue: etime-14si-stage-workflows
-resource "aws_sqs_queue" "etime-14si-stage-workflows_orkflows" {
+resource "aws_sqs_queue" "etime-14si-stage-workflows_1" {
   name = "etime-14si-stage-workflows"
 
 
@@ -1338,7 +1338,7 @@ resource "aws_sqs_queue" "etime-14si-stage-workflows_orkflows" {
 }
 
 # SQS Queue: etime-14si-stage-user
-resource "aws_sqs_queue" "etime-14si-stage-user_age_user" {
+resource "aws_sqs_queue" "etime-14si-stage-user_1" {
   name = "etime-14si-stage-user"
 
 
@@ -1362,7 +1362,7 @@ resource "aws_sqs_queue" "etime-14si-stage-user_age_user" {
 }
 
 # SQS Queue: etime-14si-stage-upgrades
-resource "aws_sqs_queue" "etime-14si-stage-upgrades_upgrades" {
+resource "aws_sqs_queue" "etime-14si-stage-upgrades_1" {
   name = "etime-14si-stage-upgrades"
 
 
@@ -1386,7 +1386,7 @@ resource "aws_sqs_queue" "etime-14si-stage-upgrades_upgrades" {
 }
 
 # SQS Queue: etime-14si-stage-timesheets
-resource "aws_sqs_queue" "etime-14si-stage-timesheets_mesheets" {
+resource "aws_sqs_queue" "etime-14si-stage-timesheets_1" {
   name = "etime-14si-stage-timesheets"
 
 
@@ -1410,7 +1410,7 @@ resource "aws_sqs_queue" "etime-14si-stage-timesheets_mesheets" {
 }
 
 # SQS Queue: etime-14si-stage-tenant
-resource "aws_sqs_queue" "etime-14si-stage-tenant_e_tenant" {
+resource "aws_sqs_queue" "etime-14si-stage-tenant_1" {
   name = "etime-14si-stage-tenant"
 
 
@@ -1434,7 +1434,7 @@ resource "aws_sqs_queue" "etime-14si-stage-tenant_e_tenant" {
 }
 
 # SQS Queue: etime-14si-stage-shifts
-resource "aws_sqs_queue" "etime-14si-stage-shifts_e_shifts" {
+resource "aws_sqs_queue" "etime-14si-stage-shifts_1" {
   name = "etime-14si-stage-shifts"
 
 
@@ -1458,7 +1458,7 @@ resource "aws_sqs_queue" "etime-14si-stage-shifts_e_shifts" {
 }
 
 # SQS Queue: etime-14si-stage-settings
-resource "aws_sqs_queue" "etime-14si-stage-settings_settings" {
+resource "aws_sqs_queue" "etime-14si-stage-settings_1" {
   name = "etime-14si-stage-settings"
 
 
@@ -1482,7 +1482,7 @@ resource "aws_sqs_queue" "etime-14si-stage-settings_settings" {
 }
 
 # SQS Queue: etime-14si-stage-reports
-resource "aws_sqs_queue" "etime-14si-stage-reports__reports" {
+resource "aws_sqs_queue" "etime-14si-stage-reports_1" {
   name = "etime-14si-stage-reports"
 
 
@@ -1506,7 +1506,7 @@ resource "aws_sqs_queue" "etime-14si-stage-reports__reports" {
 }
 
 # SQS Queue: etime-14si-stage-penalties
-resource "aws_sqs_queue" "etime-14si-stage-penalties_enalties" {
+resource "aws_sqs_queue" "etime-14si-stage-penalties_1" {
   name = "etime-14si-stage-penalties"
 
 
@@ -1530,7 +1530,7 @@ resource "aws_sqs_queue" "etime-14si-stage-penalties_enalties" {
 }
 
 # SQS Queue: etime-14si-stage-payroll-authority-response
-resource "aws_sqs_queue" "etime-14si-stage-payroll-authority-response_response" {
+resource "aws_sqs_queue" "etime-14si-stage-payroll-authority-response_1" {
   name = "etime-14si-stage-payroll-authority-response"
 
 
@@ -1554,7 +1554,7 @@ resource "aws_sqs_queue" "etime-14si-stage-payroll-authority-response_response" 
 }
 
 # SQS Queue: etime-14si-stage-notifications-triggers
-resource "aws_sqs_queue" "etime-14si-stage-notifications-triggers_triggers" {
+resource "aws_sqs_queue" "etime-14si-stage-notifications-triggers_1" {
   name = "etime-14si-stage-notifications-triggers"
 
 
@@ -1578,7 +1578,7 @@ resource "aws_sqs_queue" "etime-14si-stage-notifications-triggers_triggers" {
 }
 
 # SQS Queue: etime-14si-stage-notifications
-resource "aws_sqs_queue" "etime-14si-stage-notifications_ications" {
+resource "aws_sqs_queue" "etime-14si-stage-notifications_1" {
   name = "etime-14si-stage-notifications"
 
 
@@ -1602,7 +1602,7 @@ resource "aws_sqs_queue" "etime-14si-stage-notifications_ications" {
 }
 
 # SQS Queue: etime-14si-stage-leave-balances
-resource "aws_sqs_queue" "etime-14si-stage-leave-balances_balances" {
+resource "aws_sqs_queue" "etime-14si-stage-leave-balances_1" {
   name = "etime-14si-stage-leave-balances"
 
 
@@ -1626,7 +1626,7 @@ resource "aws_sqs_queue" "etime-14si-stage-leave-balances_balances" {
 }
 
 # SQS Queue: etime-14si-stage-integrations
-resource "aws_sqs_queue" "etime-14si-stage-integrations_grations" {
+resource "aws_sqs_queue" "etime-14si-stage-integrations_1" {
   name = "etime-14si-stage-integrations"
 
 
@@ -1650,7 +1650,7 @@ resource "aws_sqs_queue" "etime-14si-stage-integrations_grations" {
 }
 
 # SQS Queue: etime-14si-stage-generic-authority-response
-resource "aws_sqs_queue" "etime-14si-stage-generic-authority-response_response" {
+resource "aws_sqs_queue" "etime-14si-stage-generic-authority-response_1" {
   name = "etime-14si-stage-generic-authority-response"
 
 
@@ -1674,7 +1674,7 @@ resource "aws_sqs_queue" "etime-14si-stage-generic-authority-response_response" 
 }
 
 # SQS Queue: etime-14si-stage-general
-resource "aws_sqs_queue" "etime-14si-stage-general__general" {
+resource "aws_sqs_queue" "etime-14si-stage-general_1" {
   name = "etime-14si-stage-general"
 
 
@@ -1698,7 +1698,7 @@ resource "aws_sqs_queue" "etime-14si-stage-general__general" {
 }
 
 # SQS Queue: etime-14si-stage-excess-time
-resource "aws_sqs_queue" "etime-14si-stage-excess-time_ess_time" {
+resource "aws_sqs_queue" "etime-14si-stage-excess-time_1" {
   name = "etime-14si-stage-excess-time"
 
 
@@ -1722,7 +1722,7 @@ resource "aws_sqs_queue" "etime-14si-stage-excess-time_ess_time" {
 }
 
 # SQS Queue: etime-14si-stage-edrms-responses
-resource "aws_sqs_queue" "etime-14si-stage-edrms-responses_esponses" {
+resource "aws_sqs_queue" "etime-14si-stage-edrms-responses_1" {
   name = "etime-14si-stage-edrms-responses"
 
 
@@ -1746,7 +1746,7 @@ resource "aws_sqs_queue" "etime-14si-stage-edrms-responses_esponses" {
 }
 
 # SQS Queue: etime-14si-stage-browser-notifications
-resource "aws_sqs_queue" "etime-14si-stage-browser-notifications_ications" {
+resource "aws_sqs_queue" "etime-14si-stage-browser-notifications_1" {
   name = "etime-14si-stage-browser-notifications"
 
 
@@ -1770,7 +1770,7 @@ resource "aws_sqs_queue" "etime-14si-stage-browser-notifications_ications" {
 }
 
 # SQS Queue: etime-14si-stage-broadcasts
-resource "aws_sqs_queue" "etime-14si-stage-broadcasts_oadcasts" {
+resource "aws_sqs_queue" "etime-14si-stage-broadcasts_1" {
   name = "etime-14si-stage-broadcasts"
 
 
@@ -3595,27 +3595,6 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue-local-leo-03-excess-time
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue-local-leo-03-excess-time" {
-  name = "elementtime-app-queue-local-leo-03-excess-time"
-
-
-  visibility_timeout_seconds  = 30
-  message_retention_seconds   = 345600
-  max_message_size            = 262144
-  delay_seconds               = 0
-  receive_wait_time_seconds   = 0
-
-
-
-  tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue-local-leo-03-excess-time"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue-local-leo-03-excess-time"
-  }
-}
-
 # SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:etime-face-auth-stage-alerts
 resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_etime-face-auth-stage-alerts" {
   name = "etime-face-auth-stage-alerts"
@@ -3638,22 +3617,24 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_etime-face-aut
   }
 }
 
-# SNS Topic: sns-to-slack-eo-leeton
-resource "aws_sns_topic" "sns-to-slack-eo-leeton" {
-  name = "eo-leeton"
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue-local-leo-03-excess-time
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue-local-leo-03-excess-time" {
+  name = "elementtime-app-queue-local-leo-03-excess-time"
 
+
+  visibility_timeout_seconds  = 30
+  message_retention_seconds   = 345600
+  max_message_size            = 262144
+  delay_seconds               = 0
+  receive_wait_time_seconds   = 0
 
 
 
   tags = {
-    Name        = "sns-to-slack-eo-leeton"
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue-local-leo-03-excess-time"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:eo-leeton"
-    Project = "elementOrg"
-    Owner = "ac"
-    CostCenter = "platform"
-    Terraform = "true"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue-local-leo-03-excess-time"
   }
 }
 
@@ -3678,35 +3659,22 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:elementTimeDepStage
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_elementTimeDepStage" {
-  name = "elementTimeDepStage"
+# SNS Topic: sns-to-slack-eo-leeton
+resource "aws_sns_topic" "sns-to-slack-eo-leeton" {
+  name = "eo-leeton"
 
 
-  display_name = "Staging"
-
-
-  tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:elementTimeDepStage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:elementTimeDepStage"
-  }
-}
-
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepTest
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_elementTIMEDepTest" {
-  name = "elementTIMEDepTest"
-
-
-  display_name = "Test"
 
 
   tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepTest"
+    Name        = "sns-to-slack-eo-leeton"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepTest"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:eo-leeton"
+    Project = "elementOrg"
+    Owner = "ac"
+    CostCenter = "platform"
+    Terraform = "true"
   }
 }
 
@@ -3731,19 +3699,19 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepPro
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_elementTIMEDepPro" {
-  name = "elementTIMEDepPro"
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:elementTimeDepStage
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_elementTimeDepStage" {
+  name = "elementTimeDepStage"
 
 
-  display_name = "staging"
+  display_name = "Staging"
 
 
   tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepPro"
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:elementTimeDepStage"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepPro"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:elementTimeDepStage"
   }
 }
 
@@ -3768,19 +3736,19 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:elementTIME-Instance-Alert
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_elementTIME-Instance-Alert" {
-  name = "elementTIME-Instance-Alert"
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepTest
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_elementTIMEDepTest" {
+  name = "elementTIMEDepTest"
 
 
-  display_name = "elementTIME Instance Alert"
+  display_name = "Test"
 
 
   tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:elementTIME-Instance-Alert"
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepTest"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:elementTIME-Instance-Alert"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepTest"
   }
 }
 
@@ -3802,21 +3770,6 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue-local-leo"
-  }
-}
-
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:dynamodb
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_dynamodb" {
-  name = "dynamodb"
-
-
-
-
-  tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:dynamodb"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:dynamodb"
   }
 }
 
@@ -3844,18 +3797,19 @@ resource "aws_sqs_queue" "elementtime-app-queue-local-isaac-santos" {
   }
 }
 
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:codestar-notifications-elementstaff
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_codestar-notifications-elementstaff" {
-  name = "codestar-notifications-elementstaff"
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepPro
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_elementTIMEDepPro" {
+  name = "elementTIMEDepPro"
 
 
+  display_name = "staging"
 
 
   tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:codestar-notifications-elementstaff"
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepPro"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:codestar-notifications-elementstaff"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:elementTIMEDepPro"
   }
 }
 
@@ -3880,18 +3834,19 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:aws-backup-failures
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_aws-backup-failures" {
-  name = "aws-backup-failures"
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:elementTIME-Instance-Alert
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_elementTIME-Instance-Alert" {
+  name = "elementTIME-Instance-Alert"
 
 
+  display_name = "elementTIME Instance Alert"
 
 
   tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:aws-backup-failures"
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:elementTIME-Instance-Alert"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:aws-backup-failures"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:elementTIME-Instance-Alert"
   }
 }
 
@@ -3916,21 +3871,18 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:aurora-replica-scheduler-notifications
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_aurora-replica-scheduler-notifications" {
-  name = "aurora-replica-scheduler-notifications"
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:dynamodb
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_dynamodb" {
+  name = "dynamodb"
 
 
 
 
   tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:aurora-replica-scheduler-notifications"
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:dynamodb"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:aurora-replica-scheduler-notifications"
-    Terraform = "true"
-    Project = "elementtime"
-    Environment = "stage"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:dynamodb"
   }
 }
 
@@ -3955,18 +3907,18 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:asg-lifecycle-events
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_asg-lifecycle-events" {
-  name = "asg-lifecycle-events"
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:codestar-notifications-elementstaff
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_codestar-notifications-elementstaff" {
+  name = "codestar-notifications-elementstaff"
 
 
 
 
   tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:asg-lifecycle-events"
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:codestar-notifications-elementstaff"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:asg-lifecycle-events"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:codestar-notifications-elementstaff"
   }
 }
 
@@ -3988,6 +3940,138 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--user"
+  }
+}
+
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:aws-backup-failures
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_aws-backup-failures" {
+  name = "aws-backup-failures"
+
+
+
+
+  tags = {
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:aws-backup-failures"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:aws-backup-failures"
+  }
+}
+
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--timesheets
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--timesheets" {
+  name = "elementtime-app-queue--timesheets"
+
+
+  visibility_timeout_seconds  = 120
+  message_retention_seconds   = 345600
+  max_message_size            = 262144
+  delay_seconds               = 0
+  receive_wait_time_seconds   = 0
+
+
+
+  tags = {
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--timesheets"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--timesheets"
+  }
+}
+
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--tenant
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--tenant" {
+  name = "elementtime-app-queue--tenant"
+
+
+  visibility_timeout_seconds  = 600
+  message_retention_seconds   = 345600
+  max_message_size            = 262144
+  delay_seconds               = 0
+  receive_wait_time_seconds   = 0
+
+
+
+  tags = {
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--tenant"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--tenant"
+  }
+}
+
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:aurora-replica-scheduler-notifications
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_aurora-replica-scheduler-notifications" {
+  name = "aurora-replica-scheduler-notifications"
+
+
+
+
+  tags = {
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:aurora-replica-scheduler-notifications"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:aurora-replica-scheduler-notifications"
+    Terraform = "true"
+    Project = "elementtime"
+    Environment = "stage"
+  }
+}
+
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--shifts
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--shifts" {
+  name = "elementtime-app-queue--shifts"
+
+
+  visibility_timeout_seconds  = 1200
+  message_retention_seconds   = 345600
+  max_message_size            = 262144
+  delay_seconds               = 0
+  receive_wait_time_seconds   = 0
+
+
+
+  tags = {
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--shifts"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--shifts"
+  }
+}
+
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:asg-lifecycle-events
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_asg-lifecycle-events" {
+  name = "asg-lifecycle-events"
+
+
+
+
+  tags = {
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:asg-lifecycle-events"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:asg-lifecycle-events"
+  }
+}
+
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--settings
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--settings" {
+  name = "elementtime-app-queue--settings"
+
+
+  visibility_timeout_seconds  = 60
+  message_retention_seconds   = 345600
+  max_message_size            = 262144
+  delay_seconds               = 0
+  receive_wait_time_seconds   = 0
+
+
+
+  tags = {
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--settings"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--settings"
   }
 }
 
@@ -4036,27 +4120,6 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_asg-events" {
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--timesheets
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--timesheets" {
-  name = "elementtime-app-queue--timesheets"
-
-
-  visibility_timeout_seconds  = 120
-  message_retention_seconds   = 345600
-  max_message_size            = 262144
-  delay_seconds               = 0
-  receive_wait_time_seconds   = 0
-
-
-
-  tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--timesheets"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--timesheets"
-  }
-}
-
 # SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:Internal-Notification-elementTIME-Pipeline
 resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notification-elementTIME-Pipeline" {
   name = "Internal-Notification-elementTIME-Pipeline"
@@ -4073,12 +4136,12 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notif
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--tenant
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--tenant" {
-  name = "elementtime-app-queue--tenant"
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--reports
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--reports" {
+  name = "elementtime-app-queue--reports"
 
 
-  visibility_timeout_seconds  = 600
+  visibility_timeout_seconds  = 1800
   message_retention_seconds   = 345600
   max_message_size            = 262144
   delay_seconds               = 0
@@ -4087,10 +4150,10 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
 
 
   tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--tenant"
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--reports"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--tenant"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--reports"
   }
 }
 
@@ -4109,12 +4172,12 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notif
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--shifts
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--shifts" {
-  name = "elementtime-app-queue--shifts"
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--penalties
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--penalties" {
+  name = "elementtime-app-queue--penalties"
 
 
-  visibility_timeout_seconds  = 1200
+  visibility_timeout_seconds  = 300
   message_retention_seconds   = 345600
   max_message_size            = 262144
   delay_seconds               = 0
@@ -4123,10 +4186,10 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
 
 
   tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--shifts"
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--penalties"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--shifts"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--penalties"
   }
 }
 
@@ -4145,12 +4208,12 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notif
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--settings
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--settings" {
-  name = "elementtime-app-queue--settings"
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications-triggers
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--notifications-triggers" {
+  name = "elementtime-app-queue--notifications-triggers"
 
 
-  visibility_timeout_seconds  = 60
+  visibility_timeout_seconds  = 600
   message_retention_seconds   = 345600
   max_message_size            = 262144
   delay_seconds               = 0
@@ -4159,10 +4222,10 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
 
 
   tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--settings"
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications-triggers"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--settings"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications-triggers"
   }
 }
 
@@ -4178,6 +4241,48 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notif
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:Internal-Notification-elementTIME-Critical-Alram"
+  }
+}
+
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--notifications" {
+  name = "elementtime-app-queue--notifications"
+
+
+  visibility_timeout_seconds  = 600
+  message_retention_seconds   = 345600
+  max_message_size            = 262144
+  delay_seconds               = 0
+  receive_wait_time_seconds   = 0
+
+
+
+  tags = {
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications"
+  }
+}
+
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--leave-balances
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--leave-balances" {
+  name = "elementtime-app-queue--leave-balances"
+
+
+  visibility_timeout_seconds  = 600
+  message_retention_seconds   = 345600
+  max_message_size            = 262144
+  delay_seconds               = 0
+  receive_wait_time_seconds   = 0
+
+
+
+  tags = {
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--leave-balances"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--leave-balances"
   }
 }
 
@@ -4212,12 +4317,12 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notif
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--reports
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--reports" {
-  name = "elementtime-app-queue--reports"
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--integrations
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--integrations" {
+  name = "elementtime-app-queue--integrations"
 
 
-  visibility_timeout_seconds  = 1800
+  visibility_timeout_seconds  = 300
   message_retention_seconds   = 345600
   max_message_size            = 262144
   delay_seconds               = 0
@@ -4226,10 +4331,10 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
 
 
   tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--reports"
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--integrations"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--reports"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--integrations"
   }
 }
 
@@ -4248,27 +4353,6 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notif
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--penalties
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--penalties" {
-  name = "elementtime-app-queue--penalties"
-
-
-  visibility_timeout_seconds  = 300
-  message_retention_seconds   = 345600
-  max_message_size            = 262144
-  delay_seconds               = 0
-  receive_wait_time_seconds   = 0
-
-
-
-  tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--penalties"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--penalties"
-  }
-}
-
 # SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:Internal-Notification-Critical-Alram
 resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notification-Critical-Alram" {
   name = "Internal-Notification-Critical-Alram"
@@ -4281,27 +4365,6 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Internal-Notif
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:Internal-Notification-Critical-Alram"
-  }
-}
-
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications-triggers
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--notifications-triggers" {
-  name = "elementtime-app-queue--notifications-triggers"
-
-
-  visibility_timeout_seconds  = 600
-  message_retention_seconds   = 345600
-  max_message_size            = 262144
-  delay_seconds               = 0
-  receive_wait_time_seconds   = 0
-
-
-
-  tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications-triggers"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications-triggers"
   }
 }
 
@@ -4320,12 +4383,12 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_GhostRPC-Alarm
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--notifications" {
-  name = "elementtime-app-queue--notifications"
+# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--excess-time
+resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--excess-time" {
+  name = "elementtime-app-queue--excess-time"
 
 
-  visibility_timeout_seconds  = 600
+  visibility_timeout_seconds  = 120
   message_retention_seconds   = 345600
   max_message_size            = 262144
   delay_seconds               = 0
@@ -4334,10 +4397,10 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
 
 
   tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications"
+    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--excess-time"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--notifications"
+    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--excess-time"
   }
 }
 
@@ -4354,27 +4417,6 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_ElementTimeAla
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:ElementTimeAlarms"
-  }
-}
-
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--leave-balances
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--leave-balances" {
-  name = "elementtime-app-queue--leave-balances"
-
-
-  visibility_timeout_seconds  = 600
-  message_retention_seconds   = 345600
-  max_message_size            = 262144
-  delay_seconds               = 0
-  receive_wait_time_seconds   = 0
-
-
-
-  tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--leave-balances"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--leave-balances"
   }
 }
 
@@ -4410,27 +4452,6 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_DeploymentNoti
   }
 }
 
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--integrations
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--integrations" {
-  name = "elementtime-app-queue--integrations"
-
-
-  visibility_timeout_seconds  = 300
-  message_retention_seconds   = 345600
-  max_message_size            = 262144
-  delay_seconds               = 0
-  receive_wait_time_seconds   = 0
-
-
-
-  tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--integrations"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--integrations"
-  }
-}
-
 # SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:DeploymentNotice
 resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_DeploymentNotice" {
   name = "DeploymentNotice"
@@ -4444,72 +4465,6 @@ resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_DeploymentNoti
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:DeploymentNotice"
-  }
-}
-
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:AlertsForYorke
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_AlertsForYorke" {
-  name = "AlertsForYorke"
-
-
-
-
-  tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:AlertsForYorke"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:AlertsForYorke"
-  }
-}
-
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:AlertsForMtBarker
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_AlertsForMtBarker" {
-  name = "AlertsForMtBarker"
-
-
-
-
-  tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:AlertsForMtBarker"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:AlertsForMtBarker"
-  }
-}
-
-# SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--excess-time
-resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue--excess-time" {
-  name = "elementtime-app-queue--excess-time"
-
-
-  visibility_timeout_seconds  = 120
-  message_retention_seconds   = 345600
-  max_message_size            = 262144
-  delay_seconds               = 0
-  receive_wait_time_seconds   = 0
-
-
-
-  tags = {
-    Name        = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--excess-time"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue--excess-time"
-  }
-}
-
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:Adroit-staging-Alarm
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Adroit-staging-Alarm" {
-  name = "Adroit-staging-Alarm"
-
-
-
-
-  tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:Adroit-staging-Alarm"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:Adroit-Production-Alarm"
   }
 }
 
@@ -4555,6 +4510,67 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:AlertsForYorke
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_AlertsForYorke" {
+  name = "AlertsForYorke"
+
+
+
+
+  tags = {
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:AlertsForYorke"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:AlertsForYorke"
+  }
+}
+
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:AlertsForMtBarker
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_AlertsForMtBarker" {
+  name = "AlertsForMtBarker"
+
+
+
+
+  tags = {
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:AlertsForMtBarker"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:AlertsForMtBarker"
+  }
+}
+
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:Adroit-staging-Alarm
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_Adroit-staging-Alarm" {
+  name = "Adroit-staging-Alarm"
+
+
+
+
+  tags = {
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:Adroit-staging-Alarm"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:Adroit-Production-Alarm"
+  }
+}
+
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:AWSSensitiveOperation
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_AWSSensitiveOperation" {
+  name = "AWSSensitiveOperation"
+
+
+  display_name = "AWS Sensitive Operation"
+
+
+  tags = {
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:AWSSensitiveOperation"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:AWSSensitiveOperation"
+  }
+}
+
 # SQS Queue: arn:aws:sqs:ap-southeast-2:542859091916:elementtime-app-queue
 resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-app-queue" {
   name = "elementtime-app-queue"
@@ -4576,19 +4592,19 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementtime-ap
   }
 }
 
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:AWSSensitiveOperation
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_AWSSensitiveOperation" {
-  name = "AWSSensitiveOperation"
+# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:AWSSecurityAlerts
+resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_AWSSecurityAlerts" {
+  name = "AWSSecurityAlerts"
 
 
-  display_name = "AWS Sensitive Operation"
+  display_name = "AWS Security Alerts"
 
 
   tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:AWSSensitiveOperation"
+    Name        = "arn:aws:sns:ap-southeast-2:542859091916:AWSSecurityAlerts"
     Environment = var.environment
     ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:AWSSensitiveOperation"
+    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:AWSSecurityAlerts"
   }
 }
 
@@ -4610,22 +4626,6 @@ resource "aws_sqs_queue" "arn_aws_sqs_ap-southeast-2_542859091916_elementrec-gho
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "arn:aws:sqs:ap-southeast-2:542859091916:elementrec-ghostrpc-response"
-  }
-}
-
-# SNS Topic: arn:aws:sns:ap-southeast-2:542859091916:AWSSecurityAlerts
-resource "aws_sns_topic" "arn_aws_sns_ap-southeast-2_542859091916_AWSSecurityAlerts" {
-  name = "AWSSecurityAlerts"
-
-
-  display_name = "AWS Security Alerts"
-
-
-  tags = {
-    Name        = "arn:aws:sns:ap-southeast-2:542859091916:AWSSecurityAlerts"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "arn:aws:sns:ap-southeast-2:542859091916:AWSSecurityAlerts"
   }
 }
 

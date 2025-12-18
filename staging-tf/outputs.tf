@@ -121,69 +121,69 @@ output "etime-14si-stage_endpoint" {
   value       = aws_db_instance.etime-14si-stage.endpoint
 }
 
-output "etime-14si-stage_rod_1_i2_endpoint" {
+output "etime-14si-stage_1_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_rod_1_i2.endpoint
+  value       = aws_db_instance.etime-14si-stage_1.endpoint
 }
 
-output "etime-14si-stage_rod_1_i4_endpoint" {
+output "etime-14si-stage_2_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_rod_1_i4.endpoint
+  value       = aws_db_instance.etime-14si-stage_2.endpoint
 }
 
-output "etime-14si-stage_i_prod_2_endpoint" {
+output "etime-14si-stage_3_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_i_prod_2.endpoint
+  value       = aws_db_instance.etime-14si-stage_3.endpoint
 }
 
-output "etime-14si-stage_rod_2_i2_endpoint" {
+output "etime-14si-stage_4_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_rod_2_i2.endpoint
+  value       = aws_db_instance.etime-14si-stage_4.endpoint
 }
 
-output "etime-14si-stage_rod_2_i4_endpoint" {
+output "etime-14si-stage_5_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_rod_2_i4.endpoint
+  value       = aws_db_instance.etime-14si-stage_5.endpoint
 }
 
-output "etime-14si-stage_rod_i3_1_endpoint" {
+output "etime-14si-stage_6_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_rod_i3_1.endpoint
+  value       = aws_db_instance.etime-14si-stage_6.endpoint
 }
 
-output "etime-14si-stage_rod_i3_2_endpoint" {
+output "etime-14si-stage_7_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_rod_i3_2.endpoint
+  value       = aws_db_instance.etime-14si-stage_7.endpoint
 }
 
-output "etime-14si-stage_grades_1_endpoint" {
+output "etime-14si-stage_8_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_grades_1.endpoint
+  value       = aws_db_instance.etime-14si-stage_8.endpoint
 }
 
-output "etime-14si-stage_grades_2_endpoint" {
+output "etime-14si-stage_9_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_grades_2.endpoint
+  value       = aws_db_instance.etime-14si-stage_9.endpoint
 }
 
-output "etime-14si-stage__stage_1_endpoint" {
+output "etime-14si-stage_10_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage__stage_1.endpoint
+  value       = aws_db_instance.etime-14si-stage_10.endpoint
 }
 
-output "etime-14si-stage_upgrades_endpoint" {
+output "etime-14si-stage_11_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_upgrades.endpoint
+  value       = aws_db_instance.etime-14si-stage_11.endpoint
 }
 
-output "etime-14si-stage__stage_2_endpoint" {
+output "etime-14si-stage_12_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage__stage_2.endpoint
+  value       = aws_db_instance.etime-14si-stage_12.endpoint
 }
 
-output "etime-14si-stage_upgrades_endpoint" {
+output "etime-14si-stage_13_endpoint" {
   description = "Endpoint for RDS instance etime-14si-stage"
-  value       = aws_db_instance.etime-14si-stage_upgrades.endpoint
+  value       = aws_db_instance.etime-14si-stage_13.endpoint
 }
 
 output "etime-14si-test_endpoint" {
@@ -256,14 +256,14 @@ output "alb-elementtime-stage-socket_dns_name" {
   value       = aws_lb.alb-elementtime-stage-socket.dns_name
 }
 
-output "alb-elementtime-stage_44bcb6fb_dns_name" {
+output "alb-elementtime-stage_1_dns_name" {
   description = "DNS name for Load Balancer alb-elementtime-stage"
-  value       = aws_lb.alb-elementtime-stage_44bcb6fb.dns_name
+  value       = aws_lb.alb-elementtime-stage_1.dns_name
 }
 
-output "alb-elementtime-stage-socket_cadecb8e_dns_name" {
+output "alb-elementtime-stage-socket_1_dns_name" {
   description = "DNS name for Load Balancer alb-elementtime-stage-socket"
-  value       = aws_lb.alb-elementtime-stage-socket_cadecb8e.dns_name
+  value       = aws_lb.alb-elementtime-stage-socket_1.dns_name
 }
 
 output "alb-eodefault-leeton-sandbox_dns_name" {
@@ -316,9 +316,9 @@ output "alb-etime-stage-skt-14si_dns_name" {
   value       = aws_lb.alb-etime-stage-skt-14si.dns_name
 }
 
-output "alb-etime-stage-14si_b62794d1_dns_name" {
+output "alb-etime-stage-14si_1_dns_name" {
   description = "DNS name for Load Balancer alb-etime-stage-14si"
-  value       = aws_lb.alb-etime-stage-14si_b62794d1.dns_name
+  value       = aws_lb.alb-etime-stage-14si_1.dns_name
 }
 
 output "alb-etime-test-14si_dns_name" {
@@ -326,9 +326,9 @@ output "alb-etime-test-14si_dns_name" {
   value       = aws_lb.alb-etime-test-14si.dns_name
 }
 
-output "alb-etime-stage-skt-14si_70f2afaa_dns_name" {
+output "alb-etime-stage-skt-14si_1_dns_name" {
   description = "DNS name for Load Balancer alb-etime-stage-skt-14si"
-  value       = aws_lb.alb-etime-stage-skt-14si_70f2afaa.dns_name
+  value       = aws_lb.alb-etime-stage-skt-14si_1.dns_name
 }
 
 output "alb-eodefault-ypc_dns_name" {
@@ -386,9 +386,9 @@ output "alb-elementtime-test-cmd_dns_name" {
   value       = aws_lb.alb-elementtime-test-cmd.dns_name
 }
 
-output "alb-elementtime-stage-cmd_6d4f8dc0_dns_name" {
+output "alb-elementtime-stage-cmd_1_dns_name" {
   description = "DNS name for Load Balancer alb-elementtime-stage-cmd"
-  value       = aws_lb.alb-elementtime-stage-cmd_6d4f8dc0.dns_name
+  value       = aws_lb.alb-elementtime-stage-cmd_1.dns_name
 }
 
 output "alb-etime-stage-cmd-14si_dns_name" {
@@ -396,9 +396,9 @@ output "alb-etime-stage-cmd-14si_dns_name" {
   value       = aws_lb.alb-etime-stage-cmd-14si.dns_name
 }
 
-output "alb-etime-stage-cmd-14si_ed131824_dns_name" {
+output "alb-etime-stage-cmd-14si_1_dns_name" {
   description = "DNS name for Load Balancer alb-etime-stage-cmd-14si"
-  value       = aws_lb.alb-etime-stage-cmd-14si_ed131824.dns_name
+  value       = aws_lb.alb-etime-stage-cmd-14si_1.dns_name
 }
 
 output "alb-etime-test-cmd-14si_dns_name" {

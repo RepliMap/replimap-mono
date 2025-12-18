@@ -664,7 +664,7 @@ resource "aws_instance" "elementorg-test-ypc" {
 # EC2 Instance: asg-elementtime-stage-green
 # Original ID: i-043ee203c6ece9649
 # Original Type: m8g.large
-resource "aws_instance" "asg-elementtime-stage-green_6ece9649" {
+resource "aws_instance" "asg-elementtime-stage-green_1" {
   ami           = "ami-04ca030c26a97465a"
   instance_type = "m8g.large"
 
@@ -1567,7 +1567,7 @@ resource "aws_instance" "asg-elementtime-stage-socket-green" {
 # EC2 Instance: asg-etime-stage-g-14si
 # Original ID: i-021a94ee8af1b0b96
 # Original Type: m8g.large
-resource "aws_instance" "asg-etime-stage-g-14si_af1b0b96" {
+resource "aws_instance" "asg-etime-stage-g-14si_1" {
   ami           = "ami-04ca030c26a97465a"
   instance_type = "m8g.large"
 

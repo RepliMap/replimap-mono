@@ -588,7 +588,7 @@ resource "aws_db_instance" "etime-14si-test" {
 # RDS Instance: etime-14si-stage-2-upgrades
 # Original Instance Class: db.t4g.medium
 # Engine: aurora-mysql 8.0.mysql_aurora.3.08.2
-resource "aws_db_instance" "etime-14si-stage_upgrades" {
+resource "aws_db_instance" "etime-14si-stage_13" {
   identifier = "etime-14si-stage-2-upgrades-${var.environment}"
 
   # Engine configuration
@@ -604,7 +604,7 @@ resource "aws_db_instance" "etime-14si-stage_upgrades" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_upgrades
+  password = var.db_password_etime-14si-stage_13
   port     = 3306
 
   # Network configuration
@@ -648,7 +648,7 @@ resource "aws_db_instance" "etime-14si-stage_upgrades" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_upgrades" {
+# variable "db_password_etime-14si-stage_13" {
 #   description = "Password for RDS instance etime-14si-stage-2-upgrades"
 #   type        = string
 #   sensitive   = true
@@ -657,7 +657,7 @@ resource "aws_db_instance" "etime-14si-stage_upgrades" {
 # RDS Instance: etime-14si-stage-2
 # Original Instance Class: db.t4g.medium
 # Engine: aurora-mysql 8.0.mysql_aurora.3.08.2
-resource "aws_db_instance" "etime-14si-stage__stage_2" {
+resource "aws_db_instance" "etime-14si-stage_12" {
   identifier = "etime-14si-stage-2-${var.environment}"
 
   # Engine configuration
@@ -673,7 +673,7 @@ resource "aws_db_instance" "etime-14si-stage__stage_2" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage__stage_2
+  password = var.db_password_etime-14si-stage_12
   port     = 3306
 
   # Network configuration
@@ -717,7 +717,7 @@ resource "aws_db_instance" "etime-14si-stage__stage_2" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage__stage_2" {
+# variable "db_password_etime-14si-stage_12" {
 #   description = "Password for RDS instance etime-14si-stage-2"
 #   type        = string
 #   sensitive   = true
@@ -726,7 +726,7 @@ resource "aws_db_instance" "etime-14si-stage__stage_2" {
 # RDS Instance: etime-14si-stage-1-upgrades
 # Original Instance Class: db.t4g.medium
 # Engine: aurora-mysql 8.0.mysql_aurora.3.08.2
-resource "aws_db_instance" "etime-14si-stage_upgrades" {
+resource "aws_db_instance" "etime-14si-stage_11" {
   identifier = "etime-14si-stage-1-upgrades-${var.environment}"
 
   # Engine configuration
@@ -742,7 +742,7 @@ resource "aws_db_instance" "etime-14si-stage_upgrades" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_upgrades
+  password = var.db_password_etime-14si-stage_11
   port     = 3306
 
   # Network configuration
@@ -786,7 +786,7 @@ resource "aws_db_instance" "etime-14si-stage_upgrades" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_upgrades" {
+# variable "db_password_etime-14si-stage_11" {
 #   description = "Password for RDS instance etime-14si-stage-1-upgrades"
 #   type        = string
 #   sensitive   = true
@@ -795,7 +795,7 @@ resource "aws_db_instance" "etime-14si-stage_upgrades" {
 # RDS Instance: etime-14si-stage-1
 # Original Instance Class: db.t4g.medium
 # Engine: aurora-mysql 8.0.mysql_aurora.3.08.2
-resource "aws_db_instance" "etime-14si-stage__stage_1" {
+resource "aws_db_instance" "etime-14si-stage_10" {
   identifier = "etime-14si-stage-1-${var.environment}"
 
   # Engine configuration
@@ -811,7 +811,7 @@ resource "aws_db_instance" "etime-14si-stage__stage_1" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage__stage_1
+  password = var.db_password_etime-14si-stage_10
   port     = 3306
 
   # Network configuration
@@ -855,7 +855,7 @@ resource "aws_db_instance" "etime-14si-stage__stage_1" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage__stage_1" {
+# variable "db_password_etime-14si-stage_10" {
 #   description = "Password for RDS instance etime-14si-stage-1"
 #   type        = string
 #   sensitive   = true
@@ -864,7 +864,7 @@ resource "aws_db_instance" "etime-14si-stage__stage_1" {
 # RDS Instance: etime-14si-prod-upgrades-2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_grades_2" {
+resource "aws_db_instance" "etime-14si-stage_9" {
   identifier = "etime-14si-stage-upgrades-2-${var.environment}"
 
   # Engine configuration
@@ -880,7 +880,7 @@ resource "aws_db_instance" "etime-14si-stage_grades_2" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_grades_2
+  password = var.db_password_etime-14si-stage_9
   port     = 3306
 
   # Network configuration
@@ -924,7 +924,7 @@ resource "aws_db_instance" "etime-14si-stage_grades_2" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_grades_2" {
+# variable "db_password_etime-14si-stage_9" {
 #   description = "Password for RDS instance etime-14si-prod-upgrades-2"
 #   type        = string
 #   sensitive   = true
@@ -933,7 +933,7 @@ resource "aws_db_instance" "etime-14si-stage_grades_2" {
 # RDS Instance: etime-14si-prod-upgrades-1
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_grades_1" {
+resource "aws_db_instance" "etime-14si-stage_8" {
   identifier = "etime-14si-stage-upgrades-1-${var.environment}"
 
   # Engine configuration
@@ -949,7 +949,7 @@ resource "aws_db_instance" "etime-14si-stage_grades_1" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_grades_1
+  password = var.db_password_etime-14si-stage_8
   port     = 3306
 
   # Network configuration
@@ -993,7 +993,7 @@ resource "aws_db_instance" "etime-14si-stage_grades_1" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_grades_1" {
+# variable "db_password_etime-14si-stage_8" {
 #   description = "Password for RDS instance etime-14si-prod-upgrades-1"
 #   type        = string
 #   sensitive   = true
@@ -1002,7 +1002,7 @@ resource "aws_db_instance" "etime-14si-stage_grades_1" {
 # RDS Instance: etime-14si-prod-i3-2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_rod_i3_2" {
+resource "aws_db_instance" "etime-14si-stage_7" {
   identifier = "etime-14si-stage-i3-2-${var.environment}"
 
   # Engine configuration
@@ -1018,7 +1018,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_i3_2" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_rod_i3_2
+  password = var.db_password_etime-14si-stage_7
   port     = 3306
 
   # Network configuration
@@ -1062,7 +1062,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_i3_2" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_rod_i3_2" {
+# variable "db_password_etime-14si-stage_7" {
 #   description = "Password for RDS instance etime-14si-prod-i3-2"
 #   type        = string
 #   sensitive   = true
@@ -1071,7 +1071,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_i3_2" {
 # RDS Instance: etime-14si-prod-i3-1
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_rod_i3_1" {
+resource "aws_db_instance" "etime-14si-stage_6" {
   identifier = "etime-14si-stage-i3-1-${var.environment}"
 
   # Engine configuration
@@ -1087,7 +1087,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_i3_1" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_rod_i3_1
+  password = var.db_password_etime-14si-stage_6
   port     = 3306
 
   # Network configuration
@@ -1131,7 +1131,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_i3_1" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_rod_i3_1" {
+# variable "db_password_etime-14si-stage_6" {
 #   description = "Password for RDS instance etime-14si-prod-i3-1"
 #   type        = string
 #   sensitive   = true
@@ -1140,7 +1140,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_i3_1" {
 # RDS Instance: etime-14si-prod-2-i4
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_rod_2_i4" {
+resource "aws_db_instance" "etime-14si-stage_5" {
   identifier = "etime-14si-stage-2-i4-${var.environment}"
 
   # Engine configuration
@@ -1156,7 +1156,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_2_i4" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_rod_2_i4
+  password = var.db_password_etime-14si-stage_5
   port     = 3306
 
   # Network configuration
@@ -1200,7 +1200,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_2_i4" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_rod_2_i4" {
+# variable "db_password_etime-14si-stage_5" {
 #   description = "Password for RDS instance etime-14si-prod-2-i4"
 #   type        = string
 #   sensitive   = true
@@ -1209,7 +1209,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_2_i4" {
 # RDS Instance: etime-14si-prod-2-i2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_rod_2_i2" {
+resource "aws_db_instance" "etime-14si-stage_4" {
   identifier = "etime-14si-stage-2-i2-${var.environment}"
 
   # Engine configuration
@@ -1225,7 +1225,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_2_i2" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_rod_2_i2
+  password = var.db_password_etime-14si-stage_4
   port     = 3306
 
   # Network configuration
@@ -1269,7 +1269,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_2_i2" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_rod_2_i2" {
+# variable "db_password_etime-14si-stage_4" {
 #   description = "Password for RDS instance etime-14si-prod-2-i2"
 #   type        = string
 #   sensitive   = true
@@ -1278,7 +1278,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_2_i2" {
 # RDS Instance: etime-14si-prod-2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_i_prod_2" {
+resource "aws_db_instance" "etime-14si-stage_3" {
   identifier = "etime-14si-stage-2-${var.environment}"
 
   # Engine configuration
@@ -1294,7 +1294,7 @@ resource "aws_db_instance" "etime-14si-stage_i_prod_2" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_i_prod_2
+  password = var.db_password_etime-14si-stage_3
   port     = 3306
 
   # Network configuration
@@ -1338,7 +1338,7 @@ resource "aws_db_instance" "etime-14si-stage_i_prod_2" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_i_prod_2" {
+# variable "db_password_etime-14si-stage_3" {
 #   description = "Password for RDS instance etime-14si-prod-2"
 #   type        = string
 #   sensitive   = true
@@ -1347,7 +1347,7 @@ resource "aws_db_instance" "etime-14si-stage_i_prod_2" {
 # RDS Instance: etime-14si-prod-1-i4
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_rod_1_i4" {
+resource "aws_db_instance" "etime-14si-stage_2" {
   identifier = "etime-14si-stage-1-i4-${var.environment}"
 
   # Engine configuration
@@ -1363,7 +1363,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_1_i4" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_rod_1_i4
+  password = var.db_password_etime-14si-stage_2
   port     = 3306
 
   # Network configuration
@@ -1407,7 +1407,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_1_i4" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_rod_1_i4" {
+# variable "db_password_etime-14si-stage_2" {
 #   description = "Password for RDS instance etime-14si-prod-1-i4"
 #   type        = string
 #   sensitive   = true
@@ -1416,7 +1416,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_1_i4" {
 # RDS Instance: etime-14si-prod-1-i2
 # Original Instance Class: db.r8g.large
 # Engine: aurora-mysql 8.0.mysql_aurora.3.09.0
-resource "aws_db_instance" "etime-14si-stage_rod_1_i2" {
+resource "aws_db_instance" "etime-14si-stage_1" {
   identifier = "etime-14si-stage-1-i2-${var.environment}"
 
   # Engine configuration
@@ -1432,7 +1432,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_1_i2" {
   # Database configuration
   username = "admin"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_etime-14si-stage_rod_1_i2
+  password = var.db_password_etime-14si-stage_1
   port     = 3306
 
   # Network configuration
@@ -1476,7 +1476,7 @@ resource "aws_db_instance" "etime-14si-stage_rod_1_i2" {
 }
 
 # Add password variable to variables.tf
-# variable "db_password_etime-14si-stage_rod_1_i2" {
+# variable "db_password_etime-14si-stage_1" {
 #   description = "Password for RDS instance etime-14si-prod-1-i2"
 #   type        = string
 #   sensitive   = true

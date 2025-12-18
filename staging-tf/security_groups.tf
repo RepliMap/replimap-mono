@@ -173,7 +173,7 @@ resource "aws_security_group" "sg-0ea2aca1e6a8d47fe" {
 
 # Security Group: office-vpn-ssh-ingress
 # Original ID: sg-04fbadfe4550c1f5a
-resource "aws_security_group" "office-vpn-ssh-ingress_550c1f5a" {
+resource "aws_security_group" "office-vpn-ssh-ingress_1" {
   name        = "office-vpn-ssh-ingress"
   description = "Allow ingress from the Auckland office and VPN"
   # WARNING: VPC aws_vpc.stage.id not found in graph
@@ -2983,6 +2983,1225 @@ resource "aws_security_group" "sg-14a91872" {
   }
 }
 
+# Security Group: test-docdb-etime
+# Original ID: sg-03b663805aac0bbd2
+resource "aws_security_group" "test-docdb-etime" {
+  name        = "test-docdb-etime"
+  description = "Security Group for DocumentDB cluster"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 27017
+    to_port          = 27017
+    cidr_blocks      = ["172.17.0.0/16", "172.19.0.0/16", "172.31.0.0/16"]
+    security_groups  = [
+"aws_security_group.sg-0ee33593e107f36f1.id",
+"aws_security_group.sg-002adf82ccd2da02d.id",
+"sg-07471ea55cb8641c2",
+    ]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "test-docdb-etime"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-03b663805aac0bbd2"
+    "Project Team" = "elementTIME"
+    "Project Service" = "elementTIME"
+    Terraform = "true"
+    Environment = "stage"
+    "Cost Center" = "elementTIME"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: et_test_db
+# Original ID: sg-0fe556df8fc268379
+resource "aws_security_group" "sg-0fe556df8fc268379" {
+  name        = "et_test_db"
+  description = "Allow client connect to test db"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 0
+    to_port          = 65535
+    security_groups  = [
+"aws_security_group.sg-0ebf9170b06104b03.id",
+"aws_security_group.elementSeries.id",
+"aws_security_group.sg-05ca6d63.id",
+    ]
+  }
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+    security_groups  = [
+"aws_security_group.sg-0577c665d2185f61e.id",
+"aws_security_group.sg-002adf82ccd2da02d.id",
+    ]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name        = "et_test_db"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0fe556df8fc268379"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: et_db
+# Original ID: sg-945d70f3
+resource "aws_security_group" "db" {
+  name        = "et_db"
+  description = "elementtime staging db"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 0
+    to_port          = 65535
+    security_groups  = [
+"aws_security_group.sg-05ca6d63.id",
+    ]
+  }
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 5432
+    to_port          = 5432
+    cidr_blocks      = ["172.17.0.0/16"]
+    security_groups  = [
+"aws_security_group.sg-0c3996e514e9d6196.id",
+"aws_security_group.sg-0ebf9170b06104b03.id",
+"aws_security_group.elementSeries.id",
+"aws_security_group.sg-002adf82ccd2da02d.id",
+    ]
+  }
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+    security_groups  = [
+"aws_security_group.sg-0c3996e514e9d6196.id",
+"aws_security_group.sg-0ebf9170b06104b03.id",
+"aws_security_group.elementSeries.id",
+"aws_security_group.sg-002adf82ccd2da02d.id",
+    ]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name        = "db"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-945d70f3"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-ec2-1
+# Original ID: sg-0f213d73676a37994
+resource "aws_security_group" "sg-0f213d73676a37994" {
+  name        = "rds-ec2-1"
+  description = "Security group attached to postgresql-11-1 to allow EC2 instances with specific security groups attached to connect to the database. Modification could lead to connection loss."
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 5432
+    to_port          = 5432
+    security_groups  = [
+"aws_security_group.sg-03c2af77d267b7126.id",
+    ]
+  }
+
+  tags = {
+    Name        = "rds-ec2-1"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0f213d73676a37994"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: etime-14si-test-20240508011930201500000001
+# Original ID: sg-0ded09f8ba9fec34b
+resource "aws_security_group" "etime-14si-test" {
+  name        = "etime-14si-test-20240508011930201500000001"
+  description = "Control traffic to/from RDS Aurora etime-14si-test"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  tags = {
+    Name        = "etime-14si-test"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0ded09f8ba9fec34b"
+    "Cost Center" = "elementTIME"
+    MakeSnapshotShortTerm = "True"
+    "Project Team" = "elementTIME"
+    env_version = "14si"
+    Env = "test"
+    "Project Service" = "elementTIME"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-etime-14si-test
+# Original ID: sg-0e726a762eaf56142
+resource "aws_security_group" "etime-14si-test_1" {
+  name        = "rds-etime-14si-test"
+  description = "Allow traffic to eTIME RDS - etime-14si-test"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.31.0.0/16"]
+  }
+
+  tags = {
+    Name        = "etime-14si-test"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0e726a762eaf56142"
+    env_version = "14si"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementTIME"
+    "Project Team" = "elementTIME"
+    "Cost Center" = "elementTIME"
+    Env = "test"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: etime-14si-stage-20241013222422354200000001
+# Original ID: sg-03dc619cb7ca6c3a4
+resource "aws_security_group" "etime-14si-stage_1" {
+  name        = "etime-14si-stage-20241013222422354200000001"
+  description = "Control traffic to/from RDS Aurora etime-14si-stage"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  tags = {
+    Name        = "etime-14si-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-03dc619cb7ca6c3a4"
+    "Project Service" = "elementTIME"
+    Env = "stage"
+    MakeSnapshotShortTerm = "True"
+    "Project Team" = "elementTIME"
+    "Cost Center" = "elementTIME"
+    env_version = "14si"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-etime-14si-stage
+# Original ID: sg-0df5113198d2e8269
+resource "aws_security_group" "etime-14si-stage_3" {
+  name        = "rds-etime-14si-stage"
+  description = "Allow traffic to eTIME RDS - etime-14si-stage"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.31.0.0/16"]
+  }
+
+  tags = {
+    Name        = "etime-14si-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0df5113198d2e8269"
+    "Cost Center" = "elementTIME"
+    Env = "stage"
+    "Project Service" = "elementTIME"
+    MakeSnapshotShortTerm = "True"
+    "Project Team" = "elementTIME"
+    env_version = "14si"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-etime-14si-stage
+# Original ID: sg-072c65dfd31d69b92
+resource "aws_security_group" "etime-14si-stage" {
+  name        = "rds-etime-14si-stage"
+  description = "Allow traffic to eTIME RDS - etime-14si-stage"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.31.0.0/16"]
+  }
+
+  tags = {
+    Name        = "etime-14si-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-072c65dfd31d69b92"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementTIME"
+    "Cost Center" = "elementTIME"
+    env_version = "14si"
+    "Project Team" = "elementTIME"
+    Env = "stage"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: etime-14si-stage-20250723232925777800000001
+# Original ID: sg-07b8f1345eb956446
+resource "aws_security_group" "etime-14si-stage_2" {
+  name        = "etime-14si-stage-20250723232925777800000001"
+  description = "Control traffic to/from RDS Aurora etime-14si-stage"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  tags = {
+    Name        = "etime-14si-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-07b8f1345eb956446"
+    "Cost Center" = "elementTIME"
+    Env = "stage"
+    "Project Service" = "elementTIME"
+    env_version = "14si"
+    "Project Team" = "elementTIME"
+    MakeSnapshotShortTerm = "True"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: esup-stage-20250429102648744900000002
+# Original ID: sg-01c1aee0790a145cc
+resource "aws_security_group" "esup-stage_1" {
+  name        = "esup-stage-20250429102648744900000002"
+  description = "Control traffic to/from RDS Aurora esup-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "esup-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-01c1aee0790a145cc"
+    "Cost Center" = "elementSUP"
+    "Project Team" = "elementSUP"
+    Env = "stage"
+    "Project Service" = "elementSUP"
+    MakeSnapshotShortTerm = "True"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-esup-stage-20250429102648739700000001
+# Original ID: sg-0048d16be98a34290
+resource "aws_security_group" "esup-stage" {
+  name        = "rds-esup-stage-20250429102648739700000001"
+  description = "Allow traffic to eSUP RDS - esup-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16", "172.31.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name        = "esup-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0048d16be98a34290"
+    MakeSnapshotShortTerm = "True"
+    "Project Team" = "elementSUP"
+    "Cost Center" = "elementSUP"
+    "Project Service" = "elementSUP"
+    Env = "stage"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-ypc-test-20240926032759668900000001
+# Original ID: sg-0f98e30cfdac4d7c2
+resource "aws_security_group" "eorg-ypc-test" {
+  name        = "eorg-ypc-test-20240926032759668900000001"
+  description = "Control traffic to/from RDS Aurora eorg-ypc-test"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-ypc-test"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0f98e30cfdac4d7c2"
+    MakeSnapshotShortTerm = "True"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
+    Env = "test"
+    "Project Service" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-ypc-test
+# Original ID: sg-053fb515dcd590236
+resource "aws_security_group" "eorg-ypc-test_1" {
+  name        = "rds-eorg-ypc-test"
+  description = "Allow traffic to eOrg YPC RDS - eorg-ypc-test"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-ypc-test"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-053fb515dcd590236"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+    "Cost Center" = "elementOrg"
+    Env = "test"
+    "Project Team" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-ypc-stage
+# Original ID: sg-077931d1010b9f94d
+resource "aws_security_group" "eorg-ypc-stage" {
+  name        = "rds-eorg-ypc-stage"
+  description = "Allow traffic to eOrg YPC RDS - eorg-ypc-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-ypc-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-077931d1010b9f94d"
+    "Project Service" = "elementOrg"
+    Env = "stage"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+    MakeSnapshotShortTerm = "True"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-ypc-stage-20241105020308771700000001
+# Original ID: sg-0be20e0edbcdc60b1
+resource "aws_security_group" "eorg-ypc-stage_1" {
+  name        = "eorg-ypc-stage-20241105020308771700000001"
+  description = "Control traffic to/from RDS Aurora eorg-ypc-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-ypc-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0be20e0edbcdc60b1"
+    MakeSnapshotShortTerm = "True"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
+    "Project Service" = "elementOrg"
+    Env = "stage"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-ngsc-test-trellis
+# Original ID: sg-051e254bf096f48db
+resource "aws_security_group" "eorg-ngsc-test-trellis_1" {
+  name        = "rds-eorg-ngsc-test-trellis"
+  description = "Allow traffic to eOrg NGSC RDS - eorg-ngsc-test-trellis"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-ngsc-test-trellis"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-051e254bf096f48db"
+    "Cost Center" = "elementOrg"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+    "Project Team" = "elementOrg"
+    Env = "test-trellis"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-ngsc-test-trellis-20241017221924816100000001
+# Original ID: sg-036bd86cb4adf9841
+resource "aws_security_group" "eorg-ngsc-test-trellis" {
+  name        = "eorg-ngsc-test-trellis-20241017221924816100000001"
+  description = "Control traffic to/from RDS Aurora eorg-ngsc-test-trellis"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-ngsc-test-trellis"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-036bd86cb4adf9841"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+    Env = "test-trellis"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-ngsc-test
+# Original ID: sg-000aca7efd1e38477
+resource "aws_security_group" "eorg-ngsc-test_1" {
+  name        = "rds-eorg-ngsc-test"
+  description = "Allow traffic to eOrg NGSC RDS - eorg-ngsc-test"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-ngsc-test"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-000aca7efd1e38477"
+    MakeSnapshotShortTerm = "True"
+    "Project Team" = "elementOrg"
+    Env = "test"
+    "Cost Center" = "elementOrg"
+    "Project Service" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-ngsc-test-20240612003113905200000001
+# Original ID: sg-0ae5f7ad5fbe64444
+resource "aws_security_group" "eorg-ngsc-test" {
+  name        = "eorg-ngsc-test-20240612003113905200000001"
+  description = "Control traffic to/from RDS Aurora eorg-ngsc-test"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-ngsc-test"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0ae5f7ad5fbe64444"
+    "Cost Center" = "elementOrg"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+    Env = "test"
+    "Project Team" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-ngsc-stage-20240716215342031800000001
+# Original ID: sg-08df1de5f3d6d7657
+resource "aws_security_group" "eorg-ngsc-stage" {
+  name        = "eorg-ngsc-stage-20240716215342031800000001"
+  description = "Control traffic to/from RDS Aurora eorg-ngsc-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-ngsc-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-08df1de5f3d6d7657"
+    "Project Service" = "elementOrg"
+    MakeSnapshotShortTerm = "True"
+    Env = "stage"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-ngsc-stage
+# Original ID: sg-01c689ab4621168df
+resource "aws_security_group" "eorg-ngsc-stage_1" {
+  name        = "rds-eorg-ngsc-stage"
+  description = "Allow traffic to eOrg NGSC RDS - eorg-ngsc-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-ngsc-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-01c689ab4621168df"
+    MakeSnapshotShortTerm = "True"
+    "Cost Center" = "elementOrg"
+    Env = "stage"
+    "Project Service" = "elementOrg"
+    "Project Team" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-leeton-sandbox-20240710043401409200000001
+# Original ID: sg-08b6d7198f3e0d68a
+resource "aws_security_group" "eorg-leeton-sandbox_1" {
+  name        = "eorg-leeton-sandbox-20240710043401409200000001"
+  description = "Control traffic to/from RDS Aurora eorg-leeton-sandbox"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-leeton-sandbox"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-08b6d7198f3e0d68a"
+    Env = "sandbox"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-leeton-sandbox
+# Original ID: sg-068cbc49449419a08
+resource "aws_security_group" "eorg-leeton-sandbox" {
+  name        = "rds-eorg-leeton-sandbox"
+  description = "Allow traffic to eOrg Leeton RDS - eorg-leeton-sandbox"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-leeton-sandbox"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-068cbc49449419a08"
+    "Project Service" = "elementOrg"
+    Env = "sandbox"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
+    MakeSnapshotShortTerm = "True"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-leeton-stage
+# Original ID: sg-05545a49b9409cdfb
+resource "aws_security_group" "eorg-leeton-stage" {
+  name        = "rds-eorg-leeton-stage"
+  description = "Allow traffic to eOrg Leeton RDS - eorg-leeton-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-leeton-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-05545a49b9409cdfb"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+    Env = "stage"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-leeton-stage-20240710044909523300000001
+# Original ID: sg-005bc166ce97ef592
+resource "aws_security_group" "eorg-leeton-stage_1" {
+  name        = "eorg-leeton-stage-20240710044909523300000001"
+  description = "Control traffic to/from RDS Aurora eorg-leeton-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-leeton-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-005bc166ce97ef592"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+    "Cost Center" = "elementOrg"
+    Env = "stage"
+    "Project Team" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-griffith-test-20250227003103948600000001
+# Original ID: sg-0c093a6a7263c9dfa
+resource "aws_security_group" "eorg-griffith-test" {
+  name        = "eorg-griffith-test-20250227003103948600000001"
+  description = "Control traffic to/from RDS Aurora eorg-griffith-test"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-griffith-test"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0c093a6a7263c9dfa"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+    Env = "test"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-griffith-test
+# Original ID: sg-011bb976f3151a985
+resource "aws_security_group" "eorg-griffith-test_1" {
+  name        = "rds-eorg-griffith-test"
+  description = "Allow traffic to eOrg Griffith RDS - eorg-griffith-test"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-griffith-test"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-011bb976f3151a985"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+    Env = "test"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-eorg-griffith-stage
+# Original ID: sg-08cec92be4801bc92
+resource "aws_security_group" "eorg-griffith-stage_1" {
+  name        = "rds-eorg-griffith-stage"
+  description = "Allow traffic to eOrg Griffith RDS - eorg-griffith-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "eorg-griffith-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-08cec92be4801bc92"
+    Env = "stage"
+    "Cost Center" = "elementOrg"
+    "Project Team" = "elementOrg"
+    "Project Service" = "elementOrg"
+    MakeSnapshotShortTerm = "True"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: eorg-griffith-stage-20250227005837375300000001
+# Original ID: sg-021c66bf937ed13ef
+resource "aws_security_group" "eorg-griffith-stage" {
+  name        = "eorg-griffith-stage-20250227005837375300000001"
+  description = "Control traffic to/from RDS Aurora eorg-griffith-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "eorg-griffith-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-021c66bf937ed13ef"
+    Env = "stage"
+    MakeSnapshotShortTerm = "True"
+    "Project Service" = "elementOrg"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-elementorg-sa-burnoffs
+# Original ID: sg-02dc8634039ce1c6b
+resource "aws_security_group" "rds-elementorg-sa-burnoffs" {
+  name        = "rds-elementorg-sa-burnoffs"
+  description = "Allow traffic to elementorg-sa-burnoffs RDS"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16"]
+  }
+
+  tags = {
+    Name        = "rds-elementorg-sa-burnoffs"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-02dc8634039ce1c6b"
+    "Project Team" = "elementOrg"
+    "Cost Center" = "elementOrg"
+    "Project Service" = "elementOrg"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-ecentre-stage-20250429024641621900000002
+# Original ID: sg-0f401e88dac73f880
+resource "aws_security_group" "ecentre-stage_1" {
+  name        = "rds-ecentre-stage-20250429024641621900000002"
+  description = "Allow traffic to eCentre RDS - ecentre-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.31.0.0/16", "172.17.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name        = "ecentre-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0f401e88dac73f880"
+    Env = "stage"
+    "Cost Center" = "elementCentre"
+    MakeSnapshotShortTerm = "True"
+    "Project Team" = "elementCentre"
+    "Project Service" = "elementCentre"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: ecentre-stage-20250429024641621900000001
+# Original ID: sg-0f2fd1dcdc1ec9c4c
+resource "aws_security_group" "ecentre-stage" {
+  name        = "ecentre-stage-20250429024641621900000001"
+  description = "Control traffic to/from RDS Aurora ecentre-stage"
+  # WARNING: VPC aws_vpc.stage.id not found in graph
+  vpc_id      = "aws_vpc.stage.id"
+
+  tags = {
+    Name        = "ecentre-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0f2fd1dcdc1ec9c4c"
+    "Project Service" = "elementCentre"
+    Env = "stage"
+    MakeSnapshotShortTerm = "True"
+    "Cost Center" = "elementCentre"
+    "Project Team" = "elementCentre"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-proxy-etime-14si-stage
+# Original ID: sg-04fd18e2c9ea995f2
+resource "aws_security_group" "rds-proxy-etime-14si-stage" {
+  name        = "rds-proxy-etime-14si-stage"
+  description = "Security group for RDS Proxy - etime-14si-stage"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16", "172.31.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "rds-proxy-etime-14si-stage"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-04fd18e2c9ea995f2"
+    "Project Service" = "elementTIME"
+    Env = "stage"
+    MakeSnapshotShortTerm = "True"
+    "Cost Center" = "elementTIME"
+    env_version = "14si"
+    "Project Team" = "elementTIME"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Security Group: rds-proxy-etime-14si-stage-i3
+# Original ID: sg-0ac213849dbc52704
+resource "aws_security_group" "rds-proxy-etime-14si-stage-i3" {
+  name        = "rds-proxy-etime-14si-stage-i3"
+  description = "Security group for RDS Proxy - etime-14si-stage-i3"
+  # WARNING: VPC aws_vpc.public.id not found in graph
+  vpc_id      = "aws_vpc.public.id"
+
+  ingress {
+    description      = "Ingress rule"
+    protocol         = "tcp"
+    from_port        = 3306
+    to_port          = 3306
+    cidr_blocks      = ["172.17.0.0/16", "172.31.0.0/16"]
+  }
+
+  egress {
+    description      = "Egress rule"
+    protocol         = "-1"
+    from_port        = 0
+    to_port          = 0
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "rds-proxy-etime-14si-stage-i3"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "sg-0ac213849dbc52704"
+    MakeSnapshotShortTerm = "True"
+    "Project Team" = "elementTIME"
+    env_version = "14si"
+    "Project Service" = "elementTIME"
+    "Cost Center" = "elementTIME"
+    Env = "stage"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 # Security Group: test-etime-14si--_7dK-20240412055414270400000001
 # Original ID: sg-0d1b498e4647df162
 resource "aws_security_group" "test-etime-14si" {
@@ -3113,7 +4332,7 @@ resource "aws_security_group" "stage-etime-14si" {
 
 # Security Group: stage-etime-14si--Jpox-20240412071246599800000001
 # Original ID: sg-0975dde06babb513c
-resource "aws_security_group" "stage-etime-14si_babb513c" {
+resource "aws_security_group" "stage-etime-14si_1" {
   name        = "stage-etime-14si--Jpox-20240412071246599800000001"
   description = "Security group for Elasticache Redis"
   # WARNING: VPC aws_vpc.stage.id not found in graph
@@ -3364,1228 +4583,9 @@ resource "aws_security_group" "elementcentre-redis" {
   }
 }
 
-# Security Group: test-docdb-etime
-# Original ID: sg-03b663805aac0bbd2
-resource "aws_security_group" "test-docdb-etime" {
-  name        = "test-docdb-etime"
-  description = "Security Group for DocumentDB cluster"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 27017
-    to_port          = 27017
-    cidr_blocks      = ["172.17.0.0/16", "172.19.0.0/16", "172.31.0.0/16"]
-    security_groups  = [
-"aws_security_group.sg-0ee33593e107f36f1.id",
-"aws_security_group.sg-002adf82ccd2da02d.id",
-"sg-07471ea55cb8641c2",
-    ]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "test-docdb-etime"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-03b663805aac0bbd2"
-    "Project Team" = "elementTIME"
-    "Project Service" = "elementTIME"
-    Terraform = "true"
-    Environment = "stage"
-    "Cost Center" = "elementTIME"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: et_test_db
-# Original ID: sg-0fe556df8fc268379
-resource "aws_security_group" "sg-0fe556df8fc268379" {
-  name        = "et_test_db"
-  description = "Allow client connect to test db"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 0
-    to_port          = 65535
-    security_groups  = [
-"aws_security_group.sg-0ebf9170b06104b03.id",
-"aws_security_group.elementSeries.id",
-"aws_security_group.sg-05ca6d63.id",
-    ]
-  }
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-    security_groups  = [
-"aws_security_group.sg-0577c665d2185f61e.id",
-"aws_security_group.sg-002adf82ccd2da02d.id",
-    ]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = {
-    Name        = "et_test_db"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0fe556df8fc268379"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: et_db
-# Original ID: sg-945d70f3
-resource "aws_security_group" "db" {
-  name        = "et_db"
-  description = "elementtime staging db"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 0
-    to_port          = 65535
-    security_groups  = [
-"aws_security_group.sg-05ca6d63.id",
-    ]
-  }
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 5432
-    to_port          = 5432
-    cidr_blocks      = ["172.17.0.0/16"]
-    security_groups  = [
-"aws_security_group.sg-0c3996e514e9d6196.id",
-"aws_security_group.sg-0ebf9170b06104b03.id",
-"aws_security_group.elementSeries.id",
-"aws_security_group.sg-002adf82ccd2da02d.id",
-    ]
-  }
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-    security_groups  = [
-"aws_security_group.sg-0c3996e514e9d6196.id",
-"aws_security_group.sg-0ebf9170b06104b03.id",
-"aws_security_group.elementSeries.id",
-"aws_security_group.sg-002adf82ccd2da02d.id",
-    ]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = {
-    Name        = "db"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-945d70f3"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-ec2-1
-# Original ID: sg-0f213d73676a37994
-resource "aws_security_group" "sg-0f213d73676a37994" {
-  name        = "rds-ec2-1"
-  description = "Security group attached to postgresql-11-1 to allow EC2 instances with specific security groups attached to connect to the database. Modification could lead to connection loss."
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 5432
-    to_port          = 5432
-    security_groups  = [
-"aws_security_group.sg-03c2af77d267b7126.id",
-    ]
-  }
-
-  tags = {
-    Name        = "rds-ec2-1"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0f213d73676a37994"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: etime-14si-test-20240508011930201500000001
-# Original ID: sg-0ded09f8ba9fec34b
-resource "aws_security_group" "etime-14si-test" {
-  name        = "etime-14si-test-20240508011930201500000001"
-  description = "Control traffic to/from RDS Aurora etime-14si-test"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  tags = {
-    Name        = "etime-14si-test"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0ded09f8ba9fec34b"
-    "Cost Center" = "elementTIME"
-    MakeSnapshotShortTerm = "True"
-    "Project Team" = "elementTIME"
-    env_version = "14si"
-    Env = "test"
-    "Project Service" = "elementTIME"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-etime-14si-test
-# Original ID: sg-0e726a762eaf56142
-resource "aws_security_group" "etime-14si-test_eaf56142" {
-  name        = "rds-etime-14si-test"
-  description = "Allow traffic to eTIME RDS - etime-14si-test"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.31.0.0/16"]
-  }
-
-  tags = {
-    Name        = "etime-14si-test"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0e726a762eaf56142"
-    env_version = "14si"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementTIME"
-    "Project Team" = "elementTIME"
-    "Cost Center" = "elementTIME"
-    Env = "test"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: etime-14si-stage-20241013222422354200000001
-# Original ID: sg-03dc619cb7ca6c3a4
-resource "aws_security_group" "etime-14si-stage_7ca6c3a4" {
-  name        = "etime-14si-stage-20241013222422354200000001"
-  description = "Control traffic to/from RDS Aurora etime-14si-stage"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  tags = {
-    Name        = "etime-14si-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-03dc619cb7ca6c3a4"
-    "Project Service" = "elementTIME"
-    Env = "stage"
-    MakeSnapshotShortTerm = "True"
-    "Project Team" = "elementTIME"
-    "Cost Center" = "elementTIME"
-    env_version = "14si"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-etime-14si-stage
-# Original ID: sg-0df5113198d2e8269
-resource "aws_security_group" "etime-14si-stage_8d2e8269" {
-  name        = "rds-etime-14si-stage"
-  description = "Allow traffic to eTIME RDS - etime-14si-stage"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.31.0.0/16"]
-  }
-
-  tags = {
-    Name        = "etime-14si-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0df5113198d2e8269"
-    "Cost Center" = "elementTIME"
-    Env = "stage"
-    "Project Service" = "elementTIME"
-    MakeSnapshotShortTerm = "True"
-    "Project Team" = "elementTIME"
-    env_version = "14si"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-etime-14si-stage
-# Original ID: sg-072c65dfd31d69b92
-resource "aws_security_group" "etime-14si-stage" {
-  name        = "rds-etime-14si-stage"
-  description = "Allow traffic to eTIME RDS - etime-14si-stage"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.31.0.0/16"]
-  }
-
-  tags = {
-    Name        = "etime-14si-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-072c65dfd31d69b92"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementTIME"
-    "Cost Center" = "elementTIME"
-    env_version = "14si"
-    "Project Team" = "elementTIME"
-    Env = "stage"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: etime-14si-stage-20250723232925777800000001
-# Original ID: sg-07b8f1345eb956446
-resource "aws_security_group" "etime-14si-stage_eb956446" {
-  name        = "etime-14si-stage-20250723232925777800000001"
-  description = "Control traffic to/from RDS Aurora etime-14si-stage"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  tags = {
-    Name        = "etime-14si-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-07b8f1345eb956446"
-    "Cost Center" = "elementTIME"
-    Env = "stage"
-    "Project Service" = "elementTIME"
-    env_version = "14si"
-    "Project Team" = "elementTIME"
-    MakeSnapshotShortTerm = "True"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: esup-stage-20250429102648744900000002
-# Original ID: sg-01c1aee0790a145cc
-resource "aws_security_group" "esup-stage_90a145cc" {
-  name        = "esup-stage-20250429102648744900000002"
-  description = "Control traffic to/from RDS Aurora esup-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "esup-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-01c1aee0790a145cc"
-    "Cost Center" = "elementSUP"
-    "Project Team" = "elementSUP"
-    Env = "stage"
-    "Project Service" = "elementSUP"
-    MakeSnapshotShortTerm = "True"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-esup-stage-20250429102648739700000001
-# Original ID: sg-0048d16be98a34290
-resource "aws_security_group" "esup-stage" {
-  name        = "rds-esup-stage-20250429102648739700000001"
-  description = "Allow traffic to eSUP RDS - esup-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16", "172.31.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = {
-    Name        = "esup-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0048d16be98a34290"
-    MakeSnapshotShortTerm = "True"
-    "Project Team" = "elementSUP"
-    "Cost Center" = "elementSUP"
-    "Project Service" = "elementSUP"
-    Env = "stage"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-ypc-test-20240926032759668900000001
-# Original ID: sg-0f98e30cfdac4d7c2
-resource "aws_security_group" "eorg-ypc-test" {
-  name        = "eorg-ypc-test-20240926032759668900000001"
-  description = "Control traffic to/from RDS Aurora eorg-ypc-test"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-ypc-test"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0f98e30cfdac4d7c2"
-    MakeSnapshotShortTerm = "True"
-    "Cost Center" = "elementOrg"
-    "Project Team" = "elementOrg"
-    Env = "test"
-    "Project Service" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-ypc-test
-# Original ID: sg-053fb515dcd590236
-resource "aws_security_group" "eorg-ypc-test_cd590236" {
-  name        = "rds-eorg-ypc-test"
-  description = "Allow traffic to eOrg YPC RDS - eorg-ypc-test"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-ypc-test"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-053fb515dcd590236"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-    "Cost Center" = "elementOrg"
-    Env = "test"
-    "Project Team" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-ypc-stage
-# Original ID: sg-077931d1010b9f94d
-resource "aws_security_group" "eorg-ypc-stage" {
-  name        = "rds-eorg-ypc-stage"
-  description = "Allow traffic to eOrg YPC RDS - eorg-ypc-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-ypc-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-077931d1010b9f94d"
-    "Project Service" = "elementOrg"
-    Env = "stage"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-    MakeSnapshotShortTerm = "True"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-ypc-stage-20241105020308771700000001
-# Original ID: sg-0be20e0edbcdc60b1
-resource "aws_security_group" "eorg-ypc-stage_bcdc60b1" {
-  name        = "eorg-ypc-stage-20241105020308771700000001"
-  description = "Control traffic to/from RDS Aurora eorg-ypc-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-ypc-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0be20e0edbcdc60b1"
-    MakeSnapshotShortTerm = "True"
-    "Cost Center" = "elementOrg"
-    "Project Team" = "elementOrg"
-    "Project Service" = "elementOrg"
-    Env = "stage"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-ngsc-test-trellis
-# Original ID: sg-051e254bf096f48db
-resource "aws_security_group" "eorg-ngsc-test-trellis_096f48db" {
-  name        = "rds-eorg-ngsc-test-trellis"
-  description = "Allow traffic to eOrg NGSC RDS - eorg-ngsc-test-trellis"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-ngsc-test-trellis"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-051e254bf096f48db"
-    "Cost Center" = "elementOrg"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-    "Project Team" = "elementOrg"
-    Env = "test-trellis"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-ngsc-test-trellis-20241017221924816100000001
-# Original ID: sg-036bd86cb4adf9841
-resource "aws_security_group" "eorg-ngsc-test-trellis" {
-  name        = "eorg-ngsc-test-trellis-20241017221924816100000001"
-  description = "Control traffic to/from RDS Aurora eorg-ngsc-test-trellis"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-ngsc-test-trellis"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-036bd86cb4adf9841"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-    Env = "test-trellis"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-ngsc-test
-# Original ID: sg-000aca7efd1e38477
-resource "aws_security_group" "eorg-ngsc-test_d1e38477" {
-  name        = "rds-eorg-ngsc-test"
-  description = "Allow traffic to eOrg NGSC RDS - eorg-ngsc-test"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-ngsc-test"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-000aca7efd1e38477"
-    MakeSnapshotShortTerm = "True"
-    "Project Team" = "elementOrg"
-    Env = "test"
-    "Cost Center" = "elementOrg"
-    "Project Service" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-ngsc-test-20240612003113905200000001
-# Original ID: sg-0ae5f7ad5fbe64444
-resource "aws_security_group" "eorg-ngsc-test" {
-  name        = "eorg-ngsc-test-20240612003113905200000001"
-  description = "Control traffic to/from RDS Aurora eorg-ngsc-test"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-ngsc-test"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0ae5f7ad5fbe64444"
-    "Cost Center" = "elementOrg"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-    Env = "test"
-    "Project Team" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-ngsc-stage-20240716215342031800000001
-# Original ID: sg-08df1de5f3d6d7657
-resource "aws_security_group" "eorg-ngsc-stage" {
-  name        = "eorg-ngsc-stage-20240716215342031800000001"
-  description = "Control traffic to/from RDS Aurora eorg-ngsc-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-ngsc-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-08df1de5f3d6d7657"
-    "Project Service" = "elementOrg"
-    MakeSnapshotShortTerm = "True"
-    Env = "stage"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-ngsc-stage
-# Original ID: sg-01c689ab4621168df
-resource "aws_security_group" "eorg-ngsc-stage_621168df" {
-  name        = "rds-eorg-ngsc-stage"
-  description = "Allow traffic to eOrg NGSC RDS - eorg-ngsc-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-ngsc-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-01c689ab4621168df"
-    MakeSnapshotShortTerm = "True"
-    "Cost Center" = "elementOrg"
-    Env = "stage"
-    "Project Service" = "elementOrg"
-    "Project Team" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-leeton-sandbox-20240710043401409200000001
-# Original ID: sg-08b6d7198f3e0d68a
-resource "aws_security_group" "eorg-leeton-sandbox_f3e0d68a" {
-  name        = "eorg-leeton-sandbox-20240710043401409200000001"
-  description = "Control traffic to/from RDS Aurora eorg-leeton-sandbox"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-leeton-sandbox"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-08b6d7198f3e0d68a"
-    Env = "sandbox"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-leeton-sandbox
-# Original ID: sg-068cbc49449419a08
-resource "aws_security_group" "eorg-leeton-sandbox" {
-  name        = "rds-eorg-leeton-sandbox"
-  description = "Allow traffic to eOrg Leeton RDS - eorg-leeton-sandbox"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-leeton-sandbox"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-068cbc49449419a08"
-    "Project Service" = "elementOrg"
-    Env = "sandbox"
-    "Cost Center" = "elementOrg"
-    "Project Team" = "elementOrg"
-    MakeSnapshotShortTerm = "True"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-leeton-stage
-# Original ID: sg-05545a49b9409cdfb
-resource "aws_security_group" "eorg-leeton-stage" {
-  name        = "rds-eorg-leeton-stage"
-  description = "Allow traffic to eOrg Leeton RDS - eorg-leeton-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-leeton-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-05545a49b9409cdfb"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-    Env = "stage"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-leeton-stage-20240710044909523300000001
-# Original ID: sg-005bc166ce97ef592
-resource "aws_security_group" "eorg-leeton-stage_e97ef592" {
-  name        = "eorg-leeton-stage-20240710044909523300000001"
-  description = "Control traffic to/from RDS Aurora eorg-leeton-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-leeton-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-005bc166ce97ef592"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-    "Cost Center" = "elementOrg"
-    Env = "stage"
-    "Project Team" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-griffith-test-20250227003103948600000001
-# Original ID: sg-0c093a6a7263c9dfa
-resource "aws_security_group" "eorg-griffith-test" {
-  name        = "eorg-griffith-test-20250227003103948600000001"
-  description = "Control traffic to/from RDS Aurora eorg-griffith-test"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-griffith-test"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0c093a6a7263c9dfa"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-    Env = "test"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-griffith-test
-# Original ID: sg-011bb976f3151a985
-resource "aws_security_group" "eorg-griffith-test_3151a985" {
-  name        = "rds-eorg-griffith-test"
-  description = "Allow traffic to eOrg Griffith RDS - eorg-griffith-test"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-griffith-test"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-011bb976f3151a985"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-    Env = "test"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-eorg-griffith-stage
-# Original ID: sg-08cec92be4801bc92
-resource "aws_security_group" "eorg-griffith-stage_4801bc92" {
-  name        = "rds-eorg-griffith-stage"
-  description = "Allow traffic to eOrg Griffith RDS - eorg-griffith-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "eorg-griffith-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-08cec92be4801bc92"
-    Env = "stage"
-    "Cost Center" = "elementOrg"
-    "Project Team" = "elementOrg"
-    "Project Service" = "elementOrg"
-    MakeSnapshotShortTerm = "True"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: eorg-griffith-stage-20250227005837375300000001
-# Original ID: sg-021c66bf937ed13ef
-resource "aws_security_group" "eorg-griffith-stage" {
-  name        = "eorg-griffith-stage-20250227005837375300000001"
-  description = "Control traffic to/from RDS Aurora eorg-griffith-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "eorg-griffith-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-021c66bf937ed13ef"
-    Env = "stage"
-    MakeSnapshotShortTerm = "True"
-    "Project Service" = "elementOrg"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-elementorg-sa-burnoffs
-# Original ID: sg-02dc8634039ce1c6b
-resource "aws_security_group" "rds-elementorg-sa-burnoffs" {
-  name        = "rds-elementorg-sa-burnoffs"
-  description = "Allow traffic to elementorg-sa-burnoffs RDS"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16"]
-  }
-
-  tags = {
-    Name        = "rds-elementorg-sa-burnoffs"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-02dc8634039ce1c6b"
-    "Project Team" = "elementOrg"
-    "Cost Center" = "elementOrg"
-    "Project Service" = "elementOrg"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-ecentre-stage-20250429024641621900000002
-# Original ID: sg-0f401e88dac73f880
-resource "aws_security_group" "ecentre-stage_ac73f880" {
-  name        = "rds-ecentre-stage-20250429024641621900000002"
-  description = "Allow traffic to eCentre RDS - ecentre-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.31.0.0/16", "172.17.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = {
-    Name        = "ecentre-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0f401e88dac73f880"
-    Env = "stage"
-    "Cost Center" = "elementCentre"
-    MakeSnapshotShortTerm = "True"
-    "Project Team" = "elementCentre"
-    "Project Service" = "elementCentre"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: ecentre-stage-20250429024641621900000001
-# Original ID: sg-0f2fd1dcdc1ec9c4c
-resource "aws_security_group" "ecentre-stage" {
-  name        = "ecentre-stage-20250429024641621900000001"
-  description = "Control traffic to/from RDS Aurora ecentre-stage"
-  # WARNING: VPC aws_vpc.stage.id not found in graph
-  vpc_id      = "aws_vpc.stage.id"
-
-  tags = {
-    Name        = "ecentre-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0f2fd1dcdc1ec9c4c"
-    "Project Service" = "elementCentre"
-    Env = "stage"
-    MakeSnapshotShortTerm = "True"
-    "Cost Center" = "elementCentre"
-    "Project Team" = "elementCentre"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-proxy-etime-14si-stage
-# Original ID: sg-04fd18e2c9ea995f2
-resource "aws_security_group" "rds-proxy-etime-14si-stage" {
-  name        = "rds-proxy-etime-14si-stage"
-  description = "Security group for RDS Proxy - etime-14si-stage"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16", "172.31.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "rds-proxy-etime-14si-stage"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-04fd18e2c9ea995f2"
-    "Project Service" = "elementTIME"
-    Env = "stage"
-    MakeSnapshotShortTerm = "True"
-    "Cost Center" = "elementTIME"
-    env_version = "14si"
-    "Project Team" = "elementTIME"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# Security Group: rds-proxy-etime-14si-stage-i3
-# Original ID: sg-0ac213849dbc52704
-resource "aws_security_group" "rds-proxy-etime-14si-stage-i3" {
-  name        = "rds-proxy-etime-14si-stage-i3"
-  description = "Security group for RDS Proxy - etime-14si-stage-i3"
-  # WARNING: VPC aws_vpc.public.id not found in graph
-  vpc_id      = "aws_vpc.public.id"
-
-  ingress {
-    description      = "Ingress rule"
-    protocol         = "tcp"
-    from_port        = 3306
-    to_port          = 3306
-    cidr_blocks      = ["172.17.0.0/16", "172.31.0.0/16"]
-  }
-
-  egress {
-    description      = "Egress rule"
-    protocol         = "-1"
-    from_port        = 0
-    to_port          = 0
-    cidr_blocks      = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name        = "rds-proxy-etime-14si-stage-i3"
-    Environment = var.environment
-    ManagedBy   = "replimap"
-    SourceId    = "sg-0ac213849dbc52704"
-    MakeSnapshotShortTerm = "True"
-    "Project Team" = "elementTIME"
-    env_version = "14si"
-    "Project Service" = "elementTIME"
-    "Cost Center" = "elementTIME"
-    Env = "stage"
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
 # Security Group: office-vpn-http-https-ingress
 # Original ID: sg-0d04d071977f7eb3f
-resource "aws_security_group" "office-vpn-http-https-ingress_77f7eb3f" {
+resource "aws_security_group" "office-vpn-http-https-ingress_1" {
   name        = "office-vpn-http-https-ingress"
   description = "Allow HTTP and HTTPS ingress from the Auckland office and VPN"
   # WARNING: VPC aws_vpc.stage.id not found in graph

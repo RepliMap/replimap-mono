@@ -152,79 +152,79 @@ variable "db_password_etime-14si-stage" {
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_rod_1_i2" {
+variable "db_password_etime-14si-stage_1" {
   description = "Password for RDS instance etime-14si-prod-1-i2"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_rod_1_i4" {
+variable "db_password_etime-14si-stage_2" {
   description = "Password for RDS instance etime-14si-prod-1-i4"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_i_prod_2" {
+variable "db_password_etime-14si-stage_3" {
   description = "Password for RDS instance etime-14si-prod-2"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_rod_2_i2" {
+variable "db_password_etime-14si-stage_4" {
   description = "Password for RDS instance etime-14si-prod-2-i2"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_rod_2_i4" {
+variable "db_password_etime-14si-stage_5" {
   description = "Password for RDS instance etime-14si-prod-2-i4"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_rod_i3_1" {
+variable "db_password_etime-14si-stage_6" {
   description = "Password for RDS instance etime-14si-prod-i3-1"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_rod_i3_2" {
+variable "db_password_etime-14si-stage_7" {
   description = "Password for RDS instance etime-14si-prod-i3-2"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_grades_1" {
+variable "db_password_etime-14si-stage_8" {
   description = "Password for RDS instance etime-14si-prod-upgrades-1"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_grades_2" {
+variable "db_password_etime-14si-stage_9" {
   description = "Password for RDS instance etime-14si-prod-upgrades-2"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage__stage_1" {
+variable "db_password_etime-14si-stage_10" {
   description = "Password for RDS instance etime-14si-stage-1"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_upgrades" {
+variable "db_password_etime-14si-stage_11" {
   description = "Password for RDS instance etime-14si-stage-1-upgrades"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage__stage_2" {
+variable "db_password_etime-14si-stage_12" {
   description = "Password for RDS instance etime-14si-stage-2"
   type        = string
   sensitive   = true
 }
 
-variable "db_password_etime-14si-stage_upgrades" {
+variable "db_password_etime-14si-stage_13" {
   description = "Password for RDS instance etime-14si-stage-2-upgrades"
   type        = string
   sensitive   = true

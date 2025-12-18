@@ -1361,7 +1361,7 @@ resource "aws_lb" "alb-etime-test-cmd-14si" {
 }
 
 # Load Balancer: alb-etime-stage-cmd-14si
-resource "aws_lb" "alb-etime-stage-cmd-14si_ed131824" {
+resource "aws_lb" "alb-etime-stage-cmd-14si_1" {
   name               = "alb-etime-stage-cmd-14si"
   internal           = false
   load_balancer_type = "application"
@@ -1417,7 +1417,7 @@ resource "aws_lb" "alb-etime-stage-cmd-14si" {
 }
 
 # Load Balancer: alb-elementtime-stage-cmd
-resource "aws_lb" "alb-elementtime-stage-cmd_6d4f8dc0" {
+resource "aws_lb" "alb-elementtime-stage-cmd_1" {
   name               = "alb-elementtime-stage-cmd"
   internal           = false
   load_balancer_type = "application"
@@ -2217,7 +2217,7 @@ resource "aws_lb_target_group" "arn_aws_elasticloadbalancing_ap-southeast-2_5428
 }
 
 # Load Balancer: alb-etime-stage-skt-14si
-resource "aws_lb" "alb-etime-stage-skt-14si_70f2afaa" {
+resource "aws_lb" "alb-etime-stage-skt-14si_1" {
   name               = "alb-etime-stage-skt-14si"
   internal           = false
   load_balancer_type = "application"
@@ -2273,7 +2273,7 @@ resource "aws_lb" "alb-etime-test-14si" {
 }
 
 # Load Balancer: alb-etime-stage-14si
-resource "aws_lb" "alb-etime-stage-14si_b62794d1" {
+resource "aws_lb" "alb-etime-stage-14si_1" {
   name               = "alb-etime-stage-14si"
   internal           = false
   load_balancer_type = "application"
@@ -2697,7 +2697,7 @@ resource "aws_lb_target_group" "arn_aws_elasticloadbalancing_ap-southeast-2_5428
 }
 
 # Load Balancer: alb-elementtime-stage-socket
-resource "aws_lb" "alb-elementtime-stage-socket_cadecb8e" {
+resource "aws_lb" "alb-elementtime-stage-socket_1" {
   name               = "alb-elementtime-stage-socket"
   internal           = false
   load_balancer_type = "application"
@@ -2725,7 +2725,7 @@ resource "aws_lb" "alb-elementtime-stage-socket_cadecb8e" {
 }
 
 # Load Balancer: alb-elementtime-stage
-resource "aws_lb" "alb-elementtime-stage_44bcb6fb" {
+resource "aws_lb" "alb-elementtime-stage_1" {
   name               = "alb-elementtime-stage"
   internal           = false
   load_balancer_type = "application"

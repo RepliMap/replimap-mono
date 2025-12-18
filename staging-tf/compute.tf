@@ -6,10 +6,10 @@ resource "aws_launch_template" "lt-083d04a82785704e6" {
   image_id = "ami-0091208de35b8d49b"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e2e9a590c75ed9fe.id",
-    "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -42,10 +42,10 @@ resource "aws_launch_template" "lt-02f309985479760cc" {
   image_id = "ami-0091208de35b8d49b"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e2e9a590c75ed9fe.id",
-    "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -78,9 +78,9 @@ resource "aws_launch_template" "lt-00b6e0c382f1ba833" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -113,9 +113,9 @@ resource "aws_launch_template" "lt-0e728efb8f33f7088" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -148,9 +148,9 @@ resource "aws_launch_template" "lt-04554c82ad17a666c" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -183,9 +183,9 @@ resource "aws_launch_template" "lt-010dc2097987f7157" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -218,9 +218,9 @@ resource "aws_launch_template" "lt-0619ec649ed523863" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -253,9 +253,9 @@ resource "aws_launch_template" "lt-0956f8e744006ef1e" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -288,9 +288,9 @@ resource "aws_launch_template" "lt-0c4c3b7bc83ee5b4b" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -323,9 +323,9 @@ resource "aws_launch_template" "lt-026402e837ad46bc1" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -358,9 +358,9 @@ resource "aws_launch_template" "lt-03e1bae900ffc94bc" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -393,9 +393,9 @@ resource "aws_launch_template" "lt-09ae1bebe1240319f" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -428,9 +428,9 @@ resource "aws_launch_template" "lt-0210f62074b70c53c" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -463,9 +463,9 @@ resource "aws_launch_template" "lt-0dbd35aafb1de6063" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -498,9 +498,9 @@ resource "aws_launch_template" "lt-03efae88b42d320d5" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -533,9 +533,9 @@ resource "aws_launch_template" "lt-0c2298f8dafed605a" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -568,9 +568,9 @@ resource "aws_launch_template" "lt-07317d18625133ffc" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -603,9 +603,9 @@ resource "aws_launch_template" "lt-0a25463a25a4f718a" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -638,9 +638,9 @@ resource "aws_launch_template" "lt-021f08838ac9cede4" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -673,9 +673,9 @@ resource "aws_launch_template" "lt-068f342622b22f30a" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-06e2817ae86814235.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -708,9 +708,9 @@ resource "aws_launch_template" "lt-0f96ceb7b890bd5a2" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -743,9 +743,9 @@ resource "aws_launch_template" "lt-037d270f1eb9eea9c" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -778,9 +778,9 @@ resource "aws_launch_template" "lt-0f8a3144cff4dae51" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -813,9 +813,9 @@ resource "aws_launch_template" "lt-06995da340bc7e5c6" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -848,9 +848,9 @@ resource "aws_launch_template" "lt-0a090a26a2e98751a" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -883,9 +883,9 @@ resource "aws_launch_template" "lt-0a9e1a6d54722b12e" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -918,9 +918,9 @@ resource "aws_launch_template" "lt-0fbfa6b341ae5a01f" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -953,9 +953,9 @@ resource "aws_launch_template" "lt-05b0a9a8f291d2dfb" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -988,9 +988,9 @@ resource "aws_launch_template" "lt-05139e0a9b8cf06e3" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1023,9 +1023,9 @@ resource "aws_launch_template" "lt-0e7eff28f37b34df9" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1058,9 +1058,9 @@ resource "aws_launch_template" "lt-06e7b24f25b1af45d" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1093,9 +1093,9 @@ resource "aws_launch_template" "lt-0f2b473baa85e32a2" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1128,9 +1128,9 @@ resource "aws_launch_template" "lt-090b6efcc2b0d4f99" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1163,9 +1163,9 @@ resource "aws_launch_template" "lt-0eab43453208c2377" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1198,9 +1198,9 @@ resource "aws_launch_template" "lt-0fe81c28bab290f06" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1233,9 +1233,9 @@ resource "aws_launch_template" "lt-0b04e638418b62aac" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1268,9 +1268,9 @@ resource "aws_launch_template" "lt-0e57656fe14c138c0" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1303,9 +1303,9 @@ resource "aws_launch_template" "lt-0e9ca7f6d95b30f52" {
   image_id = "ami-04ca030c26a97465a"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0e9d9aa5c428a5c03.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1338,10 +1338,10 @@ resource "aws_launch_template" "lt-0432a41ea4785ba95" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0d4ca909ae44ef9a4.id",
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
-    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0d4ca909ae44ef9a4.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1374,10 +1374,10 @@ resource "aws_launch_template" "lt-0bf2553d035a5590e" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0d4ca909ae44ef9a4.id",
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
-    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0d4ca909ae44ef9a4.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1410,10 +1410,10 @@ resource "aws_launch_template" "lt-0706143bb0def5e8f" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
+    "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-02c028c79d15adf86.id",
     "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
-    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
-    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1446,10 +1446,10 @@ resource "aws_launch_template" "lt-0cc8e2d2ee2af8118" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
+    "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-02c028c79d15adf86.id",
     "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
-    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
-    "aws_security_group.elementSeries_prod_vpc.id",
   ]
 
 
@@ -1482,10 +1482,10 @@ resource "aws_launch_template" "lt-0f14d9e6488689826" {
   image_id = "ami-0091208de35b8d49b"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
-    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0b433a6d6c584ef79.id",
     "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1518,10 +1518,10 @@ resource "aws_launch_template" "lt-0b632550e3bf25eaa" {
   image_id = "ami-0091208de35b8d49b"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
-    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0b433a6d6c584ef79.id",
     "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1554,10 +1554,10 @@ resource "aws_launch_template" "lt-0459e774ce8822a2f" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0ac562a2b2761e254.id",
-    "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -1590,10 +1590,10 @@ resource "aws_launch_template" "lt-079f444f6bc8a8ec9" {
   image_id = "ami-075beeb4b028a712d"
 
   vpc_security_group_ids = [
-    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
+    "aws_security_group.elementSeries_prod_vpc.id",
     "aws_security_group.sg-0ea2aca1e6a8d47fe.id",
     "aws_security_group.sg-0ac562a2b2761e254.id",
-    "aws_security_group.elementSeries_prod_vpc.id",
+    "aws_security_group.sg-0ea9a1c02b8ef60bd.id",
   ]
 
 
@@ -2851,7 +2851,7 @@ resource "aws_autoscaling_group" "asg-etime-test-b-14si" {
 }
 
 # Auto Scaling Group: asg-etime-stage-skt-g-14si
-resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si_t_g_14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si_1" {
   name = "asg-etime-stage-skt-g-14si"
 
   min_size         = 0
@@ -3005,7 +3005,7 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-g-14si_t_g_14si" {
 }
 
 # Auto Scaling Group: asg-etime-stage-skt-b-14si
-resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si_t_b_14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si_1" {
   name = "asg-etime-stage-skt-b-14si"
 
   min_size         = 1
@@ -3159,7 +3159,7 @@ resource "aws_autoscaling_group" "asg-etime-stage-skt-b-14si_t_b_14si" {
 }
 
 # Auto Scaling Group: asg-etime-stage-g-14si
-resource "aws_autoscaling_group" "asg-etime-stage-g-14si_e_g_14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-g-14si_1" {
   name = "asg-etime-stage-g-14si"
 
   min_size         = 0
@@ -3313,7 +3313,7 @@ resource "aws_autoscaling_group" "asg-etime-stage-g-14si_e_g_14si" {
 }
 
 # Auto Scaling Group: asg-etime-stage-cmd-g-14si
-resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si_d_g_14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si_1" {
   name = "asg-etime-stage-cmd-g-14si"
 
   min_size         = 0
@@ -3467,7 +3467,7 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-g-14si_d_g_14si" {
 }
 
 # Auto Scaling Group: asg-etime-stage-cmd-b-14si
-resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si_d_b_14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si_1" {
   name = "asg-etime-stage-cmd-b-14si"
 
   min_size         = 0
@@ -3621,7 +3621,7 @@ resource "aws_autoscaling_group" "asg-etime-stage-cmd-b-14si_d_b_14si" {
 }
 
 # Auto Scaling Group: asg-etime-stage-b-14si
-resource "aws_autoscaling_group" "asg-etime-stage-b-14si_e_b_14si" {
+resource "aws_autoscaling_group" "asg-etime-stage-b-14si_1" {
   name = "asg-etime-stage-b-14si"
 
   min_size         = 1
@@ -5623,7 +5623,7 @@ resource "aws_autoscaling_group" "asg-elementtime-test-blue" {
 }
 
 # Auto Scaling Group: asg-elementtime-stage-socket-green
-resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green_et_green" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green_1" {
   name = "asg-elementtime-stage-socket-green"
 
   min_size         = 0
@@ -5777,7 +5777,7 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-green_et_green" {
 }
 
 # Auto Scaling Group: asg-elementtime-stage-socket-blue
-resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue_ket_blue" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue_1" {
   name = "asg-elementtime-stage-socket-blue"
 
   min_size         = 1
@@ -5931,7 +5931,7 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-socket-blue_ket_blue" {
 }
 
 # Auto Scaling Group: asg-elementtime-stage-green
-resource "aws_autoscaling_group" "asg-elementtime-stage-green_ge_green" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-green_1" {
   name = "asg-elementtime-stage-green"
 
   min_size         = 0
@@ -6085,7 +6085,7 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-green_ge_green" {
 }
 
 # Auto Scaling Group: asg-elementtime-stage-cmd-green
-resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green_md_green" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green_1" {
   name = "asg-elementtime-stage-cmd-green"
 
   min_size         = 0
@@ -6239,7 +6239,7 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-green_md_green" {
 }
 
 # Auto Scaling Group: asg-elementtime-stage-cmd-blue
-resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue_cmd_blue" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue_1" {
   name = "asg-elementtime-stage-cmd-blue"
 
   min_size         = 0
@@ -6393,7 +6393,7 @@ resource "aws_autoscaling_group" "asg-elementtime-stage-cmd-blue_cmd_blue" {
 }
 
 # Auto Scaling Group: asg-elementtime-stage-blue
-resource "aws_autoscaling_group" "asg-elementtime-stage-blue_age_blue" {
+resource "aws_autoscaling_group" "asg-elementtime-stage-blue_1" {
   name = "asg-elementtime-stage-blue"
 
   min_size         = 1
