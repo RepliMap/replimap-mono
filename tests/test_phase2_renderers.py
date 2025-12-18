@@ -3,13 +3,11 @@
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from replimap.core import GraphEngine
-from replimap.core.models import ResourceNode, ResourceType, DependencyType
-from replimap.renderers.terraform import TerraformRenderer
+from replimap.core.models import DependencyType, ResourceNode, ResourceType
 from replimap.renderers.cloudformation import CloudFormationRenderer
 from replimap.renderers.pulumi import PulumiRenderer
+from replimap.renderers.terraform import TerraformRenderer
 
 
 def create_phase2_graph() -> GraphEngine:

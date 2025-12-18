@@ -194,8 +194,7 @@ class NetworkingScanner(BaseScanner):
                         "routes": routes,
                         "associations": associations,
                         "propagating_vgws": [
-                            vgw["GatewayId"]
-                            for vgw in rt.get("PropagatingVgws", [])
+                            vgw["GatewayId"] for vgw in rt.get("PropagatingVgws", [])
                         ],
                     },
                     arn=f"arn:aws:ec2:{self.region}:{rt.get('OwnerId', '')}:route-table/{rt_id}",
@@ -251,8 +250,7 @@ class NetworkingScanner(BaseScanner):
                         "route_table_ids": endpoint.get("RouteTableIds", []),
                         "subnet_ids": endpoint.get("SubnetIds", []),
                         "security_group_ids": [
-                            sg["GroupId"]
-                            for sg in endpoint.get("Groups", [])
+                            sg["GroupId"] for sg in endpoint.get("Groups", [])
                         ],
                         "private_dns_enabled": endpoint.get("PrivateDnsEnabled"),
                     },
@@ -264,15 +262,11 @@ class NetworkingScanner(BaseScanner):
 
                 # Establish dependency: VPC Endpoint -> VPC
                 if vpc_id and graph.get_resource(vpc_id):
-                    graph.add_dependency(
-                        endpoint_id, vpc_id, DependencyType.BELONGS_TO
-                    )
+                    graph.add_dependency(endpoint_id, vpc_id, DependencyType.BELONGS_TO)
 
                 # Add dependencies on security groups
                 for sg_id in node.config.get("security_group_ids", []):
                     if graph.get_resource(sg_id):
-                        graph.add_dependency(
-                            endpoint_id, sg_id, DependencyType.USES
-                        )
+                        graph.add_dependency(endpoint_id, sg_id, DependencyType.USES)
 
                 logger.debug(f"Added VPC Endpoint: {endpoint_id}")

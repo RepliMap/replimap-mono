@@ -65,8 +65,7 @@ class ElastiCacheScanner(BaseScanner):
 
                 # Extract subnet IDs
                 subnet_ids = [
-                    subnet["SubnetIdentifier"]
-                    for subnet in sg.get("Subnets", [])
+                    subnet["SubnetIdentifier"] for subnet in sg.get("Subnets", [])
                 ]
 
                 node = ResourceNode(
@@ -114,8 +113,7 @@ class ElastiCacheScanner(BaseScanner):
 
                 # Get security group IDs
                 sg_ids = [
-                    sg["SecurityGroupId"]
-                    for sg in cluster.get("SecurityGroups", [])
+                    sg["SecurityGroupId"] for sg in cluster.get("SecurityGroups", [])
                 ]
 
                 # Get cache nodes info
@@ -141,14 +139,20 @@ class ElastiCacheScanner(BaseScanner):
                         "num_cache_nodes": cluster.get("NumCacheNodes"),
                         "cache_subnet_group_name": cluster.get("CacheSubnetGroupName"),
                         "security_group_ids": sg_ids,
-                        "parameter_group_name": cluster.get("CacheParameterGroup", {}).get(
-                            "CacheParameterGroupName"
-                        ),
+                        "parameter_group_name": cluster.get(
+                            "CacheParameterGroup", {}
+                        ).get("CacheParameterGroupName"),
                         "availability_zone": cluster.get("PreferredAvailabilityZone"),
                         "port": cluster.get("ConfigurationEndpoint", {}).get("Port")
-                        or (cache_nodes[0].get("endpoint", {}).get("Port") if cache_nodes else None),
+                        or (
+                            cache_nodes[0].get("endpoint", {}).get("Port")
+                            if cache_nodes
+                            else None
+                        ),
                         "cache_nodes": cache_nodes,
-                        "snapshot_retention_limit": cluster.get("SnapshotRetentionLimit"),
+                        "snapshot_retention_limit": cluster.get(
+                            "SnapshotRetentionLimit"
+                        ),
                         "snapshot_window": cluster.get("SnapshotWindow"),
                         "maintenance_window": cluster.get("PreferredMaintenanceWindow"),
                         "auto_minor_version_upgrade": cluster.get(
@@ -164,9 +168,7 @@ class ElastiCacheScanner(BaseScanner):
                 # Establish dependencies
                 subnet_group = cluster.get("CacheSubnetGroupName")
                 if subnet_group and graph.get_resource(subnet_group):
-                    graph.add_dependency(
-                        cluster_id, subnet_group, DependencyType.USES
-                    )
+                    graph.add_dependency(cluster_id, subnet_group, DependencyType.USES)
 
                 for sg_id in sg_ids:
                     if graph.get_resource(sg_id):

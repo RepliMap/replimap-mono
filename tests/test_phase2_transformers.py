@@ -1,10 +1,11 @@
 """Tests for Phase 2 transformer support."""
 
-import pytest
-
 from replimap.core import GraphEngine
 from replimap.core.models import ResourceNode, ResourceType
-from replimap.transformers.downsizer import DownsizeTransformer, ELASTICACHE_DOWNSIZE_MAP
+from replimap.transformers.downsizer import (
+    ELASTICACHE_DOWNSIZE_MAP,
+    DownsizeTransformer,
+)
 
 
 class TestElastiCacheDownsizer:

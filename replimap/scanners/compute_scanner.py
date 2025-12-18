@@ -99,9 +99,7 @@ class ComputeScanner(BaseScanner):
                         "security_group_ids": list(set(sg_ids)),
                         "iam_instance_profile": lt_data.get("IamInstanceProfile", {}),
                         "user_data": lt_data.get("UserData"),
-                        "block_device_mappings": lt_data.get(
-                            "BlockDeviceMappings", []
-                        ),
+                        "block_device_mappings": lt_data.get("BlockDeviceMappings", []),
                         "network_interfaces": network_interfaces,
                         "monitoring": lt_data.get("Monitoring", {}),
                     },
@@ -246,10 +244,7 @@ class ComputeScanner(BaseScanner):
         elbv2 = self.get_client("elbv2")
 
         # Get all LBs first
-        lb_arns = [
-            r.id
-            for r in graph.get_resources_by_type(ResourceType.LB)
-        ]
+        lb_arns = [r.id for r in graph.get_resources_by_type(ResourceType.LB)]
 
         for lb_arn in lb_arns:
             try:
@@ -349,10 +344,7 @@ class ComputeScanner(BaseScanner):
                 # Get target group ARNs
                 target_group_arns = asg.get("TargetGroupARNs", [])
 
-                tags = {
-                    tag["Key"]: tag["Value"]
-                    for tag in asg.get("Tags", [])
-                }
+                tags = {tag["Key"]: tag["Value"] for tag in asg.get("Tags", [])}
 
                 node = ResourceNode(
                     id=asg_arn,
@@ -399,8 +391,6 @@ class ComputeScanner(BaseScanner):
 
                 for tg_arn in target_group_arns:
                     if graph.get_resource(tg_arn):
-                        graph.add_dependency(
-                            asg_arn, tg_arn, DependencyType.REFERENCES
-                        )
+                        graph.add_dependency(asg_arn, tg_arn, DependencyType.REFERENCES)
 
                 logger.debug(f"Added Auto Scaling Group: {asg_name}")

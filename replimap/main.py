@@ -26,9 +26,13 @@ from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+)
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.prompt import Prompt, Confirm
 
 from replimap import __version__
 from replimap.core import GraphEngine
@@ -42,7 +46,6 @@ from replimap.licensing.tracker import get_usage_tracker
 from replimap.renderers import TerraformRenderer
 from replimap.scanners.base import run_all_scanners
 from replimap.transformers import create_default_pipeline
-
 
 # Credential cache directory
 CACHE_DIR = Path.home() / ".replimap" / "cache"
@@ -130,7 +133,7 @@ def get_profile_region(profile: str | None) -> str | None:
 def get_credential_cache_key(profile: str | None) -> str:
     """Generate a cache key for credentials."""
     key = f"profile:{profile or 'default'}"
-    return hashlib.md5(key.encode()).hexdigest()
+    return hashlib.md5(key.encode(), usedforsecurity=False).hexdigest()
 
 
 def get_cached_credentials(profile: str | None) -> dict | None:
@@ -222,7 +225,9 @@ def clear_credential_cache(profile: str | None = None) -> None:
         pass
 
 
-def get_aws_session(profile: str | None, region: str, use_cache: bool = True) -> boto3.Session:
+def get_aws_session(
+    profile: str | None, region: str, use_cache: bool = True
+) -> boto3.Session:
     """
     Create a boto3 session with the specified profile and region.
 
@@ -473,7 +478,9 @@ def scan(
             region_source = "default"
 
     if interactive and not region:
-        console.print(f"\n[dim]Detected region: {effective_region} (from {region_source})[/]")
+        console.print(
+            f"\n[dim]Detected region: {effective_region} (from {region_source})[/]"
+        )
         if not Confirm.ask("Use this region?", default=True):
             effective_region = Prompt.ask("Enter region", default=effective_region)
             region_source = "user input"
@@ -503,7 +510,11 @@ def scan(
         Panel(
             f"[bold]RepliMap Scanner[/] v{__version__} {plan_badge}\n"
             f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]"
-            + (f"\nProfile: [cyan]{profile}[/]" if profile else "\nProfile: [cyan]default[/]"),
+            + (
+                f"\nProfile: [cyan]{profile}[/]"
+                if profile
+                else "\nProfile: [cyan]default[/]"
+            ),
             title="Configuration",
             border_style="cyan",
         )
@@ -688,7 +699,9 @@ def clone(
             region_source = "default"
 
     if interactive and not region:
-        console.print(f"\n[dim]Detected region: {effective_region} (from {region_source})[/]")
+        console.print(
+            f"\n[dim]Detected region: {effective_region} (from {region_source})[/]"
+        )
         if not Confirm.ask("Use this region?", default=True):
             effective_region = Prompt.ask("Enter region", default=effective_region)
 
@@ -917,7 +930,9 @@ def profiles() -> None:
     """
     available = get_available_profiles()
 
-    table = Table(title="Available AWS Profiles", show_header=True, header_style="bold cyan")
+    table = Table(
+        title="Available AWS Profiles", show_header=True, header_style="bold cyan"
+    )
     table.add_column("Profile", style="cyan")
     table.add_column("Region", style="dim")
     table.add_column("Status")
@@ -1013,13 +1028,15 @@ def cache_status() -> None:
         console.print("[dim]No cached credentials.[/]")
         return
 
-    table = Table(title="Cached Credentials", show_header=True, header_style="bold cyan")
+    table = Table(
+        title="Cached Credentials", show_header=True, header_style="bold cyan"
+    )
     table.add_column("Profile")
     table.add_column("Expires", style="dim")
     table.add_column("Status")
 
     now = datetime.now()
-    for cache_key, entry in cache.items():
+    for _cache_key, entry in cache.items():
         profile_name = entry.get("profile") or "default"
         expires_at = datetime.fromisoformat(entry["expires_at"])
 

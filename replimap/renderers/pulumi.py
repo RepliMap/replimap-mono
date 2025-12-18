@@ -434,19 +434,25 @@ class PulumiRenderer(BaseRenderer):
         connectivity = config.get("connectivity_type", "public")
         allocation_id = config.get("allocation_id", "")
 
-        lines = [f'''{var_name} = aws.ec2.NatGateway(
+        lines = [
+            f'''{var_name} = aws.ec2.NatGateway(
     "{resource.terraform_name}",
     subnet_id={subnet_ref},
-    connectivity_type="{connectivity}",''']
+    connectivity_type="{connectivity}",'''
+        ]
 
         if allocation_id and connectivity == "public":
             lines.append(f'    allocation_id="{allocation_id}",')
 
-        lines.append('''    tags={
-        "Name": "''' + resource.original_name + '''",
+        lines.append(
+            '''    tags={
+        "Name": "'''
+            + resource.original_name
+            + """",
         "ManagedBy": "RepliMap",
     },
-)''')
+)"""
+        )
 
         return "\n".join(lines)
 

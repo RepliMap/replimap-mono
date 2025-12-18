@@ -1,13 +1,14 @@
 """Tests for Phase 2 scanners."""
 
-import pytest
-
 from replimap.core.models import ResourceType
-from replimap.scanners.networking_scanner import NetworkingScanner
 from replimap.scanners.compute_scanner import ComputeScanner
-from replimap.scanners.elasticache_scanner import ElastiCacheScanner, DBParameterGroupScanner
+from replimap.scanners.elasticache_scanner import (
+    DBParameterGroupScanner,
+    ElastiCacheScanner,
+)
+from replimap.scanners.messaging_scanner import SNSScanner, SQSScanner
+from replimap.scanners.networking_scanner import NetworkingScanner
 from replimap.scanners.storage_scanner import EBSScanner, S3PolicyScanner
-from replimap.scanners.messaging_scanner import SQSScanner, SNSScanner
 
 
 class TestNetworkingScanner:
@@ -38,8 +39,13 @@ class TestElastiCacheScanner:
 
     def test_has_resource_types(self) -> None:
         """Test that scanner declares correct resource types."""
-        assert ResourceType.ELASTICACHE_CLUSTER.value in ElastiCacheScanner.resource_types
-        assert ResourceType.ELASTICACHE_SUBNET_GROUP.value in ElastiCacheScanner.resource_types
+        assert (
+            ResourceType.ELASTICACHE_CLUSTER.value in ElastiCacheScanner.resource_types
+        )
+        assert (
+            ResourceType.ELASTICACHE_SUBNET_GROUP.value
+            in ElastiCacheScanner.resource_types
+        )
 
 
 class TestDBParameterGroupScanner:
@@ -47,7 +53,10 @@ class TestDBParameterGroupScanner:
 
     def test_has_resource_types(self) -> None:
         """Test that scanner declares correct resource types."""
-        assert ResourceType.DB_PARAMETER_GROUP.value in DBParameterGroupScanner.resource_types
+        assert (
+            ResourceType.DB_PARAMETER_GROUP.value
+            in DBParameterGroupScanner.resource_types
+        )
 
 
 class TestEBSScanner:
@@ -104,7 +113,10 @@ class TestPhase2ResourceTypes:
         """Test database resource types exist."""
         assert ResourceType.DB_PARAMETER_GROUP.value == "aws_db_parameter_group"
         assert ResourceType.ELASTICACHE_CLUSTER.value == "aws_elasticache_cluster"
-        assert ResourceType.ELASTICACHE_SUBNET_GROUP.value == "aws_elasticache_subnet_group"
+        assert (
+            ResourceType.ELASTICACHE_SUBNET_GROUP.value
+            == "aws_elasticache_subnet_group"
+        )
 
     def test_storage_resource_types(self) -> None:
         """Test storage resource types exist."""

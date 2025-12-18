@@ -103,7 +103,9 @@ class SQSScanner(BaseScanner):
                             "message_retention_seconds": int(
                                 attrs.get("MessageRetentionPeriod", 345600)
                             ),
-                            "max_message_size": int(attrs.get("MaximumMessageSize", 262144)),
+                            "max_message_size": int(
+                                attrs.get("MaximumMessageSize", 262144)
+                            ),
                             "delay_seconds": int(attrs.get("DelaySeconds", 0)),
                             "receive_wait_time_seconds": int(
                                 attrs.get("ReceiveMessageWaitTimeSeconds", 0)

@@ -8,17 +8,17 @@ from .async_base import (
 )
 from .async_vpc_scanner import AsyncVPCScanner
 from .base import BaseScanner, ScannerRegistry
+from .compute_scanner import ComputeScanner
 from .ec2_scanner import EC2Scanner
-from .rds_scanner import RDSScanner
-from .s3_scanner import S3Scanner
-from .vpc_scanner import VPCScanner
+from .elasticache_scanner import DBParameterGroupScanner, ElastiCacheScanner
+from .messaging_scanner import SNSScanner, SQSScanner
 
 # Phase 2 Scanners
 from .networking_scanner import NetworkingScanner
-from .compute_scanner import ComputeScanner
-from .elasticache_scanner import DBParameterGroupScanner, ElastiCacheScanner
+from .rds_scanner import RDSScanner
+from .s3_scanner import S3Scanner
 from .storage_scanner import EBSScanner, S3PolicyScanner
-from .messaging_scanner import SNSScanner, SQSScanner
+from .vpc_scanner import VPCScanner
 
 __all__ = [
     # Base classes

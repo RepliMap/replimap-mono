@@ -133,7 +133,9 @@ class S3PolicyScanner(BaseScanner):
         bucket_resources = graph.get_resources_by_type(ResourceType.S3_BUCKET)
 
         for bucket_resource in bucket_resources:
-            bucket_name = bucket_resource.config.get("bucket_name") or bucket_resource.id
+            bucket_name = (
+                bucket_resource.config.get("bucket_name") or bucket_resource.id
+            )
 
             try:
                 policy_resp = s3.get_bucket_policy(Bucket=bucket_name)

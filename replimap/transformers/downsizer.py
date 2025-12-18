@@ -315,7 +315,9 @@ class DownsizeTransformer(BaseTransformer):
                 self._elasticache_downsized += 1
         else:
             # Unknown node type - try to find a reasonable default
-            if current_type.startswith(("cache.m5.", "cache.m6", "cache.r5.", "cache.r6")):
+            if current_type.startswith(
+                ("cache.m5.", "cache.m6", "cache.r5.", "cache.r6")
+            ):
                 logger.warning(
                     f"Unknown ElastiCache type {current_type} for {resource.id}, "
                     "defaulting to cache.t3.small"

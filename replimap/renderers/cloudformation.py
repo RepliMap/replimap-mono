@@ -388,7 +388,6 @@ class CloudFormationRenderer(BaseRenderer):
         self, resource: ResourceNode, graph: GraphEngine
     ) -> dict[str, Any]:
         """Convert NAT Gateway to CloudFormation."""
-        config = resource.config
         subnet_ref = {"Ref": "Subnet"}
 
         for dep_id in resource.dependencies:
@@ -400,7 +399,12 @@ class CloudFormationRenderer(BaseRenderer):
         return {
             "Type": "AWS::EC2::NatGateway",
             "Properties": {
-                "AllocationId": {"Fn::GetAtt": [f"{self._to_logical_id(resource.terraform_name)}EIP", "AllocationId"]},
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        f"{self._to_logical_id(resource.terraform_name)}EIP",
+                        "AllocationId",
+                    ]
+                },
                 "SubnetId": subnet_ref,
                 "Tags": self._convert_tags(resource.tags, resource.original_name),
             },
@@ -410,7 +414,6 @@ class CloudFormationRenderer(BaseRenderer):
         self, resource: ResourceNode, graph: GraphEngine
     ) -> dict[str, Any]:
         """Convert Route Table to CloudFormation."""
-        config = resource.config
         vpc_ref = {"Ref": "VPC"}
 
         for dep_id in resource.dependencies:
@@ -449,9 +452,7 @@ class CloudFormationRenderer(BaseRenderer):
             },
         }
 
-    def _convert_lb(
-        self, resource: ResourceNode, graph: GraphEngine
-    ) -> dict[str, Any]:
+    def _convert_lb(self, resource: ResourceNode, graph: GraphEngine) -> dict[str, Any]:
         """Convert Load Balancer to CloudFormation."""
         config = resource.config
         subnet_refs = []
@@ -461,9 +462,13 @@ class CloudFormationRenderer(BaseRenderer):
             dep_resource = graph.get_resource(dep_id)
             if dep_resource:
                 if dep_resource.resource_type == ResourceType.SUBNET:
-                    subnet_refs.append({"Ref": self._to_logical_id(dep_resource.terraform_name)})
+                    subnet_refs.append(
+                        {"Ref": self._to_logical_id(dep_resource.terraform_name)}
+                    )
                 elif dep_resource.resource_type == ResourceType.SECURITY_GROUP:
-                    sg_refs.append({"Ref": self._to_logical_id(dep_resource.terraform_name)})
+                    sg_refs.append(
+                        {"Ref": self._to_logical_id(dep_resource.terraform_name)}
+                    )
 
         properties: dict[str, Any] = {
             "Name": config.get("name"),
@@ -520,8 +525,13 @@ class CloudFormationRenderer(BaseRenderer):
 
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
-            if dep_resource and dep_resource.resource_type == ResourceType.SECURITY_GROUP:
-                sg_refs.append({"Ref": self._to_logical_id(dep_resource.terraform_name)})
+            if (
+                dep_resource
+                and dep_resource.resource_type == ResourceType.SECURITY_GROUP
+            ):
+                sg_refs.append(
+                    {"Ref": self._to_logical_id(dep_resource.terraform_name)}
+                )
 
         return {
             "Type": "AWS::ElastiCache::CacheCluster",
