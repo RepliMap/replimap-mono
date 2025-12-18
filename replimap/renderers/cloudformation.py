@@ -39,6 +39,7 @@ class CloudFormationRenderer(BaseRenderer):
 
     # Mapping of resource types to output files
     FILE_MAPPING = {
+        # Phase 1 (MVP)
         ResourceType.VPC: "network.yaml",
         ResourceType.SUBNET: "network.yaml",
         ResourceType.SECURITY_GROUP: "network.yaml",
@@ -46,6 +47,26 @@ class CloudFormationRenderer(BaseRenderer):
         ResourceType.S3_BUCKET: "storage.yaml",
         ResourceType.RDS_INSTANCE: "database.yaml",
         ResourceType.DB_SUBNET_GROUP: "database.yaml",
+        # Phase 2 - Networking
+        ResourceType.ROUTE_TABLE: "network.yaml",
+        ResourceType.INTERNET_GATEWAY: "network.yaml",
+        ResourceType.NAT_GATEWAY: "network.yaml",
+        ResourceType.VPC_ENDPOINT: "network.yaml",
+        # Phase 2 - Compute
+        ResourceType.LAUNCH_TEMPLATE: "compute.yaml",
+        ResourceType.AUTOSCALING_GROUP: "compute.yaml",
+        ResourceType.LB: "loadbalancing.yaml",
+        ResourceType.LB_LISTENER: "loadbalancing.yaml",
+        ResourceType.LB_TARGET_GROUP: "loadbalancing.yaml",
+        # Phase 2 - Database
+        ResourceType.DB_PARAMETER_GROUP: "database.yaml",
+        ResourceType.ELASTICACHE_CLUSTER: "cache.yaml",
+        ResourceType.ELASTICACHE_SUBNET_GROUP: "cache.yaml",
+        # Phase 2 - Storage/Messaging
+        ResourceType.EBS_VOLUME: "storage.yaml",
+        ResourceType.S3_BUCKET_POLICY: "storage.yaml",
+        ResourceType.SQS_QUEUE: "messaging.yaml",
+        ResourceType.SNS_TOPIC: "messaging.yaml",
     }
 
     @property
@@ -150,12 +171,26 @@ class CloudFormationRenderer(BaseRenderer):
     ) -> dict[str, Any] | None:
         """Convert a ResourceNode to CloudFormation resource definition."""
         converters = {
+            # Phase 1
             ResourceType.VPC: self._convert_vpc,
             ResourceType.SUBNET: self._convert_subnet,
             ResourceType.SECURITY_GROUP: self._convert_security_group,
             ResourceType.EC2_INSTANCE: self._convert_ec2,
             ResourceType.S3_BUCKET: self._convert_s3,
             ResourceType.RDS_INSTANCE: self._convert_rds,
+            # Phase 2 - Networking
+            ResourceType.INTERNET_GATEWAY: self._convert_igw,
+            ResourceType.NAT_GATEWAY: self._convert_nat,
+            ResourceType.ROUTE_TABLE: self._convert_route_table,
+            # Phase 2 - Compute
+            ResourceType.LAUNCH_TEMPLATE: self._convert_launch_template,
+            ResourceType.LB: self._convert_lb,
+            ResourceType.LB_TARGET_GROUP: self._convert_target_group,
+            # Phase 2 - Database
+            ResourceType.ELASTICACHE_CLUSTER: self._convert_elasticache,
+            # Phase 2 - Messaging
+            ResourceType.SQS_QUEUE: self._convert_sqs,
+            ResourceType.SNS_TOPIC: self._convert_sns,
         }
 
         converter = converters.get(resource.resource_type)
@@ -335,6 +370,223 @@ class CloudFormationRenderer(BaseRenderer):
                 cfn_tags.append({"Key": key, "Value": value})
         cfn_tags.append({"Key": "ManagedBy", "Value": "RepliMap"})
         return cfn_tags
+
+    # Phase 2 Converters
+
+    def _convert_igw(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert Internet Gateway to CloudFormation."""
+        return {
+            "Type": "AWS::EC2::InternetGateway",
+            "Properties": {
+                "Tags": self._convert_tags(resource.tags, resource.original_name),
+            },
+        }
+
+    def _convert_nat(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert NAT Gateway to CloudFormation."""
+        config = resource.config
+        subnet_ref = {"Ref": "Subnet"}
+
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource and dep_resource.resource_type == ResourceType.SUBNET:
+                subnet_ref = {"Ref": self._to_logical_id(dep_resource.terraform_name)}
+                break
+
+        return {
+            "Type": "AWS::EC2::NatGateway",
+            "Properties": {
+                "AllocationId": {"Fn::GetAtt": [f"{self._to_logical_id(resource.terraform_name)}EIP", "AllocationId"]},
+                "SubnetId": subnet_ref,
+                "Tags": self._convert_tags(resource.tags, resource.original_name),
+            },
+        }
+
+    def _convert_route_table(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert Route Table to CloudFormation."""
+        config = resource.config
+        vpc_ref = {"Ref": "VPC"}
+
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource and dep_resource.resource_type == ResourceType.VPC:
+                vpc_ref = {"Ref": self._to_logical_id(dep_resource.terraform_name)}
+                break
+
+        return {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": vpc_ref,
+                "Tags": self._convert_tags(resource.tags, resource.original_name),
+            },
+        }
+
+    def _convert_launch_template(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert Launch Template to CloudFormation."""
+        config = resource.config
+        lt_data: dict[str, Any] = {}
+
+        if config.get("instance_type"):
+            lt_data["InstanceType"] = config["instance_type"]
+        if config.get("image_id"):
+            lt_data["ImageId"] = config["image_id"]
+        if config.get("key_name"):
+            lt_data["KeyName"] = config["key_name"]
+
+        return {
+            "Type": "AWS::EC2::LaunchTemplate",
+            "Properties": {
+                "LaunchTemplateName": config.get("name"),
+                "LaunchTemplateData": lt_data,
+            },
+        }
+
+    def _convert_lb(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert Load Balancer to CloudFormation."""
+        config = resource.config
+        subnet_refs = []
+        sg_refs = []
+
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource:
+                if dep_resource.resource_type == ResourceType.SUBNET:
+                    subnet_refs.append({"Ref": self._to_logical_id(dep_resource.terraform_name)})
+                elif dep_resource.resource_type == ResourceType.SECURITY_GROUP:
+                    sg_refs.append({"Ref": self._to_logical_id(dep_resource.terraform_name)})
+
+        properties: dict[str, Any] = {
+            "Name": config.get("name"),
+            "Type": config.get("type", "application").lower(),
+            "Scheme": config.get("scheme", "internet-facing"),
+            "Subnets": subnet_refs if subnet_refs else None,
+            "Tags": self._convert_tags(resource.tags, resource.original_name),
+        }
+
+        if config.get("type", "").lower() == "application" and sg_refs:
+            properties["SecurityGroups"] = sg_refs
+
+        return {
+            "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "Properties": properties,
+        }
+
+    def _convert_target_group(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert Target Group to CloudFormation."""
+        config = resource.config
+        vpc_ref = {"Ref": "VPC"}
+
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource and dep_resource.resource_type == ResourceType.VPC:
+                vpc_ref = {"Ref": self._to_logical_id(dep_resource.terraform_name)}
+                break
+
+        health_check = config.get("health_check", {})
+
+        return {
+            "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "Properties": {
+                "Name": config.get("name"),
+                "Port": config.get("port"),
+                "Protocol": config.get("protocol"),
+                "VpcId": vpc_ref,
+                "TargetType": config.get("target_type", "instance"),
+                "HealthCheckEnabled": health_check.get("enabled", True),
+                "HealthCheckPath": health_check.get("path", "/"),
+                "HealthCheckProtocol": health_check.get("protocol", "HTTP"),
+                "Tags": self._convert_tags(resource.tags, resource.original_name),
+            },
+        }
+
+    def _convert_elasticache(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert ElastiCache Cluster to CloudFormation."""
+        config = resource.config
+        sg_refs = []
+
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource and dep_resource.resource_type == ResourceType.SECURITY_GROUP:
+                sg_refs.append({"Ref": self._to_logical_id(dep_resource.terraform_name)})
+
+        return {
+            "Type": "AWS::ElastiCache::CacheCluster",
+            "Properties": {
+                "ClusterName": config.get("cluster_id"),
+                "Engine": config.get("engine"),
+                "EngineVersion": config.get("engine_version"),
+                "CacheNodeType": config.get("node_type"),
+                "NumCacheNodes": config.get("num_cache_nodes", 1),
+                "VpcSecurityGroupIds": sg_refs if sg_refs else None,
+                "Tags": self._convert_tags(resource.tags, resource.original_name),
+            },
+        }
+
+    def _convert_sqs(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert SQS Queue to CloudFormation."""
+        config = resource.config
+
+        properties: dict[str, Any] = {
+            "QueueName": config.get("name"),
+            "VisibilityTimeout": config.get("visibility_timeout_seconds", 30),
+            "MessageRetentionPeriod": config.get("message_retention_seconds", 345600),
+            "DelaySeconds": config.get("delay_seconds", 0),
+            "MaximumMessageSize": config.get("max_message_size", 262144),
+            "ReceiveMessageWaitTimeSeconds": config.get("receive_wait_time_seconds", 0),
+            "Tags": self._convert_tags(resource.tags, resource.original_name),
+        }
+
+        if config.get("fifo_queue"):
+            properties["FifoQueue"] = True
+            properties["ContentBasedDeduplication"] = config.get(
+                "content_based_deduplication", False
+            )
+
+        return {
+            "Type": "AWS::SQS::Queue",
+            "Properties": properties,
+        }
+
+    def _convert_sns(
+        self, resource: ResourceNode, graph: GraphEngine
+    ) -> dict[str, Any]:
+        """Convert SNS Topic to CloudFormation."""
+        config = resource.config
+
+        properties: dict[str, Any] = {
+            "TopicName": config.get("name"),
+            "Tags": self._convert_tags(resource.tags, resource.original_name),
+        }
+
+        if config.get("display_name"):
+            properties["DisplayName"] = config["display_name"]
+
+        if config.get("fifo_topic"):
+            properties["FifoTopic"] = True
+            properties["ContentBasedDeduplication"] = config.get(
+                "content_based_deduplication", False
+            )
+
+        return {
+            "Type": "AWS::SNS::Topic",
+            "Properties": properties,
+        }
 
     def _generate_main_template(
         self, output_dir: Path, written_files: dict[str, Path]

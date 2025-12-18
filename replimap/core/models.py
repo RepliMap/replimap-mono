@@ -15,6 +15,7 @@ from typing import Any
 class ResourceType(str, Enum):
     """Supported AWS resource types."""
 
+    # Phase 1 (MVP) - Core resources
     VPC = "aws_vpc"
     SUBNET = "aws_subnet"
     SECURITY_GROUP = "aws_security_group"
@@ -22,6 +23,33 @@ class ResourceType(str, Enum):
     S3_BUCKET = "aws_s3_bucket"
     RDS_INSTANCE = "aws_db_instance"
     DB_SUBNET_GROUP = "aws_db_subnet_group"
+
+    # Phase 2 - Networking
+    ROUTE_TABLE = "aws_route_table"
+    ROUTE = "aws_route"
+    INTERNET_GATEWAY = "aws_internet_gateway"
+    NAT_GATEWAY = "aws_nat_gateway"
+    VPC_ENDPOINT = "aws_vpc_endpoint"
+
+    # Phase 2 - Compute
+    LAUNCH_TEMPLATE = "aws_launch_template"
+    AUTOSCALING_GROUP = "aws_autoscaling_group"
+    LB = "aws_lb"
+    LB_LISTENER = "aws_lb_listener"
+    LB_TARGET_GROUP = "aws_lb_target_group"
+
+    # Phase 2 - Database
+    DB_PARAMETER_GROUP = "aws_db_parameter_group"
+    ELASTICACHE_CLUSTER = "aws_elasticache_cluster"
+    ELASTICACHE_SUBNET_GROUP = "aws_elasticache_subnet_group"
+
+    # Phase 2 - Storage
+    S3_BUCKET_POLICY = "aws_s3_bucket_policy"
+    EBS_VOLUME = "aws_ebs_volume"
+
+    # Phase 2 - Messaging
+    SQS_QUEUE = "aws_sqs_queue"
+    SNS_TOPIC = "aws_sns_topic"
 
     def __str__(self) -> str:
         return self.value

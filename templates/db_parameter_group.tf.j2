@@ -1,0 +1,20 @@
+# DB Parameter Group: {{ resource.original_name }}
+resource "aws_db_parameter_group" "{{ resource.terraform_name }}" {
+  name        = "{{ resource.config.name }}"
+  family      = "{{ resource.config.family }}"
+  description = "{{ resource.config.description | default('Managed by RepliMap') }}"
+
+{% for param in resource.config.parameters %}
+  parameter {
+    name         = "{{ param.name }}"
+    value        = "{{ param.value }}"
+    apply_method = "{{ param.apply_type | lower | default('pending-reboot') }}"
+  }
+{% endfor %}
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}

@@ -40,6 +40,7 @@ class TerraformRenderer:
 
     # Mapping of resource types to output files
     FILE_MAPPING = {
+        # Phase 1 (MVP)
         ResourceType.VPC: "vpc.tf",
         ResourceType.SUBNET: "vpc.tf",
         ResourceType.SECURITY_GROUP: "security_groups.tf",
@@ -47,10 +48,31 @@ class TerraformRenderer:
         ResourceType.S3_BUCKET: "s3.tf",
         ResourceType.RDS_INSTANCE: "rds.tf",
         ResourceType.DB_SUBNET_GROUP: "rds.tf",
+        # Phase 2 - Networking
+        ResourceType.ROUTE_TABLE: "networking.tf",
+        ResourceType.INTERNET_GATEWAY: "networking.tf",
+        ResourceType.NAT_GATEWAY: "networking.tf",
+        ResourceType.VPC_ENDPOINT: "networking.tf",
+        # Phase 2 - Compute
+        ResourceType.LAUNCH_TEMPLATE: "compute.tf",
+        ResourceType.AUTOSCALING_GROUP: "compute.tf",
+        ResourceType.LB: "alb.tf",
+        ResourceType.LB_LISTENER: "alb.tf",
+        ResourceType.LB_TARGET_GROUP: "alb.tf",
+        # Phase 2 - Database
+        ResourceType.DB_PARAMETER_GROUP: "rds.tf",
+        ResourceType.ELASTICACHE_CLUSTER: "elasticache.tf",
+        ResourceType.ELASTICACHE_SUBNET_GROUP: "elasticache.tf",
+        # Phase 2 - Storage/Messaging
+        ResourceType.EBS_VOLUME: "storage.tf",
+        ResourceType.S3_BUCKET_POLICY: "s3.tf",
+        ResourceType.SQS_QUEUE: "messaging.tf",
+        ResourceType.SNS_TOPIC: "messaging.tf",
     }
 
     # Mapping of resource types to template files
     TEMPLATE_MAPPING = {
+        # Phase 1 (MVP)
         ResourceType.VPC: "vpc.tf.j2",
         ResourceType.SUBNET: "subnet.tf.j2",
         ResourceType.SECURITY_GROUP: "security_group.tf.j2",
@@ -58,6 +80,26 @@ class TerraformRenderer:
         ResourceType.S3_BUCKET: "s3_bucket.tf.j2",
         ResourceType.RDS_INSTANCE: "rds_instance.tf.j2",
         ResourceType.DB_SUBNET_GROUP: "db_subnet_group.tf.j2",
+        # Phase 2 - Networking
+        ResourceType.ROUTE_TABLE: "route_table.tf.j2",
+        ResourceType.INTERNET_GATEWAY: "internet_gateway.tf.j2",
+        ResourceType.NAT_GATEWAY: "nat_gateway.tf.j2",
+        ResourceType.VPC_ENDPOINT: "vpc_endpoint.tf.j2",
+        # Phase 2 - Compute
+        ResourceType.LAUNCH_TEMPLATE: "launch_template.tf.j2",
+        ResourceType.AUTOSCALING_GROUP: "autoscaling_group.tf.j2",
+        ResourceType.LB: "lb.tf.j2",
+        ResourceType.LB_LISTENER: "lb_listener.tf.j2",
+        ResourceType.LB_TARGET_GROUP: "lb_target_group.tf.j2",
+        # Phase 2 - Database
+        ResourceType.DB_PARAMETER_GROUP: "db_parameter_group.tf.j2",
+        ResourceType.ELASTICACHE_CLUSTER: "elasticache_cluster.tf.j2",
+        ResourceType.ELASTICACHE_SUBNET_GROUP: "elasticache_subnet_group.tf.j2",
+        # Phase 2 - Storage/Messaging
+        ResourceType.EBS_VOLUME: "ebs_volume.tf.j2",
+        ResourceType.S3_BUCKET_POLICY: "s3_bucket_policy.tf.j2",
+        ResourceType.SQS_QUEUE: "sqs_queue.tf.j2",
+        ResourceType.SNS_TOPIC: "sns_topic.tf.j2",
     }
 
     def __init__(self, template_dir: Path | None = None) -> None:

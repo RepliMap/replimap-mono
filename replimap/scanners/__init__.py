@@ -13,14 +13,31 @@ from .rds_scanner import RDSScanner
 from .s3_scanner import S3Scanner
 from .vpc_scanner import VPCScanner
 
+# Phase 2 Scanners
+from .networking_scanner import NetworkingScanner
+from .compute_scanner import ComputeScanner
+from .elasticache_scanner import DBParameterGroupScanner, ElastiCacheScanner
+from .storage_scanner import EBSScanner, S3PolicyScanner
+from .messaging_scanner import SNSScanner, SQSScanner
+
 __all__ = [
-    # Sync scanners
+    # Base classes
     "BaseScanner",
     "ScannerRegistry",
+    # Phase 1 Sync scanners
     "VPCScanner",
     "EC2Scanner",
     "S3Scanner",
     "RDSScanner",
+    # Phase 2 Sync scanners
+    "NetworkingScanner",
+    "ComputeScanner",
+    "ElastiCacheScanner",
+    "DBParameterGroupScanner",
+    "EBSScanner",
+    "S3PolicyScanner",
+    "SQSScanner",
+    "SNSScanner",
     # Async scanners
     "AsyncBaseScanner",
     "AsyncScannerRegistry",

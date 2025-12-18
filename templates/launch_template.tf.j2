@@ -1,0 +1,49 @@
+# Launch Template: {{ resource.original_name }}
+resource "aws_launch_template" "{{ resource.terraform_name }}" {
+  name = "{{ resource.config.name }}"
+
+{% if resource.config.instance_type %}
+  instance_type = "{{ resource.config.instance_type }}"
+{% endif %}
+{% if resource.config.image_id %}
+  image_id = "{{ resource.config.image_id }}"
+{% endif %}
+{% if resource.config.key_name %}
+  key_name = "{{ resource.config.key_name }}"
+{% endif %}
+
+{% if resource.config.security_group_ids %}
+  vpc_security_group_ids = [
+{% for sg_id in resource.config.security_group_ids %}
+    aws_security_group.{{ sg_id | terraform_name }}.id,
+{% endfor %}
+  ]
+{% endif %}
+
+{% if resource.config.iam_instance_profile.arn or resource.config.iam_instance_profile.name %}
+  iam_instance_profile {
+{% if resource.config.iam_instance_profile.name %}
+    name = "{{ resource.config.iam_instance_profile.name }}"
+{% endif %}
+  }
+{% endif %}
+
+  monitoring {
+    enabled = {{ resource.config.monitoring.get('Enabled', false) | lower }}
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name        = "{{ resource.original_name }}"
+      Environment = var.environment
+      ManagedBy   = "RepliMap"
+    }
+  }
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}

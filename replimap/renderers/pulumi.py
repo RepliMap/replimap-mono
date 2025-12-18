@@ -40,6 +40,7 @@ class PulumiRenderer(BaseRenderer):
 
     # Mapping of resource types to output files
     FILE_MAPPING = {
+        # Phase 1 (MVP)
         ResourceType.VPC: "network.py",
         ResourceType.SUBNET: "network.py",
         ResourceType.SECURITY_GROUP: "network.py",
@@ -47,6 +48,26 @@ class PulumiRenderer(BaseRenderer):
         ResourceType.S3_BUCKET: "storage.py",
         ResourceType.RDS_INSTANCE: "database.py",
         ResourceType.DB_SUBNET_GROUP: "database.py",
+        # Phase 2 - Networking
+        ResourceType.ROUTE_TABLE: "network.py",
+        ResourceType.INTERNET_GATEWAY: "network.py",
+        ResourceType.NAT_GATEWAY: "network.py",
+        ResourceType.VPC_ENDPOINT: "network.py",
+        # Phase 2 - Compute
+        ResourceType.LAUNCH_TEMPLATE: "compute.py",
+        ResourceType.AUTOSCALING_GROUP: "compute.py",
+        ResourceType.LB: "loadbalancing.py",
+        ResourceType.LB_LISTENER: "loadbalancing.py",
+        ResourceType.LB_TARGET_GROUP: "loadbalancing.py",
+        # Phase 2 - Database
+        ResourceType.DB_PARAMETER_GROUP: "database.py",
+        ResourceType.ELASTICACHE_CLUSTER: "cache.py",
+        ResourceType.ELASTICACHE_SUBNET_GROUP: "cache.py",
+        # Phase 2 - Storage/Messaging
+        ResourceType.EBS_VOLUME: "storage.py",
+        ResourceType.S3_BUCKET_POLICY: "storage.py",
+        ResourceType.SQS_QUEUE: "messaging.py",
+        ResourceType.SNS_TOPIC: "messaging.py",
     }
 
     @property
@@ -159,12 +180,25 @@ class PulumiRenderer(BaseRenderer):
     ) -> str | None:
         """Convert a ResourceNode to Pulumi Python code."""
         converters = {
+            # Phase 1
             ResourceType.VPC: self._convert_vpc,
             ResourceType.SUBNET: self._convert_subnet,
             ResourceType.SECURITY_GROUP: self._convert_security_group,
             ResourceType.EC2_INSTANCE: self._convert_ec2,
             ResourceType.S3_BUCKET: self._convert_s3,
             ResourceType.RDS_INSTANCE: self._convert_rds,
+            # Phase 2 - Networking
+            ResourceType.INTERNET_GATEWAY: self._convert_igw,
+            ResourceType.NAT_GATEWAY: self._convert_nat,
+            ResourceType.ROUTE_TABLE: self._convert_route_table,
+            # Phase 2 - Compute
+            ResourceType.LB: self._convert_lb,
+            ResourceType.LB_TARGET_GROUP: self._convert_target_group,
+            # Phase 2 - Database
+            ResourceType.ELASTICACHE_CLUSTER: self._convert_elasticache,
+            # Phase 2 - Messaging
+            ResourceType.SQS_QUEUE: self._convert_sqs,
+            ResourceType.SNS_TOPIC: self._convert_sns,
         }
 
         converter = converters.get(resource.resource_type)
@@ -353,6 +387,254 @@ class PulumiRenderer(BaseRenderer):
     password="CHANGE_ME",  # Use pulumi.Config or secrets manager
     vpc_security_group_ids=[{sg_list}],
     skip_final_snapshot=True,
+    tags={{
+        "Name": "{resource.original_name}",
+        "ManagedBy": "RepliMap",
+    }},
+)'''
+
+    # Phase 2 Converters
+
+    def _convert_igw(self, resource: ResourceNode, graph: GraphEngine) -> str:
+        """Convert Internet Gateway to Pulumi."""
+        var_name = self._to_variable_name(resource.terraform_name)
+
+        # Find VPC reference
+        vpc_ref = "vpc.id"
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource and dep_resource.resource_type == ResourceType.VPC:
+                vpc_var = self._to_variable_name(dep_resource.terraform_name)
+                vpc_ref = f"{vpc_var}.id"
+                break
+
+        return f'''{var_name} = aws.ec2.InternetGateway(
+    "{resource.terraform_name}",
+    vpc_id={vpc_ref},
+    tags={{
+        "Name": "{resource.original_name}",
+        "ManagedBy": "RepliMap",
+    }},
+)'''
+
+    def _convert_nat(self, resource: ResourceNode, graph: GraphEngine) -> str:
+        """Convert NAT Gateway to Pulumi."""
+        config = resource.config
+        var_name = self._to_variable_name(resource.terraform_name)
+
+        # Find subnet reference
+        subnet_ref = "subnet.id"
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource and dep_resource.resource_type == ResourceType.SUBNET:
+                subnet_var = self._to_variable_name(dep_resource.terraform_name)
+                subnet_ref = f"{subnet_var}.id"
+                break
+
+        connectivity = config.get("connectivity_type", "public")
+        allocation_id = config.get("allocation_id", "")
+
+        lines = [f'''{var_name} = aws.ec2.NatGateway(
+    "{resource.terraform_name}",
+    subnet_id={subnet_ref},
+    connectivity_type="{connectivity}",''']
+
+        if allocation_id and connectivity == "public":
+            lines.append(f'    allocation_id="{allocation_id}",')
+
+        lines.append('''    tags={
+        "Name": "''' + resource.original_name + '''",
+        "ManagedBy": "RepliMap",
+    },
+)''')
+
+        return "\n".join(lines)
+
+    def _convert_route_table(self, resource: ResourceNode, graph: GraphEngine) -> str:
+        """Convert Route Table to Pulumi."""
+        config = resource.config
+        var_name = self._to_variable_name(resource.terraform_name)
+
+        # Find VPC reference
+        vpc_ref = "vpc.id"
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource and dep_resource.resource_type == ResourceType.VPC:
+                vpc_var = self._to_variable_name(dep_resource.terraform_name)
+                vpc_ref = f"{vpc_var}.id"
+                break
+
+        # Build routes
+        routes = config.get("routes", [])
+        route_args = []
+        for route in routes:
+            dest = route.get("destination_cidr_block", "0.0.0.0/0")
+            route_args.append(f'''        aws.ec2.RouteTableRouteArgs(
+            cidr_block="{dest}",
+        )''')
+
+        routes_str = ",\n".join(route_args) if route_args else ""
+
+        return f'''{var_name} = aws.ec2.RouteTable(
+    "{resource.terraform_name}",
+    vpc_id={vpc_ref},
+    routes=[
+{routes_str}
+    ],
+    tags={{
+        "Name": "{resource.original_name}",
+        "ManagedBy": "RepliMap",
+    }},
+)'''
+
+    def _convert_lb(self, resource: ResourceNode, graph: GraphEngine) -> str:
+        """Convert Load Balancer to Pulumi."""
+        config = resource.config
+        var_name = self._to_variable_name(resource.terraform_name)
+
+        lb_type = config.get("load_balancer_type", "application")
+        internal = config.get("internal", False)
+
+        # Find subnet and security group references
+        subnet_refs = []
+        sg_refs = []
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource:
+                dep_var = self._to_variable_name(dep_resource.terraform_name)
+                if dep_resource.resource_type == ResourceType.SUBNET:
+                    subnet_refs.append(f"{dep_var}.id")
+                elif dep_resource.resource_type == ResourceType.SECURITY_GROUP:
+                    sg_refs.append(f"{dep_var}.id")
+
+        subnets_str = ", ".join(subnet_refs) if subnet_refs else ""
+        sg_str = ", ".join(sg_refs) if sg_refs else ""
+
+        return f'''{var_name} = aws.lb.LoadBalancer(
+    "{resource.terraform_name}",
+    load_balancer_type="{lb_type}",
+    internal={internal},
+    subnets=[{subnets_str}],
+    security_groups=[{sg_str}],
+    tags={{
+        "Name": "{resource.original_name}",
+        "ManagedBy": "RepliMap",
+    }},
+)'''
+
+    def _convert_target_group(self, resource: ResourceNode, graph: GraphEngine) -> str:
+        """Convert Target Group to Pulumi."""
+        config = resource.config
+        var_name = self._to_variable_name(resource.terraform_name)
+
+        # Find VPC reference
+        vpc_ref = "vpc.id"
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if dep_resource and dep_resource.resource_type == ResourceType.VPC:
+                vpc_var = self._to_variable_name(dep_resource.terraform_name)
+                vpc_ref = f"{vpc_var}.id"
+                break
+
+        port = config.get("port", 80)
+        protocol = config.get("protocol", "HTTP")
+        target_type = config.get("target_type", "instance")
+
+        return f'''{var_name} = aws.lb.TargetGroup(
+    "{resource.terraform_name}",
+    port={port},
+    protocol="{protocol}",
+    target_type="{target_type}",
+    vpc_id={vpc_ref},
+    health_check=aws.lb.TargetGroupHealthCheckArgs(
+        enabled=True,
+        path="/",
+        protocol="{protocol}",
+    ),
+    tags={{
+        "Name": "{resource.original_name}",
+        "ManagedBy": "RepliMap",
+    }},
+)'''
+
+    def _convert_elasticache(self, resource: ResourceNode, graph: GraphEngine) -> str:
+        """Convert ElastiCache Cluster to Pulumi."""
+        config = resource.config
+        var_name = self._to_variable_name(resource.terraform_name)
+
+        cluster_id = config.get("cluster_id", resource.terraform_name)
+        engine = config.get("engine", "redis")
+        node_type = config.get("node_type", "cache.t3.micro")
+        num_nodes = config.get("num_cache_nodes", 1)
+
+        # Find security group references
+        sg_refs = []
+        for dep_id in resource.dependencies:
+            dep_resource = graph.get_resource(dep_id)
+            if (
+                dep_resource
+                and dep_resource.resource_type == ResourceType.SECURITY_GROUP
+            ):
+                dep_var = self._to_variable_name(dep_resource.terraform_name)
+                sg_refs.append(f"{dep_var}.id")
+
+        sg_str = ", ".join(sg_refs) if sg_refs else ""
+
+        return f'''{var_name} = aws.elasticache.Cluster(
+    "{resource.terraform_name}",
+    cluster_id="{cluster_id}",
+    engine="{engine}",
+    node_type="{node_type}",
+    num_cache_nodes={num_nodes},
+    security_group_ids=[{sg_str}],
+    tags={{
+        "Name": "{resource.original_name}",
+        "ManagedBy": "RepliMap",
+    }},
+)'''
+
+    def _convert_sqs(self, resource: ResourceNode, graph: GraphEngine) -> str:
+        """Convert SQS Queue to Pulumi."""
+        config = resource.config
+        var_name = self._to_variable_name(resource.terraform_name)
+
+        name = config.get("name", resource.terraform_name)
+        visibility_timeout = config.get("visibility_timeout_seconds", 30)
+        message_retention = config.get("message_retention_seconds", 345600)
+
+        fifo_str = ""
+        if config.get("fifo_queue"):
+            fifo_str = """
+    fifo_queue=True,
+    content_based_deduplication=True,"""
+
+        return f'''{var_name} = aws.sqs.Queue(
+    "{resource.terraform_name}",
+    name="{name}",
+    visibility_timeout_seconds={visibility_timeout},
+    message_retention_seconds={message_retention},{fifo_str}
+    tags={{
+        "Name": "{resource.original_name}",
+        "ManagedBy": "RepliMap",
+    }},
+)'''
+
+    def _convert_sns(self, resource: ResourceNode, graph: GraphEngine) -> str:
+        """Convert SNS Topic to Pulumi."""
+        config = resource.config
+        var_name = self._to_variable_name(resource.terraform_name)
+
+        name = config.get("name", resource.terraform_name)
+
+        fifo_str = ""
+        if config.get("fifo_topic"):
+            fifo_str = """
+    fifo_topic=True,
+    content_based_deduplication=True,"""
+
+        return f'''{var_name} = aws.sns.Topic(
+    "{resource.terraform_name}",
+    name="{name}",{fifo_str}
     tags={{
         "Name": "{resource.original_name}",
         "ManagedBy": "RepliMap",

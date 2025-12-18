@@ -1,0 +1,34 @@
+# VPC Endpoint: {{ resource.original_name }}
+resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
+  vpc_id            = aws_vpc.{{ resource.config.vpc_id | terraform_name }}.id
+  service_name      = "{{ resource.config.service_name }}"
+  vpc_endpoint_type = "{{ resource.config.vpc_endpoint_type }}"
+
+{% if resource.config.vpc_endpoint_type == "Interface" %}
+  subnet_ids = [
+{% for subnet_id in resource.config.subnet_ids %}
+    aws_subnet.{{ subnet_id | terraform_name }}.id,
+{% endfor %}
+  ]
+
+  security_group_ids = [
+{% for sg_id in resource.config.security_group_ids %}
+    aws_security_group.{{ sg_id | terraform_name }}.id,
+{% endfor %}
+  ]
+
+  private_dns_enabled = {{ resource.config.private_dns_enabled | lower }}
+{% elif resource.config.vpc_endpoint_type == "Gateway" %}
+  route_table_ids = [
+{% for rt_id in resource.config.route_table_ids %}
+    aws_route_table.{{ rt_id | terraform_name }}.id,
+{% endfor %}
+  ]
+{% endif %}
+
+  tags = {
+    Name        = "{{ resource.original_name }}"
+    Environment = var.environment
+    ManagedBy   = "RepliMap"
+  }
+}
