@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Graph-based selection engine for intelligent resource filtering
+  - Selection modes: VPC_SCOPE, ENTRY_POINT, TAG_BASED
+  - Boundary handling for network, identity, and global resources
+  - Clone vs reference decision matrix
+  - YAML configuration file support for complex selection scenarios
+- New CLI options: `--scope`, `--entry`, `--config`
+- Scan result caching with `--cache` flag for incremental scans
+
+### Changed
+- Legacy filter options (`--vpc`, `--types`) marked as deprecated but still supported
+
 ## [0.1.0] - 2025-01-XX
 
 ### Added

@@ -35,7 +35,16 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from replimap import __version__
-from replimap.core import GraphEngine
+from replimap.core import (
+    GraphEngine,
+    ScanCache,
+    ScanFilter,
+    SelectionStrategy,
+    apply_filter_to_graph,
+    apply_selection,
+    build_subgraph_from_selection,
+    update_cache_from_graph,
+)
 from replimap.licensing import (
     Feature,
     LicenseStatus,
@@ -435,6 +444,73 @@ def scan(
         "--no-cache",
         help="Don't use cached credentials (re-authenticate)",
     ),
+    # New graph-based selection options
+    scope: str | None = typer.Option(
+        None,
+        "--scope",
+        "-s",
+        help="Selection scope: vpc:<id>, vpc-name:<pattern>, or VPC ID directly",
+    ),
+    entry: str | None = typer.Option(
+        None,
+        "--entry",
+        "-e",
+        help="Entry point: tag:Key=Value, <type>:<name>, or resource ID",
+    ),
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to YAML selection config file",
+    ),
+    # Legacy filter options (still supported for backwards compatibility)
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        help="[Legacy] Filter by VPC ID(s), comma-separated",
+    ),
+    vpc_name: str | None = typer.Option(
+        None,
+        "--vpc-name",
+        help="[Legacy] Filter by VPC name pattern (supports wildcards)",
+    ),
+    types: str | None = typer.Option(
+        None,
+        "--types",
+        "-t",
+        help="[Legacy] Filter by resource types, comma-separated",
+    ),
+    tag: list[str] | None = typer.Option(
+        None,
+        "--tag",
+        help="Select by tag (Key=Value), can be repeated",
+    ),
+    exclude_types: str | None = typer.Option(
+        None,
+        "--exclude-types",
+        help="Exclude resource types, comma-separated",
+    ),
+    exclude_tag: list[str] | None = typer.Option(
+        None,
+        "--exclude-tag",
+        help="Exclude by tag (Key=Value), can be repeated",
+    ),
+    exclude_patterns: str | None = typer.Option(
+        None,
+        "--exclude-patterns",
+        help="Exclude by name patterns, comma-separated (supports wildcards)",
+    ),
+    # Scan cache options
+    use_scan_cache: bool = typer.Option(
+        False,
+        "--cache",
+        help="Use scan result cache for faster incremental scans",
+    ),
+    refresh_cache: bool = typer.Option(
+        False,
+        "--refresh-cache",
+        help="Force refresh of scan cache (re-scan all resources)",
+    ),
 ) -> None:
     """
     Scan AWS resources and build dependency graph.
@@ -450,6 +526,26 @@ def scan(
         replimap scan --profile prod --region us-west-2
         replimap scan -i  # Interactive mode
         replimap scan --profile prod --output graph.json
+
+    Selection Examples (Graph-Based - Recommended):
+        replimap scan --profile prod --scope vpc:vpc-12345678
+        replimap scan --profile prod --scope vpc-name:Production*
+        replimap scan --profile prod --entry alb:my-app-alb
+        replimap scan --profile prod --entry tag:Application=MyApp
+        replimap scan --profile prod --tag Environment=Production
+
+    Filter Examples (Legacy, still supported):
+        replimap scan --profile prod --vpc vpc-12345678
+        replimap scan --profile prod --types vpc,subnet,ec2,rds
+        replimap scan --profile prod --exclude-types sns,sqs
+
+    Advanced Examples:
+        replimap scan --profile prod --scope vpc:vpc-123 --exclude-patterns "test-*"
+        replimap scan --profile prod --config selection.yaml
+
+    Cache Examples:
+        replimap scan --profile prod --cache  # Use cached results
+        replimap scan --profile prod --cache --refresh-cache  # Force refresh
     """
     # Interactive mode - prompt for missing options
     if interactive:
@@ -529,14 +625,47 @@ def scan(
     # Get AWS session
     session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
+    # Get account ID for cache key
+    account_id = "unknown"
+    if use_scan_cache:
+        try:
+            sts = session.client("sts")
+            account_id = sts.get_caller_identity()["Account"]
+        except Exception:
+            pass
+
     # Initialize graph
     graph = GraphEngine()
+
+    # Load scan cache if enabled
+    scan_cache: ScanCache | None = None
+    cached_count = 0
+
+    if use_scan_cache and not refresh_cache:
+        scan_cache = ScanCache.load(
+            account_id=account_id,
+            region=effective_region,
+        )
+        stats = scan_cache.get_stats()
+        cached_count = stats["total_resources"]
+        if cached_count > 0:
+            console.print(
+                f"[dim]Loaded {cached_count} resources from cache[/]"
+            )
+            # Populate graph from cache
+            from replimap.core import populate_graph_from_cache
+            populate_graph_from_cache(scan_cache, graph)
 
     # Run all registered scanners with progress
     # Use parallel scanning if license allows (ASYNC_SCANNING feature)
     use_parallel = features.has_feature(Feature.ASYNC_SCANNING)
     scan_mode = "parallel" if use_parallel else "sequential"
     scan_start = time.time()
+
+    # If using cache and we have cached data, show that we're doing incremental scan
+    if cached_count > 0:
+        console.print("[dim]Performing incremental scan for updated resources...[/]")
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -548,6 +677,77 @@ def scan(
         )
         progress.update(task, completed=True)
     scan_duration = time.time() - scan_start
+
+    # Update scan cache with new results
+    if use_scan_cache:
+        if scan_cache is None:
+            scan_cache = ScanCache(
+                account_id=account_id,
+                region=effective_region,
+            )
+        update_cache_from_graph(scan_cache, graph)
+        cache_path = scan_cache.save()
+        console.print(f"[dim]Scan cache saved to {cache_path}[/]")
+
+    # Apply selection or filters
+    # Check if new graph-based selection is being used
+    use_new_selection = scope or entry or config
+
+    if use_new_selection:
+        # Load config from YAML if provided
+        if config and config.exists():
+            import yaml
+
+            with open(config) as f:
+                config_data = yaml.safe_load(f)
+            selection_strategy = SelectionStrategy.from_dict(config_data.get("selection", {}))
+        else:
+            # Build strategy from CLI args
+            selection_strategy = SelectionStrategy.from_cli_args(
+                scope=scope,
+                entry=entry,
+                tag=tag,
+                exclude_types=exclude_types,
+                exclude_patterns=exclude_patterns,
+            )
+
+        if not selection_strategy.is_empty():
+            console.print(f"\n[dim]Applying selection: {selection_strategy.describe()}[/]")
+            pre_select_count = graph.statistics()["total_resources"]
+
+            # Apply graph-based selection
+            selection_result = apply_selection(graph, selection_strategy)
+
+            # Build subgraph from selection
+            graph = build_subgraph_from_selection(graph, selection_result)
+
+            post_select_count = graph.statistics()["total_resources"]
+            console.print(
+                f"[dim]Selected: {post_select_count} of {pre_select_count} resources "
+                f"({selection_result.summary()['clone']} to clone, "
+                f"{selection_result.summary()['reference']} to reference)[/]"
+            )
+
+    else:
+        # Legacy filter support (backwards compatibility)
+        scan_filter = ScanFilter.from_cli_args(
+            vpc=vpc,
+            vpc_name=vpc_name,
+            types=types,
+            tags=tag,
+            exclude_types=exclude_types,
+            exclude_tags=exclude_tag,
+        )
+
+        if not scan_filter.is_empty():
+            console.print(f"\n[dim]Applying filters: {scan_filter.describe()}[/]")
+            pre_filter_count = graph.statistics()["total_resources"]
+            removed_count = apply_filter_to_graph(
+                graph, scan_filter, retain_dependencies=True
+            )
+            console.print(
+                f"[dim]Filtered: {pre_filter_count} → {pre_filter_count - removed_count} resources[/]"
+            )
 
     # Check resource limit
     stats = graph.statistics()
@@ -1065,6 +1265,232 @@ def cache_status() -> None:
         table.add_row(profile_name, expires_str, status)
 
     console.print(table)
+    console.print()
+
+
+# Scan cache subcommand group
+scan_cache_app = typer.Typer(
+    name="scan-cache",
+    help="Scan result cache management",
+    rich_markup_mode="rich",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+app.add_typer(scan_cache_app, name="scan-cache")
+
+
+@scan_cache_app.command("status")
+def scan_cache_status() -> None:
+    """
+    Show scan cache status for all regions.
+
+    Examples:
+        replimap scan-cache status
+    """
+    from replimap.core.cache import DEFAULT_CACHE_DIR
+
+    if not DEFAULT_CACHE_DIR.exists():
+        console.print("[dim]No scan cache found.[/]")
+        return
+
+    cache_files = list(DEFAULT_CACHE_DIR.glob("scan-*.json"))
+    if not cache_files:
+        console.print("[dim]No scan cache found.[/]")
+        return
+
+    table = Table(
+        title="Scan Cache Status", show_header=True, header_style="bold cyan"
+    )
+    table.add_column("Account")
+    table.add_column("Region")
+    table.add_column("Resources", justify="right")
+    table.add_column("Last Updated", style="dim")
+
+    total_resources = 0
+    for cache_file in cache_files:
+        try:
+            with open(cache_file) as f:
+                cache_data = json.load(f)
+
+            metadata = cache_data.get("metadata", {})
+            entries = cache_data.get("entries", {})
+
+            account_id = metadata.get("account_id", "unknown")
+            region = metadata.get("region", "unknown")
+            resource_count = len(entries)
+            total_resources += resource_count
+
+            last_updated = metadata.get("last_updated", 0)
+            if last_updated:
+                updated_str = datetime.fromtimestamp(last_updated).strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            else:
+                updated_str = "unknown"
+
+            # Truncate account ID for display
+            account_display = f"{account_id[:4]}...{account_id[-4:]}" if len(account_id) > 10 else account_id
+
+            table.add_row(account_display, region, str(resource_count), updated_str)
+        except (json.JSONDecodeError, KeyError):
+            continue
+
+    console.print(table)
+    console.print(f"\n[dim]Total cached resources: {total_resources}[/]")
+    console.print(f"[dim]Cache directory: {DEFAULT_CACHE_DIR}[/]")
+    console.print()
+
+
+@scan_cache_app.command("clear")
+def scan_cache_clear(
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="Clear cache for specific region only",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation",
+    ),
+) -> None:
+    """
+    Clear scan result cache.
+
+    Examples:
+        replimap scan-cache clear
+        replimap scan-cache clear --region us-east-1
+    """
+    from replimap.core.cache import DEFAULT_CACHE_DIR
+
+    if not DEFAULT_CACHE_DIR.exists():
+        console.print("[dim]No scan cache to clear.[/]")
+        return
+
+    cache_files = list(DEFAULT_CACHE_DIR.glob("scan-*.json"))
+    if not cache_files:
+        console.print("[dim]No scan cache to clear.[/]")
+        return
+
+    # Filter by region if specified
+    files_to_delete = []
+    for cache_file in cache_files:
+        try:
+            with open(cache_file) as f:
+                cache_data = json.load(f)
+            metadata = cache_data.get("metadata", {})
+            if region is None or metadata.get("region") == region:
+                files_to_delete.append(cache_file)
+        except (json.JSONDecodeError, KeyError):
+            files_to_delete.append(cache_file)  # Delete corrupt files
+
+    if not files_to_delete:
+        console.print(f"[dim]No cache found for region '{region}'.[/]")
+        return
+
+    if not yes:
+        if region:
+            confirm = Confirm.ask(
+                f"Clear scan cache for region '{region}'? ({len(files_to_delete)} files)"
+            )
+        else:
+            confirm = Confirm.ask(
+                f"Clear all scan cache? ({len(files_to_delete)} files)"
+            )
+        if not confirm:
+            console.print("[dim]Cancelled.[/]")
+            raise typer.Exit(0)
+
+    for cache_file in files_to_delete:
+        cache_file.unlink()
+
+    console.print(f"[green]Cleared {len(files_to_delete)} cache files.[/]")
+
+
+@scan_cache_app.command("info")
+def scan_cache_info(
+    region: str = typer.Argument(
+        ...,
+        help="Region to show cache info for",
+    ),
+    account: str | None = typer.Option(
+        None,
+        "--account",
+        "-a",
+        help="AWS account ID (uses first found if not specified)",
+    ),
+) -> None:
+    """
+    Show detailed cache info for a region.
+
+    Examples:
+        replimap scan-cache info us-east-1
+    """
+    from replimap.core.cache import DEFAULT_CACHE_DIR
+
+    if not DEFAULT_CACHE_DIR.exists():
+        console.print("[dim]No scan cache found.[/]")
+        raise typer.Exit(1)
+
+    # Find cache file for region
+    cache_file = None
+    for cf in DEFAULT_CACHE_DIR.glob("scan-*.json"):
+        try:
+            with open(cf) as f:
+                cache_data = json.load(f)
+            metadata = cache_data.get("metadata", {})
+            if metadata.get("region") == region:
+                if account is None or metadata.get("account_id") == account:
+                    cache_file = cf
+                    break
+        except (json.JSONDecodeError, KeyError):
+            continue
+
+    if cache_file is None:
+        console.print(f"[red]No cache found for region '{region}'.[/]")
+        raise typer.Exit(1)
+
+    with open(cache_file) as f:
+        cache_data = json.load(f)
+
+    metadata = cache_data.get("metadata", {})
+    entries = cache_data.get("entries", {})
+
+    # Count by type
+    type_counts: dict[str, int] = {}
+    for entry in entries.values():
+        resource = entry.get("resource", {})
+        rtype = resource.get("resource_type", "unknown")
+        type_counts[rtype] = type_counts.get(rtype, 0) + 1
+
+    console.print(
+        Panel(
+            f"Account: [cyan]{metadata.get('account_id', 'unknown')}[/]\n"
+            f"Region: [cyan]{metadata.get('region', 'unknown')}[/]\n"
+            f"Total Resources: [bold]{len(entries)}[/]\n"
+            f"Created: {datetime.fromtimestamp(metadata.get('created_at', 0)).strftime('%Y-%m-%d %H:%M')}\n"
+            f"Last Updated: {datetime.fromtimestamp(metadata.get('last_updated', 0)).strftime('%Y-%m-%d %H:%M')}",
+            title="Cache Info",
+            border_style="cyan",
+        )
+    )
+
+    if type_counts:
+        console.print()
+        table = Table(
+            title="Cached Resources by Type",
+            show_header=True,
+            header_style="bold cyan",
+        )
+        table.add_column("Resource Type", style="dim")
+        table.add_column("Count", justify="right")
+
+        for rtype, count in sorted(type_counts.items(), key=lambda x: x[1], reverse=True):
+            table.add_row(rtype, str(count))
+
+        console.print(table)
+
     console.print()
 
 

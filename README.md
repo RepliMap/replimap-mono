@@ -27,19 +27,135 @@ uv pip install replimap
 
 ## Quick Start
 
+### 1. Install RepliMap
+
 ```bash
-# Scan your production environment (Free tier: 5 resources, 3 scans/month)
+# Using pip
+pip install replimap
+
+# Using uv (faster)
+uv pip install replimap
+
+# Verify installation
+replimap --version
+```
+
+### 2. Scan Your AWS Environment
+
+```bash
+# Basic scan (scans all resources in region)
 replimap scan --profile prod --region us-east-1
 
+# Scan a specific VPC only
+replimap scan --profile prod --scope vpc:vpc-12345678
+
+# Scan resources by tag (e.g., Application=MyApp)
+replimap scan --profile prod --entry tag:Application=MyApp
+
+# Scan starting from an entry point (e.g., ALB)
+replimap scan --profile prod --entry alb:my-app-alb
+
+# Use cached results for faster incremental scans
+replimap scan --profile prod --cache
+```
+
+### 3. Generate Infrastructure-as-Code
+
+```bash
 # Preview what will be generated
-replimap clone --profile prod --region us-west-2 --mode dry-run
+replimap clone --profile prod --mode dry-run
 
 # Generate Terraform files
-replimap clone --profile prod --region us-west-2 --output-dir ./staging-tf --mode generate
+replimap clone --profile prod --output-dir ./staging-tf --mode generate
 
-# Check your license status
-replimap license status
+# Generate with custom transformations
+replimap clone --profile prod --output-dir ./staging-tf \
+  --rename-pattern "prod:staging" \
+  --downsize \
+  --mode generate
 ```
+
+### 4. Apply to Your Staging Account
+
+```bash
+cd ./staging-tf
+terraform init
+terraform plan
+terraform apply
+```
+
+### 5. Check License & Usage
+
+```bash
+# View license status
+replimap license status
+
+# View usage statistics
+replimap license usage
+
+# Activate a license key
+replimap license activate TEAM-XXXX-XXXX-XXXX
+```
+
+## Graph-Based Selection Engine
+
+RepliMap uses intelligent graph traversal instead of simple filtering. This ensures complete, working infrastructure clones.
+
+### Selection Modes
+
+```bash
+# VPC Scope - Select everything in a VPC
+replimap scan --profile prod --scope vpc:vpc-12345678
+replimap scan --profile prod --scope vpc-name:Production*
+
+# Entry Point - Start from a resource and follow dependencies
+replimap scan --profile prod --entry alb:my-app-alb
+replimap scan --profile prod --entry tag:Application=MyApp
+
+# Tag-Based - Select by tags
+replimap scan --profile prod --tag Environment=Production
+```
+
+### YAML Configuration (Advanced)
+
+For complex selection scenarios, use a YAML config file:
+
+```yaml
+# selection.yaml
+selection:
+  mode: entry_point
+  entry_points:
+    - type: alb
+      name: my-app-*
+  dependency_direction: both
+  max_depth: 5
+  boundary_config:
+    network_boundaries:
+      - transit_gateway
+      - vpc_peering
+    identity_boundaries:
+      - iam_role
+  clone_mode: isolated
+  exclusions:
+    types:
+      - cloudwatch_log_group
+    patterns:
+      - "*-backup-*"
+```
+
+```bash
+replimap scan --profile prod --config selection.yaml
+```
+
+### Boundary Handling
+
+RepliMap intelligently handles infrastructure boundaries:
+
+| Boundary Type | Resources | Default Behavior |
+|---------------|-----------|------------------|
+| Network | Transit Gateway, VPC Peering | Create as data source |
+| Identity | IAM Roles, Policies | Reference existing |
+| Global | Route53, CloudFront | Create variables |
 
 ## Output Formats
 
