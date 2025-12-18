@@ -1,28 +1,32 @@
 # Target Group: {{ resource.original_name }}
 resource "aws_lb_target_group" "{{ resource.terraform_name }}" {
   name        = "{{ resource.config.name }}"
-  port        = {{ resource.config.port }}
-  protocol    = "{{ resource.config.protocol }}"
+  port        = {{ resource.config.port | d(80) }}
+  protocol    = "{{ resource.config.protocol | d('HTTP') }}"
+{% if resource.config.vpc_id is tf_ref %}
+  vpc_id      = {{ resource.config.vpc_id }}
+{% else %}
 {% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
 {% if vpc_resource and vpc_resource.terraform_name %}
   vpc_id      = aws_vpc.{{ vpc_resource.terraform_name }}.id
 {% else %}
-  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph
+  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph - using original ID
   vpc_id      = "{{ resource.config.vpc_id }}"
 {% endif %}
-  target_type = "{{ resource.config.target_type | default('instance') }}"
+{% endif %}
+  target_type = "{{ resource.config.target_type | d('instance') }}"
 
   health_check {
-    enabled             = {{ resource.config.health_check.enabled | lower }}
-    path                = "{{ resource.config.health_check.path | default('/') }}"
-    port                = "{{ resource.config.health_check.port | default('traffic-port') }}"
-    protocol            = "{{ resource.config.health_check.protocol | default('HTTP') }}"
-    healthy_threshold   = {{ resource.config.health_check.healthy_threshold | default(3) }}
-    unhealthy_threshold = {{ resource.config.health_check.unhealthy_threshold | default(3) }}
-    timeout             = {{ resource.config.health_check.timeout_seconds | default(5) }}
-    interval            = {{ resource.config.health_check.interval_seconds | default(30) }}
+    enabled             = {{ resource.config.health_check.enabled | d(true) | lower }}
+    path                = "{{ resource.config.health_check.path | d('/') }}"
+    port                = "{{ resource.config.health_check.port | d('traffic-port') }}"
+    protocol            = "{{ resource.config.health_check.protocol | d('HTTP') }}"
+    healthy_threshold   = {{ resource.config.health_check.healthy_threshold | d(3) }}
+    unhealthy_threshold = {{ resource.config.health_check.unhealthy_threshold | d(3) }}
+    timeout             = {{ resource.config.health_check.timeout_seconds | d(5) }}
+    interval            = {{ resource.config.health_check.interval_seconds | d(30) }}
 {% if resource.config.health_check.matcher %}
-    matcher             = "{{ resource.config.health_check.matcher.HttpCode | default('200') }}"
+    matcher             = "{{ resource.config.health_check.matcher.HttpCode | d('200') }}"
 {% endif %}
   }
 
@@ -36,3 +40,40 @@ resource "aws_lb_target_group" "{{ resource.terraform_name }}" {
 {% endfor %}
   }
 }
+
+{% for target in resource.config.targets %}
+{% if target.id and resource.config.target_type == 'instance' %}
+# Target attachment: {{ target.id }}
+resource "aws_lb_target_group_attachment" "{{ resource.terraform_name }}_target_{{ loop.index }}" {
+  target_group_arn = aws_lb_target_group.{{ resource.terraform_name }}.arn
+{% if target.id is tf_ref %}
+  target_id        = {{ target.id }}
+{% else %}
+{% set instance_resource = graph.get_resource(target.id) %}
+{% if instance_resource and instance_resource.terraform_name %}
+  target_id        = aws_instance.{{ instance_resource.terraform_name }}.id
+{% else %}
+  # WARNING: Instance {{ target.id }} not found in graph - may be in different state
+  target_id        = "{{ target.id }}"
+{% endif %}
+{% endif %}
+{% if target.port %}
+  port             = {{ target.port }}
+{% endif %}
+}
+
+{% elif target.id and resource.config.target_type == 'ip' %}
+# Target attachment (IP): {{ target.id }}
+resource "aws_lb_target_group_attachment" "{{ resource.terraform_name }}_target_{{ loop.index }}" {
+  target_group_arn  = aws_lb_target_group.{{ resource.terraform_name }}.arn
+  target_id         = "{{ target.id }}"
+{% if target.port %}
+  port              = {{ target.port }}
+{% endif %}
+{% if target.availability_zone %}
+  availability_zone = "{{ target.availability_zone }}"
+{% endif %}
+}
+
+{% endif %}
+{% endfor %}

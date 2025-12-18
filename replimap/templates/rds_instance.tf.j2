@@ -1,6 +1,19 @@
 # RDS Instance: {{ resource.id }}
 # Original Instance Class: {{ resource.config.instance_class }}
 # Engine: {{ resource.config.engine }} {{ resource.config.engine_version }}
+{# Determine default port based on database engine #}
+{% set engine = resource.config.engine | lower %}
+{% if engine in ['mysql', 'mariadb', 'aurora', 'aurora-mysql'] %}
+{% set default_port = 3306 %}
+{% elif engine in ['postgres', 'aurora-postgresql'] %}
+{% set default_port = 5432 %}
+{% elif engine in ['sqlserver-ee', 'sqlserver-se', 'sqlserver-ex', 'sqlserver-web'] %}
+{% set default_port = 1433 %}
+{% elif engine in ['oracle-ee', 'oracle-se2', 'oracle-se1', 'oracle-se'] %}
+{% set default_port = 1521 %}
+{% else %}
+{% set default_port = 5432 %}
+{% endif %}
 resource "aws_db_instance" "{{ resource.terraform_name }}" {
   identifier = "{{ resource.config.identifier }}-${var.environment}"
 
@@ -10,10 +23,11 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 
   # Instance configuration
   instance_class        = "{{ resource.config.instance_class }}"
-  allocated_storage     = {{ resource.config.allocated_storage | default(20) }}
-  storage_type          = "{{ resource.config.storage_type | default('gp2') }}"
-  storage_encrypted     = {{ resource.config.storage_encrypted | default(false) | lower }}
+  allocated_storage     = {{ resource.config.allocated_storage | d(20) }}
+  storage_type          = "{{ resource.config.storage_type | d('gp2') }}"
+  storage_encrypted     = {{ resource.config.storage_encrypted | d(false) | lower }}
 {% if resource.config.kms_key_id %}
+  # NOTE: KMS key must be accessible in target account/region
   kms_key_id            = "{{ resource.config.kms_key_id }}"
 {% endif %}
 
@@ -21,13 +35,16 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% if resource.config.db_name %}
   db_name  = "{{ resource.config.db_name }}"
 {% endif %}
-  username = "{{ resource.config.master_username | default('admin') }}"
+  username = "{{ resource.config.master_username | d('admin') }}"
   # IMPORTANT: Set password via variable or secrets manager
   password = var.db_password_{{ resource.terraform_name }}
-  port     = {{ resource.config.port | default(5432) }}
+  port     = {{ resource.config.port | d(default_port) }}
 
   # Network configuration
 {% if resource.config.db_subnet_group_name %}
+{% if resource.config.db_subnet_group_name is tf_ref %}
+  db_subnet_group_name = {{ resource.config.db_subnet_group_name }}
+{% else %}
 {% set subnet_group = graph.get_resource(resource.config.db_subnet_group_name) %}
 {% if subnet_group and subnet_group.terraform_name %}
   db_subnet_group_name = aws_db_subnet_group.{{ subnet_group.terraform_name }}.name
@@ -35,28 +52,33 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   db_subnet_group_name = "{{ resource.config.db_subnet_group_name }}"
 {% endif %}
 {% endif %}
+{% endif %}
 {% if resource.config.vpc_security_group_ids %}
   vpc_security_group_ids = [
 {% for sg_id in resource.config.vpc_security_group_ids %}
+{% if sg_id is tf_ref %}
+    {{ sg_id }},
+{% else %}
 {% set sg_resource = graph.get_resource(sg_id) %}
 {% if sg_resource and sg_resource.terraform_name %}
     aws_security_group.{{ sg_resource.terraform_name }}.id,
 {% else %}
     "{{ sg_id }}",
 {% endif %}
+{% endif %}
 {% endfor %}
   ]
 {% endif %}
-  publicly_accessible = {{ resource.config.publicly_accessible | default(false) | lower }}
+  publicly_accessible = {{ resource.config.publicly_accessible | d(false) | lower }}
 
   # High availability
-  multi_az = {{ resource.config.multi_az | default(false) | lower }}
+  multi_az = {{ resource.config.multi_az | d(false) | lower }}
 {% if resource.config.availability_zone and not resource.config.multi_az %}
   availability_zone = "{{ resource.config.availability_zone }}"
 {% endif %}
 
   # Backup configuration
-  backup_retention_period = {{ resource.config.backup_retention_period | default(7) }}
+  backup_retention_period = {{ resource.config.backup_retention_period | d(7) }}
 {% if resource.config.backup_window %}
   backup_window           = "{{ resource.config.backup_window }}"
 {% endif %}
@@ -64,9 +86,15 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   maintenance_window      = "{{ resource.config.maintenance_window }}"
 {% endif %}
 
+{% if resource.config.snapshot_identifier %}
+  # NOTE: Optionally restore from a snapshot. Leave empty to create fresh DB.
+  # Original snapshot: {{ resource.config.snapshot_identifier }}
+  snapshot_identifier = var.db_snapshot_{{ resource.terraform_name }} != "" ? var.db_snapshot_{{ resource.terraform_name }} : null
+{% endif %}
+
   # Other settings
-  auto_minor_version_upgrade  = {{ resource.config.auto_minor_version_upgrade | default(true) | lower }}
-  deletion_protection         = {{ resource.config.deletion_protection | default(false) | lower }}
+  auto_minor_version_upgrade  = {{ resource.config.auto_minor_version_upgrade | d(true) | lower }}
+  deletion_protection         = {{ resource.config.deletion_protection | d(false) | lower }}
   skip_final_snapshot         = true
   final_snapshot_identifier   = "{{ resource.config.identifier }}-final-${var.environment}"
 
@@ -82,6 +110,11 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% for key, value in resource.tags.items() if key != 'Name' %}
     {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
+  }
+
+  # Prevent password changes from triggering instance recreation
+  lifecycle {
+    ignore_changes = [password]
   }
 }
 

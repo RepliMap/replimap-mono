@@ -1,22 +1,29 @@
 # EBS Volume: {{ resource.original_name }}
+# Original AZ: {{ resource.config.availability_zone }}
 resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
-  availability_zone = "{{ resource.config.availability_zone }}"
-  size              = {{ resource.config.size }}
-  type              = "{{ resource.config.volume_type }}"
+  # NOTE: AZ is dynamically mapped to target region using local.az_map
+{% set az_suffix = resource.config.availability_zone[-1] %}
+  availability_zone = local.az_map["{{ az_suffix }}"]
+  size              = {{ resource.config.size | d(8) }}
+  type              = "{{ resource.config.volume_type | d('gp3') }}"
 
 {% if resource.config.iops and resource.config.volume_type in ['io1', 'io2', 'gp3'] %}
-  iops = {{ resource.config.iops }}
+  iops = {{ resource.config.iops | d(3000) }}
 {% endif %}
 {% if resource.config.throughput and resource.config.volume_type == 'gp3' %}
-  throughput = {{ resource.config.throughput }}
+  throughput = {{ resource.config.throughput | d(125) }}
 {% endif %}
 {% if resource.config.encrypted %}
   encrypted = true
 {% if resource.config.kms_key_id %}
+  # NOTE: KMS key must be accessible in target account/region
+  # Original key: {{ resource.config.kms_key_id }}
   kms_key_id = "{{ resource.config.kms_key_id }}"
 {% endif %}
 {% endif %}
 {% if resource.config.snapshot_id %}
+  # NOTE: EBS snapshot is region-specific. Copy snapshot to target region or remove this line.
+  # Original snapshot: {{ resource.config.snapshot_id }}
   snapshot_id = "{{ resource.config.snapshot_id }}"
 {% endif %}
 
@@ -30,3 +37,29 @@ resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
 {% endfor %}
   }
 }
+
+{% for attachment in resource.config.attachments %}
+{% if attachment.instance_id and attachment.device and attachment.state == 'attached' %}
+# Volume Attachment for {{ resource.original_name }} -> {{ attachment.instance_id }}
+resource "aws_volume_attachment" "{{ resource.terraform_name }}_att_{{ loop.index }}" {
+{% if attachment.instance_id is tf_ref %}
+  instance_id = {{ attachment.instance_id }}
+{% else %}
+{% set instance_resource = graph.get_resource(attachment.instance_id) %}
+{% if instance_resource and instance_resource.terraform_name %}
+  instance_id = aws_instance.{{ instance_resource.terraform_name }}.id
+{% else %}
+  # WARNING: Instance {{ attachment.instance_id }} not found in graph - may be stopped/terminated
+  instance_id = "{{ attachment.instance_id }}"
+{% endif %}
+{% endif %}
+  volume_id   = aws_ebs_volume.{{ resource.terraform_name }}.id
+  device_name = "{{ attachment.device }}"
+
+  # Set to true if volume should be destroyed when instance is destroyed
+  force_detach = true
+  skip_destroy = false
+}
+
+{% endif %}
+{% endfor %}

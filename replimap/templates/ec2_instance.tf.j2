@@ -2,30 +2,41 @@
 # Original ID: {{ resource.id }}
 # Original Type: {{ resource.config.instance_type }}
 resource "aws_instance" "{{ resource.terraform_name }}" {
-  ami           = "{{ resource.config.ami }}"
+  # NOTE: AMI IDs are region-specific. Set via variable or use data source.
+  # Original AMI: {{ resource.config.ami }}
+  ami           = var.ami_id
   instance_type = "{{ resource.config.instance_type }}"
 {% if resource.config.key_name %}
-  key_name      = "{{ resource.config.key_name }}"
+  # NOTE: Key pair must exist in target account/region
+  key_name      = var.key_name
 {% endif %}
 
 {% if resource.config.subnet_id %}
+{% if resource.config.subnet_id is tf_ref %}
+  subnet_id     = {{ resource.config.subnet_id }}
+{% else %}
 {% set subnet_resource = graph.get_resource(resource.config.subnet_id) %}
 {% if subnet_resource and subnet_resource.terraform_name %}
   subnet_id     = aws_subnet.{{ subnet_resource.terraform_name }}.id
 {% else %}
-  # WARNING: Subnet {{ resource.config.subnet_id }} not found in graph
+  # WARNING: Subnet {{ resource.config.subnet_id }} not found in graph - using original ID
   subnet_id     = "{{ resource.config.subnet_id }}"
+{% endif %}
 {% endif %}
 {% endif %}
 
 {% if resource.config.security_group_ids %}
   vpc_security_group_ids = [
 {% for sg_id in resource.config.security_group_ids %}
+{% if sg_id is tf_ref %}
+    {{ sg_id }},
+{% else %}
 {% set sg_resource = graph.get_resource(sg_id) %}
 {% if sg_resource and sg_resource.terraform_name %}
     aws_security_group.{{ sg_resource.terraform_name }}.id,
 {% else %}
     "{{ sg_id }}",
+{% endif %}
 {% endif %}
 {% endfor %}
   ]

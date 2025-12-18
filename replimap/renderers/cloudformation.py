@@ -362,9 +362,9 @@ class CloudFormationRenderer(BaseRenderer):
             },
         }
 
-    def _convert_tags(self, tags: dict[str, str], name: str) -> list[dict[str, str]]:
+    def _convert_tags(self, tags: dict[str, str], name: str | None) -> list[dict[str, str]]:
         """Convert tags dict to CloudFormation tag list."""
-        cfn_tags = [{"Key": "Name", "Value": name}]
+        cfn_tags = [{"Key": "Name", "Value": name or "unnamed"}]
         for key, value in tags.items():
             if key != "Name":
                 cfn_tags.append({"Key": key, "Value": value})
@@ -639,8 +639,10 @@ class CloudFormationRenderer(BaseRenderer):
         logger.info("Wrote main.yaml")
 
     @staticmethod
-    def _to_logical_id(name: str) -> str:
+    def _to_logical_id(name: str | None) -> str:
         """Convert a name to a CloudFormation logical ID."""
+        if not name:
+            return "Resource"
         # CloudFormation logical IDs must be alphanumeric
         result = ""
         capitalize_next = True

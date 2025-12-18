@@ -12,12 +12,16 @@ resource "aws_eip" "{{ resource.terraform_name }}_eip" {
 
 resource "aws_nat_gateway" "{{ resource.terraform_name }}" {
   allocation_id = aws_eip.{{ resource.terraform_name }}_eip.id
+{% if resource.config.subnet_id is tf_ref %}
+  subnet_id     = {{ resource.config.subnet_id }}
+{% else %}
 {% set subnet_resource = graph.get_resource(resource.config.subnet_id) %}
 {% if subnet_resource and subnet_resource.terraform_name %}
   subnet_id     = aws_subnet.{{ subnet_resource.terraform_name }}.id
 {% else %}
-  # WARNING: Subnet {{ resource.config.subnet_id }} not found in graph
+  # WARNING: Subnet {{ resource.config.subnet_id }} not found in graph - using original ID
   subnet_id     = "{{ resource.config.subnet_id }}"
+{% endif %}
 {% endif %}
 
   tags = {
@@ -30,8 +34,8 @@ resource "aws_nat_gateway" "{{ resource.terraform_name }}" {
 {% endfor %}
   }
 
-{% set vpc_resource = graph.get_resource(resource.config.vpc_id) %}
-{% if vpc_resource and vpc_resource.terraform_name %}
-  depends_on = [aws_internet_gateway.{{ vpc_resource.terraform_name }}]
-{% endif %}
+  # NAT Gateway requires the Internet Gateway to exist first.
+  # Terraform handles this implicitly via the subnet -> VPC dependency chain.
+  # If deployment fails with IGW errors, add explicit depends_on:
+  # depends_on = [aws_internet_gateway.<your_igw_name>]
 }

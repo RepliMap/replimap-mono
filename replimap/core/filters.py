@@ -165,9 +165,11 @@ class ScanFilter:
 
         # Direct VPC ID
         if "VpcId" in config:
-            return config["VpcId"]
+            vpc_id = config["VpcId"]
+            return str(vpc_id) if vpc_id is not None else None
         if "vpc_id" in config:
-            return config["vpc_id"]
+            vpc_id = config["vpc_id"]
+            return str(vpc_id) if vpc_id is not None else None
 
         # For VPC resources, the ID is the resource ID
         if resource.resource_type.value == "aws_vpc":
@@ -336,9 +338,9 @@ def apply_filter_to_graph(
         # Traverse dependencies of kept resources
         dependencies_to_keep: set[str] = set()
         for resource_id in resources_to_keep:
-            resource = graph.get_resource(resource_id)
-            if resource:
-                _collect_dependencies(graph, resource, dependencies_to_keep)
+            dep_resource = graph.get_resource(resource_id)
+            if dep_resource:
+                _collect_dependencies(graph, dep_resource, dependencies_to_keep)
 
         # Add dependencies back to keep set
         resources_to_keep.update(dependencies_to_keep)
