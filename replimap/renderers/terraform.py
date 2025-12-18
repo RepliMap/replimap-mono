@@ -821,7 +821,7 @@ locals {
         written_files: dict[str, Path],
     ) -> None:
         """Generate test-terraform.sh script for validating generated Terraform."""
-        script = '''#!/usr/bin/env bash
+        script = r'''#!/usr/bin/env bash
 # =============================================================================
 # RepliMap Terraform Test Script
 # =============================================================================
@@ -842,11 +842,11 @@ locals {
 set -e
 
 # Colors for output
-RED='\\033[0;31m'
-GREEN='\\033[0;32m'
-YELLOW='\\033[1;33m'
-BLUE='\\033[0;34m'
-NC='\\033[0m' # No Color
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
 # Default values
 RUN_PLAN=false

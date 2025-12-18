@@ -1,7 +1,18 @@
 # S3 Bucket: {{ resource.id }}
-# Note: S3 bucket names must be globally unique - consider adding a suffix
+# Note: S3 bucket names must be globally unique (max 63 characters)
+{# Calculate if we can safely append environment suffix (bucket names max 63 chars) #}
+{% set bucket_name = resource.config.bucket %}
+{% set max_env_suffix_len = 10 %}  {# e.g., "-staging" = 8, "-production" = 11 #}
+{% set safe_length = 63 - max_env_suffix_len %}
+{% if bucket_name | length <= safe_length %}
 resource "aws_s3_bucket" "{{ resource.terraform_name }}" {
-  bucket = "{{ resource.config.bucket }}-${var.environment}"
+  bucket = "{{ bucket_name }}-${var.environment}"
+{% else %}
+# WARNING: Original bucket name too long to append environment suffix (would exceed 63 chars)
+# Using original name. Ensure this doesn't conflict with production bucket.
+resource "aws_s3_bucket" "{{ resource.terraform_name }}" {
+  bucket = "{{ bucket_name }}"
+{% endif %}
 
   tags = {
     Name        = "{{ resource.tags.get('Name', resource.id) }}"
