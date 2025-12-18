@@ -1,0 +1,51 @@
+# S3 Bucket: {{ resource.id }}
+# Note: S3 bucket names must be globally unique - consider adding a suffix
+resource "aws_s3_bucket" "{{ resource.terraform_name }}" {
+  bucket = "{{ resource.config.bucket }}-${var.environment}"
+
+  tags = {
+    Name        = "{{ resource.tags.get('Name', resource.id) }}"
+    Environment = var.environment
+    ManagedBy   = "replimap"
+    SourceId    = "{{ resource.id }}"
+{% for key, value in resource.tags.items() if key != 'Name' %}
+    {{ key }} = {{ value | quote }}
+{% endfor %}
+  }
+}
+
+{% if resource.config.versioning %}
+resource "aws_s3_bucket_versioning" "{{ resource.terraform_name }}" {
+  bucket = aws_s3_bucket.{{ resource.terraform_name }}.id
+
+  versioning_configuration {
+    status = "{{ 'Enabled' if resource.config.versioning.enabled else 'Suspended' }}"
+  }
+}
+{% endif %}
+
+{% if resource.config.server_side_encryption_configuration %}
+resource "aws_s3_bucket_server_side_encryption_configuration" "{{ resource.terraform_name }}" {
+  bucket = aws_s3_bucket.{{ resource.terraform_name }}.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "{{ resource.config.server_side_encryption_configuration.sse_algorithm | default('AES256') }}"
+{% if resource.config.server_side_encryption_configuration.kms_master_key_id %}
+      kms_master_key_id = "{{ resource.config.server_side_encryption_configuration.kms_master_key_id }}"
+{% endif %}
+    }
+  }
+}
+{% endif %}
+
+{% if resource.config.public_access_block %}
+resource "aws_s3_bucket_public_access_block" "{{ resource.terraform_name }}" {
+  bucket = aws_s3_bucket.{{ resource.terraform_name }}.id
+
+  block_public_acls       = {{ resource.config.public_access_block.block_public_acls | default(false) | lower }}
+  block_public_policy     = {{ resource.config.public_access_block.block_public_policy | default(false) | lower }}
+  ignore_public_acls      = {{ resource.config.public_access_block.ignore_public_acls | default(false) | lower }}
+  restrict_public_buckets = {{ resource.config.public_access_block.restrict_public_buckets | default(false) | lower }}
+}
+{% endif %}
