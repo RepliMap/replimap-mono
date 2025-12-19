@@ -1,11 +1,14 @@
 /**
  * RepliMap Backend - Cloudflare Workers Entry Point
  *
- * API Endpoints:
+ * Public Endpoints (No Auth):
  * - POST /v1/license/validate - Validate license and bind machine (HOT PATH)
  * - POST /v1/license/activate - Explicitly activate license on machine
  * - POST /v1/license/deactivate - Deactivate license from machine
+ * - POST /v1/checkout/session - Create Stripe Checkout session
+ * - POST /v1/billing/portal - Create Stripe Customer Portal session
  * - POST /v1/webhooks/stripe - Handle Stripe subscription events
+ * - GET /health - Health check
  *
  * AWS Account Endpoints:
  * - POST /v1/aws-accounts/track - Track AWS account usage
@@ -38,6 +41,8 @@ import {
   handleGetUsage,
   handleGetUsageHistory,
   handleCheckQuota,
+  handleCreateCheckout,
+  handleCreateBillingPortal,
 } from './handlers';
 import { AppError, Errors } from './lib/errors';
 
@@ -155,6 +160,15 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = await handleActivateLicense(request, env, clientIP);
     } else if (path === '/v1/license/deactivate' && method === 'POST') {
       response = await handleDeactivateLicense(request, env, clientIP);
+    }
+
+    // ========================================================================
+    // Checkout & Billing Endpoints
+    // ========================================================================
+    else if (path === '/v1/checkout/session' && method === 'POST') {
+      response = await handleCreateCheckout(request, env, clientIP);
+    } else if (path === '/v1/billing/portal' && method === 'POST') {
+      response = await handleCreateBillingPortal(request, env, clientIP);
     }
 
     // ========================================================================

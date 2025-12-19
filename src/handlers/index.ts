@@ -27,3 +27,9 @@ export {
   handleGetUsageHistory,
   handleCheckQuota,
 } from './usage';
+
+// Billing handlers
+export {
+  handleCreateCheckout,
+  handleCreateBillingPortal,
+} from './billing';

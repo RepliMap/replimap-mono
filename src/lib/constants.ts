@@ -106,6 +106,27 @@ export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
   // 'price_xxx_team': 'team',
 };
 
+// Plan to Stripe Price ID (for creating checkout sessions)
+// Update these with actual Stripe price IDs after creating products
+export const PLAN_TO_STRIPE_PRICE: Record<string, string> = {
+  // Development/test price IDs
+  'solo': 'price_test_solo',
+  'pro': 'price_test_pro',
+  'team': 'price_test_team',
+  // Production - uncomment and update after creating products in Stripe:
+  // 'solo': 'price_xxx_solo_monthly',
+  // 'pro': 'price_xxx_pro_monthly',
+  // 'team': 'price_xxx_team_monthly',
+};
+
+// Plan prices in cents (for display purposes)
+export const PLAN_PRICES: Record<string, number> = {
+  'free': 0,
+  'solo': 4900,  // $49/month
+  'pro': 9900,   // $99/month
+  'team': 19900, // $199/month
+};
+
 /**
  * Get plan type from Stripe price ID
  */
