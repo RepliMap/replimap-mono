@@ -1,0 +1,44 @@
+name = "replimap-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Environment variables
+[vars]
+ENVIRONMENT = "development"
+CORS_ORIGIN = "*"
+API_VERSION = "v1"
+
+# D1 Database (development)
+[[d1_databases]]
+binding = "DB"
+database_name = "replimap-dev"
+database_id = "local"  # Replace with actual ID after creation
+
+# KV for rate limiting (development)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "local"  # Replace with actual ID after creation
+preview_id = "local"
+
+# Production environment
+[env.production]
+name = "replimap-api"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+CORS_ORIGIN = "https://replimap.io"
+API_VERSION = "v1"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "replimap-prod"
+database_id = ""  # Replace with actual ID after creation
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = ""  # Replace with actual ID after creation
+
+# Secrets (set via: wrangler secret put <NAME>)
+# - STRIPE_SECRET_KEY
+# - STRIPE_WEBHOOK_SECRET
