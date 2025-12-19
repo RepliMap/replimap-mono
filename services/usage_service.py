@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from database.models import AuditLog, License, UsageRecord
+from database.models import AuditLog, License, ProcessedEvent, UsageRecord
 
 from .license_service import PLAN_FEATURES
 
@@ -31,6 +31,7 @@ class UsageService:
         machine_id: str,
         usage_data: dict[str, int],
         period: str | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """
         Sync usage data from a client.
@@ -40,10 +41,25 @@ class UsageService:
             machine_id: The machine identifier
             usage_data: Usage counters to sync
             period: Period string (YYYY-MM), defaults to current month
+            idempotency_key: Optional key to prevent duplicate processing
 
         Returns:
             Sync result with updated quotas
         """
+        # Check idempotency if key provided
+        if idempotency_key:
+            result = await self.db.execute(
+                select(ProcessedEvent).where(
+                    ProcessedEvent.idempotency_key == idempotency_key
+                )
+            )
+            existing = result.scalar_one_or_none()
+            if existing:
+                # Return cached result
+                cached_result = existing.result_data or {}
+                cached_result["cached"] = True
+                return cached_result
+
         # Get license
         result = await self.db.execute(
             select(License).where(License.license_key == license_key)
@@ -156,7 +172,7 @@ class UsageService:
             license_id=license_record.id,
         )
 
-        return {
+        sync_result = {
             "synced": True,
             "period": period,
             "current_usage": {
@@ -166,6 +182,22 @@ class UsageService:
             },
             "quotas": quotas,
         }
+
+        # Record processed event for idempotency
+        if idempotency_key:
+            processed_event = ProcessedEvent(
+                event_id=f"usage_sync_{idempotency_key}",
+                event_type="usage_sync",
+                source="api",
+                idempotency_key=idempotency_key,
+                success=True,
+                result_data=sync_result,
+                license_id=license_record.id,
+            )
+            self.db.add(processed_event)
+            await self.db.commit()
+
+        return sync_result
 
     async def get_usage(
         self,

@@ -16,6 +16,7 @@ from config import get_settings
 from database import get_db, init_db
 
 from .licenses import router as licenses_router
+from .stripe_webhook import router as stripe_webhook_router
 from .usage import router as usage_router
 
 logger = logging.getLogger(__name__)
@@ -162,6 +163,7 @@ app.add_middleware(
 # Include routers
 app.include_router(licenses_router, prefix="/api/v1/licenses", tags=["licenses"])
 app.include_router(usage_router, prefix="/api/v1/usage", tags=["usage"])
+app.include_router(stripe_webhook_router, prefix="/api/v1/stripe", tags=["stripe"])
 
 
 @app.get("/health")

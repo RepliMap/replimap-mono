@@ -31,8 +31,12 @@ class Settings(BaseSettings):
     # Stripe (optional, for payment integration)
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
+    # Price IDs for each plan tier
+    stripe_price_id_solo: str | None = None      # $49/mo - Solo plan
+    stripe_price_id_pro: str | None = None       # $99/mo - Pro plan
+    stripe_price_id_team: str | None = None      # $199/mo - Team plan
+    # Legacy price IDs for backward compatibility
     stripe_price_id_starter: str | None = None
-    stripe_price_id_team: str | None = None
     stripe_price_id_enterprise: str | None = None
 
     # CORS

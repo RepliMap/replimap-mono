@@ -55,18 +55,30 @@ class ValidateLicenseRequest(BaseModel):
     client_os: str | None = Field(None, description="Client operating system")
 
 
+class SubscriptionInfo(BaseModel):
+    """Subscription details in validation response."""
+
+    status: str | None = None
+    current_period_end: str | None = None
+    cancel_at_period_end: bool = False
+
+
 class ValidateLicenseResponse(BaseModel):
     """Response from license validation."""
 
     valid: bool
     error: str | None = None
     message: str | None = None
+    support_id: str | None = None  # For error tracking
+    action: str | None = None  # Suggested action: "purchase", "renew", "upgrade", "wait", "contact_support"
     license_id: str | None = None
     plan: str | None = None
     features: list[str] | None = None
     expires_at: str | None = None
+    cache_until: str | None = None  # Client should cache validation until this time
     limits: dict[str, Any] | None = None
     activation: dict[str, Any] | None = None
+    subscription: SubscriptionInfo | None = None
 
 
 class CreateLicenseRequest(BaseModel):
@@ -220,3 +232,63 @@ async def revoke_license(
         raise HTTPException(status_code=404, detail="License not found")
 
     return {"revoked": True, "license_key": license_key}
+
+
+class TrackAwsAccountRequest(BaseModel):
+    """Request to track an AWS account."""
+
+    license_key: str = Field(..., description="The license key")
+    aws_account_id: str = Field(
+        ...,
+        description="AWS account ID (12 digits)",
+        min_length=12,
+        max_length=12,
+    )
+    account_alias: str | None = Field(None, description="Friendly name for the account")
+
+
+class TrackAwsAccountResponse(BaseModel):
+    """Response from AWS account tracking."""
+
+    tracked: bool
+    valid: bool | None = None
+    error: str | None = None
+    message: str | None = None
+    support_id: str | None = None
+    action: str | None = None
+    is_new: bool | None = None
+    aws_account_id: str | None = None
+    current_accounts: int | None = None
+    max_accounts: int | None = None
+
+
+@router.post("/aws-accounts/track", response_model=TrackAwsAccountResponse)
+async def track_aws_account(
+    request: TrackAwsAccountRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TrackAwsAccountResponse:
+    """
+    Track an AWS account for a license.
+
+    This endpoint is called by the CLI when scanning an AWS account.
+    It tracks which accounts are used and enforces the per-plan limit.
+    """
+    service = LicenseService(db)
+
+    result = await service.track_aws_account(
+        license_key=request.license_key,
+        aws_account_id=request.aws_account_id,
+        account_alias=request.account_alias,
+    )
+
+    return TrackAwsAccountResponse(**result)
+
+
+@router.get("/{license_key}/aws-accounts")
+async def get_aws_accounts(
+    license_key: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """Get all AWS accounts tracked for a license."""
+    service = LicenseService(db)
+    return await service.get_aws_accounts(license_key)
