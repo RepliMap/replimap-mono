@@ -32,8 +32,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # API Configuration
-API_BASE_URL_DEV = "https://replimap-api.davidlu1001.workers.dev"
-API_BASE_URL_PROD = "https://api.replimap.io"
+API_BASE_URL_DEV = "https://replimap-api.davidlu1001.workers.dev/v1"
+API_BASE_URL_PROD = "https://api.replimap.io/v1"
 API_TIMEOUT = 30  # seconds
 
 # Default cache directory
@@ -77,8 +77,9 @@ class LicenseManager:
         """
         self.cache_dir = cache_dir or DEFAULT_CACHE_DIR
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        # Use dev API by default until production is ready
         self.api_base_url = api_base_url or os.environ.get(
-            "REPLIMAP_LICENSE_API", "https://api.replimap.io/v1"
+            "REPLIMAP_LICENSE_API", API_BASE_URL_DEV
         )
         self._current_license: License | None = None
         self._cached_at: datetime | None = None
