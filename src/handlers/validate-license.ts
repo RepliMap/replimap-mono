@@ -14,6 +14,7 @@ import {
   PLAN_FEATURES,
   MAX_MACHINE_CHANGES_PER_MONTH,
   DEFAULT_CACHE_HOURS,
+  checkCliVersion,
   type PlanType,
 } from '../lib/constants';
 import { Errors, AppError } from '../lib/errors';
@@ -110,6 +111,9 @@ export async function handleValidateLicense(
     // Get scan count for this month
     const scansThisMonth = await getMonthlyUsageCount(env.DB, license.license_id, 'scan');
 
+    // Check CLI version compatibility
+    const cliVersionCheck = checkCliVersion(body.cli_version);
+
     // Build success response
     const response: ValidateLicenseResponse = {
       valid: true,
@@ -133,6 +137,7 @@ export async function handleValidateLicense(
       },
       expires_at: license.current_period_end,
       cache_until: calculateCacheUntil(license.status, license.current_period_end),
+      cli_version: cliVersionCheck,
     };
 
     return new Response(JSON.stringify(response), {

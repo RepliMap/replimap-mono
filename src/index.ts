@@ -10,6 +10,11 @@
  * - POST /v1/webhooks/stripe - Handle Stripe subscription events
  * - GET /health - Health check
  *
+ * User Self-Service Endpoints (auth via license_key):
+ * - GET /v1/me/license - Get own license details
+ * - GET /v1/me/machines - Get machines for own license
+ * - POST /v1/me/resend-key - Resend license key via email
+ *
  * AWS Account Endpoints:
  * - POST /v1/aws-accounts/track - Track AWS account usage
  * - GET /v1/licenses/{key}/aws-accounts - Get AWS accounts for license
@@ -43,6 +48,9 @@ import {
   handleCheckQuota,
   handleCreateCheckout,
   handleCreateBillingPortal,
+  handleGetOwnLicense,
+  handleGetOwnMachines,
+  handleResendKey,
 } from './handlers';
 import { AppError, Errors } from './lib/errors';
 
@@ -169,6 +177,17 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = await handleCreateCheckout(request, env, clientIP);
     } else if (path === '/v1/billing/portal' && method === 'POST') {
       response = await handleCreateBillingPortal(request, env, clientIP);
+    }
+
+    // ========================================================================
+    // User Self-Service Endpoints
+    // ========================================================================
+    else if (path === '/v1/me/license' && method === 'GET') {
+      response = await handleGetOwnLicense(request, env, clientIP);
+    } else if (path === '/v1/me/machines' && method === 'GET') {
+      response = await handleGetOwnMachines(request, env, clientIP);
+    } else if (path === '/v1/me/resend-key' && method === 'POST') {
+      response = await handleResendKey(request, env, clientIP);
     }
 
     // ========================================================================

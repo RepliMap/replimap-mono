@@ -144,3 +144,89 @@ export const REPLIMAP_URLS = {
   upgrade: 'https://replimap.io/upgrade',
   support: 'https://replimap.io/support',
 } as const;
+
+// ============================================================================
+// CLI Version Compatibility
+// ============================================================================
+
+/** Minimum supported CLI version (semver) */
+export const MIN_CLI_VERSION = '1.0.0';
+
+/** Current latest CLI version */
+export const LATEST_CLI_VERSION = '1.0.0';
+
+/** Deprecated versions that still work but show warning */
+export const DEPRECATED_CLI_VERSIONS = ['0.9.0', '0.9.1', '0.9.2'];
+
+/**
+ * Check if CLI version is compatible
+ * Returns: 'ok' | 'deprecated' | 'unsupported'
+ */
+export function checkCliVersion(version: string | undefined): {
+  status: 'ok' | 'deprecated' | 'unsupported';
+  message?: string;
+  latest_version: string;
+  upgrade_url: string;
+} {
+  const upgradeUrl = 'https://replimap.io/docs/upgrade';
+
+  if (!version) {
+    return {
+      status: 'ok',
+      latest_version: LATEST_CLI_VERSION,
+      upgrade_url: upgradeUrl,
+    };
+  }
+
+  // Check if deprecated (check this first, before version comparison)
+  if (DEPRECATED_CLI_VERSIONS.includes(version)) {
+    return {
+      status: 'deprecated',
+      message: `CLI version ${version} is deprecated. Please upgrade to ${LATEST_CLI_VERSION}.`,
+      latest_version: LATEST_CLI_VERSION,
+      upgrade_url: upgradeUrl,
+    };
+  }
+
+  // Parse versions for comparison
+  const current = parseVersion(version);
+  const minimum = parseVersion(MIN_CLI_VERSION);
+
+  if (!current || !minimum) {
+    return {
+      status: 'ok',
+      latest_version: LATEST_CLI_VERSION,
+      upgrade_url: upgradeUrl,
+    };
+  }
+
+  // Check if unsupported (below minimum)
+  if (compareVersions(current, minimum) < 0) {
+    return {
+      status: 'unsupported',
+      message: `CLI version ${version} is no longer supported. Please upgrade to ${LATEST_CLI_VERSION}.`,
+      latest_version: LATEST_CLI_VERSION,
+      upgrade_url: upgradeUrl,
+    };
+  }
+
+  return {
+    status: 'ok',
+    latest_version: LATEST_CLI_VERSION,
+    upgrade_url: upgradeUrl,
+  };
+}
+
+function parseVersion(version: string): [number, number, number] | null {
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (!match) return null;
+  return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+}
+
+function compareVersions(a: [number, number, number], b: [number, number, number]): number {
+  for (let i = 0; i < 3; i++) {
+    if (a[i] > b[i]) return 1;
+    if (a[i] < b[i]) return -1;
+  }
+  return 0;
+}

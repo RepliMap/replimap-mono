@@ -49,6 +49,13 @@ export interface UsageInfo {
   aws_accounts_limit?: number;
 }
 
+export interface CliVersionInfo {
+  status: 'ok' | 'deprecated' | 'unsupported';
+  message?: string;
+  latest_version: string;
+  upgrade_url: string;
+}
+
 export interface ValidateLicenseResponse {
   valid: true;
   plan: string;
@@ -57,6 +64,7 @@ export interface ValidateLicenseResponse {
   usage: UsageInfo;
   expires_at: string | null;
   cache_until: string;
+  cli_version?: CliVersionInfo;
 }
 
 export interface ActivateLicenseResponse {

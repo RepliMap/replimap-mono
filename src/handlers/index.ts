@@ -33,3 +33,10 @@ export {
   handleCreateCheckout,
   handleCreateBillingPortal,
 } from './billing';
+
+// User self-service handlers
+export {
+  handleGetOwnLicense,
+  handleGetOwnMachines,
+  handleResendKey,
+} from './user';
