@@ -825,3 +825,192 @@ class TestTerraformRendererAdvanced:
             outputs_content = files["outputs.tf"].read_text()
             assert "_dns_name" in outputs_content
             assert "aws_lb" in outputs_content
+
+    def test_render_creates_test_script(self, sample_graph: GraphEngine) -> None:
+        """Test that render creates test-terraform.sh script."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(sample_graph, output_dir)
+
+            assert "test-terraform.sh" in files
+            script_path = files["test-terraform.sh"]
+            assert script_path.exists()
+
+            # Verify script is executable
+            import os
+            assert os.access(script_path, os.X_OK)
+
+            # Verify script content
+            content = script_path.read_text()
+            assert "#!/usr/bin/env bash" in content
+            assert "terraform fmt" in content
+            assert "terraform init" in content
+            assert "terraform validate" in content
+            assert "terraform plan" in content
+            assert "--plan" in content
+            assert "--profile" in content
+
+    def test_tfvars_example_includes_ami_lookup_instructions(
+        self, sample_graph: GraphEngine
+    ) -> None:
+        """Test that tfvars.example includes AMI lookup AWS CLI commands."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(sample_graph, output_dir)
+
+            content = files["terraform.tfvars.example"].read_text()
+
+            # Should include AWS CLI commands for AMI lookup
+            assert "aws ec2 describe-images" in content
+            assert "Amazon Linux" in content or "amzn2-ami-hvm" in content
+            assert "Ubuntu" in content or "ubuntu" in content
+
+    def test_tfvars_example_includes_testing_instructions(
+        self, sample_graph: GraphEngine
+    ) -> None:
+        """Test that tfvars.example includes testing instructions."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(sample_graph, output_dir)
+
+            content = files["terraform.tfvars.example"].read_text()
+
+            # Should include testing instructions
+            assert "terraform init" in content
+            assert "terraform validate" in content
+            assert "terraform plan" in content
+            assert "terraform destroy" in content
+
+    def test_tfvars_example_includes_launch_template_amis(self) -> None:
+        """Test that tfvars.example includes per-launch-template AMI variables."""
+        graph = GraphEngine()
+
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        lt = ResourceNode(
+            id="lt-12345",
+            resource_type=ResourceType.LAUNCH_TEMPLATE,
+            region="us-east-1",
+            config={
+                "name": "my-launch-template",
+                "image_id": "ami-original123",
+                "instance_type": "t3.medium",
+            },
+            tags={"Name": "my-launch-template"},
+        )
+        graph.add_resource(lt)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            content = files["terraform.tfvars.example"].read_text()
+
+            # Should include launch template specific variable
+            assert "ami_id_" in content
+            assert "Launch Template" in content
+            assert "ami-original123" in content  # Original AMI reference
+
+    def test_tfvars_example_includes_acm_certificate_variable(self) -> None:
+        """Test that tfvars.example includes ACM certificate when HTTPS listeners exist."""
+        graph = GraphEngine()
+
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        listener = ResourceNode(
+            id="arn:aws:elasticloadbalancing:us-east-1:123456789:listener/app/my-lb/123/456",
+            resource_type=ResourceType.LB_LISTENER,
+            region="us-east-1",
+            config={
+                "protocol": "HTTPS",
+                "port": 443,
+                "certificate_arn": "arn:aws:acm:us-east-1:123456789:certificate/abc123",
+            },
+            tags={},
+        )
+        graph.add_resource(listener)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            content = files["terraform.tfvars.example"].read_text()
+
+            # Should include ACM certificate variable
+            assert "acm_certificate_arn" in content
+            assert "TLS/SSL" in content or "ACM" in content
+            assert "aws acm" in content  # AWS CLI command
+
+    def test_tfvars_example_includes_key_name_variable(self) -> None:
+        """Test that tfvars.example includes key_name when EC2 uses SSH keys."""
+        graph = GraphEngine()
+
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        ec2 = ResourceNode(
+            id="i-12345",
+            resource_type=ResourceType.EC2_INSTANCE,
+            region="us-east-1",
+            config={
+                "instance_type": "t3.medium",
+                "ami": "ami-12345",
+                "key_name": "my-prod-key",
+            },
+            tags={"Name": "my-ec2"},
+        )
+        graph.add_resource(ec2)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            content = files["terraform.tfvars.example"].read_text()
+
+            # Should include key_name variable
+            assert "key_name" in content
+            assert "SSH" in content
+            assert "aws ec2 describe-key-pairs" in content or "create-key-pair" in content
+
+    def test_terraform_fmt_method_handles_missing_terraform(self) -> None:
+        """Test that _run_terraform_fmt gracefully handles missing terraform binary."""
+        import unittest.mock as mock
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            output_dir.mkdir(parents=True)
+
+            renderer = TerraformRenderer()
+
+            # Mock shutil.which to return None (terraform not installed)
+            with mock.patch("shutil.which", return_value=None):
+                result = renderer._run_terraform_fmt(output_dir)
+
+            # Should return True (not an error, just skipped)
+            assert result is True

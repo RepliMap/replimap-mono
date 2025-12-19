@@ -641,7 +641,9 @@ class TestLaunchTemplateBlockDeviceMappings:
             assert "block_device_mappings {" in content
             assert "device_name" in content
             assert "/dev/xvda" in content
-            assert "volume_size = 100" in content
+            # Check for volume_size = 100 with flexible whitespace (terraform fmt aligns)
+            import re
+            assert re.search(r"volume_size\s+=\s+100", content), "volume_size = 100 not found"
             assert "volume_type" in content
             assert "gp3" in content
 
@@ -881,8 +883,9 @@ class TestNoneValueHandling:
 
             # Should NOT have literal "None"
             assert "= None" not in content
-            # Should have proper numeric defaults
-            assert "visibility_timeout_seconds  = 30" in content
+            # Should have proper numeric defaults (flexible whitespace for terraform fmt)
+            import re
+            assert re.search(r"visibility_timeout_seconds\s+=\s+30", content), "visibility_timeout_seconds = 30 not found"
 
     def test_lb_target_group_none_port_uses_default(self):
         """Verify LB Target Group port=None uses default."""
@@ -921,5 +924,6 @@ class TestNoneValueHandling:
 
             # Should NOT have literal "None"
             assert "= None" not in content
-            # Should have proper defaults
-            assert "port        = 80" in content
+            # Should have proper defaults (flexible whitespace for terraform fmt)
+            import re
+            assert re.search(r"port\s+=\s+80", content), "port = 80 not found"
