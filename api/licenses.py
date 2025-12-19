@@ -1,21 +1,55 @@
 """License validation API endpoints."""
 
+import secrets
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import get_settings
 from database import get_db
+from database.models import PlanType
 from services import LicenseService
 
 router = APIRouter()
+settings = get_settings()
+
+
+async def verify_admin_api_key(
+    x_api_key: Annotated[str | None, Header()] = None,
+) -> None:
+    """
+    Verify admin API key for protected endpoints.
+
+    The API key should be set via the ADMIN_API_KEY environment variable.
+    """
+    admin_key = getattr(settings, "admin_api_key", None)
+
+    if not admin_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin API is not configured. Set ADMIN_API_KEY environment variable.",
+        )
+
+    if not x_api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing X-API-Key header",
+        )
+
+    # Use constant-time comparison to prevent timing attacks
+    if not secrets.compare_digest(x_api_key, admin_key):
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid API key",
+        )
 
 
 class ValidateLicenseRequest(BaseModel):
     """Request to validate a license."""
 
-    license_key: str = Field(..., description="The license key to validate")
+    license_key: str = Field(..., description="The license key to validate", min_length=1)
     machine_id: str | None = Field(None, description="Machine identifier for activation")
     product_version: str | None = Field(None, description="Client product version")
     client_os: str | None = Field(None, description="Client operating system")
@@ -38,11 +72,20 @@ class ValidateLicenseResponse(BaseModel):
 class CreateLicenseRequest(BaseModel):
     """Request to create a license (admin only)."""
 
-    customer_email: str
-    plan: str = "free"
-    expires_in_days: int | None = None
+    customer_email: EmailStr
+    plan: str = Field(default="free", description="License plan type")
+    expires_in_days: int | None = Field(None, ge=1, le=3650, description="Days until expiration")
     features: list[str] | None = None
-    notes: str | None = None
+    notes: str | None = Field(None, max_length=1000)
+
+    @field_validator("plan")
+    @classmethod
+    def validate_plan(cls, v: str) -> str:
+        """Validate that plan is a valid PlanType."""
+        valid_plans = {p.value for p in PlanType}
+        if v not in valid_plans:
+            raise ValueError(f"Invalid plan. Must be one of: {', '.join(sorted(valid_plans))}")
+        return v
 
 
 class LicenseResponse(BaseModel):
@@ -70,8 +113,15 @@ async def validate_license(
     """
     service = LicenseService(db)
 
-    # Get client IP
-    client_ip = req.client.host if req.client else None
+    # Get client IP (handle proxies)
+    client_ip = None
+    if req.client:
+        client_ip = req.client.host
+    # Check for forwarded header (behind reverse proxy)
+    forwarded_for = req.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # Take the first IP in the chain (original client)
+        client_ip = forwarded_for.split(",")[0].strip()
 
     result = await service.validate_license(
         license_key=request.license_key,
@@ -90,6 +140,9 @@ async def get_license(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LicenseResponse:
     """Get license details by key."""
+    if not license_key or len(license_key) < 1:
+        raise HTTPException(status_code=400, detail="License key is required")
+
     service = LicenseService(db)
     license_record = await service.get_license_by_key(license_key)
 
@@ -107,7 +160,7 @@ async def get_license(
     )
 
 
-@router.post("/create", response_model=LicenseResponse)
+@router.post("/create", response_model=LicenseResponse, dependencies=[Depends(verify_admin_api_key)])
 async def create_license(
     request: CreateLicenseRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -115,17 +168,22 @@ async def create_license(
     """
     Create a new license (admin endpoint).
 
-    TODO: Add authentication/authorization for admin access.
+    Requires X-API-Key header with valid admin API key.
     """
     service = LicenseService(db)
 
-    license_record = await service.create_license(
-        customer_email=request.customer_email,
-        plan=request.plan,
-        expires_in_days=request.expires_in_days,
-        features=request.features,
-        notes=request.notes,
-    )
+    try:
+        license_record = await service.create_license(
+            customer_email=request.customer_email,
+            plan=request.plan,
+            expires_in_days=request.expires_in_days,
+            features=request.features,
+            notes=request.notes,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     return LicenseResponse(
         license_key=license_record.license_key,
@@ -138,7 +196,10 @@ async def create_license(
     )
 
 
-@router.post("/{license_key}/revoke")
+@router.post(
+    "/{license_key}/revoke",
+    dependencies=[Depends(verify_admin_api_key)],
+)
 async def revoke_license(
     license_key: str,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -147,8 +208,11 @@ async def revoke_license(
     """
     Revoke a license (admin endpoint).
 
-    TODO: Add authentication/authorization for admin access.
+    Requires X-API-Key header with valid admin API key.
     """
+    if not license_key or len(license_key) < 1:
+        raise HTTPException(status_code=400, detail="License key is required")
+
     service = LicenseService(db)
     success = await service.revoke_license(license_key, reason)
 

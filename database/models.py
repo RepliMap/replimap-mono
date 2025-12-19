@@ -1,9 +1,14 @@
 """Database models for license and usage tracking."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
+
+
+def utc_now() -> datetime:
+    """Return current UTC datetime (timezone-aware)."""
+    return datetime.now(UTC)
 
 from sqlalchemy import (
     JSON,
@@ -59,8 +64,8 @@ class Customer(Base):
     stripe_customer_id = Column(String(255), unique=True, nullable=True, index=True)
 
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     metadata = Column(JSON, default=dict)
 
     # Relationships
@@ -88,8 +93,8 @@ class License(Base):
 
     # Status and validity
     status = Column(String(32), nullable=False, default=LicenseStatus.ACTIVE.value)
-    issued_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    expires_at = Column(DateTime, nullable=True)  # None = never expires
+    issued_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # None = never expires
 
     # Activation limits
     max_activations = Column(Integer, nullable=True)  # None = unlimited
@@ -103,8 +108,8 @@ class License(Base):
 
     # Metadata
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     # Relationships
     activations = relationship(
@@ -127,13 +132,24 @@ class License(Base):
         """Check if license is currently valid."""
         if self.status != LicenseStatus.ACTIVE.value:
             return False
-        if self.expires_at and self.expires_at < datetime.utcnow():
-            return False
+        if self.expires_at:
+            now = datetime.now(UTC)
+            expires_at = self.expires_at
+            # Handle naive datetimes from database
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            if expires_at < now:
+                return False
         return True
 
     @property
     def active_activation_count(self) -> int:
-        """Get count of active activations."""
+        """
+        Get count of active activations.
+
+        WARNING: This property loads all activations into memory.
+        For performance-critical code, use the database count query in LicenseService.
+        """
         return sum(1 for a in self.activations if a.is_active)
 
 
@@ -154,9 +170,9 @@ class Activation(Base):
 
     # Activation details
     is_active = Column(Boolean, default=True, nullable=False)
-    activated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    deactivated_at = Column(DateTime, nullable=True)
-    last_seen_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    activated_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    deactivated_at = Column(DateTime(timezone=True), nullable=True)
+    last_seen_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     # Client information
     client_version = Column(String(32), nullable=True)
@@ -193,10 +209,10 @@ class UsageRecord(Base):
     terraform_generations = Column(Integer, default=0, nullable=False)
 
     # Timestamps
-    first_usage_at = Column(DateTime, nullable=True)
-    last_usage_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    first_usage_at = Column(DateTime(timezone=True), nullable=True)
+    last_usage_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     # Raw usage data (for detailed analytics)
     usage_details = Column(JSON, default=list)
@@ -233,7 +249,7 @@ class AuditLog(Base):
     # Metadata
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(String(512), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
 
     __table_args__ = (Index("ix_audit_event_created", "event_type", "created_at"),)
 

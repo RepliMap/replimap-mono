@@ -2,17 +2,23 @@
 
 import hashlib
 import hmac
+import re
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from config import get_settings
 from database.models import Activation, AuditLog, Customer, License, LicenseStatus, PlanType
 
 settings = get_settings()
+
+# License key format pattern
+LICENSE_KEY_PATTERN = re.compile(r"^RP-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$")
 
 
 # Plan feature definitions
@@ -87,9 +93,11 @@ class LicenseService:
 
         Returns validation result with plan details and features.
         """
-        # Find license
+        # Find license with eager loading of activations for efficient count
         result = await self.db.execute(
-            select(License).where(License.license_key == license_key)
+            select(License)
+            .where(License.license_key == license_key)
+            .options(selectinload(License.activations))
         )
         license_record = result.scalar_one_or_none()
 
@@ -119,24 +127,30 @@ class LicenseService:
                 "message": f"License is {license_record.status}",
             }
 
-        # Check expiration
-        if license_record.expires_at and license_record.expires_at < datetime.utcnow():
-            # Auto-update status to expired
-            license_record.status = LicenseStatus.EXPIRED.value
-            await self.db.commit()
+        # Check expiration (use timezone-aware comparison)
+        now = datetime.now(UTC)
+        if license_record.expires_at:
+            # Handle both naive and aware datetimes
+            expires_at = license_record.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            if expires_at < now:
+                # Auto-update status to expired
+                license_record.status = LicenseStatus.EXPIRED.value
+                await self.db.commit()
 
-            await self._log_event(
-                "license_expired",
-                {"expires_at": license_record.expires_at.isoformat()},
-                license_id=license_record.id,
-                ip_address=client_ip,
-            )
-            return {
-                "valid": False,
-                "error": "license_expired",
-                "message": "License has expired",
-                "expired_at": license_record.expires_at.isoformat(),
-            }
+                await self._log_event(
+                    "license_expired",
+                    {"expires_at": license_record.expires_at.isoformat()},
+                    license_id=license_record.id,
+                    ip_address=client_ip,
+                )
+                return {
+                    "valid": False,
+                    "error": "license_expired",
+                    "message": "License has expired",
+                    "expired_at": license_record.expires_at.isoformat(),
+                }
 
         # Handle machine activation if machine_id provided
         activation_info: dict[str, Any] = {}
@@ -149,12 +163,14 @@ class LicenseService:
                 client_ip,
             )
             if not activation_result["success"]:
+                # Get accurate count via database query
+                active_count = await self._get_active_activation_count(license_record.id)
                 return {
                     "valid": False,
                     "error": "activation_limit",
                     "message": activation_result["message"],
                     "max_activations": license_record.max_activations,
-                    "current_activations": license_record.active_activation_count,
+                    "current_activations": active_count,
                 }
             activation_info = activation_result
 
@@ -186,6 +202,18 @@ class LicenseService:
 
         return response
 
+    async def _get_active_activation_count(self, license_id: Any) -> int:
+        """Get count of active activations via database query (not in-memory)."""
+        result = await self.db.execute(
+            select(func.count())
+            .select_from(Activation)
+            .where(
+                Activation.license_id == license_id,
+                Activation.is_active.is_(True),
+            )
+        )
+        return result.scalar_one()
+
     async def _handle_activation(
         self,
         license_record: License,
@@ -195,6 +223,8 @@ class LicenseService:
         client_ip: str | None,
     ) -> dict[str, Any]:
         """Handle machine activation for a license."""
+        now = datetime.now(UTC)
+
         # Check if already activated for this machine
         result = await self.db.execute(
             select(Activation).where(
@@ -206,7 +236,7 @@ class LicenseService:
 
         if existing:
             # Update last seen
-            existing.last_seen_at = datetime.utcnow()
+            existing.last_seen_at = now
             existing.client_version = client_version
             existing.client_ip = client_ip
             if not existing.is_active:
@@ -219,9 +249,9 @@ class LicenseService:
                 "is_new": False,
             }
 
-        # Check activation limit
+        # Check activation limit using database count (not in-memory property)
         if license_record.max_activations is not None:
-            current_count = license_record.active_activation_count
+            current_count = await self._get_active_activation_count(license_record.id)
             if current_count >= license_record.max_activations:
                 return {
                     "success": False,
@@ -235,6 +265,8 @@ class LicenseService:
             client_version=client_version,
             client_os=client_os,
             client_ip=client_ip,
+            activated_at=now,
+            last_seen_at=now,
         )
         self.db.add(activation)
         await self.db.commit()
@@ -254,6 +286,11 @@ class LicenseService:
         notes: str | None = None,
     ) -> License:
         """Create a new license for a customer."""
+        # Validate plan type
+        valid_plans = {p.value for p in PlanType}
+        if plan not in valid_plans:
+            raise ValueError(f"Invalid plan type: {plan}. Must be one of: {', '.join(valid_plans)}")
+
         # Find or create customer
         result = await self.db.execute(
             select(Customer).where(Customer.email == customer_email)
@@ -269,25 +306,37 @@ class LicenseService:
         plan_config = PLAN_FEATURES.get(plan, PLAN_FEATURES[PlanType.FREE.value])
 
         # Calculate expiration
+        now = datetime.now(UTC)
         expires_at = None
         if expires_in_days:
-            expires_at = datetime.utcnow() + timedelta(days=expires_in_days)
+            expires_at = now + timedelta(days=expires_in_days)
 
-        # Create license
-        license_record = License(
-            license_key=generate_license_key(),
-            customer_id=customer.id,
-            plan=plan,
-            features=features or plan_config["features"],
-            expires_at=expires_at,
-            max_activations=plan_config["max_activations"],
-            max_resources_per_scan=plan_config["max_resources_per_scan"],
-            max_scans_per_month=plan_config["max_scans_per_month"],
-            notes=notes,
-        )
-        self.db.add(license_record)
-        await self.db.commit()
-        await self.db.refresh(license_record)
+        # Create license with retry for key collision
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                license_record = License(
+                    license_key=generate_license_key(),
+                    customer_id=customer.id,
+                    plan=plan,
+                    features=features or plan_config["features"],
+                    expires_at=expires_at,
+                    max_activations=plan_config["max_activations"],
+                    max_resources_per_scan=plan_config["max_resources_per_scan"],
+                    max_scans_per_month=plan_config["max_scans_per_month"],
+                    notes=notes,
+                    issued_at=now,
+                    created_at=now,
+                )
+                self.db.add(license_record)
+                await self.db.commit()
+                await self.db.refresh(license_record)
+                break
+            except IntegrityError:
+                await self.db.rollback()
+                if attempt == max_retries - 1:
+                    raise RuntimeError("Failed to generate unique license key after multiple attempts")
+                continue
 
         await self._log_event(
             "license_created",
@@ -346,6 +395,8 @@ class LicenseService:
             customer_id=customer_id,
             ip_address=ip_address,
             actor_type="api",
+            created_at=datetime.now(UTC),
         )
         self.db.add(log)
-        # Don't commit here - let the caller handle transactions
+        # Commit the log to ensure it's persisted
+        await self.db.commit()

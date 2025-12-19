@@ -1,5 +1,5 @@
 # Docker Compose for local development
-version: '3.8'
+# Note: version key is deprecated in Compose V2
 
 services:
   api:
@@ -10,12 +10,20 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/replimap
       - JWT_SECRET=dev-secret-change-in-production
       - LICENSE_SIGNING_KEY=dev-signing-key
+      - ADMIN_API_KEY=dev-admin-key-change-in-production
+      - ENVIRONMENT=development
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - .:/app
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   db:
     image: postgres:15-alpine

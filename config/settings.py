@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expiration_hours: int = 24
 
+    # Admin API key (required for admin endpoints)
+    admin_api_key: str | None = None
+
     # License signing (for generating license keys)
     license_signing_key: str = "change-me-in-production"
 
