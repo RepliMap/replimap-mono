@@ -1,5 +1,6 @@
 """Tests for CLI commands."""
 
+import re
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -11,6 +12,14 @@ from replimap.core.models import ResourceNode, ResourceType
 from replimap.main import app
 
 runner = CliRunner()
+
+# Regex to strip ANSI escape codes (colors, formatting)
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    return ANSI_ESCAPE.sub("", text)
 
 
 class TestCLI:
@@ -31,19 +40,21 @@ class TestCLI:
     def test_scan_help(self) -> None:
         """Test scan --help."""
         result = runner.invoke(app, ["scan", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "--profile" in result.output
-        assert "--region" in result.output
-        assert "--output" in result.output
+        assert "--profile" in output
+        assert "--region" in output
+        assert "--output" in output
 
     def test_clone_help(self) -> None:
         """Test clone --help."""
         result = runner.invoke(app, ["clone", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "--profile" in result.output
-        assert "--mode" in result.output
-        assert "--downsize" in result.output
-        assert "--rename-pattern" in result.output
+        assert "--profile" in output
+        assert "--mode" in output
+        assert "--downsize" in output
+        assert "--rename-pattern" in output
 
     def test_load_nonexistent_file(self) -> None:
         """Test loading a nonexistent file."""
@@ -114,10 +125,11 @@ class TestCLIIntegration:
                 ["scan", "--region", "us-east-1", "--output", str(path)],
                 color=False,
             )
+            output = strip_ansi(result.output)
 
             # Should complete (may fail on auth but that's expected)
             # The important thing is the command runs
-            assert "--profile" not in result.output or result.exit_code in (0, 1)
+            assert "--profile" not in output or result.exit_code in (0, 1)
 
         finally:
             if path.exists():
