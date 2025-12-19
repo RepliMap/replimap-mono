@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "replimap"
-version = "0.1.0"
+dynamic = ["version"]
 description = "AWS Environment Replication Tool - Clone production to staging in minutes"
 readme = "README.md"
 license = {text = "Proprietary"}
@@ -84,6 +84,9 @@ exclude = [
     "*.md",
     "!README.md",
 ]
+
+[tool.hatch.version]
+path = "replimap/__init__.py"
 
 [dependency-groups]
 dev = [
