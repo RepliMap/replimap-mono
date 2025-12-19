@@ -998,6 +998,386 @@ echo "  4. Review the plan and apply: terraform apply tfplan"
         written_files["test-terraform.sh"] = file_path
         logger.info("Wrote test-terraform.sh")
 
+        # Generate Makefile for easier TF management
+        self._generate_makefile(output_dir, written_files)
+
+    def _generate_makefile(
+        self,
+        output_dir: Path,
+        written_files: dict[str, Path],
+    ) -> None:
+        """Generate Makefile for easier Terraform workflow management."""
+        makefile = r'''# =============================================================================
+# RepliMap Terraform Makefile
+# =============================================================================
+#
+# This Makefile provides convenient targets for common Terraform operations.
+#
+# Usage:
+#   make help          # Show all available targets
+#   make init          # Initialize Terraform
+#   make plan          # Run terraform plan
+#   make apply         # Apply changes
+#   make destroy       # Destroy all resources
+#
+# =============================================================================
+
+# Configuration
+SHELL := /bin/bash
+.ONESHELL:
+.SHELLFLAGS := -eu -o pipefail -c
+.DEFAULT_GOAL := help
+.DELETE_ON_ERROR:
+.NOTPARALLEL:
+
+# Variables
+TF := terraform
+TFVARS := terraform.tfvars
+TFPLAN := tfplan
+AWS_PROFILE ?=
+PARALLELISM ?= 10
+
+# Set AWS profile if provided
+ifdef AWS_PROFILE
+  export AWS_PROFILE
+  TF_FLAGS := -var-file=$(TFVARS)
+else
+  TF_FLAGS := -var-file=$(TFVARS)
+endif
+
+# Colors for output
+BLUE := \033[0;34m
+GREEN := \033[0;32m
+YELLOW := \033[1;33m
+RED := \033[0;31m
+NC := \033[0m
+
+# =============================================================================
+# HELP
+# =============================================================================
+
+.PHONY: help
+help: ## Show this help message
+	@echo -e "$(BLUE)RepliMap Terraform Makefile$(NC)"
+	@echo ""
+	@echo "Usage: make [target] [VAR=value]"
+	@echo ""
+	@echo "Variables:"
+	@echo "  AWS_PROFILE    AWS profile to use (optional)"
+	@echo "  PARALLELISM    Terraform parallelism (default: 10)"
+	@echo "  INCLUDE        Resource pattern for plan-include"
+	@echo "  EXCLUDE        Resource pattern for plan-exclude"
+	@echo "  TARGET         Resource address for plan-target"
+	@echo ""
+	@echo "Targets:"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+# =============================================================================
+# SETUP & INITIALIZATION
+# =============================================================================
+
+.PHONY: init
+init: ## Initialize Terraform (download providers)
+	@echo -e "$(BLUE)Initializing Terraform...$(NC)"
+	$(TF) init
+
+.PHONY: init-upgrade
+init-upgrade: ## Initialize and upgrade providers
+	@echo -e "$(BLUE)Initializing Terraform with provider upgrade...$(NC)"
+	$(TF) init -upgrade
+
+.PHONY: setup
+setup: check-tfvars init ## Setup: check tfvars and initialize
+
+.PHONY: check-tfvars
+check-tfvars: ## Check if terraform.tfvars exists
+	@if [ ! -f "$(TFVARS)" ]; then \
+		echo -e "$(YELLOW)WARNING: $(TFVARS) not found$(NC)"; \
+		if [ -f "terraform.tfvars.example" ]; then \
+			echo -e "$(BLUE)Creating from example...$(NC)"; \
+			cp terraform.tfvars.example $(TFVARS); \
+			echo -e "$(YELLOW)Please edit $(TFVARS) with your values$(NC)"; \
+			exit 1; \
+		fi; \
+	fi
+	@echo -e "$(GREEN)✓$(NC) $(TFVARS) exists"
+
+# =============================================================================
+# VALIDATION & FORMATTING
+# =============================================================================
+
+.PHONY: validate
+validate: ## Validate Terraform configuration
+	@echo -e "$(BLUE)Validating configuration...$(NC)"
+	$(TF) validate
+
+.PHONY: fmt
+fmt: ## Format Terraform files
+	@echo -e "$(BLUE)Formatting Terraform files...$(NC)"
+	$(TF) fmt -recursive
+
+.PHONY: fmt-check
+fmt-check: ## Check Terraform formatting
+	@echo -e "$(BLUE)Checking Terraform formatting...$(NC)"
+	$(TF) fmt -check -recursive
+
+.PHONY: lint
+lint: fmt-check validate ## Run all linting checks
+
+.PHONY: test
+test: ## Run test-terraform.sh validation script
+	@echo -e "$(BLUE)Running validation script...$(NC)"
+	./test-terraform.sh
+
+# =============================================================================
+# PLANNING
+# =============================================================================
+
+.PHONY: plan
+plan: check-tfvars ## Plan infrastructure changes
+	@echo -e "$(BLUE)Running terraform plan...$(NC)"
+	$(TF) plan $(TF_FLAGS) -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+
+.PHONY: plan-destroy
+plan-destroy: check-tfvars ## Plan destruction of all resources
+	@echo -e "$(RED)Planning DESTRUCTION of all resources...$(NC)"
+	$(TF) plan $(TF_FLAGS) -destroy -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+
+.PHONY: plan-target
+plan-target: check-tfvars ## Plan specific resource (TARGET=aws_instance.example)
+ifndef TARGET
+	$(error TARGET is required. Usage: make plan-target TARGET=aws_instance.example)
+endif
+	@echo -e "$(BLUE)Planning target: $(TARGET)$(NC)"
+	$(TF) plan $(TF_FLAGS) -target=$(TARGET) -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+
+.PHONY: plan-include
+plan-include: check-tfvars ## Plan resources matching pattern (INCLUDE=aws_instance)
+ifndef INCLUDE
+	$(error INCLUDE is required. Usage: make plan-include INCLUDE=aws_instance)
+endif
+	@echo -e "$(BLUE)Planning resources matching: $(INCLUDE)$(NC)"
+	@TARGETS=$$($(TF) state list 2>/dev/null | grep "$(INCLUDE)" || true); \
+	if [ -z "$$TARGETS" ]; then \
+		echo -e "$(YELLOW)No resources match pattern: $(INCLUDE)$(NC)"; \
+		exit 1; \
+	fi; \
+	TARGET_FLAGS=$$(echo "$$TARGETS" | xargs -I {} echo "-target={}"); \
+	$(TF) plan $(TF_FLAGS) $$TARGET_FLAGS -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+
+.PHONY: plan-exclude
+plan-exclude: check-tfvars ## Plan all except pattern (EXCLUDE=aws_db_instance)
+ifndef EXCLUDE
+	$(error EXCLUDE is required. Usage: make plan-exclude EXCLUDE=aws_db_instance)
+endif
+	@echo -e "$(BLUE)Planning all except: $(EXCLUDE)$(NC)"
+	@TARGETS=$$($(TF) state list 2>/dev/null | grep -v "$(EXCLUDE)" || true); \
+	if [ -z "$$TARGETS" ]; then \
+		echo -e "$(YELLOW)No resources after excluding: $(EXCLUDE)$(NC)"; \
+		exit 1; \
+	fi; \
+	TARGET_FLAGS=$$(echo "$$TARGETS" | xargs -I {} echo "-target={}"); \
+	$(TF) plan $(TF_FLAGS) $$TARGET_FLAGS -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+
+.PHONY: plan-refresh-only
+plan-refresh-only: check-tfvars ## Refresh state only (no changes)
+	@echo -e "$(BLUE)Refreshing state only...$(NC)"
+	$(TF) plan $(TF_FLAGS) -refresh-only -out=$(TFPLAN)
+
+# =============================================================================
+# APPLY & DESTROY
+# =============================================================================
+
+.PHONY: apply
+apply: ## Apply the planned changes
+	@if [ ! -f "$(TFPLAN)" ]; then \
+		echo -e "$(RED)No plan file found. Run 'make plan' first.$(NC)"; \
+		exit 1; \
+	fi
+	@echo -e "$(BLUE)Applying terraform plan...$(NC)"
+	$(TF) apply -parallelism=$(PARALLELISM) $(TFPLAN)
+	@rm -f $(TFPLAN)
+
+.PHONY: apply-auto
+apply-auto: check-tfvars ## Apply with auto-approve (DANGEROUS)
+	@echo -e "$(RED)WARNING: Auto-approving changes!$(NC)"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	$(TF) apply $(TF_FLAGS) -auto-approve -parallelism=$(PARALLELISM)
+
+.PHONY: apply-target
+apply-target: check-tfvars ## Apply specific resource (TARGET=aws_instance.example)
+ifndef TARGET
+	$(error TARGET is required. Usage: make apply-target TARGET=aws_instance.example)
+endif
+	@echo -e "$(YELLOW)Applying target: $(TARGET)$(NC)"
+	$(TF) apply $(TF_FLAGS) -target=$(TARGET) -parallelism=$(PARALLELISM)
+
+.PHONY: destroy
+destroy: check-tfvars ## Destroy all resources (DANGEROUS)
+	@echo -e "$(RED)╔═══════════════════════════════════════════════════════════════╗$(NC)"
+	@echo -e "$(RED)║  WARNING: This will DESTROY ALL resources managed by Terraform ║$(NC)"
+	@echo -e "$(RED)╚═══════════════════════════════════════════════════════════════╝$(NC)"
+	@read -p "Type 'destroy' to confirm: " confirm && [ "$$confirm" = "destroy" ] || exit 1
+	$(TF) destroy $(TF_FLAGS) -parallelism=$(PARALLELISM)
+
+.PHONY: destroy-target
+destroy-target: check-tfvars ## Destroy specific resource (TARGET=aws_instance.example)
+ifndef TARGET
+	$(error TARGET is required. Usage: make destroy-target TARGET=aws_instance.example)
+endif
+	@echo -e "$(RED)Destroying target: $(TARGET)$(NC)"
+	$(TF) destroy $(TF_FLAGS) -target=$(TARGET)
+
+# =============================================================================
+# STATE MANAGEMENT
+# =============================================================================
+
+.PHONY: state-list
+state-list: ## List all resources in state
+	@echo -e "$(BLUE)Resources in state:$(NC)"
+	$(TF) state list
+
+.PHONY: state-show
+state-show: ## Show resource details (TARGET=aws_instance.example)
+ifndef TARGET
+	$(error TARGET is required. Usage: make state-show TARGET=aws_instance.example)
+endif
+	$(TF) state show $(TARGET)
+
+.PHONY: state-pull
+state-pull: ## Pull and display current state
+	$(TF) state pull
+
+.PHONY: state-mv
+state-mv: ## Move resource in state (SRC=old.name DST=new.name)
+ifndef SRC
+	$(error SRC is required. Usage: make state-mv SRC=old.name DST=new.name)
+endif
+ifndef DST
+	$(error DST is required. Usage: make state-mv SRC=old.name DST=new.name)
+endif
+	@echo -e "$(YELLOW)Moving $(SRC) to $(DST)$(NC)"
+	$(TF) state mv $(SRC) $(DST)
+
+.PHONY: state-rm
+state-rm: ## Remove resource from state (TARGET=aws_instance.example)
+ifndef TARGET
+	$(error TARGET is required. Usage: make state-rm TARGET=aws_instance.example)
+endif
+	@echo -e "$(RED)Removing $(TARGET) from state (resource will NOT be destroyed)$(NC)"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	$(TF) state rm $(TARGET)
+
+.PHONY: refresh
+refresh: check-tfvars ## Refresh state from real infrastructure
+	@echo -e "$(BLUE)Refreshing state...$(NC)"
+	$(TF) refresh $(TF_FLAGS)
+
+# =============================================================================
+# OUTPUT & INFORMATION
+# =============================================================================
+
+.PHONY: output
+output: ## Show all outputs
+	$(TF) output
+
+.PHONY: output-json
+output-json: ## Show outputs in JSON format
+	$(TF) output -json
+
+.PHONY: show
+show: ## Show current state
+	$(TF) show
+
+.PHONY: providers
+providers: ## List required providers
+	$(TF) providers
+
+.PHONY: graph
+graph: ## Generate dependency graph (DOT format)
+	@echo -e "$(BLUE)Generating graph...$(NC)"
+	$(TF) graph > graph.dot
+	@echo "Graph saved to graph.dot"
+	@echo "To visualize: dot -Tpng graph.dot -o graph.png"
+
+# =============================================================================
+# IMPORT & TAINT
+# =============================================================================
+
+.PHONY: import
+import: ## Import existing resource (TARGET=aws_instance.example ID=i-12345)
+ifndef TARGET
+	$(error TARGET is required. Usage: make import TARGET=aws_instance.example ID=i-12345)
+endif
+ifndef ID
+	$(error ID is required. Usage: make import TARGET=aws_instance.example ID=i-12345)
+endif
+	@echo -e "$(BLUE)Importing $(ID) as $(TARGET)$(NC)"
+	$(TF) import $(TF_FLAGS) $(TARGET) $(ID)
+
+.PHONY: taint
+taint: ## Mark resource for recreation (TARGET=aws_instance.example)
+ifndef TARGET
+	$(error TARGET is required. Usage: make taint TARGET=aws_instance.example)
+endif
+	@echo -e "$(YELLOW)Tainting $(TARGET) for recreation$(NC)"
+	$(TF) taint $(TARGET)
+
+.PHONY: untaint
+untaint: ## Remove taint from resource (TARGET=aws_instance.example)
+ifndef TARGET
+	$(error TARGET is required. Usage: make untaint TARGET=aws_instance.example)
+endif
+	@echo -e "$(BLUE)Untainting $(TARGET)$(NC)"
+	$(TF) untaint $(TARGET)
+
+# =============================================================================
+# CLEANUP
+# =============================================================================
+
+.PHONY: clean
+clean: ## Remove generated files (plan, graph, etc.)
+	@echo -e "$(BLUE)Cleaning up...$(NC)"
+	rm -f $(TFPLAN) graph.dot graph.png
+	rm -rf .terraform.lock.hcl
+	@echo -e "$(GREEN)✓$(NC) Cleaned"
+
+.PHONY: clean-all
+clean-all: clean ## Remove all generated and cached files
+	@echo -e "$(RED)Removing .terraform directory...$(NC)"
+	rm -rf .terraform
+	@echo -e "$(GREEN)✓$(NC) All cleaned"
+
+# =============================================================================
+# CONSOLE & DEBUG
+# =============================================================================
+
+.PHONY: console
+console: ## Open Terraform console
+	$(TF) console $(TF_FLAGS)
+
+.PHONY: version
+version: ## Show Terraform version
+	$(TF) version
+
+.PHONY: debug
+debug: ## Show debug information
+	@echo -e "$(BLUE)Debug Information$(NC)"
+	@echo "Terraform version:"
+	@$(TF) version
+	@echo ""
+	@echo "AWS identity:"
+	@aws sts get-caller-identity 2>/dev/null || echo "AWS CLI not configured"
+	@echo ""
+	@echo "Files:"
+	@ls -la *.tf 2>/dev/null || echo "No .tf files found"
+'''
+        file_path = output_dir / "Makefile"
+        with open(file_path, "w") as f:
+            f.write(makefile)
+        written_files["Makefile"] = file_path
+        logger.info("Wrote Makefile")
+
     @staticmethod
     def _terraform_name_filter(value: str) -> str:
         """Convert a string to a valid Terraform name."""
