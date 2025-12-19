@@ -38,7 +38,12 @@ export async function handleDeactivateLicense(
 
   try {
     // Parse and validate request body
-    const body = await request.json() as DeactivateLicenseRequest;
+    let body: DeactivateLicenseRequest;
+    try {
+      body = await request.json() as DeactivateLicenseRequest;
+    } catch {
+      throw Errors.invalidRequest('Invalid JSON body');
+    }
 
     if (!body.license_key) {
       throw Errors.invalidRequest('Missing license_key');

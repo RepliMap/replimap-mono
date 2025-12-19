@@ -19,7 +19,7 @@ export interface LicenseRow {
   user_id: string;
   license_key: string;
   plan: 'free' | 'solo' | 'pro' | 'team';
-  status: 'active' | 'canceled' | 'expired' | 'past_due';
+  status: 'active' | 'canceled' | 'expired' | 'past_due' | 'revoked';
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
   current_period_start: string | null;
@@ -103,7 +103,7 @@ export interface ValidateLicenseQueryResult {
   license_id: string;
   license_key: string;
   plan: 'free' | 'solo' | 'pro' | 'team';
-  status: 'active' | 'canceled' | 'expired' | 'past_due';
+  status: 'active' | 'canceled' | 'expired' | 'past_due' | 'revoked';
   current_period_end: string | null;
   // Aggregated fields
   active_machines: number;

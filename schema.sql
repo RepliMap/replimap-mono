@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS licenses (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     license_key TEXT UNIQUE NOT NULL,
     plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'solo', 'pro', 'team')),
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'canceled', 'expired', 'past_due')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'canceled', 'expired', 'past_due', 'revoked')),
     stripe_subscription_id TEXT UNIQUE,
     stripe_price_id TEXT,
     current_period_start TEXT,

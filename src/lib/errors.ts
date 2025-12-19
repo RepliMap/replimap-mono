@@ -98,6 +98,15 @@ export const Errors = {
     );
   },
 
+  licenseRevoked(): AppError {
+    return new AppError(
+      'LICENSE_REVOKED',
+      'This license has been revoked. Please contact support.',
+      403,
+      { action: 'Contact support at https://replimap.io/support' }
+    );
+  },
+
   machineLimitExceeded(machines: string[], limit: number): AppError {
     return new AppError(
       'MACHINE_LIMIT_EXCEEDED',

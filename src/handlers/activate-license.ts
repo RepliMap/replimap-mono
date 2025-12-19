@@ -43,7 +43,12 @@ export async function handleActivateLicense(
 
   try {
     // Parse and validate request body
-    const body = await request.json() as ActivateLicenseRequest;
+    let body: ActivateLicenseRequest;
+    try {
+      body = await request.json() as ActivateLicenseRequest;
+    } catch {
+      throw Errors.invalidRequest('Invalid JSON body');
+    }
 
     if (!body.license_key) {
       throw Errors.invalidRequest('Missing license_key');
@@ -67,10 +72,10 @@ export async function handleActivateLicense(
     }
 
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan];
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
 
     // Check license status
-    if (license.status === 'expired') {
+    if (license.status === 'expired' || license.status === 'revoked') {
       throw Errors.licenseExpired(formatDate(license.current_period_end ?? 'Unknown'));
     }
     if (license.status === 'past_due') {

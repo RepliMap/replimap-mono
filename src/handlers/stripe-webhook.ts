@@ -169,10 +169,13 @@ async function handleSubscriptionCreated(
   }
 
   // Get user by Stripe customer ID
+  // Note: User should have been created by checkout.session.completed event
+  // If user doesn't exist, checkout.session.completed may have failed - Stripe will retry
   const user = await getUserByStripeCustomerId(db, subscription.customer);
   if (!user) {
-    console.error(`No user found for Stripe customer ${subscription.customer}`);
-    return;
+    // This could happen if checkout.session.completed wasn't processed yet
+    // Throwing error will cause Stripe to retry the webhook
+    throw new Error(`No user found for Stripe customer ${subscription.customer}. Checkout may not have been processed yet.`);
   }
 
   // Get plan from price ID
@@ -315,6 +318,15 @@ export async function handleStripeWebhook(
   env: Env
 ): Promise<Response> {
   try {
+    // Validate webhook secret is configured
+    if (!env.STRIPE_WEBHOOK_SECRET) {
+      console.error('STRIPE_WEBHOOK_SECRET not configured');
+      return new Response(JSON.stringify({ error: 'Webhook not configured' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get signature header
     const signature = request.headers.get('stripe-signature');
     if (!signature) {
