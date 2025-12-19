@@ -15,7 +15,7 @@ help:
 	@echo "  make format       Format code (ruff format)"
 	@echo "  make check        Run all checks (format + lint + test)"
 	@echo ""
-	@echo "Version Management:"
+	@echo "Version Management (using hatch):"
 	@echo "  make version      Show current version"
 	@echo "  make bump-patch   Bump patch version (0.1.0 -> 0.1.1)"
 	@echo "  make bump-minor   Bump minor version (0.1.0 -> 0.2.0)"
@@ -59,37 +59,16 @@ check: format-check lint test
 
 # Version Management (using hatch)
 version:
-	@grep -Po '(?<=__version__ = ")[^"]*' replimap/__init__.py
+	@uv run hatch version
 
 bump-patch:
-	@echo "Current version: $$(grep -Po '(?<=__version__ = ")[^"]*' replimap/__init__.py)"
-	@python3 -c "import re; \
-		f = open('replimap/__init__.py', 'r'); content = f.read(); f.close(); \
-		v = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content); \
-		new_v = f'{v.group(1)}.{v.group(2)}.{int(v.group(3))+1}'; \
-		content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_v}\"', content); \
-		f = open('replimap/__init__.py', 'w'); f.write(content); f.close(); \
-		print(f'Bumped to: {new_v}')"
+	uv run hatch version patch
 
 bump-minor:
-	@echo "Current version: $$(grep -Po '(?<=__version__ = ")[^"]*' replimap/__init__.py)"
-	@python3 -c "import re; \
-		f = open('replimap/__init__.py', 'r'); content = f.read(); f.close(); \
-		v = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content); \
-		new_v = f'{v.group(1)}.{int(v.group(2))+1}.0'; \
-		content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_v}\"', content); \
-		f = open('replimap/__init__.py', 'w'); f.write(content); f.close(); \
-		print(f'Bumped to: {new_v}')"
+	uv run hatch version minor
 
 bump-major:
-	@echo "Current version: $$(grep -Po '(?<=__version__ = ")[^"]*' replimap/__init__.py)"
-	@python3 -c "import re; \
-		f = open('replimap/__init__.py', 'r'); content = f.read(); f.close(); \
-		v = re.search(r'__version__ = \"(\d+)\.(\d+)\.(\d+)\"', content); \
-		new_v = f'{int(v.group(1))+1}.0.0'; \
-		content = re.sub(r'__version__ = \"[^\"]+\"', f'__version__ = \"{new_v}\"', content); \
-		f = open('replimap/__init__.py', 'w'); f.write(content); f.close(); \
-		print(f'Bumped to: {new_v}')"
+	uv run hatch version major
 
 # Build & Publish
 build: clean
