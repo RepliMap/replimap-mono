@@ -281,7 +281,9 @@ class ScanCache:
             resource: The ResourceNode to cache
             ttl: Optional custom TTL (uses resource type default if not specified)
         """
-        resource_ttl = ttl if ttl is not None else self._get_ttl(resource.resource_type.value)
+        resource_ttl = (
+            ttl if ttl is not None else self._get_ttl(resource.resource_type.value)
+        )
         entry = CacheEntry(
             resource=resource,
             cached_at=time.time(),
@@ -330,7 +332,8 @@ class ScanCache:
             Number of resources invalidated
         """
         to_remove = [
-            rid for rid, entry in self._entries.items()
+            rid
+            for rid, entry in self._entries.items()
             if entry.resource.resource_type == resource_type
         ]
         for resource_id in to_remove:
@@ -353,10 +356,7 @@ class ScanCache:
         Returns:
             Number of entries removed
         """
-        expired = [
-            rid for rid, entry in self._entries.items()
-            if entry.is_expired()
-        ]
+        expired = [rid for rid, entry in self._entries.items() if entry.is_expired()]
         for resource_id in expired:
             del self._entries[resource_id]
 
@@ -404,10 +404,7 @@ class ScanCache:
         cache_data = {
             "version": 1,
             "metadata": self._metadata.to_dict(),
-            "entries": {
-                rid: entry.to_dict()
-                for rid, entry in self._entries.items()
-            },
+            "entries": {rid: entry.to_dict() for rid, entry in self._entries.items()},
         }
 
         cache_path = self._get_cache_path()

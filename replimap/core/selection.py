@@ -351,9 +351,7 @@ class SelectionStrategy:
 
         # Parse --exclude-patterns
         if exclude_patterns:
-            strategy.exclude_patterns = [
-                p.strip() for p in exclude_patterns.split(",")
-            ]
+            strategy.exclude_patterns = [p.strip() for p in exclude_patterns.split(",")]
 
         # Parse --clone-mode
         if clone_mode:

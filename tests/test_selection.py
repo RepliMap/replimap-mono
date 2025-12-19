@@ -74,7 +74,11 @@ def sample_graph() -> GraphEngine:
         id="i-123",
         resource_type=ResourceType.EC2_INSTANCE,
         region="us-east-1",
-        tags={"Name": "prod-web-1", "Environment": "Production", "Application": "MyApp"},
+        tags={
+            "Name": "prod-web-1",
+            "Environment": "Production",
+            "Application": "MyApp",
+        },
         dependencies=["subnet-1", "sg-123"],
     )
     ec2_2 = ResourceNode(
@@ -125,15 +129,22 @@ class TestBoundaryConfig:
         config = BoundaryConfig()
 
         # Network boundaries should return DATA_SOURCE
-        assert config.get_action("aws_vpc_peering_connection") == BoundaryAction.DATA_SOURCE
-        assert config.get_action("aws_ec2_transit_gateway") == BoundaryAction.DATA_SOURCE
+        assert (
+            config.get_action("aws_vpc_peering_connection")
+            == BoundaryAction.DATA_SOURCE
+        )
+        assert (
+            config.get_action("aws_ec2_transit_gateway") == BoundaryAction.DATA_SOURCE
+        )
 
         # Identity boundaries should return VARIABLE
         assert config.get_action("aws_iam_role") == BoundaryAction.VARIABLE
 
         # Global resources should return EXCLUDE
         assert config.get_action("aws_route53_zone") == BoundaryAction.EXCLUDE
-        assert config.get_action("aws_cloudfront_distribution") == BoundaryAction.EXCLUDE
+        assert (
+            config.get_action("aws_cloudfront_distribution") == BoundaryAction.EXCLUDE
+        )
 
         # Regular resources should return TRAVERSE
         assert config.get_action("aws_instance") == BoundaryAction.TRAVERSE

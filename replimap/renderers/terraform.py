@@ -409,58 +409,66 @@ locals {
         # Add AMI variable for EC2 instances
         ec2_instances = graph.get_resources_by_type(ResourceType.EC2_INSTANCE)
         if ec2_instances:
-            lines.extend([
-                "",
-                "# EC2 AMI Variable",
-                "# NOTE: AMI IDs are region-specific. Update for your target region.",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "# EC2 AMI Variable",
+                    "# NOTE: AMI IDs are region-specific. Update for your target region.",
+                ]
+            )
             # Get original AMIs for reference
             original_amis = [ec2.config.get("ami", "unknown") for ec2 in ec2_instances]
-            lines.extend([
-                "",
-                'variable "ami_id" {',
-                '  description = "AMI ID for EC2 instances"',
-                "  type        = string",
-                f"  # Original AMIs: {', '.join(set(original_amis))}",
-                "}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    'variable "ami_id" {',
+                    '  description = "AMI ID for EC2 instances"',
+                    "  type        = string",
+                    f"  # Original AMIs: {', '.join(set(original_amis))}",
+                    "}",
+                ]
+            )
 
         # Add AMI variables for Launch Templates
         launch_templates = graph.get_resources_by_type(ResourceType.LAUNCH_TEMPLATE)
         if launch_templates:
-            lines.extend([
-                "",
-                "# Launch Template AMI Variables",
-                "# NOTE: AMI IDs are region-specific. Update for your target region.",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "# Launch Template AMI Variables",
+                    "# NOTE: AMI IDs are region-specific. Update for your target region.",
+                ]
+            )
             for lt in launch_templates:
                 var_name = f"ami_id_{lt.terraform_name}"
                 original_ami = lt.config.get("image_id", "unknown")
-                lines.extend([
-                    "",
-                    f'variable "{var_name}" {{',
-                    f'  description = "AMI ID for Launch Template {lt.original_name}"',
-                    "  type        = string",
-                    f"  # Original AMI: {original_ami}",
-                    "}",
-                ])
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "AMI ID for Launch Template {lt.original_name}"',
+                        "  type        = string",
+                        f"  # Original AMI: {original_ami}",
+                        "}",
+                    ]
+                )
 
         # Add key_name variable if any EC2/Launch Templates use keys
-        has_key_name = any(
-            ec2.config.get("key_name") for ec2 in ec2_instances
-        ) or any(
+        has_key_name = any(ec2.config.get("key_name") for ec2 in ec2_instances) or any(
             lt.config.get("key_name") for lt in launch_templates
         )
         if has_key_name:
-            lines.extend([
-                "",
-                "# SSH Key Pair Variable",
-                'variable "key_name" {',
-                '  description = "Name of the SSH key pair for EC2 instances"',
-                "  type        = string",
-                '  default     = ""',
-                "}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "# SSH Key Pair Variable",
+                    'variable "key_name" {',
+                    '  description = "Name of the SSH key pair for EC2 instances"',
+                    "  type        = string",
+                    '  default     = ""',
+                    "}",
+                ]
+            )
 
         # Add ACM certificate variable if any listeners use certificates
         lb_listeners = graph.get_resources_by_type(ResourceType.LB_LISTENER)
@@ -473,59 +481,68 @@ locals {
                 for listener in lb_listeners
                 if listener.config.get("certificate_arn")
             ]
-            lines.extend([
-                "",
-                "# ACM Certificate Variable",
-                "# NOTE: Certificate must match your staging domain",
-                'variable "acm_certificate_arn" {',
-                '  description = "ARN of ACM certificate for HTTPS listeners"',
-                "  type        = string",
-                f"  # Original certificate(s): {', '.join(set(original_certs))}",
-                "}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "# ACM Certificate Variable",
+                    "# NOTE: Certificate must match your staging domain",
+                    'variable "acm_certificate_arn" {',
+                    '  description = "ARN of ACM certificate for HTTPS listeners"',
+                    "  type        = string",
+                    f"  # Original certificate(s): {', '.join(set(original_certs))}",
+                    "}",
+                ]
+            )
 
         # Add RDS password variables
         rds_instances = graph.get_resources_by_type(ResourceType.RDS_INSTANCE)
         if rds_instances:
-            lines.extend([
-                "",
-                "# RDS Database Password Variables",
-                "# IMPORTANT: Change the default before applying!",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "# RDS Database Password Variables",
+                    "# IMPORTANT: Change the default before applying!",
+                ]
+            )
             for rds in rds_instances:
                 var_name = f"db_password_{rds.terraform_name}"
-                lines.extend([
-                    "",
-                    f'variable "{var_name}" {{',
-                    f'  description = "Password for RDS instance {rds.id}"',
-                    "  type        = string",
-                    "  sensitive   = true",
-                    '  default     = "CHANGE-ME-BEFORE-APPLY"  # Placeholder for plan',
-                    "}",
-                ])
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Password for RDS instance {rds.id}"',
+                        "  type        = string",
+                        "  sensitive   = true",
+                        '  default     = "CHANGE-ME-BEFORE-APPLY"  # Placeholder for plan',
+                        "}",
+                    ]
+                )
 
         # Add RDS snapshot variables for instances that have snapshots
         rds_with_snapshots = [
-            rds for rds in rds_instances
-            if rds.config.get("snapshot_identifier")
+            rds for rds in rds_instances if rds.config.get("snapshot_identifier")
         ]
         if rds_with_snapshots:
-            lines.extend([
-                "",
-                "# RDS Snapshot Variables (optional - leave empty to create fresh DB)",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "# RDS Snapshot Variables (optional - leave empty to create fresh DB)",
+                ]
+            )
             for rds in rds_with_snapshots:
                 var_name = f"db_snapshot_{rds.terraform_name}"
                 original_snapshot = rds.config.get("snapshot_identifier", "")
-                lines.extend([
-                    "",
-                    f'variable "{var_name}" {{',
-                    f'  description = "Snapshot ID to restore RDS instance {rds.id} from (leave empty for fresh DB)"',
-                    "  type        = string",
-                    '  default     = ""',
-                    f"  # Original snapshot: {original_snapshot}",
-                    "}",
-                ])
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Snapshot ID to restore RDS instance {rds.id} from (leave empty for fresh DB)"',
+                        "  type        = string",
+                        '  default     = ""',
+                        f"  # Original snapshot: {original_snapshot}",
+                        "}",
+                    ]
+                )
 
         lines.append("")  # Trailing newline
         file_path = output_dir / "variables.tf"
@@ -608,7 +625,7 @@ locals {
             "# ENVIRONMENT & ACCOUNT CONFIGURATION",
             "# -----------------------------------------------------------------------------",
             "",
-            '# Environment name - used in resource naming and tags',
+            "# Environment name - used in resource naming and tags",
             'environment = "staging"',
             "",
             "# Target AWS account ID",
@@ -616,7 +633,7 @@ locals {
             'aws_account_id = "123456789012"',
             "",
             "# Target AWS region",
-            '# Run: aws configure get region',
+            "# Run: aws configure get region",
             'aws_region = "ap-southeast-2"',
             "",
             "# Common tags applied to all resources",
@@ -631,74 +648,80 @@ locals {
         ec2_instances = graph.get_resources_by_type(ResourceType.EC2_INSTANCE)
         if ec2_instances:
             # Get original AMIs for reference
-            original_amis = list(set(
-                ec2.config.get("ami", "unknown") for ec2 in ec2_instances
-            ))
-            lines.extend([
-                "",
-                "# -----------------------------------------------------------------------------",
-                "# COMPUTE - EC2 INSTANCES",
-                "# -----------------------------------------------------------------------------",
-                "#",
-                "# IMPORTANT: AMI IDs are region-specific! Find one for your target region.",
-                "#",
-                "# Amazon Linux 2 (most common):",
-                '#   aws ec2 describe-images --owners amazon \\',
-                '#     --filters "Name=name,Values=amzn2-ami-hvm-*-x86_64-gp2" \\',
-                "#     --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' --output text",
-                "#",
-                "# Ubuntu 22.04 LTS:",
-                '#   aws ec2 describe-images --owners 099720109477 \\',
-                '#     --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \\',
-                "#     --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' --output text",
-                "#",
-                f"# Original AMI(s) in source environment: {', '.join(original_amis)}",
-                "",
-                'ami_id = "ami-0123456789abcdef0"  # CHANGE: Use AMI for your region',
-            ])
+            original_amis = list(
+                {ec2.config.get("ami", "unknown") for ec2 in ec2_instances}
+            )
+            lines.extend(
+                [
+                    "",
+                    "# -----------------------------------------------------------------------------",
+                    "# COMPUTE - EC2 INSTANCES",
+                    "# -----------------------------------------------------------------------------",
+                    "#",
+                    "# IMPORTANT: AMI IDs are region-specific! Find one for your target region.",
+                    "#",
+                    "# Amazon Linux 2 (most common):",
+                    "#   aws ec2 describe-images --owners amazon \\",
+                    '#     --filters "Name=name,Values=amzn2-ami-hvm-*-x86_64-gp2" \\',
+                    "#     --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' --output text",
+                    "#",
+                    "# Ubuntu 22.04 LTS:",
+                    "#   aws ec2 describe-images --owners 099720109477 \\",
+                    '#     --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \\',
+                    "#     --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' --output text",
+                    "#",
+                    f"# Original AMI(s) in source environment: {', '.join(original_amis)}",
+                    "",
+                    'ami_id = "ami-0123456789abcdef0"  # CHANGE: Use AMI for your region',
+                ]
+            )
 
         # Gather all Launch Templates
         launch_templates = graph.get_resources_by_type(ResourceType.LAUNCH_TEMPLATE)
         if launch_templates:
-            lines.extend([
-                "",
-                "# -----------------------------------------------------------------------------",
-                "# COMPUTE - LAUNCH TEMPLATES",
-                "# -----------------------------------------------------------------------------",
-                "#",
-                "# Each Launch Template may need its own AMI ID.",
-                "# Use the same AWS CLI commands above to find appropriate AMIs.",
-                "",
-            ])
+            lines.extend(
+                [
+                    "",
+                    "# -----------------------------------------------------------------------------",
+                    "# COMPUTE - LAUNCH TEMPLATES",
+                    "# -----------------------------------------------------------------------------",
+                    "#",
+                    "# Each Launch Template may need its own AMI ID.",
+                    "# Use the same AWS CLI commands above to find appropriate AMIs.",
+                    "",
+                ]
+            )
             for lt in launch_templates:
                 var_name = f"ami_id_{lt.terraform_name}"
                 original_ami = lt.config.get("image_id", "unknown")
                 lt_name = lt.original_name or lt.terraform_name
-                lines.append(f'# Launch Template: {lt_name} (original AMI: {original_ami})')
+                lines.append(
+                    f"# Launch Template: {lt_name} (original AMI: {original_ami})"
+                )
                 lines.append(f'{var_name} = "ami-0123456789abcdef0"')
                 lines.append("")
 
         # Check for SSH key requirement
-        has_key_name = any(
-            ec2.config.get("key_name") for ec2 in ec2_instances
-        ) or any(
+        has_key_name = any(ec2.config.get("key_name") for ec2 in ec2_instances) or any(
             lt.config.get("key_name") for lt in launch_templates
         )
         if has_key_name:
-            lines.extend([
-                "# -----------------------------------------------------------------------------",
-                "# SSH KEY PAIR",
-                "# -----------------------------------------------------------------------------",
-                "#",
-                '# List existing keys: aws ec2 describe-key-pairs --query "KeyPairs[*].KeyName"',
-                '# Create new key: aws ec2 create-key-pair --key-name staging-key \\',
-                "#   --query 'KeyMaterial' --output text > staging-key.pem",
-                "#",
-                "# Leave empty if not using SSH keys (e.g., SSM Session Manager only)",
-                "",
-                'key_name = ""',
-                "",
-            ])
+            lines.extend(
+                [
+                    "# -----------------------------------------------------------------------------",
+                    "# SSH KEY PAIR",
+                    "# -----------------------------------------------------------------------------",
+                    "#",
+                    '# List existing keys: aws ec2 describe-key-pairs --query "KeyPairs[*].KeyName"',
+                    "# Create new key: aws ec2 create-key-pair --key-name staging-key \\",
+                    "#   --query 'KeyMaterial' --output text > staging-key.pem",
+                    "#",
+                    "# Leave empty if not using SSH keys (e.g., SSM Session Manager only)",
+                    "",
+                    'key_name = ""',
+                    "",
+                ]
+            )
 
         # Check for ACM certificate requirement
         lb_listeners = graph.get_resources_by_type(ResourceType.LB_LISTENER)
@@ -706,75 +729,84 @@ locals {
             listener.config.get("certificate_arn") for listener in lb_listeners
         )
         if has_certificate:
-            original_certs = list(set(
-                listener.config.get("certificate_arn")
-                for listener in lb_listeners
-                if listener.config.get("certificate_arn")
-            ))
-            lines.extend([
-                "# -----------------------------------------------------------------------------",
-                "# TLS/SSL - ACM CERTIFICATE",
-                "# -----------------------------------------------------------------------------",
-                "#",
-                '# List certificates: aws acm list-certificates --query "CertificateSummaryList[*].[DomainName,CertificateArn]" --output table',
-                "#",
-                "# Request new certificate:",
-                '#   aws acm request-certificate --domain-name staging.example.com \\',
-                "#     --validation-method DNS --region <your-region>",
-                "#",
-                f"# Original certificate(s): {', '.join(original_certs)}",
-                "#",
-                "# NOTE: Leave empty for HTTP-only testing (HTTPS listeners will fail validation)",
-                "",
-                'acm_certificate_arn = ""',
-                "",
-            ])
+            original_certs = list(
+                {
+                    listener.config.get("certificate_arn")
+                    for listener in lb_listeners
+                    if listener.config.get("certificate_arn")
+                }
+            )
+            lines.extend(
+                [
+                    "# -----------------------------------------------------------------------------",
+                    "# TLS/SSL - ACM CERTIFICATE",
+                    "# -----------------------------------------------------------------------------",
+                    "#",
+                    '# List certificates: aws acm list-certificates --query "CertificateSummaryList[*].[DomainName,CertificateArn]" --output table',
+                    "#",
+                    "# Request new certificate:",
+                    "#   aws acm request-certificate --domain-name staging.example.com \\",
+                    "#     --validation-method DNS --region <your-region>",
+                    "#",
+                    f"# Original certificate(s): {', '.join(original_certs)}",
+                    "#",
+                    "# NOTE: Leave empty for HTTP-only testing (HTTPS listeners will fail validation)",
+                    "",
+                    'acm_certificate_arn = ""',
+                    "",
+                ]
+            )
 
         # Add RDS password variables
         rds_instances = graph.get_resources_by_type(ResourceType.RDS_INSTANCE)
         if rds_instances:
-            lines.extend([
-                "# -----------------------------------------------------------------------------",
-                "# DATABASE - RDS CREDENTIALS",
-                "# -----------------------------------------------------------------------------",
-                "#",
-                "# SECURITY WARNING: Do not commit actual passwords to version control!",
-                "#",
-                "# Alternative methods:",
-                "#   1. Environment variable: export TF_VAR_db_password_<name>=YourPassword",
-                "#   2. Command line: terraform plan -var='db_password_<name>=YourPassword'",
-                "#   3. AWS Secrets Manager (recommended for production)",
-                "#",
-                "# Password requirements:",
-                "#   - At least 8 characters",
-                "#   - Printable ASCII except /, @, \", and space",
-                "",
-            ])
+            lines.extend(
+                [
+                    "# -----------------------------------------------------------------------------",
+                    "# DATABASE - RDS CREDENTIALS",
+                    "# -----------------------------------------------------------------------------",
+                    "#",
+                    "# SECURITY WARNING: Do not commit actual passwords to version control!",
+                    "#",
+                    "# Alternative methods:",
+                    "#   1. Environment variable: export TF_VAR_db_password_<name>=YourPassword",
+                    "#   2. Command line: terraform plan -var='db_password_<name>=YourPassword'",
+                    "#   3. AWS Secrets Manager (recommended for production)",
+                    "#",
+                    "# Password requirements:",
+                    "#   - At least 8 characters",
+                    '#   - Printable ASCII except /, @, ", and space',
+                    "",
+                ]
+            )
             for rds in rds_instances:
                 var_name = f"db_password_{rds.terraform_name}"
                 rds_name = rds.original_name or rds.terraform_name
                 engine = rds.config.get("engine", "unknown")
                 lines.append(f"# RDS: {rds_name} ({engine})")
-                lines.append(f'{var_name} = "ChangeMe123!"  # CHANGE: Use a strong password')
+                lines.append(
+                    f'{var_name} = "ChangeMe123!"  # CHANGE: Use a strong password'
+                )
                 lines.append("")
 
         # Add RDS snapshot variables if any
         rds_with_snapshots = [
-            rds for rds in rds_instances
-            if rds.config.get("snapshot_identifier")
+            rds for rds in rds_instances if rds.config.get("snapshot_identifier")
         ]
         if rds_with_snapshots:
-            lines.extend([
-                "# -----------------------------------------------------------------------------",
-                "# DATABASE - RDS SNAPSHOTS (Optional)",
-                "# -----------------------------------------------------------------------------",
-                "#",
-                "# Leave empty to create a fresh database, or provide a snapshot identifier",
-                "# to restore from an existing snapshot.",
-                "#",
-                '# List snapshots: aws rds describe-db-snapshots --query "DBSnapshots[*].[DBSnapshotIdentifier,SnapshotCreateTime]" --output table',
-                "",
-            ])
+            lines.extend(
+                [
+                    "# -----------------------------------------------------------------------------",
+                    "# DATABASE - RDS SNAPSHOTS (Optional)",
+                    "# -----------------------------------------------------------------------------",
+                    "#",
+                    "# Leave empty to create a fresh database, or provide a snapshot identifier",
+                    "# to restore from an existing snapshot.",
+                    "#",
+                    '# List snapshots: aws rds describe-db-snapshots --query "DBSnapshots[*].[DBSnapshotIdentifier,SnapshotCreateTime]" --output table',
+                    "",
+                ]
+            )
             for rds in rds_with_snapshots:
                 var_name = f"db_snapshot_{rds.terraform_name}"
                 original_snapshot = rds.config.get("snapshot_identifier", "")
@@ -783,29 +815,31 @@ locals {
                 lines.append("")
 
         # Add footer with testing instructions
-        lines.extend([
-            "# -----------------------------------------------------------------------------",
-            "# TESTING YOUR CONFIGURATION",
-            "# -----------------------------------------------------------------------------",
-            "#",
-            "# 1. Validate syntax:",
-            "#    terraform init && terraform validate",
-            "#",
-            "# 2. Check formatting:",
-            "#    terraform fmt -check -recursive",
-            "#",
-            "# 3. Plan (dry-run):",
-            "#    terraform plan -var-file=terraform.tfvars -out=tfplan",
-            "#",
-            "# 4. Review plan, then apply:",
-            "#    terraform apply tfplan",
-            "#",
-            "# 5. Clean up when done:",
-            "#    terraform destroy -var-file=terraform.tfvars",
-            "#",
-            "# =============================================================================",
-            "",
-        ])
+        lines.extend(
+            [
+                "# -----------------------------------------------------------------------------",
+                "# TESTING YOUR CONFIGURATION",
+                "# -----------------------------------------------------------------------------",
+                "#",
+                "# 1. Validate syntax:",
+                "#    terraform init && terraform validate",
+                "#",
+                "# 2. Check formatting:",
+                "#    terraform fmt -check -recursive",
+                "#",
+                "# 3. Plan (dry-run):",
+                "#    terraform plan -var-file=terraform.tfvars -out=tfplan",
+                "#",
+                "# 4. Review plan, then apply:",
+                "#    terraform apply tfplan",
+                "#",
+                "# 5. Clean up when done:",
+                "#    terraform destroy -var-file=terraform.tfvars",
+                "#",
+                "# =============================================================================",
+                "",
+            ]
+        )
 
         file_path = output_dir / "terraform.tfvars.example"
         with open(file_path, "w") as f:
@@ -822,7 +856,7 @@ locals {
         written_files: dict[str, Path],
     ) -> None:
         """Generate test-terraform.sh script for validating generated Terraform."""
-        script = r'''#!/usr/bin/env bash
+        script = r"""#!/usr/bin/env bash
 # =============================================================================
 # RepliMap Terraform Test Script
 # =============================================================================
@@ -992,7 +1026,7 @@ echo "  1. Copy terraform.tfvars.example to terraform.tfvars"
 echo "  2. Edit terraform.tfvars with your values"
 echo "  3. Run: ./test-terraform.sh --plan"
 echo "  4. Review the plan and apply: terraform apply tfplan"
-'''
+"""
         file_path = output_dir / "test-terraform.sh"
         with open(file_path, "w") as f:
             f.write(script)
@@ -1010,7 +1044,7 @@ echo "  4. Review the plan and apply: terraform apply tfplan"
         written_files: dict[str, Path],
     ) -> None:
         """Generate Makefile for easier Terraform workflow management."""
-        makefile = r'''# =============================================================================
+        makefile = r"""# =============================================================================
 # RepliMap Terraform Makefile
 # =============================================================================
 #
@@ -1398,7 +1432,7 @@ debug: ## Show debug information
 	@echo ""
 	@echo "Files:"
 	@ls -la *.tf 2>/dev/null || echo "No .tf files found"
-'''
+"""
         file_path = output_dir / "Makefile"
         with open(file_path, "w") as f:
             f.write(makefile)
@@ -1438,9 +1472,8 @@ debug: ## Show debug information
             return '""'
         # Check if key is a valid Terraform identifier
         # Must start with letter or underscore, contain only alphanumeric, underscore, hyphen
-        is_valid_identifier = (
-            (key[0].isalpha() or key[0] == "_")
-            and all(c.isalnum() or c in "_-" for c in key)
+        is_valid_identifier = (key[0].isalpha() or key[0] == "_") and all(
+            c.isalnum() or c in "_-" for c in key
         )
         if is_valid_identifier:
             return key

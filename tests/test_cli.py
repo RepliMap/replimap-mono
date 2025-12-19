@@ -1,5 +1,6 @@
 """Tests for CLI commands."""
 
+import re
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -12,42 +13,52 @@ from replimap.main import app
 
 runner = CliRunner()
 
+# Regex to strip ANSI escape codes (colors, formatting)
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    return ANSI_ESCAPE.sub("", text)
+
 
 class TestCLI:
     """Tests for CLI commands."""
 
     def test_version(self) -> None:
         """Test --version flag."""
-        result = runner.invoke(app, ["--version"])
+        result = runner.invoke(app, ["--version"], color=False)
         assert result.exit_code == 0
         assert "RepliMap" in result.output
 
     def test_help(self) -> None:
         """Test --help flag."""
-        result = runner.invoke(app, ["--help"])
+        result = runner.invoke(app, ["--help"], color=False)
         assert result.exit_code == 0
         assert "AWS Environment Replication Tool" in result.output
 
     def test_scan_help(self) -> None:
         """Test scan --help."""
-        result = runner.invoke(app, ["scan", "--help"])
+        result = runner.invoke(app, ["scan", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "--profile" in result.output
-        assert "--region" in result.output
-        assert "--output" in result.output
+        assert "--profile" in output
+        assert "--region" in output
+        assert "--output" in output
 
     def test_clone_help(self) -> None:
         """Test clone --help."""
-        result = runner.invoke(app, ["clone", "--help"])
+        result = runner.invoke(app, ["clone", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "--profile" in result.output
-        assert "--mode" in result.output
-        assert "--downsize" in result.output
-        assert "--rename-pattern" in result.output
+        assert "--profile" in output
+        assert "--mode" in output
+        assert "--downsize" in output
+        assert "--rename-pattern" in output
 
     def test_load_nonexistent_file(self) -> None:
         """Test loading a nonexistent file."""
-        result = runner.invoke(app, ["load", "/nonexistent/file.json"])
+        result = runner.invoke(app, ["load", "/nonexistent/file.json"], color=False)
         assert result.exit_code == 1
         assert "File not found" in result.output
 
@@ -71,7 +82,7 @@ class TestCLI:
         try:
             graph.save(path)
 
-            result = runner.invoke(app, ["load", str(path)])
+            result = runner.invoke(app, ["load", str(path)], color=False)
             assert result.exit_code == 0
             assert "Graph Loaded" in result.output
             assert "1" in result.output  # 1 resource
@@ -85,7 +96,9 @@ class TestCLI:
             mock_session.return_value = MagicMock()
 
             result = runner.invoke(
-                app, ["clone", "--mode", "invalid", "--region", "us-east-1"]
+                app,
+                ["clone", "--mode", "invalid", "--region", "us-east-1"],
+                color=False,
             )
             assert result.exit_code == 1
             assert "Invalid mode" in result.output
@@ -108,12 +121,15 @@ class TestCLIIntegration:
 
         try:
             result = runner.invoke(
-                app, ["scan", "--region", "us-east-1", "--output", str(path)]
+                app,
+                ["scan", "--region", "us-east-1", "--output", str(path)],
+                color=False,
             )
+            output = strip_ansi(result.output)
 
             # Should complete (may fail on auth but that's expected)
             # The important thing is the command runs
-            assert "--profile" not in result.output or result.exit_code in (0, 1)
+            assert "--profile" not in output or result.exit_code in (0, 1)
 
         finally:
             if path.exists():

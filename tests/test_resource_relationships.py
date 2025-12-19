@@ -12,10 +12,8 @@ These tests verify that:
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from replimap.core import GraphEngine
-from replimap.core.models import DependencyType, ResourceNode, ResourceType
+from replimap.core.models import ResourceNode, ResourceType
 from replimap.renderers.terraform import TerraformRenderer
 from replimap.transformers.network_remapper import NetworkRemapTransformer
 
@@ -568,7 +566,11 @@ class TestEBSVolumeAttachments:
                 "size": 100,
                 "volume_type": "gp3",
                 "attachments": [
-                    {"instance_id": "i-12345", "device": "/dev/sdf", "state": "attached"},
+                    {
+                        "instance_id": "i-12345",
+                        "device": "/dev/sdf",
+                        "state": "attached",
+                    },
                 ],
             },
             tags={"Name": "test-volume"},
@@ -689,7 +691,11 @@ class TestNetworkRemapperInstanceIds:
                 "size": 100,
                 "volume_type": "gp3",
                 "attachments": [
-                    {"instance_id": "i-12345", "device": "/dev/sdf", "state": "attached"},
+                    {
+                        "instance_id": "i-12345",
+                        "device": "/dev/sdf",
+                        "state": "attached",
+                    },
                 ],
             },
             tags={"Name": "test-volume"},

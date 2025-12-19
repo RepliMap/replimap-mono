@@ -150,12 +150,14 @@ class ComputeScanner(BaseScanner):
                     )
                     for th in target_health_resp.get("TargetHealthDescriptions", []):
                         target = th.get("Target", {})
-                        targets.append({
-                            "id": target.get("Id"),
-                            "port": target.get("Port"),
-                            "availability_zone": target.get("AvailabilityZone"),
-                            "health_state": th.get("TargetHealth", {}).get("State"),
-                        })
+                        targets.append(
+                            {
+                                "id": target.get("Id"),
+                                "port": target.get("Port"),
+                                "availability_zone": target.get("AvailabilityZone"),
+                                "health_state": th.get("TargetHealth", {}).get("State"),
+                            }
+                        )
                 except ClientError as e:
                     logger.debug(f"Could not get targets for {tg_name}: {e}")
 

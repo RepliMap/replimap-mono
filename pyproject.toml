@@ -115,6 +115,7 @@ ignore = [
     "S101",   # assert used (ok in tests)
     "B008",   # function call in default argument (typer pattern)
     "B904",   # raise from in except (typer.Exit doesn't need it)
+    "S607",   # partial executable path (terraform in PATH is intentional)
 ]
 
 [tool.ruff.lint.isort]

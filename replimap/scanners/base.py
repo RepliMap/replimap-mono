@@ -475,7 +475,9 @@ def run_all_scanners(
             continue
 
         scanner_names = [sc.__name__ for sc in phase_scanners]
-        logger.debug(f"Phase {i}: Running {len(phase_scanners)} scanners: {scanner_names}")
+        logger.debug(
+            f"Phase {i}: Running {len(phase_scanners)} scanners: {scanner_names}"
+        )
 
         if parallel and workers > 1 and len(phase_scanners) > 1:
             phase_results = _run_scanners_parallel(

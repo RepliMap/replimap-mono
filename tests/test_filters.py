@@ -202,7 +202,10 @@ class TestScanFilter:
 
         assert filter_obj.vpc_ids == ["vpc-123", "vpc-456"]
         assert filter_obj.resource_types == ["vpc", "subnet"]
-        assert filter_obj.include_tags == {"Environment": "Production", "Team": "Platform"}
+        assert filter_obj.include_tags == {
+            "Environment": "Production",
+            "Team": "Platform",
+        }
         assert filter_obj.exclude_types == ["sns", "sqs"]
 
     def test_from_cli_args_empty(self) -> None:
@@ -262,11 +265,13 @@ class TestApplyFilterToGraph:
     def test_apply_empty_filter(self) -> None:
         """Test applying empty filter doesn't remove anything."""
         graph = GraphEngine()
-        graph.add_resource(ResourceNode(
-            id="vpc-123",
-            resource_type=ResourceType.VPC,
-            region="us-east-1",
-        ))
+        graph.add_resource(
+            ResourceNode(
+                id="vpc-123",
+                resource_type=ResourceType.VPC,
+                region="us-east-1",
+            )
+        )
 
         filter_obj = ScanFilter()
         removed = apply_filter_to_graph(graph, filter_obj)
@@ -277,16 +282,20 @@ class TestApplyFilterToGraph:
     def test_apply_type_filter(self) -> None:
         """Test applying type filter."""
         graph = GraphEngine()
-        graph.add_resource(ResourceNode(
-            id="vpc-123",
-            resource_type=ResourceType.VPC,
-            region="us-east-1",
-        ))
-        graph.add_resource(ResourceNode(
-            id="subnet-123",
-            resource_type=ResourceType.SUBNET,
-            region="us-east-1",
-        ))
+        graph.add_resource(
+            ResourceNode(
+                id="vpc-123",
+                resource_type=ResourceType.VPC,
+                region="us-east-1",
+            )
+        )
+        graph.add_resource(
+            ResourceNode(
+                id="subnet-123",
+                resource_type=ResourceType.SUBNET,
+                region="us-east-1",
+            )
+        )
 
         filter_obj = ScanFilter(resource_types=["vpc"])
         removed = apply_filter_to_graph(graph, filter_obj)
@@ -353,16 +362,20 @@ class TestApplyFilterToGraph:
     def test_apply_exclude_filter(self) -> None:
         """Test applying exclusion filter."""
         graph = GraphEngine()
-        graph.add_resource(ResourceNode(
-            id="vpc-123",
-            resource_type=ResourceType.VPC,
-            region="us-east-1",
-        ))
-        graph.add_resource(ResourceNode(
-            id="sqs-123",
-            resource_type=ResourceType.SQS_QUEUE,
-            region="us-east-1",
-        ))
+        graph.add_resource(
+            ResourceNode(
+                id="vpc-123",
+                resource_type=ResourceType.VPC,
+                region="us-east-1",
+            )
+        )
+        graph.add_resource(
+            ResourceNode(
+                id="sqs-123",
+                resource_type=ResourceType.SQS_QUEUE,
+                region="us-east-1",
+            )
+        )
 
         filter_obj = ScanFilter(exclude_types=["sqs_queue"])
         removed = apply_filter_to_graph(graph, filter_obj)
