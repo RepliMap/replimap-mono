@@ -2,7 +2,7 @@
 
 [![Python versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://github.com/RepliMap/replimap)
 [![Tests](https://github.com/RepliMap/replimap/actions/workflows/test.yml/badge.svg)](https://github.com/RepliMap/replimap/actions/workflows/test.yml)
-[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](https://github.com/RepliMap/replimap)
+[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
 
 **AWS Infrastructure Staging Cloner**
 
