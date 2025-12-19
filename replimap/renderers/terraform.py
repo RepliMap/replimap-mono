@@ -490,7 +490,7 @@ locals {
             lines.extend([
                 "",
                 "# RDS Database Password Variables",
-                "# IMPORTANT: Set these via terraform.tfvars or environment variables",
+                "# IMPORTANT: Change the default before applying!",
             ])
             for rds in rds_instances:
                 var_name = f"db_password_{rds.terraform_name}"
@@ -500,6 +500,7 @@ locals {
                     f'  description = "Password for RDS instance {rds.id}"',
                     "  type        = string",
                     "  sensitive   = true",
+                    '  default     = "CHANGE-ME-BEFORE-APPLY"  # Placeholder for plan',
                     "}",
                 ])
 
@@ -1137,11 +1138,14 @@ test: ## Run test-terraform.sh validation script
 plan: check-tfvars ## Plan infrastructure changes
 	@echo -e "$(BLUE)Running terraform plan...$(NC)"
 	$(TF) plan $(TF_FLAGS) -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+	@$(TF) show -no-color $(TFPLAN) > tfplan.txt
+	@echo "Plan saved to: $(TFPLAN) (binary), tfplan.txt (readable)"
 
 .PHONY: plan-destroy
 plan-destroy: check-tfvars ## Plan destruction of all resources
 	@echo -e "$(RED)Planning DESTRUCTION of all resources...$(NC)"
 	$(TF) plan $(TF_FLAGS) -destroy -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+	@$(TF) show -no-color $(TFPLAN) > tfplan.txt
 
 .PHONY: plan-target
 plan-target: check-tfvars ## Plan specific resource (TARGET=aws_instance.example)
@@ -1338,7 +1342,7 @@ endif
 .PHONY: clean
 clean: ## Remove generated files (plan, graph, etc.)
 	@echo -e "$(BLUE)Cleaning up...$(NC)"
-	rm -f $(TFPLAN) graph.dot graph.png
+	rm -f $(TFPLAN) tfplan.txt graph.dot graph.png
 	rm -rf .terraform.lock.hcl
 	@echo -e "$(GREEN)✓$(NC) Cleaned"
 
