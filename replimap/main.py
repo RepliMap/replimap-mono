@@ -1515,14 +1515,14 @@ app.add_typer(license_app, name="license")
 def license_activate(
     license_key: str = typer.Argument(
         ...,
-        help="License key (format: XXXX-XXXX-XXXX-XXXX)",
+        help="License key (format: RM-XXXX-XXXX-XXXX-XXXX)",
     ),
 ) -> None:
     """
     Activate a license key.
 
     Examples:
-        replimap license activate SOLO-XXXX-XXXX-XXXX
+        replimap license activate RM-7P0A-QB0G-ADFS-2TWU
     """
     manager = get_license_manager()
 

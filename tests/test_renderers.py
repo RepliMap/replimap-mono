@@ -1,7 +1,9 @@
 """Tests for the renderers module."""
 
 import tempfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -9,7 +11,20 @@ import yaml
 from replimap.core import GraphEngine
 from replimap.core.models import ResourceNode, ResourceType
 from replimap.licensing.manager import LicenseManager, set_license_manager
+from replimap.licensing.models import License, Plan, get_machine_fingerprint
 from replimap.renderers import CloudFormationRenderer, PulumiRenderer, TerraformRenderer
+
+
+def mock_validate_online(manager: "LicenseManager", license_key: str) -> License:
+    """Mock _validate_online for testing without network calls."""
+    return License(
+        license_key=license_key.upper(),
+        plan=Plan.PRO,
+        email="test@example.com",
+        issued_at=datetime.now(UTC),
+        expires_at=datetime.now(UTC) + timedelta(days=365),
+        machine_fingerprint=get_machine_fingerprint(),
+    )
 
 
 @pytest.fixture
@@ -114,10 +129,11 @@ def sample_graph() -> GraphEngine:
 def pro_license_manager():
     """Create a license manager with Pro plan for feature-gated tests."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        manager = LicenseManager(cache_dir=Path(tmpdir))
-        manager.activate("PRO0-1234-5678-ABCD")
-        set_license_manager(manager)
-        yield manager
+        with patch.object(LicenseManager, "_validate_online", mock_validate_online):
+            manager = LicenseManager(cache_dir=Path(tmpdir))
+            manager.activate("RM-PRO0-1234-5678-ABCD")
+            set_license_manager(manager)
+            yield manager
 
 
 class TestTerraformRenderer:

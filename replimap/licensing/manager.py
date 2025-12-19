@@ -9,10 +9,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import platform
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import httpx
+
+from replimap import __version__
 from replimap.licensing.models import (
     License,
     LicenseStatus,
@@ -26,6 +30,11 @@ if TYPE_CHECKING:
     from replimap.licensing.models import PlanFeatures
 
 logger = logging.getLogger(__name__)
+
+# API Configuration
+API_BASE_URL_DEV = "https://replimap-api.davidlu1001.workers.dev"
+API_BASE_URL_PROD = "https://api.replimap.io"
+API_TIMEOUT = 30  # seconds
 
 # Default cache directory
 DEFAULT_CACHE_DIR = Path.home() / ".replimap"
@@ -126,7 +135,9 @@ class LicenseManager:
 
         # Validate the license format
         if not self._validate_key_format(license_key):
-            raise LicenseValidationError("Invalid license key format")
+            raise LicenseValidationError(
+                "Invalid license key format. Expected: RM-XXXX-XXXX-XXXX-XXXX"
+            )
 
         # Try online validation first
         try:
@@ -236,50 +247,110 @@ class LicenseManager:
         }
 
     def _validate_key_format(self, key: str) -> bool:
-        """Validate the format of a license key."""
-        # Expected format: XXXX-XXXX-XXXX-XXXX (4 groups of 4 chars)
+        """Validate the format of a license key.
+
+        Expected format: RM-XXXX-XXXX-XXXX-XXXX
+        - RM prefix (RepliMap brand identifier)
+        - 4 groups of 4 uppercase alphanumeric characters
+        """
         if not key:
             return False
-        parts = key.strip().upper().split("-")
+
+        key = key.strip().upper()
+
+        # Must start with RM-
+        if not key.startswith("RM-"):
+            return False
+
+        # Remove RM- prefix and validate 4 segments
+        parts = key[3:].split("-")
         if len(parts) != 4:
             return False
+
         return all(len(p) == 4 and p.isalnum() for p in parts)
 
     def _validate_online(self, license_key: str) -> License:
         """
         Validate license key with the online API.
 
-        For now, this is a placeholder that simulates validation.
-        In production, this would make an HTTP request to the license server.
+        Makes an HTTP request to the license server to validate the key
+        and retrieve license details.
+
+        Args:
+            license_key: The license key to validate (format: RM-XXXX-XXXX-XXXX-XXXX)
+
+        Returns:
+            License object with validated license details
+
+        Raises:
+            LicenseValidationError: If validation fails
         """
-        # TODO: Implement actual API call
-        # For development/testing, we'll create a test license
-        logger.debug("Simulating online validation (API not yet implemented)")
+        machine_id = get_machine_fingerprint()
 
-        # Simulate API response based on key prefix
-        key_upper = license_key.upper()
-        if key_upper.startswith("FREE"):
-            plan = Plan.FREE
-        elif key_upper.startswith("SOLO"):
-            plan = Plan.SOLO
-        elif key_upper.startswith("PRO0"):
-            plan = Plan.PRO
-        elif key_upper.startswith("TEAM"):
-            plan = Plan.TEAM
-        elif key_upper.startswith("ENTR"):
-            plan = Plan.ENTERPRISE
-        else:
-            # Default to solo for any valid format key
-            plan = Plan.SOLO
+        try:
+            response = httpx.post(
+                f"{self.api_base_url}/license/validate",
+                json={
+                    "license_key": license_key.upper(),
+                    "machine_id": machine_id,
+                    "cli_version": __version__,
+                },
+                timeout=API_TIMEOUT,
+            )
 
-        return License(
-            license_key=license_key.upper(),
-            plan=plan,
-            email="user@example.com",
-            issued_at=datetime.now(UTC),
-            expires_at=datetime.now(UTC) + timedelta(days=365),
-            machine_fingerprint=get_machine_fingerprint(),
-        )
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("valid"):
+                    # Parse expires_at if present
+                    expires_at = None
+                    if data.get("expires_at"):
+                        expires_str = data["expires_at"]
+                        # Handle both formats: with Z suffix or +00:00
+                        if expires_str.endswith("Z"):
+                            expires_str = expires_str[:-1] + "+00:00"
+                        expires_at = datetime.fromisoformat(expires_str)
+
+                    return License(
+                        license_key=license_key.upper(),
+                        plan=Plan(data.get("plan", "solo").lower()),
+                        email=data.get("email", ""),
+                        issued_at=datetime.now(UTC),
+                        expires_at=expires_at,
+                        machine_fingerprint=machine_id,
+                        max_machines=data.get("max_machines", 1),
+                        metadata=data.get("features", {}),
+                    )
+                else:
+                    raise LicenseValidationError(
+                        data.get("message", "License validation failed")
+                    )
+
+            elif response.status_code == 404:
+                raise LicenseValidationError("License key not found")
+
+            elif response.status_code == 403:
+                data = response.json()
+                error_code = data.get("error_code", "UNKNOWN")
+                message = data.get("message", "License validation failed")
+                raise LicenseValidationError(f"{error_code}: {message}")
+
+            elif response.status_code == 429:
+                raise LicenseValidationError(
+                    "Rate limit exceeded. Please try again later."
+                )
+
+            else:
+                raise LicenseValidationError(
+                    f"Unexpected error: HTTP {response.status_code}"
+                )
+
+        except httpx.RequestError as e:
+            logger.warning(f"Network error during license validation: {e}")
+            raise LicenseValidationError(f"Network error: {e}") from e
+
+    def _get_machine_name(self) -> str:
+        """Get a human-readable machine name for activation."""
+        return f"{platform.node()} ({platform.system()} {platform.machine()})"
 
     def _revalidate_online(self) -> None:
         """Revalidate the current license with the API."""
