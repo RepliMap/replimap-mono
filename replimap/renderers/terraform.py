@@ -966,10 +966,12 @@ if [[ "$RUN_PLAN" == "true" ]]; then
 
     # Run plan
     if terraform plan -var-file="$TFVARS_FILE" -out=tfplan -input=false; then
+        # Generate human-readable plan output
+        terraform show -no-color tfplan > tfplan.txt
         echo ""
         echo -e "${GREEN}✓${NC} Plan completed successfully"
         echo ""
-        echo "Plan saved to: tfplan"
+        echo "Plan saved to: tfplan (binary), tfplan.txt (readable)"
         echo "To apply: terraform apply tfplan"
     else
         echo ""
@@ -1038,13 +1040,13 @@ TFPLAN := tfplan
 AWS_PROFILE ?=
 PARALLELISM ?= 10
 
-# Set AWS profile if provided
+# Export AWS profile if provided
 ifdef AWS_PROFILE
   export AWS_PROFILE
-  TF_FLAGS := -var-file=$(TFVARS)
-else
-  TF_FLAGS := -var-file=$(TFVARS)
 endif
+
+# Terraform flags
+TF_FLAGS := -var-file=$(TFVARS)
 
 # Colors for output
 BLUE := \033[0;34m
@@ -1125,6 +1127,13 @@ fmt-check: ## Check Terraform formatting
 .PHONY: lint
 lint: fmt-check validate ## Run all linting checks
 
+.PHONY: quick-validate
+quick-validate: ## Quick validation (no tfvars needed, init + validate only)
+	@echo -e "$(BLUE)Quick validation (no tfvars required)...$(NC)"
+	@$(TF) init -backend=false > /dev/null 2>&1 || $(TF) init -backend=false
+	@$(TF) validate
+	@echo -e "$(GREEN)✓$(NC) Configuration is valid"
+
 .PHONY: test
 test: ## Run test-terraform.sh validation script
 	@echo -e "$(BLUE)Running validation script...$(NC)"
@@ -1154,6 +1163,15 @@ ifndef TARGET
 endif
 	@echo -e "$(BLUE)Planning target: $(TARGET)$(NC)"
 	$(TF) plan $(TF_FLAGS) -target=$(TARGET) -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+	@$(TF) show -no-color $(TFPLAN) > tfplan.txt
+
+.PHONY: plan-json
+plan-json: check-tfvars ## Plan with JSON output (for automation/parsing)
+	@echo -e "$(BLUE)Running terraform plan (JSON output)...$(NC)"
+	$(TF) plan $(TF_FLAGS) -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+	@$(TF) show -json $(TFPLAN) > tfplan.json
+	@$(TF) show -no-color $(TFPLAN) > tfplan.txt
+	@echo "Plan saved to: $(TFPLAN), tfplan.txt (readable), tfplan.json (parseable)"
 
 .PHONY: plan-include
 plan-include: check-tfvars ## Plan resources matching pattern (INCLUDE=aws_instance)
@@ -1161,13 +1179,15 @@ ifndef INCLUDE
 	$(error INCLUDE is required. Usage: make plan-include INCLUDE=aws_instance)
 endif
 	@echo -e "$(BLUE)Planning resources matching: $(INCLUDE)$(NC)"
+	@echo -e "$(YELLOW)Note: Requires existing state. Run 'make apply' first.$(NC)"
 	@TARGETS=$$($(TF) state list 2>/dev/null | grep "$(INCLUDE)" || true); \
 	if [ -z "$$TARGETS" ]; then \
 		echo -e "$(YELLOW)No resources match pattern: $(INCLUDE)$(NC)"; \
 		exit 1; \
 	fi; \
 	TARGET_FLAGS=$$(echo "$$TARGETS" | xargs -I {} echo "-target={}"); \
-	$(TF) plan $(TF_FLAGS) $$TARGET_FLAGS -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+	$(TF) plan $(TF_FLAGS) $$TARGET_FLAGS -out=$(TFPLAN) -parallelism=$(PARALLELISM); \
+	$(TF) show -no-color $(TFPLAN) > tfplan.txt
 
 .PHONY: plan-exclude
 plan-exclude: check-tfvars ## Plan all except pattern (EXCLUDE=aws_db_instance)
@@ -1175,18 +1195,21 @@ ifndef EXCLUDE
 	$(error EXCLUDE is required. Usage: make plan-exclude EXCLUDE=aws_db_instance)
 endif
 	@echo -e "$(BLUE)Planning all except: $(EXCLUDE)$(NC)"
+	@echo -e "$(YELLOW)Note: Requires existing state. Run 'make apply' first.$(NC)"
 	@TARGETS=$$($(TF) state list 2>/dev/null | grep -v "$(EXCLUDE)" || true); \
 	if [ -z "$$TARGETS" ]; then \
 		echo -e "$(YELLOW)No resources after excluding: $(EXCLUDE)$(NC)"; \
 		exit 1; \
 	fi; \
 	TARGET_FLAGS=$$(echo "$$TARGETS" | xargs -I {} echo "-target={}"); \
-	$(TF) plan $(TF_FLAGS) $$TARGET_FLAGS -out=$(TFPLAN) -parallelism=$(PARALLELISM)
+	$(TF) plan $(TF_FLAGS) $$TARGET_FLAGS -out=$(TFPLAN) -parallelism=$(PARALLELISM); \
+	$(TF) show -no-color $(TFPLAN) > tfplan.txt
 
 .PHONY: plan-refresh-only
 plan-refresh-only: check-tfvars ## Refresh state only (no changes)
 	@echo -e "$(BLUE)Refreshing state only...$(NC)"
 	$(TF) plan $(TF_FLAGS) -refresh-only -out=$(TFPLAN)
+	@$(TF) show -no-color $(TFPLAN) > tfplan.txt
 
 # =============================================================================
 # APPLY & DESTROY
@@ -1342,7 +1365,7 @@ endif
 .PHONY: clean
 clean: ## Remove generated files (plan, graph, etc.)
 	@echo -e "$(BLUE)Cleaning up...$(NC)"
-	rm -f $(TFPLAN) tfplan.txt graph.dot graph.png
+	rm -f $(TFPLAN) tfplan.txt tfplan.json graph.dot graph.png
 	rm -rf .terraform.lock.hcl
 	@echo -e "$(GREEN)✓$(NC) Cleaned"
 
