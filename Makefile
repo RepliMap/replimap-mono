@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format check build clean publish publish-test
+.PHONY: help install dev test lint format check build clean publish publish-test version bump-patch bump-minor bump-major
 
 # Default target
 help:
@@ -14,6 +14,12 @@ help:
 	@echo "  make lint         Run linter (ruff check)"
 	@echo "  make format       Format code (ruff format)"
 	@echo "  make check        Run all checks (format + lint + test)"
+	@echo ""
+	@echo "Version Management (using hatch):"
+	@echo "  make version      Show current version"
+	@echo "  make bump-patch   Bump patch version (0.1.0 -> 0.1.1)"
+	@echo "  make bump-minor   Bump minor version (0.1.0 -> 0.2.0)"
+	@echo "  make bump-major   Bump major version (0.1.0 -> 1.0.0)"
 	@echo ""
 	@echo "Build & Publish:"
 	@echo "  make build        Build package"
@@ -50,6 +56,19 @@ format-check:
 
 check: format-check lint test
 	@echo "All checks passed!"
+
+# Version Management (using hatch)
+version:
+	@uv run hatch version
+
+bump-patch:
+	uv run hatch version patch
+
+bump-minor:
+	uv run hatch version minor
+
+bump-major:
+	uv run hatch version major
 
 # Build & Publish
 build: clean
