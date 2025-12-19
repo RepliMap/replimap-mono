@@ -137,7 +137,9 @@ class SQSScanner(BaseScanner):
                     dlq_arn = redrive_policy.get("deadLetterTargetArn")
                     if dlq_arn and graph.get_resource(dlq_arn):
                         # This queue depends on its DLQ
-                        graph.add_dependency(queue_arn, dlq_arn, DependencyType.REFERENCES)
+                        graph.add_dependency(
+                            queue_arn, dlq_arn, DependencyType.REFERENCES
+                        )
 
                     logger.debug(f"Added SQS Queue: {queue_name}")
 

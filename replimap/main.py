@@ -649,11 +649,10 @@ def scan(
         stats = scan_cache.get_stats()
         cached_count = stats["total_resources"]
         if cached_count > 0:
-            console.print(
-                f"[dim]Loaded {cached_count} resources from cache[/]"
-            )
+            console.print(f"[dim]Loaded {cached_count} resources from cache[/]")
             # Populate graph from cache
             from replimap.core import populate_graph_from_cache
+
             populate_graph_from_cache(scan_cache, graph)
 
     # Run all registered scanners with progress
@@ -700,7 +699,9 @@ def scan(
 
             with open(config) as f:
                 config_data = yaml.safe_load(f)
-            selection_strategy = SelectionStrategy.from_dict(config_data.get("selection", {}))
+            selection_strategy = SelectionStrategy.from_dict(
+                config_data.get("selection", {})
+            )
         else:
             # Build strategy from CLI args
             selection_strategy = SelectionStrategy.from_cli_args(
@@ -712,7 +713,9 @@ def scan(
             )
 
         if not selection_strategy.is_empty():
-            console.print(f"\n[dim]Applying selection: {selection_strategy.describe()}[/]")
+            console.print(
+                f"\n[dim]Applying selection: {selection_strategy.describe()}[/]"
+            )
             pre_select_count = graph.statistics()["total_resources"]
 
             # Apply graph-based selection
@@ -1297,9 +1300,7 @@ def scan_cache_status() -> None:
         console.print("[dim]No scan cache found.[/]")
         return
 
-    table = Table(
-        title="Scan Cache Status", show_header=True, header_style="bold cyan"
-    )
+    table = Table(title="Scan Cache Status", show_header=True, header_style="bold cyan")
     table.add_column("Account")
     table.add_column("Region")
     table.add_column("Resources", justify="right")
@@ -1328,7 +1329,11 @@ def scan_cache_status() -> None:
                 updated_str = "unknown"
 
             # Truncate account ID for display
-            account_display = f"{account_id[:4]}...{account_id[-4:]}" if len(account_id) > 10 else account_id
+            account_display = (
+                f"{account_id[:4]}...{account_id[-4:]}"
+                if len(account_id) > 10
+                else account_id
+            )
 
             table.add_row(account_display, region, str(resource_count), updated_str)
         except (json.JSONDecodeError, KeyError):
@@ -1486,7 +1491,9 @@ def scan_cache_info(
         table.add_column("Resource Type", style="dim")
         table.add_column("Count", justify="right")
 
-        for rtype, count in sorted(type_counts.items(), key=lambda x: x[1], reverse=True):
+        for rtype, count in sorted(
+            type_counts.items(), key=lambda x: x[1], reverse=True
+        ):
             table.add_row(rtype, str(count))
 
         console.print(table)

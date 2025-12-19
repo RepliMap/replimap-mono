@@ -312,11 +312,15 @@ class TestScanCache:
 
         # Add one expired and one valid resource
         cache.put(
-            ResourceNode(id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1"),
+            ResourceNode(
+                id="vpc-1", resource_type=ResourceType.VPC, region="us-east-1"
+            ),
             ttl=0,  # Immediately expired
         )
         cache.put(
-            ResourceNode(id="vpc-2", resource_type=ResourceType.VPC, region="us-east-1"),
+            ResourceNode(
+                id="vpc-2", resource_type=ResourceType.VPC, region="us-east-1"
+            ),
             ttl=3600,  # Valid
         )
 
@@ -575,9 +579,7 @@ class TestCacheGraphIntegration:
             cache_dir=temp_cache_dir,
         )
 
-        count = update_cache_from_graph(
-            cache, graph, resource_types=[ResourceType.VPC]
-        )
+        count = update_cache_from_graph(cache, graph, resource_types=[ResourceType.VPC])
 
         assert count == 1
         assert cache.get("vpc-1") is not None

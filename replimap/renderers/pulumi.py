@@ -232,7 +232,9 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                vpc_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -264,7 +266,9 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                vpc_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -314,7 +318,9 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource:
-                dep_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                dep_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 if dep_resource.resource_type == ResourceType.SUBNET:
                     subnet_ref = f"{dep_var}.id"
                 elif dep_resource.resource_type == ResourceType.SECURITY_GROUP:
@@ -368,7 +374,9 @@ class PulumiRenderer(BaseRenderer):
                 dep_resource
                 and dep_resource.resource_type == ResourceType.SECURITY_GROUP
             ):
-                dep_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                dep_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 sg_refs.append(f"{dep_var}.id")
 
         sg_list = ", ".join(sg_refs) if sg_refs else "[]"
@@ -404,7 +412,9 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                vpc_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -427,7 +437,9 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.SUBNET:
-                subnet_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                subnet_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 subnet_ref = f"{subnet_var}.id"
                 break
 
@@ -466,7 +478,9 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                vpc_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -507,7 +521,9 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource:
-                dep_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                dep_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 if dep_resource.resource_type == ResourceType.SUBNET:
                     subnet_refs.append(f"{dep_var}.id")
                 elif dep_resource.resource_type == ResourceType.SECURITY_GROUP:
@@ -538,7 +554,9 @@ class PulumiRenderer(BaseRenderer):
         for dep_id in resource.dependencies:
             dep_resource = graph.get_resource(dep_id)
             if dep_resource and dep_resource.resource_type == ResourceType.VPC:
-                vpc_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                vpc_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 vpc_ref = f"{vpc_var}.id"
                 break
 
@@ -581,7 +599,9 @@ class PulumiRenderer(BaseRenderer):
                 dep_resource
                 and dep_resource.resource_type == ResourceType.SECURITY_GROUP
             ):
-                dep_var = self._to_variable_name(dep_resource.terraform_name or dep_resource.id)
+                dep_var = self._to_variable_name(
+                    dep_resource.terraform_name or dep_resource.id
+                )
                 sg_refs.append(f"{dep_var}.id")
 
         sg_str = ", ".join(sg_refs) if sg_refs else ""

@@ -362,7 +362,9 @@ class CloudFormationRenderer(BaseRenderer):
             },
         }
 
-    def _convert_tags(self, tags: dict[str, str], name: str | None) -> list[dict[str, str]]:
+    def _convert_tags(
+        self, tags: dict[str, str], name: str | None
+    ) -> list[dict[str, str]]:
         """Convert tags dict to CloudFormation tag list."""
         cfn_tags = [{"Key": "Name", "Value": name or "unnamed"}]
         for key, value in tags.items():

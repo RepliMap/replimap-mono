@@ -678,7 +678,9 @@ class TestTerraformRendererAdvanced:
 
             # All terraform_names should be unique
             names = [rds1.terraform_name, rds2.terraform_name, rds3.terraform_name]
-            assert len(names) == len(set(names)), f"Terraform names should be unique: {names}"
+            assert len(names) == len(set(names)), (
+                f"Terraform names should be unique: {names}"
+            )
 
             # Verify the rendered output has unique resource names
             rds_content = (output_dir / "rds.tf").read_text()
@@ -749,7 +751,7 @@ class TestTerraformRendererAdvanced:
             vpc_content = files["vpc.tf"].read_text()
             # "Cost Center" should be quoted, Environment should not
             assert '"Cost Center"' in vpc_content
-            assert 'Environment' in vpc_content  # Not quoted
+            assert "Environment" in vpc_content  # Not quoted
             # Verify it's not double-quoted
             assert '""Cost Center""' not in vpc_content
 
@@ -839,6 +841,7 @@ class TestTerraformRendererAdvanced:
 
             # Verify script is executable
             import os
+
             assert os.access(script_path, os.X_OK)
 
             # Verify script content
@@ -996,7 +999,9 @@ class TestTerraformRendererAdvanced:
             # Should include key_name variable
             assert "key_name" in content
             assert "SSH" in content
-            assert "aws ec2 describe-key-pairs" in content or "create-key-pair" in content
+            assert (
+                "aws ec2 describe-key-pairs" in content or "create-key-pair" in content
+            )
 
     def test_terraform_fmt_method_handles_missing_terraform(self) -> None:
         """Test that _run_terraform_fmt gracefully handles missing terraform binary."""

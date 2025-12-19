@@ -233,14 +233,14 @@ class NetworkRemapTransformer(BaseTransformer):
             True if it looks like a known AWS resource ID pattern
         """
         prefixes = (
-            "vpc-",      # VPC
-            "subnet-",   # Subnet
-            "sg-",       # Security Group
-            "i-",        # EC2 Instance
-            "rtb-",      # Route Table
-            "igw-",      # Internet Gateway
-            "nat-",      # NAT Gateway
-            "eni-",      # Network Interface
-            "lt-",       # Launch Template
+            "vpc-",  # VPC
+            "subnet-",  # Subnet
+            "sg-",  # Security Group
+            "i-",  # EC2 Instance
+            "rtb-",  # Route Table
+            "igw-",  # Internet Gateway
+            "nat-",  # NAT Gateway
+            "eni-",  # Network Interface
+            "lt-",  # Launch Template
         )
         return any(value.startswith(prefix) for prefix in prefixes)
