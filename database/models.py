@@ -1,9 +1,21 @@
 """Database models for license and usage tracking."""
 
-from datetime import datetime
+import secrets
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
+
+
+def utc_now() -> datetime:
+    """Return current UTC datetime (timezone-aware)."""
+    return datetime.now(UTC)
+
+
+def generate_support_id() -> str:
+    """Generate a short support ID for error tracking."""
+    return f"ERR-{secrets.token_hex(4).upper()}"
+
 
 from sqlalchemy import (
     JSON,
@@ -28,11 +40,14 @@ class Base(DeclarativeBase):
 
 
 class PlanType(str, Enum):
-    """License plan types."""
+    """License plan types matching pricing tiers."""
 
     FREE = "free"
+    SOLO = "solo"       # $49/mo
+    PRO = "pro"         # $99/mo
+    TEAM = "team"       # $199/mo
+    # Legacy plans for backward compatibility
     STARTER = "starter"
-    TEAM = "team"
     ENTERPRISE = "enterprise"
 
 
@@ -43,6 +58,19 @@ class LicenseStatus(str, Enum):
     EXPIRED = "expired"
     SUSPENDED = "suspended"
     REVOKED = "revoked"
+
+
+class SubscriptionStatus(str, Enum):
+    """Stripe subscription status values."""
+
+    ACTIVE = "active"
+    PAST_DUE = "past_due"
+    UNPAID = "unpaid"
+    CANCELED = "canceled"
+    INCOMPLETE = "incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
+    TRIALING = "trialing"
+    PAUSED = "paused"
 
 
 class Customer(Base):
@@ -59,8 +87,8 @@ class Customer(Base):
     stripe_customer_id = Column(String(255), unique=True, nullable=True, index=True)
 
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
     metadata = Column(JSON, default=dict)
 
     # Relationships
@@ -71,7 +99,7 @@ class Customer(Base):
 
 
 class License(Base):
-    """License record."""
+    """License record with full subscription lifecycle support."""
 
     __tablename__ = "licenses"
 
@@ -86,25 +114,31 @@ class License(Base):
     plan = Column(String(32), nullable=False, default=PlanType.FREE.value)
     features = Column(JSON, default=list)  # List of enabled feature names
 
-    # Status and validity
+    # License status
     status = Column(String(32), nullable=False, default=LicenseStatus.ACTIVE.value)
-    issued_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    expires_at = Column(DateTime, nullable=True)  # None = never expires
+    issued_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)  # None = never expires
 
-    # Activation limits
+    # Subscription lifecycle (Stripe integration)
+    stripe_subscription_id = Column(String(255), nullable=True, index=True)
+    subscription_status = Column(String(32), nullable=True)  # SubscriptionStatus value
+    current_period_start = Column(DateTime(timezone=True), nullable=True)
+    current_period_end = Column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end = Column(Boolean, default=False, nullable=False)
+    canceled_at = Column(DateTime(timezone=True), nullable=True)
+    trial_end = Column(DateTime(timezone=True), nullable=True)
+
+    # Plan limits
     max_activations = Column(Integer, nullable=True)  # None = unlimited
-
-    # Usage limits (per period)
     max_scans_per_month = Column(Integer, nullable=True)
     max_resources_per_scan = Column(Integer, nullable=True)
-
-    # Stripe integration
-    stripe_subscription_id = Column(String(255), nullable=True, index=True)
+    max_aws_accounts = Column(Integer, nullable=True)
+    max_machine_changes_per_month = Column(Integer, default=3, nullable=False)
 
     # Metadata
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     # Relationships
     activations = relationship(
@@ -113,10 +147,17 @@ class License(Base):
     usage_records = relationship(
         "UsageRecord", back_populates="license", cascade="all, delete-orphan"
     )
+    machine_changes = relationship(
+        "MachineChangeLog", back_populates="license", cascade="all, delete-orphan"
+    )
+    aws_accounts = relationship(
+        "AwsAccount", back_populates="license", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("ix_licenses_customer_plan", "customer_id", "plan"),
         Index("ix_licenses_status_expires", "status", "expires_at"),
+        Index("ix_licenses_subscription_status", "subscription_status"),
     )
 
     def __repr__(self) -> str:
@@ -124,16 +165,49 @@ class License(Base):
 
     @property
     def is_valid(self) -> bool:
-        """Check if license is currently valid."""
-        if self.status != LicenseStatus.ACTIVE.value:
+        """Check if license is currently valid for use."""
+        # Check license status
+        if self.status not in (LicenseStatus.ACTIVE.value,):
             return False
-        if self.expires_at and self.expires_at < datetime.utcnow():
-            return False
+
+        # Check subscription status if present
+        if self.subscription_status:
+            valid_sub_states = (
+                SubscriptionStatus.ACTIVE.value,
+                SubscriptionStatus.TRIALING.value,
+                SubscriptionStatus.PAST_DUE.value,  # Allow grace period
+            )
+            if self.subscription_status not in valid_sub_states:
+                return False
+
+        # Check expiration
+        if self.expires_at:
+            now = datetime.now(UTC)
+            expires_at = self.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=UTC)
+            if expires_at < now:
+                return False
+
+        # Check current_period_end for subscriptions
+        if self.current_period_end:
+            now = datetime.now(UTC)
+            period_end = self.current_period_end
+            if period_end.tzinfo is None:
+                period_end = period_end.replace(tzinfo=UTC)
+            if period_end < now and self.subscription_status != SubscriptionStatus.ACTIVE.value:
+                return False
+
         return True
 
     @property
     def active_activation_count(self) -> int:
-        """Get count of active activations."""
+        """
+        Get count of active activations.
+
+        WARNING: This property loads all activations into memory.
+        For performance-critical code, use the database count query in LicenseService.
+        """
         return sum(1 for a in self.activations if a.is_active)
 
 
@@ -154,9 +228,9 @@ class Activation(Base):
 
     # Activation details
     is_active = Column(Boolean, default=True, nullable=False)
-    activated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    deactivated_at = Column(DateTime, nullable=True)
-    last_seen_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    activated_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    deactivated_at = Column(DateTime(timezone=True), nullable=True)
+    last_seen_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     # Client information
     client_version = Column(String(32), nullable=True)
@@ -171,6 +245,100 @@ class Activation(Base):
 
     def __repr__(self) -> str:
         return f"<Activation {self.machine_id[:8]}... ({self.license_id})>"
+
+
+class MachineChangeLog(Base):
+    """Tracks machine activation changes for rate limiting."""
+
+    __tablename__ = "machine_change_logs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+
+    # License relationship
+    license_id = Column(UUID(as_uuid=True), ForeignKey("licenses.id"), nullable=False)
+    license = relationship("License", back_populates="machine_changes")
+
+    # Change details
+    machine_id = Column(String(255), nullable=False)
+    change_type = Column(String(32), nullable=False)  # "activated", "deactivated", "replaced"
+    previous_machine_id = Column(String(255), nullable=True)  # For replacements
+
+    # Period tracking (YYYY-MM format)
+    period = Column(String(7), nullable=False)
+
+    # Metadata
+    client_ip = Column(String(45), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    __table_args__ = (
+        Index("ix_machine_changes_license_period", "license_id", "period"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<MachineChangeLog {self.change_type} {self.machine_id[:8]}...>"
+
+
+class AwsAccount(Base):
+    """Tracks AWS accounts linked to a license."""
+
+    __tablename__ = "aws_accounts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+
+    # License relationship
+    license_id = Column(UUID(as_uuid=True), ForeignKey("licenses.id"), nullable=False)
+    license = relationship("License", back_populates="aws_accounts")
+
+    # AWS account details
+    aws_account_id = Column(String(12), nullable=False)  # AWS account IDs are 12 digits
+    account_alias = Column(String(255), nullable=True)  # Friendly name
+
+    # Metadata
+    is_active = Column(Boolean, default=True, nullable=False)
+    first_seen_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    last_seen_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("license_id", "aws_account_id", name="uq_aws_account_license"),
+        Index("ix_aws_accounts_account_id", "aws_account_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AwsAccount {self.aws_account_id}>"
+
+
+class ProcessedEvent(Base):
+    """Tracks processed webhook events for idempotency."""
+
+    __tablename__ = "processed_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+
+    # Event identification
+    event_id = Column(String(255), unique=True, nullable=False, index=True)
+    event_type = Column(String(64), nullable=False)
+    source = Column(String(32), nullable=False)  # "stripe", "api", etc.
+
+    # Processing details
+    processed_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    idempotency_key = Column(String(255), nullable=True, index=True)
+
+    # Result tracking
+    success = Column(Boolean, default=True, nullable=False)
+    error_message = Column(Text, nullable=True)
+    result_data = Column(JSON, default=dict)
+
+    # Related entities
+    license_id = Column(UUID(as_uuid=True), nullable=True)
+    customer_id = Column(UUID(as_uuid=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_processed_events_type_created", "event_type", "processed_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ProcessedEvent {self.event_id} ({self.event_type})>"
 
 
 class UsageRecord(Base):
@@ -193,10 +361,10 @@ class UsageRecord(Base):
     terraform_generations = Column(Integer, default=0, nullable=False)
 
     # Timestamps
-    first_usage_at = Column(DateTime, nullable=True)
-    last_usage_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    first_usage_at = Column(DateTime(timezone=True), nullable=True)
+    last_usage_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     # Raw usage data (for detailed analytics)
     usage_details = Column(JSON, default=list)
@@ -222,8 +390,11 @@ class AuditLog(Base):
     event_type = Column(String(64), nullable=False, index=True)
     event_data = Column(JSON, default=dict)
 
+    # Support ID for customer service
+    support_id = Column(String(32), default=generate_support_id, nullable=False, index=True)
+
     # Actor (who triggered the event)
-    actor_type = Column(String(32), nullable=True)  # "user", "system", "api"
+    actor_type = Column(String(32), nullable=True)  # "user", "system", "api", "stripe"
     actor_id = Column(String(255), nullable=True)
 
     # Related entities
@@ -233,9 +404,69 @@ class AuditLog(Base):
     # Metadata
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(String(512), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
 
     __table_args__ = (Index("ix_audit_event_created", "event_type", "created_at"),)
 
     def __repr__(self) -> str:
         return f"<AuditLog {self.event_type} at {self.created_at}>"
+
+
+# Plan configurations with limits matching pricing page
+PLAN_LIMITS = {
+    PlanType.FREE.value: {
+        "max_resources_per_scan": 5,
+        "max_scans_per_month": 3,
+        "max_aws_accounts": 1,
+        "max_activations": 1,
+        "max_machine_changes_per_month": 3,
+        "features": [],
+        "export_formats": ["terraform"],
+    },
+    PlanType.SOLO.value: {
+        "max_resources_per_scan": None,  # Unlimited
+        "max_scans_per_month": None,  # Unlimited
+        "max_aws_accounts": 1,
+        "max_activations": 2,
+        "max_machine_changes_per_month": 3,
+        "features": ["unlimited_resources", "unlimited_scans"],
+        "export_formats": ["terraform"],
+    },
+    PlanType.PRO.value: {
+        "max_resources_per_scan": None,
+        "max_scans_per_month": None,
+        "max_aws_accounts": 3,
+        "max_activations": 3,
+        "max_machine_changes_per_month": 3,
+        "features": ["unlimited_resources", "unlimited_scans", "multi_account"],
+        "export_formats": ["terraform"],
+    },
+    PlanType.TEAM.value: {
+        "max_resources_per_scan": None,
+        "max_scans_per_month": None,
+        "max_aws_accounts": 10,
+        "max_activations": 10,
+        "max_machine_changes_per_month": 3,
+        "features": ["unlimited_resources", "unlimited_scans", "multi_account", "team"],
+        "export_formats": ["terraform"],
+    },
+    # Legacy plan mappings
+    PlanType.STARTER.value: {
+        "max_resources_per_scan": 200,
+        "max_scans_per_month": 100,
+        "max_aws_accounts": 1,
+        "max_activations": 2,
+        "max_machine_changes_per_month": 3,
+        "features": ["export_formats"],
+        "export_formats": ["terraform"],
+    },
+    PlanType.ENTERPRISE.value: {
+        "max_resources_per_scan": None,
+        "max_scans_per_month": None,
+        "max_aws_accounts": None,  # Unlimited
+        "max_activations": None,  # Unlimited
+        "max_machine_changes_per_month": None,  # Unlimited
+        "features": ["unlimited_resources", "unlimited_scans", "multi_account", "team", "sso", "audit_logs", "api_access"],
+        "export_formats": ["terraform"],
+    },
+}

@@ -22,6 +22,11 @@ class SyncUsageRequest(BaseModel):
         description="Usage counters (scans_count, resources_scanned, terraform_generations)",
     )
     period: str | None = Field(None, description="Period (YYYY-MM), defaults to current month")
+    idempotency_key: str | None = Field(
+        None,
+        description="Optional idempotency key to prevent duplicate processing",
+        max_length=255,
+    )
 
 
 class SyncUsageResponse(BaseModel):
@@ -72,6 +77,7 @@ async def sync_usage(
     Sync usage data from a client.
 
     This endpoint is called periodically by the CLI to report usage metrics.
+    Supports idempotency via optional idempotency_key to prevent duplicate processing.
     """
     service = UsageService(db)
 
@@ -80,6 +86,7 @@ async def sync_usage(
         machine_id=request.machine_id,
         usage_data=request.usage,
         period=request.period,
+        idempotency_key=request.idempotency_key,
     )
 
     return SyncUsageResponse(**result)
@@ -88,8 +95,8 @@ async def sync_usage(
 @router.get("/{license_key}", response_model=UsageResponse)
 async def get_usage(
     license_key: str,
-    period: str | None = None,
     db: Annotated[AsyncSession, Depends(get_db)],
+    period: str | None = None,
 ) -> UsageResponse:
     """Get usage data for a license."""
     service = UsageService(db)
@@ -109,8 +116,8 @@ async def get_usage(
 @router.get("/{license_key}/history")
 async def get_usage_history(
     license_key: str,
-    months: int = 6,
     db: Annotated[AsyncSession, Depends(get_db)],
+    months: int = 6,
 ) -> dict[str, Any]:
     """Get usage history for a license."""
     service = UsageService(db)
