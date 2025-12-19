@@ -70,6 +70,21 @@ Issues = "https://github.com/RepliMap/replimap/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["replimap"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "tests/",
+    ".github/",
+    ".claude/",
+    "uv.lock",
+    "Makefile",
+    "Dockerfile",
+    ".dockerignore",
+    ".gitignore",
+    ".pre-commit-config.yaml",
+    "*.md",
+    "!README.md",
+]
+
 [dependency-groups]
 dev = [
     "pytest>=7.0.0",
