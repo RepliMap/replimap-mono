@@ -42,16 +42,41 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
 {% endif %}
 
 {% if resource.config.target_group_arns %}
+  # Target Group ARNs - mapped to Terraform references where possible
   target_group_arns = [
 {% for tg_arn in resource.config.target_group_arns %}
 {% if tg_arn is tf_ref %}
     {{ tg_arn }},
 {% else %}
+{# Try to find target group by ARN in graph #}
 {% set tg_resource = graph.get_resource(tg_arn) %}
 {% if tg_resource and tg_resource.terraform_name %}
     aws_lb_target_group.{{ tg_resource.terraform_name }}.arn,
 {% else %}
-    "{{ tg_arn }}",
+{# Target Group not in graph - extract name from ARN and try to find by name pattern #}
+{# ARN format: arn:aws:elasticloadbalancing:region:account:targetgroup/name/id #}
+{% set tg_name_match = tg_arn.split('/') %}
+{% if tg_name_match | length >= 2 %}
+{% set tg_name = tg_name_match[1] %}
+{# Try to find by iterating through LB_TARGET_GROUP resources #}
+{% set found_tg = namespace(resource=none) %}
+{% for res in graph.iter_resources() %}
+{% if res.resource_type.value == 'lb_target_group' and res.config.get('name', '') == tg_name %}
+{% set found_tg.resource = res %}
+{% endif %}
+{% endfor %}
+{% if found_tg.resource and found_tg.resource.terraform_name %}
+    aws_lb_target_group.{{ found_tg.resource.terraform_name }}.arn,
+{% else %}
+    # ⚠️ WARNING: Target Group not found in graph - DO NOT use production ARN!
+    # Original ARN: {{ tg_arn }}
+    # TODO: Create this Target Group in staging or update the reference
+    # aws_lb_target_group.STAGING_TG_NAME.arn,
+{% endif %}
+{% else %}
+    # ⚠️ WARNING: Could not parse Target Group ARN
+    # Original ARN: {{ tg_arn }}
+{% endif %}
 {% endif %}
 {% endif %}
 {% endfor %}

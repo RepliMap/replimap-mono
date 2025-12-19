@@ -22,9 +22,19 @@ resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
 {% endif %}
 {% endif %}
 {% if resource.config.snapshot_id %}
-  # NOTE: EBS snapshot is region-specific. Copy snapshot to target region or remove this line.
+  # ─────────────────────────────────────────────────────────────────────────
+  # EBS SNAPSHOT: Commented out for staging (creates empty volume)
+  # ─────────────────────────────────────────────────────────────────────────
   # Original snapshot: {{ resource.config.snapshot_id }}
-  snapshot_id = "{{ resource.config.snapshot_id }}"
+  #
+  # To restore from snapshot (same account/region only):
+  # 1. Verify snapshot exists: aws ec2 describe-snapshots --snapshot-ids {{ resource.config.snapshot_id }}
+  # 2. For cross-region: Copy snapshot first
+  # 3. For cross-account: Share snapshot or copy with encryption
+  # 4. Uncomment the line below:
+  #
+  # snapshot_id = "{{ resource.config.snapshot_id }}"
+  # ─────────────────────────────────────────────────────────────────────────
 {% endif %}
 
   tags = {

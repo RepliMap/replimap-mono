@@ -42,17 +42,43 @@ resource "aws_route_table" "{{ resource.terraform_name }}" {
 {% endif %}
   }
 {% elif route.vpc_peering_connection_id %}
-  route {
-    cidr_block                = "{{ route.destination_cidr_block }}"
-    # NOTE: VPC Peering Connection is a boundary resource - verify it exists in target account
-    vpc_peering_connection_id = "{{ route.vpc_peering_connection_id }}"
-  }
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ⚠️ BOUNDARY RESOURCE: VPC Peering Connection
+  # ═══════════════════════════════════════════════════════════════════════════
+  # VPC Peering is specific to the source/destination VPC pair.
+  # This peering ({{ route.vpc_peering_connection_id }}) connects the PRODUCTION VPC
+  # to another VPC. It CANNOT be reused for the staging VPC.
+  #
+  # To enable this route in staging:
+  # 1. Create a new VPC Peering Connection for the staging VPC
+  # 2. Accept the peering request
+  # 3. Uncomment and update the route below with the new peering ID
+  #
+  # route {
+  #   cidr_block                = "{{ route.destination_cidr_block }}"
+  #   vpc_peering_connection_id = var.vpc_peering_{{ route.destination_cidr_block | replace('.', '_') | replace('/', '_') }}
+  # }
+  # ═══════════════════════════════════════════════════════════════════════════
 {% elif route.transit_gateway_id %}
-  route {
-    cidr_block         = "{{ route.destination_cidr_block }}"
-    # NOTE: Transit Gateway is a boundary resource - verify it exists in target account
-    transit_gateway_id = "{{ route.transit_gateway_id }}"
-  }
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ⚠️ BOUNDARY RESOURCE: Transit Gateway
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Transit Gateway attachments are VPC-specific. The staging VPC needs its own
+  # attachment to the Transit Gateway.
+  #
+  # Original Transit Gateway: {{ route.transit_gateway_id }}
+  # Destination: {{ route.destination_cidr_block }}
+  #
+  # To enable this route in staging:
+  # 1. Create a TGW attachment for the staging VPC
+  # 2. Update TGW route tables if needed
+  # 3. Uncomment and update the route below
+  #
+  # route {
+  #   cidr_block         = "{{ route.destination_cidr_block }}"
+  #   transit_gateway_id = var.transit_gateway_id
+  # }
+  # ═══════════════════════════════════════════════════════════════════════════
 {% elif route.network_interface_id %}
   route {
     cidr_block = "{{ route.destination_cidr_block }}"
