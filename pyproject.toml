@@ -7,8 +7,8 @@ name = "replimap"
 version = "0.1.0"
 description = "AWS Environment Replication Tool - Clone production to staging in minutes"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.11"
+license = {text = "Proprietary"}
+requires-python = ">=3.10"
 authors = [
     {name = "RepliMap Team", email = "team@replimap.dev"}
 ]
@@ -27,9 +27,10 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: MIT License",
+    "License :: Other/Proprietary License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -61,10 +62,10 @@ dev = [
 replimap = "replimap.main:cli"
 
 [project.urls]
-Homepage = "https://github.com/replimap/replimap"
-Documentation = "https://github.com/replimap/replimap#readme"
-Repository = "https://github.com/replimap/replimap.git"
-Issues = "https://github.com/replimap/replimap/issues"
+Homepage = "https://github.com/RepliMap/replimap"
+Documentation = "https://github.com/RepliMap/replimap#readme"
+Repository = "https://github.com/RepliMap/replimap.git"
+Issues = "https://github.com/RepliMap/replimap/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["replimap"]
@@ -131,3 +132,24 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+
+# uv configuration for package management
+# Build: uv build
+# Publish: uv publish (uses UV_PUBLISH_TOKEN env var or --token flag)
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+    "boto3-stubs[ec2,s3,rds,sts]>=1.28.0",
+]
+
+[tool.uv.pip]
+index-url = "https://pypi.org/simple"
+
+# To publish to PyPI with uv:
+# 1. Build: uv build
+# 2. Publish: uv publish --token $PYPI_TOKEN
+# Or set UV_PUBLISH_TOKEN environment variable
