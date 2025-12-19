@@ -149,8 +149,8 @@ replimap license status
 # View usage statistics
 replimap license usage
 
-# Activate a license key
-replimap license activate TEAM-XXXX-XXXX-XXXX
+# Activate a license key (format: RM-XXXX-XXXX-XXXX-XXXX)
+replimap license activate RM-XXXX-XXXX-XXXX-XXXX
 ```
 
 ## Graph-Based Selection Engine
@@ -289,9 +289,11 @@ RepliMap intelligently handles infrastructure boundaries:
 
 ## License Management
 
+License keys use the format `RM-XXXX-XXXX-XXXX-XXXX` (RM prefix for RepliMap brand).
+
 ```bash
 # Activate a license key
-replimap license activate SOLO-XXXX-XXXX-XXXX
+replimap license activate RM-XXXX-XXXX-XXXX-XXXX
 
 # Check current status
 replimap license status
@@ -349,6 +351,7 @@ replimap profiles
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `REPLIMAP_DEV_MODE` | `false` | Enable dev mode (bypasses license limits) |
+| `REPLIMAP_LICENSE_API` | `https://replimap-api...` | License validation API URL |
 | `REPLIMAP_MAX_WORKERS` | `4` | Max parallel scanner threads |
 | `REPLIMAP_MAX_RETRIES` | `5` | Max retries for AWS rate limiting |
 | `REPLIMAP_RETRY_DELAY` | `1.0` | Base delay (seconds) for retry backoff |
