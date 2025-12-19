@@ -29,8 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **terraform.tfvars.example** with smart variable detection
   - Includes AWS CLI commands for finding AMIs, certificates, etc.
   - All dynamic variables with helpful comments
+- **httpx dependency** for license API validation
 
 ### Changed
+- **License key format**: Updated to `RM-XXXX-XXXX-XXXX-XXXX` (RM prefix for RepliMap brand)
+  - Aligns CLI with backend API format
+  - Implemented real API validation via httpx
+  - Added `REPLIMAP_LICENSE_API` environment variable for API URL configuration
 - Legacy filter options (`--vpc`, `--types`) marked as deprecated but still supported
 - RDS password variables now have default placeholder for `terraform plan` to succeed
 
