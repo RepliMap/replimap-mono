@@ -3,6 +3,7 @@
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -28,6 +29,37 @@ from replimap.licensing.models import (
     get_plan_features,
 )
 from replimap.licensing.tracker import ScanRecord, UsageStats, UsageTracker
+
+
+def mock_validate_online(manager: "LicenseManager", license_key: str) -> License:
+    """Mock _validate_online for testing without network calls.
+
+    Simulates API response based on key content for testing purposes.
+    """
+    key_upper = license_key.upper()
+
+    # Determine plan from key content
+    if "FREE" in key_upper:
+        plan = Plan.FREE
+    elif "SOLO" in key_upper:
+        plan = Plan.SOLO
+    elif "PRO" in key_upper:
+        plan = Plan.PRO
+    elif "TEAM" in key_upper:
+        plan = Plan.TEAM
+    elif "ENTR" in key_upper:
+        plan = Plan.ENTERPRISE
+    else:
+        plan = Plan.SOLO
+
+    return License(
+        license_key=key_upper,
+        plan=plan,
+        email="test@example.com",
+        issued_at=datetime.now(UTC),
+        expires_at=datetime.now(UTC) + timedelta(days=365),
+        machine_fingerprint=get_machine_fingerprint(),
+    )
 
 
 class TestPlanFeatures:
@@ -94,7 +126,7 @@ class TestLicense:
     def test_create_license(self) -> None:
         """Test creating a license."""
         license_obj = License(
-            license_key="TEST-1234-5678-ABCD",
+            license_key="RM-TEST-1234-5678-ABCD",
             plan=Plan.SOLO,
             email="test@example.com",
         )
@@ -106,7 +138,7 @@ class TestLicense:
         """Test license expiration check."""
         # Non-expired license
         license_obj = License(
-            license_key="TEST-1234-5678-ABCD",
+            license_key="RM-TEST-1234-5678-ABCD",
             plan=Plan.SOLO,
             email="test@example.com",
             expires_at=datetime.now(UTC) + timedelta(days=30),
@@ -115,7 +147,7 @@ class TestLicense:
 
         # Expired license
         expired_license = License(
-            license_key="TEST-1234-5678-ABCD",
+            license_key="RM-TEST-1234-5678-ABCD",
             plan=Plan.SOLO,
             email="test@example.com",
             expires_at=datetime.now(UTC) - timedelta(days=1),
@@ -125,7 +157,7 @@ class TestLicense:
     def test_license_features(self) -> None:
         """Test license features access."""
         license_obj = License(
-            license_key="TEST-1234-5678-ABCD",
+            license_key="RM-TEST-1234-5678-ABCD",
             plan=Plan.PRO,
             email="test@example.com",
         )
@@ -136,7 +168,7 @@ class TestLicense:
     def test_license_serialization(self) -> None:
         """Test license to/from dict."""
         license_obj = License(
-            license_key="TEST-1234-5678-ABCD",
+            license_key="RM-TEST-1234-5678-ABCD",
             plan=Plan.TEAM,
             email="test@example.com",
             organization="TestCorp",
@@ -177,11 +209,12 @@ class TestLicenseManager:
             assert manager.current_plan == Plan.FREE
             assert manager.current_license is None
 
+    @patch.object(LicenseManager, "_validate_online", mock_validate_online)
     def test_activate_valid_key(self) -> None:
         """Test activating a valid license key."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = LicenseManager(cache_dir=Path(tmpdir))
-            license_obj = manager.activate("SOLO-1234-5678-ABCD")
+            license_obj = manager.activate("RM-SOLO-1234-5678-ABCD")
 
             assert license_obj.plan == Plan.SOLO
             assert manager.current_plan == Plan.SOLO
@@ -195,17 +228,19 @@ class TestLicenseManager:
             with pytest.raises(LicenseValidationError):
                 manager.activate("invalid-key")
 
+    @patch.object(LicenseManager, "_validate_online", mock_validate_online)
     def test_deactivate(self) -> None:
         """Test deactivating a license."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = LicenseManager(cache_dir=Path(tmpdir))
-            manager.activate("SOLO-1234-5678-ABCD")
+            manager.activate("RM-SOLO-1234-5678-ABCD")
             assert manager.current_plan == Plan.SOLO
 
             manager.deactivate()
             assert manager.current_plan == Plan.FREE
             assert manager.current_license is None
 
+    @patch.object(LicenseManager, "_validate_online", mock_validate_online)
     def test_validate_status(self) -> None:
         """Test license validation status."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -216,10 +251,11 @@ class TestLicenseManager:
             assert status == LicenseStatus.VALID
 
             # Activated license is valid
-            manager.activate("PRO0-1234-5678-ABCD")
+            manager.activate("RM-PRO0-1234-5678-ABCD")
             status, message = manager.validate()
             assert status == LicenseStatus.VALID
 
+    @patch.object(LicenseManager, "_validate_online", mock_validate_online)
     def test_check_feature(self) -> None:
         """Test feature checking through manager."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -230,15 +266,16 @@ class TestLicenseManager:
             assert not manager.check_feature("async_scanning")
 
             # After upgrade
-            manager.activate("SOLO-1234-5678-ABCD")
+            manager.activate("RM-SOLO-1234-5678-ABCD")
             assert manager.check_feature("async_scanning")
 
+    @patch.object(LicenseManager, "_validate_online", mock_validate_online)
     def test_cache_persistence(self) -> None:
         """Test license cache persistence."""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Activate license
             manager1 = LicenseManager(cache_dir=Path(tmpdir))
-            manager1.activate("TEAM-1234-5678-ABCD")
+            manager1.activate("RM-TEAM-1234-5678-ABCD")
 
             # Create new manager instance
             manager2 = LicenseManager(cache_dir=Path(tmpdir))
@@ -248,11 +285,12 @@ class TestLicenseManager:
 class TestFeatureGates:
     """Tests for feature gating decorators."""
 
+    @patch.object(LicenseManager, "_validate_online", mock_validate_online)
     def test_feature_gate_allows_when_available(self) -> None:
         """Test feature gate allows execution when feature available."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = LicenseManager(cache_dir=Path(tmpdir))
-            manager.activate("SOLO-1234-5678-ABCD")
+            manager.activate("RM-SOLO-1234-5678-ABCD")
             set_license_manager(manager)
 
             @feature_gate(Feature.ASYNC_SCANNING)
@@ -288,11 +326,12 @@ class TestFeatureGates:
             result = scan_mode()
             assert result == "sync mode"
 
+    @patch.object(LicenseManager, "_validate_online", mock_validate_online)
     def test_require_plan_allows_higher_tiers(self) -> None:
         """Test require_plan allows higher tier plans."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = LicenseManager(cache_dir=Path(tmpdir))
-            manager.activate("TEAM-1234-5678-ABCD")
+            manager.activate("RM-TEAM-1234-5678-ABCD")
             set_license_manager(manager)
 
             @require_plan(Plan.SOLO)

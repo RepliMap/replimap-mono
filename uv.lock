@@ -1780,6 +1780,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiobotocore" },
     { name = "boto3" },
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -1814,6 +1815,7 @@ requires-dist = [
     { name = "aiobotocore", specifier = ">=2.5.0" },
     { name = "boto3", specifier = ">=1.28.0" },
     { name = "boto3-stubs", extras = ["ec2", "rds", "s3", "sts"], marker = "extra == 'dev'", specifier = ">=1.28.0" },
+    { name = "httpx", specifier = ">=0.25.0" },
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "networkx", specifier = ">=3.0" },
