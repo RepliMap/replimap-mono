@@ -15,9 +15,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - YAML configuration file support for complex selection scenarios
 - New CLI options: `--scope`, `--entry`, `--config`
 - Scan result caching with `--cache` flag for incremental scans
+- **Makefile generation** for easier Terraform workflow management
+  - Targets: `init`, `plan`, `apply`, `destroy`, `validate`, `fmt`, `clean`, etc.
+  - Filtered planning: `plan-target`, `plan-include`, `plan-exclude`
+  - JSON output: `plan-json` for automation
+  - Quick validation: `quick-validate` (no tfvars needed)
+  - State management: `state-list`, `state-show`, `state-mv`, `state-rm`
+- **test-terraform.sh** script for automated validation
+  - Phases: fmt check → init → validate → plan (optional)
+  - Colored output with clear pass/fail indicators
+- **tfplan.txt** human-readable plan output alongside binary tfplan
+- **terraform fmt** integration - auto-formats generated files
+- **terraform.tfvars.example** with smart variable detection
+  - Includes AWS CLI commands for finding AMIs, certificates, etc.
+  - All dynamic variables with helpful comments
 
 ### Changed
 - Legacy filter options (`--vpc`, `--types`) marked as deprecated but still supported
+- RDS password variables now have default placeholder for `terraform plan` to succeed
+
+### Fixed
+- **Boundary resource handling**: VPC Peering and Transit Gateway routes are now commented out with clear instructions (prevents staging→production routing)
+- **ASG Target Group ARNs**: Now searches graph by ARN and name, comments out if not found (prevents hardcoded production ARN leakage)
+- **EBS Snapshot IDs**: Commented out by default for staging (creates empty volumes)
+- **ElastiCache Redis 6+ version format**: Strips patch version (6.2.6 → 6.2) as required by Terraform
+- **S3 bucket name length**: Skips environment suffix if name would exceed 63 characters
+- **Security Group circular dependencies**: Rules referencing other SGs use separate `aws_security_group_rule` resources
 
 ## [0.1.0] - 2025-01-XX
 
@@ -84,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Developer Experience
 - Rich console output with progress spinners and tables
-- Comprehensive test suite with 181 tests
+- Comprehensive test suite with 331 tests
 - CI/CD with GitHub Actions (Python 3.11, 3.12, 3.13, 3.14)
 - ruff for formatting and linting
 - mypy for type checking

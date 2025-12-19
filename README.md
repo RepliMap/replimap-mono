@@ -79,12 +79,40 @@ replimap clone --profile prod --output-dir ./staging-tf \
 
 ```bash
 cd ./staging-tf
+
+# Quick validation (no AWS credentials needed)
+make quick-validate
+
+# Or use the test script
+./test-terraform.sh
+
+# Full workflow with Makefile
+make init                    # Initialize Terraform
+make plan                    # Plan changes (outputs tfplan.txt)
+make apply                   # Apply the plan
+
+# Alternative: manual Terraform commands
 terraform init
-terraform plan
-terraform apply
+terraform plan -out=tfplan
+terraform apply tfplan
 ```
 
-### 5. Check License & Usage
+### 5. Available Makefile Targets
+
+The generated Terraform includes a comprehensive Makefile:
+
+```bash
+make help                    # Show all targets
+make plan                    # Plan and save to tfplan + tfplan.txt
+make plan-target TARGET=...  # Plan specific resource
+make plan-json               # Plan with JSON output
+make apply                   # Apply saved plan
+make destroy                 # Destroy (requires confirmation)
+make state-list              # List resources in state
+make clean                   # Remove generated files
+```
+
+### 6. Check License & Usage
 
 ```bash
 # View license status
