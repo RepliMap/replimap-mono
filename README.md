@@ -1,5 +1,10 @@
 # RepliMap
 
+[![PyPI version](https://img.shields.io/pypi/v/replimap.svg)](https://pypi.org/project/replimap/)
+[![Python versions](https://img.shields.io/pypi/pyversions/replimap.svg)](https://pypi.org/project/replimap/)
+[![Tests](https://github.com/replimap/replimap/actions/workflows/test.yml/badge.svg)](https://github.com/replimap/replimap/actions/workflows/test.yml)
+[![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
+
 **AWS Infrastructure Staging Cloner**
 
 > Point at your Production AWS and generate cost-optimized Staging Terraform in minutes.
@@ -17,26 +22,50 @@ RepliMap scans your AWS resources, builds a dependency graph, and generates Infr
 
 ## Installation
 
-```bash
-# Install from PyPI
-pip install replimap
+### Recommended: pipx (isolated environment)
 
-# Or with uv
+```bash
+# Install pipx if you don't have it
+brew install pipx && pipx ensurepath  # macOS
+# or: pip install --user pipx && pipx ensurepath  # Linux
+
+# Install RepliMap
+pipx install replimap
+
+# Verify installation
+replimap --version
+
+# Update later
+pipx upgrade replimap
+```
+
+### Alternative: pip
+
+```bash
+pip install replimap
+```
+
+### Alternative: uv
+
+```bash
 uv pip install replimap
+```
+
+### Docker (no Python required)
+
+```bash
+# Pull the image
+docker pull replimap/replimap:latest
+
+# Run with AWS credentials
+docker run -v ~/.aws:/root/.aws replimap/replimap scan --profile prod --region us-east-1
 ```
 
 ## Quick Start
 
-### 1. Install RepliMap
+### 1. Verify Installation
 
 ```bash
-# Using pip
-pip install replimap
-
-# Using uv (faster)
-uv pip install replimap
-
-# Verify installation
 replimap --version
 ```
 
