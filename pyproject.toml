@@ -133,23 +133,7 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
 
-# uv configuration for package management
+# uv package management:
 # Build: uv build
-# Publish: uv publish (uses UV_PUBLISH_TOKEN env var or --token flag)
-[tool.uv]
-dev-dependencies = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-asyncio>=0.21.0",
-    "mypy>=1.0.0",
-    "ruff>=0.1.0",
-    "boto3-stubs[ec2,s3,rds,sts]>=1.28.0",
-]
-
-[tool.uv.pip]
-index-url = "https://pypi.org/simple"
-
-# To publish to PyPI with uv:
-# 1. Build: uv build
-# 2. Publish: uv publish --token $PYPI_TOKEN
+# Publish: uv publish --token $PYPI_TOKEN
 # Or set UV_PUBLISH_TOKEN environment variable
