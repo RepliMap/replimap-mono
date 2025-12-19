@@ -11,6 +11,7 @@ export interface Env {
   // Secrets (set via wrangler secret put)
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
+  ADMIN_API_KEY: string;
 
   // Environment variables
   ENVIRONMENT: 'development' | 'production';

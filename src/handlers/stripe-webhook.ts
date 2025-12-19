@@ -25,6 +25,7 @@ type StripeEventType =
   | 'customer.subscription.created'
   | 'customer.subscription.updated'
   | 'customer.subscription.deleted'
+  | 'customer.deleted'
   | 'invoice.paid'
   | 'invoice.payment_failed';
 
@@ -310,6 +311,39 @@ async function handlePaymentFailed(
   await updateLicenseStatus(db, license.id, 'past_due');
 }
 
+interface StripeCustomer {
+  id: string;
+  email: string;
+  deleted?: boolean;
+}
+
+/**
+ * Handle customer.deleted
+ * Expires all licenses for the customer
+ */
+async function handleCustomerDeleted(
+  db: D1Database,
+  customer: StripeCustomer
+): Promise<void> {
+  // Get user by Stripe customer ID
+  const user = await getUserByStripeCustomerId(db, customer.id);
+  if (!user) {
+    console.log(`No user found for deleted Stripe customer ${customer.id}`);
+    return;
+  }
+
+  // Get all licenses for this user and mark them as expired
+  const licenses = await db.prepare(`
+    SELECT id FROM licenses WHERE user_id = ? AND status = 'active'
+  `).bind(user.id).all<{ id: string }>();
+
+  for (const license of licenses.results) {
+    await updateLicenseStatus(db, license.id, 'expired');
+  }
+
+  console.log(`Expired ${licenses.results.length} licenses for deleted customer ${customer.id}`);
+}
+
 /**
  * Main webhook handler
  */
@@ -407,6 +441,13 @@ export async function handleStripeWebhook(
         await handlePaymentFailed(
           env.DB,
           event.data.object as unknown as StripeInvoice
+        );
+        break;
+
+      case 'customer.deleted':
+        await handleCustomerDeleted(
+          env.DB,
+          event.data.object as unknown as StripeCustomer
         );
         break;
 

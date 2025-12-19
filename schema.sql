@@ -85,6 +85,16 @@ CREATE TABLE IF NOT EXISTS processed_events (
     processed_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Usage sync idempotency keys
+CREATE TABLE IF NOT EXISTS usage_idempotency (
+    idempotency_key TEXT PRIMARY KEY,
+    license_id TEXT NOT NULL REFERENCES licenses(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_idempotency_license ON usage_idempotency(license_id);
+CREATE INDEX IF NOT EXISTS idx_usage_idempotency_created ON usage_idempotency(created_at);
+
 -- AWS account tracking per license
 CREATE TABLE IF NOT EXISTS license_aws_accounts (
     id TEXT PRIMARY KEY,
