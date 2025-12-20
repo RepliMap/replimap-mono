@@ -1762,6 +1762,822 @@ def license_usage() -> None:
     console.print()
 
 
+# =============================================================================
+# AUDIT COMMAND
+# =============================================================================
+
+
+def _output_audit_json(
+    results: "CheckovResults",
+    output_path: Path,
+    region: str,
+    profile: str | None,
+    vpc_id: str | None,
+) -> Path:
+    """
+    Output audit results as JSON.
+
+    Args:
+        results: Checkov scan results
+        output_path: Base path for output (will change extension to .json)
+        region: AWS region
+        profile: AWS profile name
+        vpc_id: VPC ID if specified
+
+    Returns:
+        Path to the generated JSON file
+    """
+    import json
+    from datetime import datetime, timezone
+
+    from replimap.audit.fix_suggestions import FIX_SUGGESTIONS
+    from replimap.audit.soc2_mapping import get_soc2_mapping
+
+    # Build SOC2 summary
+    soc2_summary: dict = {}
+    for f in results.findings:
+        if f.check_result != "FAILED":
+            continue
+        mapping = get_soc2_mapping(f.check_id)
+        if mapping:
+            control = mapping.control
+            if control not in soc2_summary:
+                soc2_summary[control] = {
+                    "control": control,
+                    "category": mapping.category,
+                    "count": 0,
+                    "checks": [],
+                }
+            soc2_summary[control]["count"] += 1
+            if f.check_id not in soc2_summary[control]["checks"]:
+                soc2_summary[control]["checks"].append(f.check_id)
+
+    # Build JSON output
+    json_output = {
+        "summary": {
+            "score": results.score,
+            "grade": results.grade,
+            "passed": results.passed,
+            "failed": results.failed,
+            "skipped": results.skipped,
+            "total": results.total,
+            "high_severity_count": len(results.high_severity),
+        },
+        "metadata": {
+            "account_id": "N/A",  # Would need to pass this through
+            "region": region,
+            "profile": profile,
+            "vpc_id": vpc_id,
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        },
+        "severity_breakdown": {
+            "critical": len(results.findings_by_severity["CRITICAL"]),
+            "high": len(results.findings_by_severity["HIGH"]),
+            "medium": len(results.findings_by_severity["MEDIUM"]),
+            "low": len(results.findings_by_severity["LOW"]),
+        },
+        "findings": [
+            {
+                "check_id": f.check_id,
+                "check_name": f.check_name,
+                "severity": f.severity,
+                "result": f.check_result,
+                "resource": f.resource,
+                "file_path": f.file_path,
+                "line_range": list(f.file_line_range),
+                "soc2_mapping": (
+                    {
+                        "control": m.control,
+                        "category": m.category,
+                        "description": m.description,
+                    }
+                    if (m := get_soc2_mapping(f.check_id))
+                    else None
+                ),
+                "has_fix_suggestion": f.check_id in FIX_SUGGESTIONS,
+                "guideline": f.guideline,
+            }
+            for f in results.findings
+            if f.check_result == "FAILED"
+        ],
+        "soc2_summary": soc2_summary,
+    }
+
+    # Determine output path
+    json_path = output_path.with_suffix(".json")
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    json_path.write_text(json.dumps(json_output, indent=2))
+
+    return json_path
+
+
+@app.command()
+def audit(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to audit",
+    ),
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        "-v",
+        help="VPC ID to scope the audit (optional)",
+    ),
+    output: Path = typer.Option(
+        Path("./audit_report.html"),
+        "--output",
+        "-o",
+        help="Path for HTML/JSON report",
+    ),
+    terraform_dir: Path = typer.Option(
+        Path("./audit_output"),
+        "--terraform-dir",
+        "-t",
+        help="Directory for generated Terraform files",
+    ),
+    open_report: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="Open report in browser after generation",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+    fail_on_high: bool = typer.Option(
+        False,
+        "--fail-on-high",
+        help="Exit with code 1 if HIGH/CRITICAL issues found (for CI/CD)",
+    ),
+    fail_on_score: int | None = typer.Option(
+        None,
+        "--fail-on-score",
+        help="Exit with code 1 if score below threshold (e.g., --fail-on-score 70)",
+    ),
+    output_format: str = typer.Option(
+        "html",
+        "--format",
+        "-f",
+        help="Output format: html or json",
+    ),
+) -> None:
+    """
+    Run security audit on AWS infrastructure.
+
+    Scans your AWS environment, generates a forensic Terraform snapshot,
+    runs Checkov security analysis, and produces an HTML report with
+    findings mapped to SOC2 controls.
+
+    Requires Checkov to be installed: pip install checkov
+
+    Examples:
+        replimap audit --region us-east-1
+        replimap audit -p prod -r ap-southeast-2 -v vpc-abc123
+        replimap audit -r us-west-2 --no-open
+        replimap audit -r us-east-1 --fail-on-high --no-open  # CI/CD mode
+        replimap audit -r us-east-1 --fail-on-score 70 --no-open
+        replimap audit -r us-east-1 --format json
+    """
+    import webbrowser
+
+    from replimap.audit import AuditEngine, CheckovNotInstalledError
+
+    # Determine region
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold blue]🔒 RepliMap Security Audit[/bold blue]\n\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]\n"
+            + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
+            + f"Output: [cyan]{output}[/]\n"
+            f"Terraform: [cyan]{terraform_dir}[/]",
+            border_style="blue",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Check Checkov is installed
+    try:
+        engine = AuditEngine(
+            session=session,
+            region=effective_region,
+            profile=profile,
+            vpc_id=vpc,
+        )
+    except CheckovNotInstalledError:
+        console.print()
+        console.print(
+            Panel(
+                "[red]Checkov is not installed.[/]\n\n"
+                "Install Checkov with:\n"
+                "  [bold]pipx install checkov[/]  (recommended)\n\n"
+                "Or:\n"
+                "  [bold]pip install checkov[/]",
+                title="Missing Dependency",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+
+    # Run audit
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning AWS resources...", total=None)
+
+        try:
+            results, report_path = engine.run(
+                output_dir=terraform_dir,
+                report_path=output,
+            )
+        except Exception as e:
+            progress.stop()
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Audit failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            raise typer.Exit(1)
+
+        progress.update(task, completed=True)
+
+    # Handle JSON output format
+    if output_format.lower() == "json":
+        json_path = _output_audit_json(results, output, effective_region, profile, vpc)
+        console.print()
+        console.print(f"[green]✓ JSON Report:[/] {json_path.absolute()}")
+        console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
+    else:
+        # Display results for HTML format
+        console.print()
+
+        # Score with color
+        if results.score >= 80:
+            score_color = "green"
+        elif results.score >= 60:
+            score_color = "yellow"
+        else:
+            score_color = "red"
+
+        console.print(
+            Panel(
+                f"[bold]Security Score: [{score_color}]{results.score}%[/] (Grade: {results.grade})[/bold]\n\n"
+                f"[green]✓ Passed:[/] {results.passed}\n"
+                f"[red]✗ Failed:[/] {results.failed}\n"
+                f"[dim]○ Skipped:[/] {results.skipped}",
+                title="📊 Audit Results",
+                border_style=score_color,
+            )
+        )
+
+        # High severity warning
+        if results.high_severity:
+            console.print()
+            console.print(
+                f"[bold red]⚠️  {len(results.high_severity)} High/Critical severity issues require attention![/bold red]"
+            )
+            for finding in results.high_severity[:5]:
+                console.print(f"  [red]•[/] {finding.check_id}: {finding.check_name}")
+            if len(results.high_severity) > 5:
+                console.print(
+                    f"  [dim]... and {len(results.high_severity) - 5} more[/dim]"
+                )
+
+        # Output paths
+        console.print()
+        console.print(f"[green]✓ Report:[/] {report_path.absolute()}")
+        console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
+
+        # Open report in browser (only for HTML format)
+        if open_report:
+            console.print()
+            console.print("[dim]Opening report in browser...[/dim]")
+            webbrowser.open(f"file://{report_path.absolute()}")
+
+    # CI/CD checks
+    exit_code = 0
+
+    if fail_on_high and results.high_severity:
+        console.print()
+        console.print(
+            f"[bold red]❌ CI/CD FAILED: {len(results.high_severity)} HIGH/CRITICAL issues found[/bold red]"
+        )
+        for f in results.high_severity[:5]:
+            console.print(f"   • {f.check_id}: {f.check_name}")
+        if len(results.high_severity) > 5:
+            console.print(f"   ... and {len(results.high_severity) - 5} more")
+        exit_code = 1
+
+    if fail_on_score is not None and results.score < fail_on_score:
+        console.print()
+        console.print(
+            f"[bold red]❌ CI/CD FAILED: Score {results.score} below threshold {fail_on_score}[/bold red]"
+        )
+        exit_code = 1
+
+    if exit_code == 0 and (fail_on_high or fail_on_score is not None):
+        console.print()
+        console.print("[bold green]✓ CI/CD PASSED[/bold green]")
+
+    console.print()
+
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
+
+
+# =============================================================================
+# GRAPH VISUALIZATION COMMAND
+# =============================================================================
+
+
+@app.command()
+def graph(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to visualize",
+    ),
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        "-v",
+        help="VPC ID to scope the visualization (optional)",
+    ),
+    output: Path = typer.Option(
+        Path("./infrastructure_graph.html"),
+        "--output",
+        "-o",
+        help="Path for output file",
+    ),
+    output_format: str = typer.Option(
+        "html",
+        "--format",
+        "-f",
+        help="Output format: html (interactive D3.js), mermaid, or json",
+    ),
+    open_graph: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="Open graph in browser after generation (HTML only)",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Generate visual dependency graph of AWS infrastructure.
+
+    Scans your AWS environment and generates an interactive visualization
+    showing resources and their dependencies.
+
+    Output formats:
+    - html: Interactive D3.js force-directed graph (default)
+    - mermaid: Mermaid diagram syntax for documentation
+    - json: Raw JSON data for integration
+
+    Examples:
+        replimap graph --region us-east-1
+        replimap graph -p prod -r us-west-2 -v vpc-abc123
+        replimap graph -r us-east-1 --format mermaid -o docs/graph.md
+        replimap graph -r us-east-1 --format json -o graph.json
+    """
+    import webbrowser
+
+    from replimap.graph import GraphVisualizer, OutputFormat
+
+    # Determine region
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    # Parse output format
+    try:
+        fmt = OutputFormat(output_format.lower())
+    except ValueError:
+        console.print(
+            f"[red]Error:[/] Invalid format '{output_format}'. "
+            f"Use one of: html, mermaid, json"
+        )
+        raise typer.Exit(1)
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold cyan]📊 RepliMap Graph Visualizer[/bold cyan]\n\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]\n"
+            + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
+            + f"Format: [cyan]{fmt.value}[/]\n"
+            f"Output: [cyan]{output}[/]",
+            border_style="cyan",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Run visualization
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning AWS resources...", total=None)
+
+        try:
+            visualizer = GraphVisualizer(
+                session=session,
+                region=effective_region,
+                profile=profile,
+            )
+
+            result = visualizer.generate(
+                vpc_id=vpc,
+                output_format=fmt,
+                output_path=output,
+            )
+
+            progress.update(task, completed=True)
+        except Exception as e:
+            progress.stop()
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Graph generation failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            raise typer.Exit(1)
+
+    # Output result
+    console.print()
+    if isinstance(result, Path):
+        console.print(f"[green]✓ Graph generated:[/] {result.absolute()}")
+
+        # Open in browser for HTML
+        if open_graph and fmt == OutputFormat.HTML:
+            console.print()
+            console.print("[dim]Opening graph in browser...[/dim]")
+            webbrowser.open(f"file://{result.absolute()}")
+    else:
+        # Content returned for stdout mode
+        console.print(result)
+
+    console.print()
+
+
+# =============================================================================
+# DRIFT DETECTION COMMAND
+# =============================================================================
+
+
+@app.command()
+def drift(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to scan",
+    ),
+    state: Path | None = typer.Option(
+        None,
+        "--state",
+        "-s",
+        help="Path to terraform.tfstate file",
+    ),
+    state_bucket: str | None = typer.Option(
+        None,
+        "--state-bucket",
+        help="S3 bucket for remote state",
+    ),
+    state_key: str | None = typer.Option(
+        None,
+        "--state-key",
+        help="S3 key for remote state",
+    ),
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        "-v",
+        help="VPC ID to scope the scan (optional)",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (HTML or JSON)",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, html, or json",
+    ),
+    fail_on_drift: bool = typer.Option(
+        False,
+        "--fail-on-drift",
+        help="Exit with code 1 if any drift detected (for CI/CD)",
+    ),
+    fail_on_high: bool = typer.Option(
+        False,
+        "--fail-on-high",
+        help="Exit with code 1 only for HIGH/CRITICAL drift (for CI/CD)",
+    ),
+    open_report: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="Open HTML report in browser after generation",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Detect infrastructure drift between Terraform state and AWS.
+
+    Compares your Terraform state file against the actual AWS resources
+    to identify changes made outside of Terraform (console, CLI, etc).
+
+    State Sources:
+    - Local file: --state ./terraform.tfstate
+    - S3 remote: --state-bucket my-bucket --state-key path/terraform.tfstate
+
+    Output formats:
+    - console: Rich terminal output (default)
+    - html: Professional HTML report
+    - json: Machine-readable JSON
+
+    Examples:
+        # Local state file
+        replimap drift -r us-east-1 -s ./terraform.tfstate
+
+        # Remote S3 state
+        replimap drift -r us-east-1 --state-bucket my-tf-state --state-key prod/terraform.tfstate
+
+        # Generate HTML report
+        replimap drift -r us-east-1 -s ./terraform.tfstate -f html -o drift-report.html
+
+        # CI/CD mode - fail on any drift
+        replimap drift -r us-east-1 -s ./terraform.tfstate --fail-on-drift --no-open
+
+        # CI/CD mode - fail only on high severity
+        replimap drift -r us-east-1 -s ./terraform.tfstate --fail-on-high --no-open
+    """
+    import webbrowser
+
+    from replimap.drift import DriftEngine, DriftReporter
+
+    # Determine region
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    # Validate inputs
+    if not state and not (state_bucket and state_key):
+        console.print(
+            Panel(
+                "[red]Either --state or --state-bucket/--state-key is required.[/]\n\n"
+                "Examples:\n"
+                "  [bold]replimap drift -r us-east-1 -s ./terraform.tfstate[/]\n"
+                "  [bold]replimap drift -r us-east-1 --state-bucket my-bucket --state-key prod/terraform.tfstate[/]",
+                title="Missing State Source",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+
+    # Determine state source for display
+    if state:
+        state_display = str(state)
+    else:
+        state_display = f"s3://{state_bucket}/{state_key}"
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold orange1]RepliMap Drift Detector[/bold orange1]\n\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]\n"
+            + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
+            + f"State: [cyan]{state_display}[/]\n"
+            f"Format: [cyan]{output_format}[/]",
+            border_style="orange1",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Build remote backend config if using S3
+    remote_backend = None
+    if state_bucket and state_key:
+        remote_backend = {
+            "bucket": state_bucket,
+            "key": state_key,
+            "region": effective_region,
+        }
+
+    # Run drift detection
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Detecting drift...", total=None)
+
+        try:
+            engine = DriftEngine(
+                session=session,
+                region=effective_region,
+                profile=profile,
+            )
+
+            report = engine.detect(
+                state_path=state,
+                remote_backend=remote_backend,
+                vpc_id=vpc,
+            )
+
+            progress.update(task, completed=True)
+
+        except FileNotFoundError as e:
+            progress.stop()
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]State file not found:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            raise typer.Exit(1)
+        except Exception as e:
+            progress.stop()
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Drift detection failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            raise typer.Exit(1)
+
+    # Generate output
+    reporter = DriftReporter()
+
+    # Console output (always show summary)
+    if output_format == "console" or not output:
+        console.print()
+        if report.has_drift:
+            console.print(
+                Panel(
+                    f"[bold red]DRIFT DETECTED[/bold red]\n\n"
+                    f"[red]Total drifts:[/] {report.drifted_resources}\n"
+                    f"[green]  Added (not in TF):[/] {report.added_resources}\n"
+                    f"[red]  Removed (deleted):[/] {report.removed_resources}\n"
+                    f"[yellow]  Modified:[/] {report.modified_resources}",
+                    border_style="red",
+                )
+            )
+
+            # Show high priority drifts
+            critical_high = report.critical_drifts + report.high_drifts
+            if critical_high:
+                console.print()
+                console.print("[bold red]High Priority Drifts:[/bold red]")
+                for d in critical_high[:5]:
+                    drift_icon = {"added": "+", "removed": "-", "modified": "~"}.get(
+                        d.drift_type.value, "?"
+                    )
+                    console.print(
+                        f"  [{d.severity.value.upper()}] [{drift_icon}] {d.resource_type}: {d.resource_id}"
+                    )
+                if len(critical_high) > 5:
+                    console.print(f"  [dim]... and {len(critical_high) - 5} more[/dim]")
+        else:
+            console.print(
+                Panel(
+                    f"[bold green]NO DRIFT[/bold green]\n\n"
+                    f"Your AWS resources match your Terraform state.\n"
+                    f"Total resources checked: {report.total_resources}",
+                    border_style="green",
+                )
+            )
+
+    # HTML output
+    if output_format == "html" or (output and output.suffix == ".html"):
+        output_path = output or Path("./drift-report.html")
+        reporter.to_html(report, output_path)
+        console.print()
+        console.print(f"[green]HTML report:[/] {output_path.absolute()}")
+        if open_report:
+            console.print("[dim]Opening report in browser...[/dim]")
+            webbrowser.open(f"file://{output_path.absolute()}")
+
+    # JSON output
+    if output_format == "json" or (output and output.suffix == ".json"):
+        output_path = output or Path("./drift-report.json")
+        reporter.to_json(report, output_path)
+        console.print()
+        console.print(f"[green]JSON report:[/] {output_path.absolute()}")
+
+    # CI/CD exit codes
+    exit_code = 0
+
+    if fail_on_drift and report.has_drift:
+        console.print()
+        console.print(
+            f"[bold red]CI/CD FAILED: {report.drifted_resources} drift(s) detected[/bold red]"
+        )
+        exit_code = 1
+
+    if fail_on_high and (report.critical_drifts or report.high_drifts):
+        high_count = len(report.critical_drifts) + len(report.high_drifts)
+        console.print()
+        console.print(
+            f"[bold red]CI/CD FAILED: {high_count} HIGH/CRITICAL drift(s)[/bold red]"
+        )
+        exit_code = 1
+
+    if exit_code == 0 and (fail_on_drift or fail_on_high):
+        console.print()
+        console.print("[bold green]CI/CD PASSED: No significant drift[/bold green]")
+
+    console.print()
+    console.print(f"[dim]Scan completed in {report.scan_duration_seconds}s[/dim]")
+    console.print()
+
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
+
+
 def cli() -> None:
     """Entry point for the CLI."""
     app()
