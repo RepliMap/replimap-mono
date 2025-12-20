@@ -1994,9 +1994,9 @@ def audit(
             Panel(
                 "[red]Checkov is not installed.[/]\n\n"
                 "Install Checkov with:\n"
-                "  [bold]pip install checkov[/]\n\n"
-                "Or install RepliMap with audit extras:\n"
-                "  [bold]pip install 'replimap[audit]'[/]",
+                "  [bold]pipx install checkov[/]  (recommended)\n\n"
+                "Or:\n"
+                "  [bold]pip install checkov[/]",
                 title="Missing Dependency",
                 border_style="red",
             )

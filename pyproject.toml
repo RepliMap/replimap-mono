@@ -62,9 +62,10 @@ dev = [
     "ruff>=0.1.0",
     "boto3-stubs[ec2,s3,rds,sts]>=1.28.0",
 ]
-audit = [
-    "checkov>=3.0.0",
-]
+
+# Note: Checkov is used via CLI subprocess, not as a Python import.
+# Install separately: pipx install checkov (recommended) or pip install checkov
+# This avoids dependency conflicts with networkx versions.
 
 [project.scripts]
 replimap = "replimap.main:cli"

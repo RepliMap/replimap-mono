@@ -21,8 +21,8 @@ class CheckovNotInstalledError(RuntimeError):
 
     def __init__(self) -> None:
         super().__init__(
-            "Checkov is not installed. Install with: pip install checkov\n"
-            "Or install RepliMap with audit extras: pip install 'replimap[audit]'"
+            "Checkov is not installed. Install with: pipx install checkov (recommended)\n"
+            "Or: pip install checkov"
         )
 
 
