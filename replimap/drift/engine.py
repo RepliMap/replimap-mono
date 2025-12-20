@@ -137,7 +137,7 @@ class DriftEngine:
 
         return report
 
-    def _filter_by_vpc(self, resources: list, vpc_id: str) -> list:
+    def _filter_by_vpc(self, resources: list[Any], vpc_id: str) -> list[Any]:
         """Filter resources to only include those in a specific VPC."""
         filtered = []
         for resource in resources:

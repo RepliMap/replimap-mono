@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from replimap.drift.models import DriftReport, DriftSeverity, DriftType
+from replimap.drift.models import DriftReport, DriftSeverity, DriftType, ResourceDrift
 
 if TYPE_CHECKING:
     pass
@@ -80,7 +80,7 @@ class DriftReporter:
 
         return "\n".join(lines)
 
-    def _format_drift(self, drift) -> str:
+    def _format_drift(self, drift: ResourceDrift) -> str:
         """Format a single drift for console output."""
         icon = {
             DriftType.ADDED: "[+]",

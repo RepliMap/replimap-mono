@@ -213,6 +213,79 @@ RepliMap intelligently handles infrastructure boundaries:
 | Identity | IAM Roles, Policies | Reference existing |
 | Global | Route53, CloudFront | Create variables |
 
+## Security Auditing
+
+RepliMap includes security auditing powered by Checkov for scanning your AWS infrastructure.
+
+```bash
+# Run security audit on scanned infrastructure
+replimap audit --profile prod --region us-east-1
+
+# Output to HTML report
+replimap audit --profile prod --format html --output audit-report.html
+
+# Output to JSON for CI/CD integration
+replimap audit --profile prod --format json --output audit.json
+
+# Exit with non-zero code on failures (for CI/CD)
+replimap audit --profile prod --ci
+
+# Scan specific VPC
+replimap audit --profile prod --scope vpc:vpc-12345678
+```
+
+## Infrastructure Visualization
+
+Generate interactive visualizations of your AWS infrastructure dependencies.
+
+```bash
+# Generate Mermaid diagram
+replimap graph --profile prod --format mermaid
+
+# Generate interactive HTML (D3.js)
+replimap graph --profile prod --format html --output infra-graph.html
+
+# Export as JSON for custom tooling
+replimap graph --profile prod --format json --output graph.json
+
+# Scope to specific VPC
+replimap graph --profile prod --scope vpc:vpc-12345678
+```
+
+## Infrastructure Drift Detection
+
+Detect drift between your Terraform state and actual AWS resources.
+
+```bash
+# Detect drift using local state file
+replimap drift --profile prod --state ./terraform.tfstate
+
+# Detect drift using remote S3 backend
+replimap drift --profile prod \
+  --remote-bucket my-tf-state \
+  --remote-key prod/terraform.tfstate \
+  --remote-region us-east-1
+
+# Output HTML report
+replimap drift --profile prod --state ./terraform.tfstate \
+  --format html --output drift-report.html
+
+# CI/CD mode (exit code reflects drift status)
+replimap drift --profile prod --state ./terraform.tfstate --ci
+
+# Scope to specific VPC
+replimap drift --profile prod --state ./terraform.tfstate \
+  --scope vpc:vpc-12345678
+```
+
+### Exit Codes (CI Mode)
+
+| Code | Meaning |
+|------|---------|
+| 0 | No drift detected |
+| 1 | Drift detected (or critical/high severity drift) |
+| 2 | Error during detection |
+
 ## Output Formats
 
 | Format | Plan Required | Status |
@@ -329,6 +402,36 @@ replimap clone [OPTIONS]
 
 # Load command
 replimap load GRAPH_FILE
+
+# Audit command (security scanning)
+replimap audit [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        AWS region [default: us-east-1]
+  --scope, -s TEXT         Scope to VPC (e.g., vpc:vpc-xxx or vpc-name:Production)
+  --format, -f TEXT        Output format: console, html, json [default: console]
+  --output, -o PATH        Output file path
+  --ci                     CI mode (exit code reflects findings)
+
+# Graph command (visualization)
+replimap graph [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        AWS region [default: us-east-1]
+  --scope, -s TEXT         Scope to VPC
+  --format, -f TEXT        Output format: mermaid, html, json [default: mermaid]
+  --output, -o PATH        Output file path
+
+# Drift command (state comparison)
+replimap drift [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        AWS region [default: us-east-1]
+  --state PATH             Local terraform.tfstate file path
+  --remote-bucket TEXT     S3 bucket for remote state
+  --remote-key TEXT        S3 key for remote state
+  --remote-region TEXT     S3 bucket region
+  --scope, -s TEXT         Scope to VPC
+  --format, -f TEXT        Output format: console, html, json [default: console]
+  --output, -o PATH        Output file path
+  --ci                     CI mode (exit code reflects drift status)
 
 # License commands
 replimap license activate KEY
@@ -482,6 +585,20 @@ replimap/
 │   │   ├── terraform.py     # Terraform HCL (Free+)
 │   │   ├── cloudformation.py # CloudFormation (Solo+)
 │   │   └── pulumi.py        # Pulumi Python (Pro+)
+│   ├── audit/               # Security auditing
+│   │   ├── auditor.py       # Checkov integration
+│   │   ├── renderer.py      # Console/HTML/JSON output
+│   │   └── templates/       # Jinja2 HTML templates
+│   ├── graph/               # Infrastructure visualization
+│   │   ├── visualizer.py    # Graph building
+│   │   ├── formatters/      # Mermaid, JSON, D3.js formatters
+│   │   └── templates/       # D3.js HTML template
+│   ├── drift/               # Drift detection
+│   │   ├── engine.py        # Detection orchestration
+│   │   ├── state_parser.py  # Terraform state parsing
+│   │   ├── comparator.py    # Resource comparison
+│   │   ├── reporter.py      # Report generation
+│   │   └── templates/       # HTML report template
 │   └── licensing/
 │       ├── manager.py       # License management
 │       ├── gates.py         # Feature gating

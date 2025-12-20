@@ -229,8 +229,8 @@ class DriftComparator:
             normalized1 = sorted(normalize(x) for x in list1)
             normalized2 = sorted(normalize(x) for x in list2)
             return normalized1 == normalized2
-        except Exception:
-            # Fallback to simple comparison
+        except (TypeError, ValueError, AttributeError):
+            # Fallback to simple comparison for unhashable or incomparable types
             return list1 == list2
 
     def _dicts_equivalent(self, dict1: dict, dict2: dict) -> bool:
@@ -253,7 +253,7 @@ class DriftComparator:
 
     def identify_added_resources(
         self,
-        actual_resources: list,
+        actual_resources: list[Any],
         tf_state_ids: set[str],
     ) -> list[ResourceDrift]:
         """Find resources in AWS that aren't in Terraform state.
