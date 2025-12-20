@@ -8,12 +8,12 @@ Gate Philosophy: Gate at OUTPUT, not at SCAN.
 - Users experience full value first (unlimited scanning)
 - Gating happens at export/download time
 
-核心原则:
-• SCAN: 资源数无限制，只限频率
-• GRAPH: 完全免费查看，导出有水印
-• CLONE: 生成完整，下载付费
-• AUDIT: 扫描完整，详情付费
-• DRIFT: 完全付费功能
+Core Principles:
+- SCAN: Unlimited resources, frequency limited only
+- GRAPH: Full viewing free, watermark on export
+- CLONE: Full generation, download is paid
+- AUDIT: Full scan, detailed findings are paid
+- DRIFT: Fully paid feature
 """
 
 from replimap.licensing.gates import (

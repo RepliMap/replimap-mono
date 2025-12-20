@@ -4,7 +4,7 @@ Upgrade Prompt Messages for RepliMap.
 These messages are shown when users hit plan limits.
 Designed to be helpful, not annoying - show value first, then ask for upgrade.
 
-核心原则: 用户已经体验了价值，现在需要付费才能"带走"
+Core Principle: Users have experienced the value, now they need to pay to "take it home"
 """
 
 from __future__ import annotations
