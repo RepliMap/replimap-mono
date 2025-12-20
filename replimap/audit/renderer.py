@@ -242,6 +242,22 @@ class AuditRenderer:
             lines.extend(self._render_igw(config, graph))
         elif resource_type == ResourceType.NAT_GATEWAY:
             lines.extend(self._render_nat_gateway(config, graph))
+        elif resource_type == ResourceType.VPC_ENDPOINT:
+            lines.extend(self._render_vpc_endpoint(config, graph))
+        elif resource_type == ResourceType.LAUNCH_TEMPLATE:
+            lines.extend(self._render_launch_template(config, graph))
+        elif resource_type == ResourceType.AUTOSCALING_GROUP:
+            lines.extend(self._render_autoscaling_group(config, graph))
+        elif resource_type == ResourceType.LB_LISTENER:
+            lines.extend(self._render_lb_listener(config, graph))
+        elif resource_type == ResourceType.LB_TARGET_GROUP:
+            lines.extend(self._render_lb_target_group(config, graph))
+        elif resource_type == ResourceType.DB_PARAMETER_GROUP:
+            lines.extend(self._render_db_parameter_group(config))
+        elif resource_type == ResourceType.ELASTICACHE_SUBNET_GROUP:
+            lines.extend(self._render_elasticache_subnet_group(config))
+        elif resource_type == ResourceType.S3_BUCKET_POLICY:
+            lines.extend(self._render_s3_bucket_policy(config))
         else:
             # Generic rendering for unsupported types
             lines.extend(self._render_generic(config))
@@ -312,9 +328,15 @@ class AuditRenderer:
     def _render_sg_rule(self, rule: dict) -> list[str]:
         """Render a single security group rule."""
         lines = []
-        from_port = rule.get("from_port", 0)
-        to_port = rule.get("to_port", 0)
+        from_port = rule.get("from_port")
+        to_port = rule.get("to_port")
         protocol = rule.get("ip_protocol", "-1")
+
+        # Handle None ports (all traffic rules have None ports)
+        if from_port is None:
+            from_port = 0
+        if to_port is None:
+            to_port = 0
 
         lines.append(f"  from_port   = {from_port}")
         lines.append(f"  to_port     = {to_port}")
@@ -593,6 +615,132 @@ class AuditRenderer:
             lines.append(f'allocation_id = "{allocation_id}"')
         return lines
 
+    def _render_vpc_endpoint(self, config: dict, graph: "GraphEngine") -> list[str]:
+        """Render VPC Endpoint attributes."""
+        lines = []
+        if vpc_id := config.get("vpc_id"):
+            vpc_resource = graph.get_resource(vpc_id)
+            if vpc_resource:
+                lines.append(f"vpc_id = aws_vpc.{vpc_resource.terraform_name}.id")
+            else:
+                lines.append(f'vpc_id = "{vpc_id}"')
+        if service_name := config.get("service_name"):
+            lines.append(f'service_name = "{service_name}"')
+        if vpc_endpoint_type := config.get("vpc_endpoint_type"):
+            lines.append(f'vpc_endpoint_type = "{vpc_endpoint_type}"')
+        if config.get("private_dns_enabled"):
+            lines.append("private_dns_enabled = true")
+        return lines
+
+    def _render_launch_template(self, config: dict, graph: "GraphEngine") -> list[str]:
+        """Render Launch Template attributes."""
+        lines = []
+        if name := config.get("launch_template_name"):
+            lines.append(f'name = "{name}"')
+        if image_id := config.get("image_id"):
+            lines.append(f'image_id = "{image_id}"')
+        if instance_type := config.get("instance_type"):
+            lines.append(f'instance_type = "{instance_type}"')
+        if key_name := config.get("key_name"):
+            lines.append(f'key_name = "{key_name}"')
+
+        # Metadata options (IMDSv2)
+        if metadata := config.get("metadata_options"):
+            lines.append("")
+            lines.append("metadata_options {")
+            if http_tokens := metadata.get("http_tokens"):
+                lines.append(f'  http_tokens = "{http_tokens}"')
+            if http_endpoint := metadata.get("http_endpoint"):
+                lines.append(f'  http_endpoint = "{http_endpoint}"')
+            lines.append("}")
+
+        return lines
+
+    def _render_autoscaling_group(self, config: dict, graph: "GraphEngine") -> list[str]:
+        """Render Auto Scaling Group attributes."""
+        lines = []
+        if name := config.get("auto_scaling_group_name"):
+            lines.append(f'name = "{name}"')
+        if min_size := config.get("min_size"):
+            lines.append(f"min_size = {min_size}")
+        if max_size := config.get("max_size"):
+            lines.append(f"max_size = {max_size}")
+        if desired_capacity := config.get("desired_capacity"):
+            lines.append(f"desired_capacity = {desired_capacity}")
+        if health_check_type := config.get("health_check_type"):
+            lines.append(f'health_check_type = "{health_check_type}"')
+        return lines
+
+    def _render_lb_listener(self, config: dict, graph: "GraphEngine") -> list[str]:
+        """Render Load Balancer Listener attributes."""
+        lines = []
+        if lb_arn := config.get("load_balancer_arn"):
+            lines.append(f'load_balancer_arn = "{lb_arn}"')
+        if port := config.get("port"):
+            lines.append(f"port = {port}")
+        if protocol := config.get("protocol"):
+            lines.append(f'protocol = "{protocol}"')
+        if ssl_policy := config.get("ssl_policy"):
+            lines.append(f'ssl_policy = "{ssl_policy}"')
+        if cert_arn := config.get("certificate_arn"):
+            lines.append(f'certificate_arn = "{cert_arn}"')
+        return lines
+
+    def _render_lb_target_group(self, config: dict, graph: "GraphEngine") -> list[str]:
+        """Render Load Balancer Target Group attributes."""
+        lines = []
+        if name := config.get("target_group_name"):
+            lines.append(f'name = "{name}"')
+        if port := config.get("port"):
+            lines.append(f"port = {port}")
+        if protocol := config.get("protocol"):
+            lines.append(f'protocol = "{protocol}"')
+        if vpc_id := config.get("vpc_id"):
+            vpc_resource = graph.get_resource(vpc_id)
+            if vpc_resource:
+                lines.append(f"vpc_id = aws_vpc.{vpc_resource.terraform_name}.id")
+            else:
+                lines.append(f'vpc_id = "{vpc_id}"')
+        if target_type := config.get("target_type"):
+            lines.append(f'target_type = "{target_type}"')
+        return lines
+
+    def _render_db_parameter_group(self, config: dict) -> list[str]:
+        """Render DB Parameter Group attributes."""
+        lines = []
+        if name := config.get("db_parameter_group_name"):
+            lines.append(f'name = "{name}"')
+        if family := config.get("db_parameter_group_family"):
+            lines.append(f'family = "{family}"')
+        if description := config.get("description"):
+            escaped = description.replace('"', '\\"').replace("\n", "\\n")
+            lines.append(f'description = "{escaped}"')
+        return lines
+
+    def _render_elasticache_subnet_group(self, config: dict) -> list[str]:
+        """Render ElastiCache Subnet Group attributes."""
+        lines = []
+        if name := config.get("cache_subnet_group_name"):
+            lines.append(f'name = "{name}"')
+        if description := config.get("cache_subnet_group_description"):
+            escaped = description.replace('"', '\\"').replace("\n", "\\n")
+            lines.append(f'description = "{escaped}"')
+        if subnets := config.get("subnet_ids"):
+            subnet_list = ", ".join(f'"{s}"' for s in subnets)
+            lines.append(f"subnet_ids = [{subnet_list}]")
+        return lines
+
+    def _render_s3_bucket_policy(self, config: dict) -> list[str]:
+        """Render S3 Bucket Policy attributes."""
+        lines = []
+        if bucket := config.get("bucket"):
+            lines.append(f'bucket = "{bucket}"')
+        # Policy is usually JSON, we'll include it as a comment
+        if policy := config.get("policy"):
+            lines.append("# Policy document (JSON):")
+            lines.append(f'policy = "{policy[:100]}..."  # AUDIT: Policy truncated')
+        return lines
+
     def _render_generic(self, config: dict) -> list[str]:
         """Generic config rendering for unsupported types."""
         lines = []
@@ -601,10 +749,16 @@ class AuditRenderer:
                 continue
             if isinstance(value, bool):
                 lines.append(f"{key} = {str(value).lower()}")
-            elif isinstance(value, int | float):
+            elif isinstance(value, (int, float)):
                 lines.append(f"{key} = {value}")
             elif isinstance(value, str):
-                escaped = value.replace('"', '\\"')
+                # Escape quotes and newlines for Terraform
+                escaped = (
+                    value.replace("\\", "\\\\")
+                    .replace('"', '\\"')
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                )
                 lines.append(f'{key} = "{escaped}"')
         return lines
 
@@ -676,7 +830,14 @@ provider "aws" {{
         """Quote a string for Terraform."""
         if value is None:
             return '""'
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        # Escape backslashes, quotes, and newlines for Terraform
+        escaped = (
+            value.replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
+        )
         return f'"{escaped}"'
 
     @staticmethod

@@ -145,6 +145,11 @@
                             <span class="font-bold text-blue-800">{{ low_count }}</span>
                         </div>
                         {% endif %}
+                        {% if critical_count == 0 and high_count == 0 and medium_count == 0 and low_count == 0 %}
+                        <div class="text-sm text-green-600 font-medium">
+                            ✓ No issues found
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
