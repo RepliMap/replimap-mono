@@ -49,6 +49,17 @@ from replimap.licensing import (
     Feature,
     LicenseStatus,
     LicenseValidationError,
+    check_scan_allowed,
+    check_drift_allowed,
+    check_drift_watch_allowed,
+    check_audit_ci_mode_allowed,
+    check_audit_export_allowed,
+    check_clone_download_allowed,
+    check_graph_export_watermark,
+    check_output_format_allowed,
+    format_audit_findings,
+    format_clone_output,
+    get_scans_remaining,
 )
 from replimap.licensing.manager import get_license_manager
 from replimap.licensing.tracker import get_usage_tracker
@@ -587,20 +598,11 @@ def scan(
     tracker = get_usage_tracker()
     features = manager.current_features
 
-    # Check scan quota
-    if features.max_scans_per_month is not None:
-        scans_this_month = tracker.get_scans_this_month()
-        if scans_this_month >= features.max_scans_per_month:
-            console.print(
-                Panel(
-                    f"[red]Scan limit reached![/]\n\n"
-                    f"You have used {scans_this_month}/{features.max_scans_per_month} scans this month.\n"
-                    f"Upgrade your plan for unlimited scans: [bold]https://replimap.io/upgrade[/]",
-                    title="Quota Exceeded",
-                    border_style="red",
-                )
-            )
-            raise typer.Exit(1)
+    # Check scan frequency limit (NOT resource count - resources are unlimited!)
+    gate_result = check_scan_allowed()
+    if not gate_result.allowed:
+        console.print(gate_result.prompt)
+        raise typer.Exit(1)
 
     # Show plan badge with dev mode indicator
     if manager.is_dev_mode:
@@ -752,24 +754,9 @@ def scan(
                 f"[dim]Filtered: {pre_filter_count} → {pre_filter_count - removed_count} resources[/]"
             )
 
-    # Check resource limit
+    # Get resource stats (no limits - resources are unlimited!)
     stats = graph.statistics()
     resource_count = stats["total_resources"]
-
-    if features.max_resources_per_scan is not None:
-        if resource_count > features.max_resources_per_scan:
-            console.print()
-            console.print(
-                Panel(
-                    f"[yellow]Resource limit reached![/]\n\n"
-                    f"Found {resource_count} resources, but your plan allows "
-                    f"{features.max_resources_per_scan} per scan.\n"
-                    f"Results are truncated. Upgrade for unlimited resources: "
-                    f"[bold]https://replimap.io/upgrade[/]",
-                    title="Limit Warning",
-                    border_style="yellow",
-                )
-            )
 
     # Record usage
     tracker.record_scan(
@@ -799,6 +786,13 @@ def scan(
     # Print statistics
     console.print()
     print_graph_stats(graph)
+
+    # Show remaining scans for FREE users
+    remaining = get_scans_remaining()
+    if remaining >= 0:
+        console.print(
+            f"\n[dim]Scans remaining this month: {remaining}/{features.max_scans_per_month}[/dim]"
+        )
 
     # Save output if requested
     if output:
@@ -2384,6 +2378,12 @@ def drift(
 
     from replimap.drift import DriftEngine, DriftReporter
 
+    # Check drift feature access (Pro+ feature)
+    drift_gate = check_drift_allowed()
+    if not drift_gate.allowed:
+        console.print(drift_gate.prompt)
+        raise typer.Exit(1)
+
     # Determine region
     effective_region = region
     region_source = "flag"
@@ -2576,6 +2576,147 @@ def drift(
 
     if exit_code != 0:
         raise typer.Exit(exit_code)
+
+
+# =============================================================================
+# UPGRADE COMMAND GROUP
+# =============================================================================
+
+upgrade_app = typer.Typer(
+    help="Upgrade your RepliMap plan",
+    no_args_is_help=True,
+)
+app.add_typer(upgrade_app, name="upgrade")
+
+
+PRICING_URL = "https://replimap.dev/pricing"
+CHECKOUT_URLS = {
+    "solo": "https://replimap.dev/checkout/solo",
+    "pro": "https://replimap.dev/checkout/pro",
+    "team": "https://replimap.dev/checkout/team",
+    "enterprise": "https://replimap.dev/contact",
+}
+
+
+def _show_upgrade_info(plan_name: str) -> None:
+    """Show upgrade information and open browser."""
+    import webbrowser
+
+    from replimap.licensing.models import Plan, get_plan_features
+
+    plan_map = {
+        "solo": Plan.SOLO,
+        "pro": Plan.PRO,
+        "team": Plan.TEAM,
+        "enterprise": Plan.ENTERPRISE,
+    }
+
+    plan = plan_map.get(plan_name.lower())
+    if not plan:
+        console.print(f"[red]Unknown plan: {plan_name}[/]")
+        raise typer.Exit(1)
+
+    config = get_plan_features(plan)
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold blue]{config.plan.value.upper()} Plan[/bold blue]\n\n"
+            f"[dim]Price:[/] ${config.price_monthly}/month\n"
+            f"       ${config.price_annual_monthly}/month (billed annually)",
+            border_style="blue",
+        )
+    )
+
+    console.print("\n[bold]Features:[/bold]\n")
+
+    if config.max_scans_per_month is None:
+        console.print("  [green]✓[/] Unlimited scans")
+
+    if config.clone_download_enabled:
+        console.print("  [green]✓[/] Download Terraform code")
+
+    if config.audit_visible_findings is None:
+        console.print("  [green]✓[/] Full audit reports")
+
+    if config.audit_ci_mode:
+        console.print("  [green]✓[/] CI/CD integration")
+
+    if config.drift_enabled:
+        console.print("  [green]✓[/] Drift detection")
+
+    if config.drift_watch_enabled:
+        console.print("  [green]✓[/] Drift watch mode")
+
+    if config.drift_alerts_enabled:
+        console.print("  [green]✓[/] Alert notifications")
+
+    if config.cost_enabled:
+        console.print("  [green]✓[/] Cost estimation")
+
+    if config.blast_enabled:
+        console.print("  [green]✓[/] Blast radius analysis")
+
+    if config.max_aws_accounts is None or config.max_aws_accounts > 1:
+        accounts = "Unlimited" if config.max_aws_accounts is None else str(config.max_aws_accounts)
+        console.print(f"  [green]✓[/] {accounts} AWS accounts")
+
+    console.print()
+
+    url = CHECKOUT_URLS.get(plan_name.lower(), PRICING_URL)
+    console.print(f"[dim]Opening {url}...[/dim]")
+    webbrowser.open(url)
+
+
+@upgrade_app.command("solo")
+def upgrade_solo() -> None:
+    """Upgrade to Solo plan ($49/mo)."""
+    _show_upgrade_info("solo")
+
+
+@upgrade_app.command("pro")
+def upgrade_pro() -> None:
+    """Upgrade to Pro plan ($99/mo)."""
+    _show_upgrade_info("pro")
+
+
+@upgrade_app.command("team")
+def upgrade_team() -> None:
+    """Upgrade to Team plan ($199/mo)."""
+    _show_upgrade_info("team")
+
+
+@upgrade_app.command("enterprise")
+def upgrade_enterprise() -> None:
+    """Contact us for Enterprise plan."""
+    _show_upgrade_info("enterprise")
+
+
+@upgrade_app.callback(invoke_without_command=True)
+def upgrade_default(ctx: typer.Context) -> None:
+    """Show available plans."""
+    if ctx.invoked_subcommand is None:
+        import webbrowser
+
+        console.print()
+        console.print(
+            Panel(
+                "[bold blue]RepliMap Plans[/bold blue]\n\n"
+                "[dim]Solo[/]     $49/mo  - Download code, full reports\n"
+                "[dim]Pro[/]      $99/mo  - Drift detection, CI/CD mode\n"
+                "[dim]Team[/]    $199/mo  - Watch mode, alerts, blast radius\n"
+                "[dim]Enterprise[/] Custom - SSO, audit logs, SLA",
+                border_style="blue",
+            )
+        )
+        console.print()
+        console.print("Usage: [bold]replimap upgrade <plan>[/]\n")
+        console.print("  [dim]replimap upgrade solo[/]")
+        console.print("  [dim]replimap upgrade pro[/]")
+        console.print("  [dim]replimap upgrade team[/]")
+        console.print()
+        console.print(f"[dim]Opening {PRICING_URL}...[/dim]")
+        webbrowser.open(PRICING_URL)
 
 
 def cli() -> None:

@@ -2,6 +2,17 @@
 Feature Gating for RepliMap.
 
 Provides decorators and utilities for gating features based on plan tier.
+
+Gate Philosophy: Gate at OUTPUT, not at SCAN.
+- Users experience full value first (unlimited scanning)
+- Gating happens at export/download time
+
+核心原则:
+• SCAN: 资源数无限制，只限频率
+• GRAPH: 完全免费查看，导出有水印
+• CLONE: 生成完整，下载付费
+• AUDIT: 扫描完整，详情付费
+• DRIFT: 完全付费功能
 """
 
 from __future__ import annotations
@@ -9,9 +20,11 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable
-from typing import ParamSpec, TypeVar
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, ParamSpec, TypeVar
 
-from replimap.licensing.models import Feature, Plan
+from replimap.licensing.models import Feature, Plan, get_plan_features
 
 logger = logging.getLogger(__name__)
 
@@ -256,3 +269,402 @@ def get_unavailable_features() -> list[Feature]:
     all_features = set(Feature)
     available = manager.current_features.features
     return list(all_features - available)
+
+
+# =============================================================================
+# OUTPUT-FOCUSED GATE CHECKS
+# =============================================================================
+
+
+@dataclass
+class GateResult:
+    """Result of a gate check."""
+
+    allowed: bool
+    prompt: str | None = None
+    data: dict[str, Any] | None = None
+
+
+def check_scan_allowed() -> GateResult:
+    """
+    Check if user can perform a scan.
+
+    Gate: Monthly frequency limit (NOT resource count!)
+    Resources are always unlimited - we gate at output time.
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import format_scan_limit_prompt
+    from replimap.licensing.tracker import get_usage_tracker
+
+    manager = get_license_manager()
+    tracker = get_usage_tracker()
+    features = manager.current_features
+
+    # Unlimited scans for paid plans
+    if features.max_scans_per_month is None:
+        return GateResult(allowed=True)
+
+    # Check monthly limit for FREE
+    scans_this_month = tracker.get_scans_this_month()
+    if scans_this_month >= features.max_scans_per_month:
+        # Calculate next reset date
+        now = datetime.now()
+        next_month = (now.replace(day=1) + timedelta(days=32)).replace(day=1)
+        reset_date = next_month.strftime("%B %d, %Y")
+
+        prompt = format_scan_limit_prompt(
+            used=scans_this_month,
+            limit=features.max_scans_per_month,
+            reset_date=reset_date,
+        )
+        return GateResult(
+            allowed=False,
+            prompt=prompt,
+            data={
+                "used": scans_this_month,
+                "limit": features.max_scans_per_month,
+                "reset_date": reset_date,
+            },
+        )
+
+    return GateResult(
+        allowed=True,
+        data={
+            "remaining": features.max_scans_per_month - scans_this_month,
+            "limit": features.max_scans_per_month,
+        },
+    )
+
+
+def get_scans_remaining() -> int:
+    """Get remaining scans this month (-1 for unlimited)."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.tracker import get_usage_tracker
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.max_scans_per_month is None:
+        return -1
+
+    tracker = get_usage_tracker()
+    scans_this_month = tracker.get_scans_this_month()
+    return max(0, features.max_scans_per_month - scans_this_month)
+
+
+def check_clone_download_allowed() -> GateResult:
+    """
+    Check if user can download generated Terraform code.
+
+    Gate: Download is paid feature. Generation/preview is free.
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.clone_download_enabled:
+        return GateResult(allowed=True)
+
+    # FREE users cannot download
+    prompt = get_upgrade_prompt("clone_download_blocked", {
+        "resource_count": 0,  # Will be filled in later
+        "lines_count": 0,
+        "file_count": 0,
+        "preview_lines": features.clone_preview_lines or 100,
+        "hours_saved": 0,
+        "money_saved": 0,
+    })
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def get_clone_preview_lines() -> int | None:
+    """Get number of lines to show in preview (None for full)."""
+    from replimap.licensing.manager import get_license_manager
+
+    manager = get_license_manager()
+    return manager.current_features.clone_preview_lines
+
+
+def format_clone_output(
+    full_code: str,
+    resource_count: int,
+    file_count: int,
+) -> tuple[str, str | None]:
+    """
+    Format clone output with appropriate preview/gate.
+
+    Args:
+        full_code: The complete generated code
+        resource_count: Number of resources generated
+        file_count: Number of files generated
+
+    Returns:
+        (code_to_display, upgrade_prompt_or_none)
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import (
+        format_clone_blocked_prompt,
+        format_clone_preview_footer,
+    )
+
+    manager = get_license_manager()
+    features = manager.current_features
+    preview_limit = features.clone_preview_lines
+
+    lines = full_code.split("\n")
+    total_lines = len(lines)
+
+    if preview_limit is None or total_lines <= preview_limit:
+        # Full access
+        return full_code, None
+
+    # Limited preview
+    preview_lines = lines[:preview_limit]
+    remaining = total_lines - preview_limit
+
+    # Add truncation footer
+    footer = format_clone_preview_footer(
+        remaining_lines=remaining,
+        preview_lines=preview_limit,
+        total_lines=total_lines,
+        resource_count=resource_count,
+        file_count=file_count,
+    )
+
+    preview = "\n".join(preview_lines) + footer
+
+    # Generate upgrade prompt
+    prompt = format_clone_blocked_prompt(
+        resource_count=resource_count,
+        lines_count=total_lines,
+        file_count=file_count,
+        preview_lines=preview_limit,
+    )
+
+    return preview, prompt
+
+
+def check_audit_export_allowed() -> GateResult:
+    """Check if user can export audit report."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.audit_report_export:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("audit_export_blocked")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_audit_ci_mode_allowed() -> GateResult:
+    """Check if user can use --fail-on-high CI mode."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.audit_ci_mode:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("audit_ci_blocked")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def get_audit_visible_findings() -> int | None:
+    """Get number of findings to show (None for all)."""
+    from replimap.licensing.manager import get_license_manager
+
+    manager = get_license_manager()
+    return manager.current_features.audit_visible_findings
+
+
+def format_audit_findings(
+    all_findings: list[Any],
+    score: int,
+    grade: str,
+) -> tuple[list[Any], str | None]:
+    """
+    Format audit findings with appropriate visibility.
+
+    Args:
+        all_findings: List of all findings
+        score: Security score (0-100)
+        grade: Letter grade (A-F)
+
+    Returns:
+        (visible_findings, upgrade_prompt_or_none)
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import format_audit_limited_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+    visible_limit = features.audit_visible_findings
+
+    if visible_limit is None:
+        # Full access
+        return all_findings, None
+
+    # Count by severity
+    critical_count = sum(1 for f in all_findings if getattr(f, "severity", "") == "CRITICAL")
+    high_count = sum(1 for f in all_findings if getattr(f, "severity", "") == "HIGH")
+    medium_count = sum(1 for f in all_findings if getattr(f, "severity", "") == "MEDIUM")
+    low_count = sum(1 for f in all_findings if getattr(f, "severity", "") == "LOW")
+
+    # Limited view
+    visible = all_findings[:visible_limit]
+    hidden_count = len(all_findings) - visible_limit
+
+    # Count hidden critical findings
+    visible_critical = sum(1 for f in visible if getattr(f, "severity", "") == "CRITICAL")
+    hidden_critical = max(0, critical_count - visible_critical)
+
+    prompt = format_audit_limited_prompt(
+        score=score,
+        grade=grade,
+        critical_count=critical_count,
+        high_count=high_count,
+        medium_count=medium_count,
+        low_count=low_count,
+        shown_count=visible_limit,
+        total_count=len(all_findings),
+        hidden_critical=hidden_critical,
+    )
+
+    return visible, prompt
+
+
+def check_graph_export_watermark() -> bool:
+    """Check if graph export should have watermark."""
+    from replimap.licensing.manager import get_license_manager
+
+    manager = get_license_manager()
+    return manager.current_features.graph_export_watermark
+
+
+def check_drift_allowed() -> GateResult:
+    """Check if user can use drift detection."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.drift_enabled:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("drift_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_drift_watch_allowed() -> GateResult:
+    """Check if user can use drift watch mode."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.drift_watch_enabled:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("drift_watch_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_cost_allowed() -> GateResult:
+    """Check if user can use cost estimation."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.cost_enabled:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("cost_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_blast_allowed() -> GateResult:
+    """Check if user can use blast radius analysis."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.blast_enabled:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("blast_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_multi_account_allowed(account_count: int) -> GateResult:
+    """Check if user can use multiple AWS accounts."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import format_multi_account_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+    limit = features.max_aws_accounts
+
+    if limit is None or account_count <= limit:
+        return GateResult(allowed=True)
+
+    # Determine upgrade target
+    if limit == 1:
+        upgrade_plan = "Pro"
+        upgrade_price = 99
+    else:
+        upgrade_plan = "Team"
+        upgrade_price = 199
+
+    prompt = format_multi_account_prompt(
+        current_count=account_count,
+        limit=limit,
+        upgrade_plan=upgrade_plan,
+        upgrade_price=upgrade_price,
+    )
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_output_format_allowed(output_format: str) -> GateResult:
+    """
+    Check if user can use a specific output format.
+
+    Args:
+        output_format: Format string (terraform, cloudformation, pulumi, cdk)
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    format_to_feature = {
+        "terraform": Feature.TERRAFORM_OUTPUT,
+        "cloudformation": Feature.CLOUDFORMATION_OUTPUT,
+        "pulumi": Feature.PULUMI_OUTPUT,
+        "cdk": Feature.CDK_OUTPUT,
+    }
+
+    feature = format_to_feature.get(output_format.lower())
+    if feature is None:
+        return GateResult(allowed=False, prompt=f"Unknown format: {output_format}")
+
+    if features.has_feature(feature):
+        return GateResult(allowed=True)
+
+    # Get appropriate prompt
+    prompt_key = f"{output_format.lower()}_not_available"
+    prompt = get_upgrade_prompt(prompt_key)
+    return GateResult(allowed=False, prompt=prompt)
