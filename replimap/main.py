@@ -1762,6 +1762,201 @@ def license_usage() -> None:
     console.print()
 
 
+# =============================================================================
+# AUDIT COMMAND
+# =============================================================================
+
+
+@app.command()
+def audit(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to audit",
+    ),
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        "-v",
+        help="VPC ID to scope the audit (optional)",
+    ),
+    output: Path = typer.Option(
+        Path("./audit_report.html"),
+        "--output",
+        "-o",
+        help="Path for HTML report",
+    ),
+    terraform_dir: Path = typer.Option(
+        Path("./audit_output"),
+        "--terraform-dir",
+        "-t",
+        help="Directory for generated Terraform files",
+    ),
+    open_report: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="Open report in browser after generation",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Run security audit on AWS infrastructure.
+
+    Scans your AWS environment, generates a forensic Terraform snapshot,
+    runs Checkov security analysis, and produces an HTML report with
+    findings mapped to SOC2 controls.
+
+    Requires Checkov to be installed: pip install checkov
+
+    Examples:
+        replimap audit --region us-east-1
+        replimap audit -p prod -r ap-southeast-2 -v vpc-abc123
+        replimap audit -r us-west-2 --no-open
+    """
+    import webbrowser
+
+    from replimap.audit import AuditEngine, CheckovNotInstalledError
+
+    # Determine region
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold blue]🔒 RepliMap Security Audit[/bold blue]\n\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]\n"
+            + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
+            + f"Output: [cyan]{output}[/]\n"
+            f"Terraform: [cyan]{terraform_dir}[/]",
+            border_style="blue",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Check Checkov is installed
+    try:
+        engine = AuditEngine(
+            session=session,
+            region=effective_region,
+            profile=profile,
+            vpc_id=vpc,
+        )
+    except CheckovNotInstalledError:
+        console.print()
+        console.print(
+            Panel(
+                "[red]Checkov is not installed.[/]\n\n"
+                "Install Checkov with:\n"
+                "  [bold]pip install checkov[/]\n\n"
+                "Or install RepliMap with audit extras:\n"
+                "  [bold]pip install 'replimap[audit]'[/]",
+                title="Missing Dependency",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+
+    # Run audit
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning AWS resources...", total=None)
+
+        try:
+            results, report_path = engine.run(
+                output_dir=terraform_dir,
+                report_path=output,
+            )
+        except Exception as e:
+            progress.stop()
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Audit failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            raise typer.Exit(1)
+
+        progress.update(task, completed=True)
+
+    # Display results
+    console.print()
+
+    # Score with color
+    if results.score >= 80:
+        score_color = "green"
+    elif results.score >= 60:
+        score_color = "yellow"
+    else:
+        score_color = "red"
+
+    console.print(
+        Panel(
+            f"[bold]Security Score: [{score_color}]{results.score}%[/] (Grade: {results.grade})[/bold]\n\n"
+            f"[green]✓ Passed:[/] {results.passed}\n"
+            f"[red]✗ Failed:[/] {results.failed}\n"
+            f"[dim]○ Skipped:[/] {results.skipped}",
+            title="📊 Audit Results",
+            border_style=score_color,
+        )
+    )
+
+    # High severity warning
+    if results.high_severity:
+        console.print()
+        console.print(
+            f"[bold red]⚠️  {len(results.high_severity)} High/Critical severity issues require attention![/bold red]"
+        )
+        for finding in results.high_severity[:5]:
+            console.print(f"  [red]•[/] {finding.check_id}: {finding.check_name}")
+        if len(results.high_severity) > 5:
+            console.print(
+                f"  [dim]... and {len(results.high_severity) - 5} more[/dim]"
+            )
+
+    # Output paths
+    console.print()
+    console.print(f"[green]✓ Report:[/] {report_path.absolute()}")
+    console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
+
+    # Open report in browser
+    if open_report:
+        console.print()
+        console.print("[dim]Opening report in browser...[/dim]")
+        webbrowser.open(f"file://{report_path.absolute()}")
+
+    console.print()
+
+
 def cli() -> None:
     """Entry point for the CLI."""
     app()

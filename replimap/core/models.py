@@ -12,6 +12,16 @@ from enum import Enum
 from typing import Any
 
 
+class GenerationMode(str, Enum):
+    """Mode for Terraform code generation."""
+
+    CLONE = "clone"  # Transform, downsize, abstract variables (default)
+    AUDIT = "audit"  # Raw, faithful, no transformations (forensic snapshot)
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class ResourceType(str, Enum):
     """Supported AWS resource types."""
 
