@@ -1767,6 +1767,110 @@ def license_usage() -> None:
 # =============================================================================
 
 
+def _output_audit_json(
+    results: "CheckovResults",
+    output_path: Path,
+    region: str,
+    profile: str | None,
+    vpc_id: str | None,
+) -> Path:
+    """
+    Output audit results as JSON.
+
+    Args:
+        results: Checkov scan results
+        output_path: Base path for output (will change extension to .json)
+        region: AWS region
+        profile: AWS profile name
+        vpc_id: VPC ID if specified
+
+    Returns:
+        Path to the generated JSON file
+    """
+    import json
+    from datetime import datetime, timezone
+
+    from replimap.audit.fix_suggestions import FIX_SUGGESTIONS
+    from replimap.audit.soc2_mapping import get_soc2_mapping
+
+    # Build SOC2 summary
+    soc2_summary: dict = {}
+    for f in results.findings:
+        if f.check_result != "FAILED":
+            continue
+        mapping = get_soc2_mapping(f.check_id)
+        if mapping:
+            control = mapping.control
+            if control not in soc2_summary:
+                soc2_summary[control] = {
+                    "control": control,
+                    "category": mapping.category,
+                    "count": 0,
+                    "checks": [],
+                }
+            soc2_summary[control]["count"] += 1
+            if f.check_id not in soc2_summary[control]["checks"]:
+                soc2_summary[control]["checks"].append(f.check_id)
+
+    # Build JSON output
+    json_output = {
+        "summary": {
+            "score": results.score,
+            "grade": results.grade,
+            "passed": results.passed,
+            "failed": results.failed,
+            "skipped": results.skipped,
+            "total": results.total,
+            "high_severity_count": len(results.high_severity),
+        },
+        "metadata": {
+            "account_id": "N/A",  # Would need to pass this through
+            "region": region,
+            "profile": profile,
+            "vpc_id": vpc_id,
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        },
+        "severity_breakdown": {
+            "critical": len(results.findings_by_severity["CRITICAL"]),
+            "high": len(results.findings_by_severity["HIGH"]),
+            "medium": len(results.findings_by_severity["MEDIUM"]),
+            "low": len(results.findings_by_severity["LOW"]),
+        },
+        "findings": [
+            {
+                "check_id": f.check_id,
+                "check_name": f.check_name,
+                "severity": f.severity,
+                "result": f.check_result,
+                "resource": f.resource,
+                "file_path": f.file_path,
+                "line_range": list(f.file_line_range),
+                "soc2_mapping": (
+                    {
+                        "control": m.control,
+                        "category": m.category,
+                        "description": m.description,
+                    }
+                    if (m := get_soc2_mapping(f.check_id))
+                    else None
+                ),
+                "has_fix_suggestion": f.check_id in FIX_SUGGESTIONS,
+                "guideline": f.guideline,
+            }
+            for f in results.findings
+            if f.check_result == "FAILED"
+        ],
+        "soc2_summary": soc2_summary,
+    }
+
+    # Determine output path
+    json_path = output_path.with_suffix(".json")
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    json_path.write_text(json.dumps(json_output, indent=2))
+
+    return json_path
+
+
 @app.command()
 def audit(
     profile: str | None = typer.Option(
@@ -1791,7 +1895,7 @@ def audit(
         Path("./audit_report.html"),
         "--output",
         "-o",
-        help="Path for HTML report",
+        help="Path for HTML/JSON report",
     ),
     terraform_dir: Path = typer.Option(
         Path("./audit_output"),
@@ -1809,6 +1913,22 @@ def audit(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    fail_on_high: bool = typer.Option(
+        False,
+        "--fail-on-high",
+        help="Exit with code 1 if HIGH/CRITICAL issues found (for CI/CD)",
+    ),
+    fail_on_score: int | None = typer.Option(
+        None,
+        "--fail-on-score",
+        help="Exit with code 1 if score below threshold (e.g., --fail-on-score 70)",
+    ),
+    output_format: str = typer.Option(
+        "html",
+        "--format",
+        "-f",
+        help="Output format: html or json",
+    ),
 ) -> None:
     """
     Run security audit on AWS infrastructure.
@@ -1823,6 +1943,9 @@ def audit(
         replimap audit --region us-east-1
         replimap audit -p prod -r ap-southeast-2 -v vpc-abc123
         replimap audit -r us-west-2 --no-open
+        replimap audit -r us-east-1 --fail-on-high --no-open  # CI/CD mode
+        replimap audit -r us-east-1 --fail-on-score 70 --no-open
+        replimap audit -r us-east-1 --format json
     """
     import webbrowser
 
@@ -1908,53 +2031,88 @@ def audit(
 
         progress.update(task, completed=True)
 
-    # Display results
-    console.print()
-
-    # Score with color
-    if results.score >= 80:
-        score_color = "green"
-    elif results.score >= 60:
-        score_color = "yellow"
+    # Handle JSON output format
+    if output_format.lower() == "json":
+        json_path = _output_audit_json(results, output, effective_region, profile, vpc)
+        console.print()
+        console.print(f"[green]✓ JSON Report:[/] {json_path.absolute()}")
+        console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
     else:
-        score_color = "red"
+        # Display results for HTML format
+        console.print()
 
-    console.print(
-        Panel(
-            f"[bold]Security Score: [{score_color}]{results.score}%[/] (Grade: {results.grade})[/bold]\n\n"
-            f"[green]✓ Passed:[/] {results.passed}\n"
-            f"[red]✗ Failed:[/] {results.failed}\n"
-            f"[dim]○ Skipped:[/] {results.skipped}",
-            title="📊 Audit Results",
-            border_style=score_color,
+        # Score with color
+        if results.score >= 80:
+            score_color = "green"
+        elif results.score >= 60:
+            score_color = "yellow"
+        else:
+            score_color = "red"
+
+        console.print(
+            Panel(
+                f"[bold]Security Score: [{score_color}]{results.score}%[/] (Grade: {results.grade})[/bold]\n\n"
+                f"[green]✓ Passed:[/] {results.passed}\n"
+                f"[red]✗ Failed:[/] {results.failed}\n"
+                f"[dim]○ Skipped:[/] {results.skipped}",
+                title="📊 Audit Results",
+                border_style=score_color,
+            )
         )
-    )
 
-    # High severity warning
-    if results.high_severity:
+        # High severity warning
+        if results.high_severity:
+            console.print()
+            console.print(
+                f"[bold red]⚠️  {len(results.high_severity)} High/Critical severity issues require attention![/bold red]"
+            )
+            for finding in results.high_severity[:5]:
+                console.print(f"  [red]•[/] {finding.check_id}: {finding.check_name}")
+            if len(results.high_severity) > 5:
+                console.print(
+                    f"  [dim]... and {len(results.high_severity) - 5} more[/dim]"
+                )
+
+        # Output paths
+        console.print()
+        console.print(f"[green]✓ Report:[/] {report_path.absolute()}")
+        console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
+
+        # Open report in browser (only for HTML format)
+        if open_report:
+            console.print()
+            console.print("[dim]Opening report in browser...[/dim]")
+            webbrowser.open(f"file://{report_path.absolute()}")
+
+    # CI/CD checks
+    exit_code = 0
+
+    if fail_on_high and results.high_severity:
         console.print()
         console.print(
-            f"[bold red]⚠️  {len(results.high_severity)} High/Critical severity issues require attention![/bold red]"
+            f"[bold red]❌ CI/CD FAILED: {len(results.high_severity)} HIGH/CRITICAL issues found[/bold red]"
         )
-        for finding in results.high_severity[:5]:
-            console.print(f"  [red]•[/] {finding.check_id}: {finding.check_name}")
+        for f in results.high_severity[:5]:
+            console.print(f"   • {f.check_id}: {f.check_name}")
         if len(results.high_severity) > 5:
-            console.print(
-                f"  [dim]... and {len(results.high_severity) - 5} more[/dim]"
-            )
+            console.print(f"   ... and {len(results.high_severity) - 5} more")
+        exit_code = 1
 
-    # Output paths
-    console.print()
-    console.print(f"[green]✓ Report:[/] {report_path.absolute()}")
-    console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
-
-    # Open report in browser
-    if open_report:
+    if fail_on_score is not None and results.score < fail_on_score:
         console.print()
-        console.print("[dim]Opening report in browser...[/dim]")
-        webbrowser.open(f"file://{report_path.absolute()}")
+        console.print(
+            f"[bold red]❌ CI/CD FAILED: Score {results.score} below threshold {fail_on_score}[/bold red]"
+        )
+        exit_code = 1
+
+    if exit_code == 0 and (fail_on_high or fail_on_score is not None):
+        console.print()
+        console.print("[bold green]✓ CI/CD PASSED[/bold green]")
 
     console.print()
+
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
 
 
 def cli() -> None:

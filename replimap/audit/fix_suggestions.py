@@ -322,6 +322,428 @@ resource "aws_kms_key" "this" {
 
   enable_key_rotation = true  # Enable automatic annual rotation
 }''',
+    "CKV_AWS_33": '''# Restrict KMS key policy to specific principals
+resource "aws_kms_key" "this" {
+  description             = var.description
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "Enable IAM User Permissions"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      },
+      {
+        Sid    = "Allow Key Administrators"
+        Effect = "Allow"
+        Principal = {
+          AWS = var.admin_role_arns
+        }
+        Action = [
+          "kms:Create*",
+          "kms:Describe*",
+          "kms:Enable*",
+          "kms:List*",
+          "kms:Put*",
+          "kms:Update*",
+          "kms:Revoke*",
+          "kms:Disable*",
+          "kms:Get*",
+          "kms:Delete*",
+          "kms:ScheduleKeyDeletion",
+          "kms:CancelKeyDeletion"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}''',
+    # IAM Security
+    "CKV_AWS_40": '''# Enable strong password policy
+resource "aws_iam_account_password_policy" "strict" {
+  minimum_password_length        = 14
+  require_lowercase_characters   = true
+  require_uppercase_characters   = true
+  require_numbers                = true
+  require_symbols                = true
+  allow_users_to_change_password = true
+  max_password_age               = 90
+  password_reuse_prevention      = 24
+}''',
+    "CKV_AWS_41": '''# Enable MFA for root account (manual step required)
+# 1. Go to AWS Console → IAM → Dashboard
+# 2. Click "Activate MFA on your root account"
+# 3. Follow the wizard to set up virtual or hardware MFA
+
+# To enforce MFA via policy:
+resource "aws_iam_policy" "require_mfa" {
+  name = "require-mfa"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "DenyAllExceptListedIfNoMFA"
+      Effect    = "Deny"
+      NotAction = ["iam:CreateVirtualMFADevice", "iam:EnableMFADevice"]
+      Resource  = "*"
+      Condition = {
+        BoolIfExists = { "aws:MultiFactorAuthPresent" = "false" }
+      }
+    }]
+  })
+}''',
+    "CKV_AWS_49": '''# Follow IAM least privilege principle
+# Avoid using wildcard (*) in Actions and Resources
+resource "aws_iam_policy" "least_privilege" {
+  name = "specific-permissions"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject"
+        ]
+        Resource = [
+          "arn:aws:s3:::my-bucket/*"  # Specific bucket
+        ]
+      }
+    ]
+  })
+}
+
+# AVOID patterns like:
+# Action   = "*"           # Too broad
+# Resource = "*"           # Too broad
+# Action   = "s3:*"        # All S3 actions''',
+    # Lambda Security
+    "CKV_AWS_62": '''# Ensure Lambda function is not publicly accessible
+resource "aws_lambda_permission" "allow_specific" {
+  statement_id  = "AllowSpecificInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.this.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = aws_api_gateway_rest_api.this.execution_arn
+
+  # Never use:
+  # principal = "*"  # DANGEROUS: Allows anyone to invoke
+}''',
+    "CKV_AWS_50": '''# Enable Lambda X-Ray tracing
+resource "aws_lambda_function" "this" {
+  function_name = var.function_name
+  role          = aws_iam_role.lambda.arn
+  handler       = var.handler
+  runtime       = var.runtime
+
+  tracing_config {
+    mode = "Active"  # Enable X-Ray tracing
+  }
+}''',
+    "CKV_AWS_115": '''# Configure Lambda reserved concurrency
+resource "aws_lambda_function" "this" {
+  function_name = var.function_name
+  role          = aws_iam_role.lambda.arn
+  handler       = var.handler
+  runtime       = var.runtime
+
+  reserved_concurrent_executions = 100  # Adjust based on needs
+}''',
+    "CKV_AWS_116": '''# Enable Lambda Dead Letter Queue
+resource "aws_lambda_function" "this" {
+  function_name = var.function_name
+  role          = aws_iam_role.lambda.arn
+  handler       = var.handler
+  runtime       = var.runtime
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.dlq.arn
+  }
+}
+
+resource "aws_sqs_queue" "dlq" {
+  name = "${var.function_name}-dlq"
+}''',
+    "CKV_AWS_117": '''# Run Lambda inside VPC
+resource "aws_lambda_function" "this" {
+  function_name = var.function_name
+  role          = aws_iam_role.lambda.arn
+  handler       = var.handler
+  runtime       = var.runtime
+
+  vpc_config {
+    subnet_ids         = var.private_subnet_ids
+    security_group_ids = [aws_security_group.lambda.id]
+  }
+}''',
+    # CloudTrail Additional
+    "CKV_AWS_36": '''# Enable CloudTrail S3 bucket access logging
+resource "aws_s3_bucket" "cloudtrail" {
+  bucket = var.cloudtrail_bucket_name
+}
+
+resource "aws_s3_bucket_logging" "cloudtrail" {
+  bucket        = aws_s3_bucket.cloudtrail.id
+  target_bucket = aws_s3_bucket.access_logs.id
+  target_prefix = "cloudtrail-bucket-logs/"
+}''',
+    # API Gateway
+    "CKV_AWS_76": '''# Enable API Gateway access logging
+resource "aws_api_gateway_stage" "this" {
+  stage_name    = var.stage_name
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  deployment_id = aws_api_gateway_deployment.this.id
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gw.arn
+    format = jsonencode({
+      requestId         = "$context.requestId"
+      ip                = "$context.identity.sourceIp"
+      requestTime       = "$context.requestTime"
+      httpMethod        = "$context.httpMethod"
+      resourcePath      = "$context.resourcePath"
+      status            = "$context.status"
+      responseLength    = "$context.responseLength"
+      integrationLatency = "$context.integrationLatency"
+    })
+  }
+}
+
+resource "aws_cloudwatch_log_group" "api_gw" {
+  name              = "/aws/apigateway/${var.api_name}"
+  retention_in_days = 30
+}''',
+    # RDS Additional
+    "CKV_AWS_15": '''# Enable Multi-AZ for RDS high availability
+resource "aws_db_instance" "this" {
+  identifier     = var.identifier
+  engine         = var.engine
+  instance_class = var.instance_class
+
+  multi_az = true  # Enable Multi-AZ deployment
+}''',
+    "CKV_AWS_91": '''# Enable RDS Enhanced Monitoring
+resource "aws_db_instance" "this" {
+  identifier     = var.identifier
+  engine         = var.engine
+  instance_class = var.instance_class
+
+  monitoring_interval = 60  # Seconds (0 to disable)
+  monitoring_role_arn = aws_iam_role.rds_monitoring.arn
+}
+
+resource "aws_iam_role" "rds_monitoring" {
+  name = "rds-monitoring-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "monitoring.rds.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "rds_monitoring" {
+  role       = aws_iam_role.rds_monitoring.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}''',
+    "CKV_AWS_118": '''# Enable RDS IAM authentication
+resource "aws_db_instance" "this" {
+  identifier     = var.identifier
+  engine         = var.engine
+  instance_class = var.instance_class
+
+  iam_database_authentication_enabled = true
+}''',
+    # S3 Additional
+    "CKV_AWS_145": '''# Enable S3 bucket KMS encryption (instead of AES256)
+resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
+  bucket = aws_s3_bucket.this.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.s3.arn
+    }
+    bucket_key_enabled = true
+  }
+}''',
+    "CKV_AWS_144": '''# Enable S3 cross-region replication
+resource "aws_s3_bucket_replication_configuration" "this" {
+  bucket = aws_s3_bucket.this.id
+  role   = aws_iam_role.replication.arn
+
+  rule {
+    id     = "replicate-all"
+    status = "Enabled"
+
+    destination {
+      bucket        = aws_s3_bucket.replica.arn
+      storage_class = "STANDARD"
+    }
+  }
+}''',
+    # ELB/ALB Additional
+    "CKV_AWS_91": '''# Enable ELB access logging
+resource "aws_lb" "this" {
+  name               = var.name
+  internal           = var.internal
+  load_balancer_type = "application"
+  subnets            = var.subnet_ids
+
+  access_logs {
+    bucket  = aws_s3_bucket.lb_logs.id
+    prefix  = "alb-logs"
+    enabled = true
+  }
+}''',
+    # EC2 Additional
+    "CKV_AWS_135": '''# Enable EBS optimization for EC2
+resource "aws_instance" "this" {
+  ami           = var.ami_id
+  instance_type = var.instance_type
+
+  ebs_optimized = true
+}''',
+    "CKV_AWS_126": '''# Enable detailed monitoring for EC2
+resource "aws_instance" "this" {
+  ami           = var.ami_id
+  instance_type = var.instance_type
+
+  monitoring = true  # Enable detailed monitoring
+}''',
+    # EBS Additional
+    "CKV_AWS_4": '''# Enable EBS snapshot encryption
+# Note: Snapshots inherit encryption from source volume
+# Ensure source volume is encrypted first
+resource "aws_ebs_volume" "this" {
+  availability_zone = var.availability_zone
+  size              = var.size
+  encrypted         = true  # Snapshots will be encrypted
+  kms_key_id        = var.kms_key_id
+}
+
+# For existing unencrypted snapshots, create encrypted copy:
+resource "aws_ebs_snapshot_copy" "encrypted" {
+  source_snapshot_id = var.source_snapshot_id
+  source_region      = var.region
+  encrypted          = true
+  kms_key_id         = var.kms_key_id
+}''',
+    # ElastiCache Additional
+    "CKV_AWS_31": '''# Enable ElastiCache encryption at rest and in transit
+resource "aws_elasticache_replication_group" "this" {
+  replication_group_id = var.name
+  description          = var.description
+
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+  kms_key_id                 = aws_kms_key.elasticache.arn
+}''',
+    # GuardDuty
+    "CKV_AWS_52": '''# Enable GuardDuty
+resource "aws_guardduty_detector" "this" {
+  enable = true
+
+  datasources {
+    s3_logs {
+      enable = true
+    }
+    kubernetes {
+      audit_logs {
+        enable = true
+      }
+    }
+    malware_protection {
+      scan_ec2_instance_with_findings {
+        ebs_volumes {
+          enable = true
+        }
+      }
+    }
+  }
+}''',
+    # AWS Config
+    "CKV_AWS_78": '''# Enable AWS Config
+resource "aws_config_configuration_recorder" "this" {
+  name     = "default"
+  role_arn = aws_iam_role.config.arn
+
+  recording_group {
+    all_supported = true
+  }
+}
+
+resource "aws_config_configuration_recorder_status" "this" {
+  name       = aws_config_configuration_recorder.this.name
+  is_enabled = true
+  depends_on = [aws_config_delivery_channel.this]
+}
+
+resource "aws_config_delivery_channel" "this" {
+  name           = "default"
+  s3_bucket_name = aws_s3_bucket.config.id
+  depends_on     = [aws_config_configuration_recorder.this]
+}''',
+    # Redshift
+    "CKV_AWS_64": '''# Enable Redshift cluster encryption
+resource "aws_redshift_cluster" "this" {
+  cluster_identifier = var.cluster_identifier
+  database_name      = var.database_name
+  master_username    = var.master_username
+  master_password    = var.master_password
+  node_type          = var.node_type
+
+  encrypted  = true
+  kms_key_id = var.kms_key_id
+}''',
+    # ECR
+    "CKV_AWS_65": '''# Enable ECR repository encryption
+resource "aws_ecr_repository" "this" {
+  name                 = var.name
+  image_tag_mutability = "IMMUTABLE"
+
+  encryption_configuration {
+    encryption_type = "KMS"
+    kms_key         = var.kms_key_arn
+  }
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}''',
+    # DocumentDB
+    "CKV_AWS_5": '''# Enable DocumentDB backup retention
+resource "aws_docdb_cluster" "this" {
+  cluster_identifier = var.cluster_identifier
+  engine             = "docdb"
+  master_username    = var.master_username
+  master_password    = var.master_password
+
+  backup_retention_period = 7  # Days (1-35)
+  preferred_backup_window = "07:00-09:00"
+}''',
+    # DynamoDB
+    "CKV_AWS_28": '''# Enable DynamoDB point-in-time recovery
+resource "aws_dynamodb_table" "this" {
+  name         = var.table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = var.hash_key
+
+  point_in_time_recovery {
+    enabled = true
+  }
+}''',
 }
 
 
