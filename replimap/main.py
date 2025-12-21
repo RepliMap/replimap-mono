@@ -1885,7 +1885,7 @@ def _generate_remediation(results: CheckovResults, output_dir: Path) -> None:
 
     if plan.files:
         # Write all files
-        written = plan.write_all(output_dir)
+        plan.write_all(output_dir)
 
         console.print()
         console.print(

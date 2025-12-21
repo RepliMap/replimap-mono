@@ -30,6 +30,10 @@ from replimap.dependencies.models import (
     DISCLAIMER_FULL,
     DISCLAIMER_SHORT,
     STANDARD_LIMITATIONS,
+    # Backward compatibility aliases
+    BlastNode,
+    BlastRadiusResult,
+    BlastZone,
     # New names
     DependencyEdge,
     DependencyExplorerResult,
@@ -37,15 +41,11 @@ from replimap.dependencies.models import (
     DependencyZone,
     ImpactLevel,
     ResourceNode,
-    # Backward compatibility aliases
-    BlastNode,
-    BlastRadiusResult,
-    BlastZone,
 )
 from replimap.dependencies.reporter import (
-    DependencyExplorerReporter,
     # Backward compatibility alias
     BlastRadiusReporter,
+    DependencyExplorerReporter,
 )
 
 __all__ = [

@@ -162,7 +162,6 @@ class GraphBuilder:
         vpc_id: str,
     ) -> list[ResourceNode]:
         """Filter resources to those belonging to a VPC."""
-        from replimap.core.models import ResourceType
 
         vpc_resource_ids: set[str] = {vpc_id}
 

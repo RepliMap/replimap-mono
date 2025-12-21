@@ -259,7 +259,8 @@ class SnapshotStore:
                 if created.timestamp() < cutoff:
                     to_delete.append(name)
             except Exception:
-                pass
+                # Skip snapshots with invalid metadata
+                logger.debug(f"Skipping snapshot with invalid metadata: {name}")
 
         for name in to_delete:
             if self.delete(name):

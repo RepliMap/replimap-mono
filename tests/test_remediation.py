@@ -11,8 +11,6 @@ These tests verify that:
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from replimap.audit.checkov_runner import CheckovFinding
 from replimap.audit.remediation import (
     RemediationFile,
@@ -29,7 +27,6 @@ from replimap.audit.remediation.templates import (
     generate_s3_versioning,
     generate_security_group_restrict,
 )
-
 
 # =============================================================================
 # MODEL TESTS

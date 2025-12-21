@@ -4,8 +4,6 @@ Comprehensive tests for Graph Simplification feature.
 Tests filtering, grouping, and building of simplified graphs.
 """
 
-import pytest
-
 from replimap.core.models import ResourceNode, ResourceType
 from replimap.graph import (
     BuilderConfig,
@@ -23,7 +21,6 @@ from replimap.graph.filters import (
     ROUTE_TYPES,
     SG_RULE_TYPES,
 )
-
 
 # =============================================================================
 # TEST FIXTURES

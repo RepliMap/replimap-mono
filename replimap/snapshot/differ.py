@@ -12,7 +12,6 @@ from typing import Any
 from replimap.snapshot.models import (
     InfraSnapshot,
     ResourceChange,
-    ResourceSnapshot,
     SnapshotDiff,
 )
 
@@ -288,7 +287,8 @@ class SnapshotDiffer:
                 )
                 return sorted1 != sorted2
             except Exception:
-                pass
+                # Fall through to simple string comparison
+                logger.debug("JSON sorting failed, using string comparison")
 
         # For simple lists
         return sorted(str(x) for x in list1) != sorted(str(x) for x in list2)

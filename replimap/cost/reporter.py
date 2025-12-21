@@ -269,7 +269,7 @@ Pricing: On-Demand (standard rates)[/dim]
         for r in estimate.top_resources[:5]:
             md += f"| {r.resource_name[:30]} | {r.resource_type.replace('aws_', '')} | ${r.monthly_cost:,.2f} | {r.confidence.value} |\n"
 
-        md += f"""
+        md += """
 ## ⚠️ NOT Included in This Estimate
 
 The following cost factors are **NOT** included and may significantly increase your actual bill:

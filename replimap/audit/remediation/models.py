@@ -194,13 +194,13 @@ class RemediationPlan:
     def summary(self) -> str:
         """Generate a summary of the remediation plan."""
         lines = [
-            f"Remediation Plan Summary",
-            f"========================",
-            f"",
+            "Remediation Plan Summary",
+            "========================",
+            "",
             f"Total findings analyzed: {self.total_findings}",
             f"Remediable findings: {self.remediable_findings} ({self.coverage_percent}%)",
             f"Skipped findings: {self.skipped_findings}",
-            f"",
+            "",
             f"Files to generate: {len(self.files)}",
         ]
 
@@ -216,12 +216,12 @@ class RemediationPlan:
                 lines.append(f"  - {severity.value.upper()}: {count} fixes")
 
         if self.has_imports:
-            lines.append(f"")
-            lines.append(f"⚠️  Some fixes require terraform import (see import.sh)")
+            lines.append("")
+            lines.append("⚠️  Some fixes require terraform import (see import.sh)")
 
         if self.warnings:
-            lines.append(f"")
-            lines.append(f"Warnings:")
+            lines.append("")
+            lines.append("Warnings:")
             for warning in self.warnings:
                 lines.append(f"  - {warning}")
 

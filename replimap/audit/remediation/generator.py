@@ -7,10 +7,10 @@ Transforms Checkov findings into actionable Terraform remediation code.
 from __future__ import annotations
 
 import logging
-import re
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from replimap.audit.remediation.models import (
     RemediationFile,

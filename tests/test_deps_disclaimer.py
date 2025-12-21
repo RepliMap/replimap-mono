@@ -10,8 +10,6 @@ import json
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from replimap.dependencies import (
     DISCLAIMER_FULL,
     DISCLAIMER_SHORT,

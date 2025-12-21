@@ -19,14 +19,14 @@ from replimap.dependencies import (
     BlastRadiusResult,
     BlastZone,
     DependencyEdge,
-    DependencyGraphBuilder,
-    DependencyType,
-    ImpactCalculator,
-    ImpactLevel,
     # New names also available
     DependencyExplorerReporter,
     DependencyExplorerResult,
+    DependencyGraphBuilder,
+    DependencyType,
     DependencyZone,
+    ImpactCalculator,
+    ImpactLevel,
     ResourceNode,
 )
 

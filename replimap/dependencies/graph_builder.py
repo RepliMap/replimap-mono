@@ -18,8 +18,8 @@ from typing import Any
 
 import networkx as nx
 
-from replimap.dependencies.models import DependencyEdge, DependencyType, ResourceNode
 from replimap.core import GraphEngine
+from replimap.dependencies.models import DependencyEdge, DependencyType, ResourceNode
 
 logger = logging.getLogger(__name__)
 
