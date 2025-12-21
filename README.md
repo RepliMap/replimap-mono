@@ -249,8 +249,37 @@ replimap graph --profile prod --format html --output infra-graph.html
 replimap graph --profile prod --format json --output graph.json
 
 # Scope to specific VPC
-replimap graph --profile prod --scope vpc:vpc-12345678
+replimap graph --profile prod --vpc vpc-12345678
 ```
+
+### Graph Simplification
+
+By default, graphs are simplified for readability by hiding noisy resources (SG rules, routes) and collapsing large groups of similar resources.
+
+```bash
+# Show all resources (no filtering or grouping)
+replimap graph -r us-east-1 --all
+
+# Include security group rules
+replimap graph -r us-east-1 --sg-rules
+
+# Include routes and route tables
+replimap graph -r us-east-1 --routes
+
+# Disable resource grouping (show individual nodes)
+replimap graph -r us-east-1 --no-collapse
+
+# Security-focused view (show SGs, IAM, KMS)
+replimap graph -r us-east-1 --security
+```
+
+| Option | Description |
+|--------|-------------|
+| `--all, -a` | Show all resources without filtering |
+| `--sg-rules` | Include security group rules |
+| `--routes` | Include routes and route tables |
+| `--no-collapse` | Disable resource grouping |
+| `--security` | Security-focused view |
 
 ## Infrastructure Drift Detection
 
@@ -338,6 +367,8 @@ replimap deps sg-12345 -r us-east-1 --vpc vpc-abc123
 
 Estimate monthly AWS costs for your infrastructure with optimization recommendations.
 
+**Important**: Cost estimates are for planning purposes only. Actual costs may differ due to data transfer, API calls, reserved instances, and other factors not included in estimates.
+
 ```bash
 # Estimate costs for current region
 replimap cost -r us-east-1
@@ -353,6 +384,12 @@ replimap cost -r us-east-1 -f csv -o costs.csv
 
 # Export to JSON for automation
 replimap cost -r us-east-1 -f json -o costs.json
+
+# Export to Markdown report
+replimap cost -r us-east-1 -f markdown -o costs.md
+
+# Skip confirmation prompt for exports
+replimap cost -r us-east-1 -f html -o report.html --acknowledge
 ```
 
 ### Output Formats
@@ -364,6 +401,27 @@ replimap cost -r us-east-1 -f json -o costs.json
 | `html` | Interactive HTML report with Chart.js |
 | `json` | Machine-readable JSON |
 | `csv` | Spreadsheet-compatible CSV |
+| `markdown` | Markdown report for documentation |
+
+### Estimate Accuracy
+
+| Confidence | Range | Description |
+|------------|-------|-------------|
+| HIGH | ±10% | Standard on-demand pricing |
+| MEDIUM | ±20% | Some usage assumptions |
+| LOW | ±40% | Many factors unknown |
+
+### What's NOT Included
+
+- Data transfer costs (can be 10-30% of bill)
+- API request charges (S3, Lambda, API Gateway)
+- Reserved Instance / Savings Plan discounts
+- Spot Instance pricing
+- Free tier benefits
+- CloudWatch, CloudTrail fees
+- Support plan costs
+
+For accurate billing, use [AWS Cost Explorer](https://console.aws.amazon.com/cost-management/) or [AWS Pricing Calculator](https://calculator.aws/).
 
 ### Cost Categories
 
