@@ -638,11 +638,11 @@ export async function handleTrackEvent(
       now
     ).run();
 
-    // Track feature-specific data
+    // Track feature-specific data (merge region from body into metadata)
     if (eventType === 'snapshot_save' && body.metadata?.snapshot_name) {
-      await trackSnapshot(env.DB, license.id, body.metadata);
+      await trackSnapshot(env.DB, license.id, { ...body.metadata, region: body.region });
     } else if (eventType === 'audit_fix' && body.metadata) {
-      await trackRemediation(env.DB, license.id, body.metadata);
+      await trackRemediation(env.DB, license.id, { ...body.metadata, region: body.region });
     }
 
     // Build response
