@@ -2817,6 +2817,208 @@ def blast(
 
 
 # =============================================================================
+# COST ESTIMATOR COMMAND
+# =============================================================================
+
+
+@app.command()
+def cost(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to scan",
+    ),
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        "-v",
+        help="VPC ID to scope the scan (optional)",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (HTML, JSON, or CSV)",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, table, html, json, or csv",
+    ),
+    open_report: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="Open HTML report in browser after generation",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Estimate monthly AWS costs for your infrastructure.
+
+    Provides cost breakdown by category, resource, and region with
+    optimization recommendations.
+
+    This is a Pro+ feature.
+
+    Output formats:
+    - console: Rich terminal output with summary (default)
+    - table: Full table of all resource costs
+    - html: Interactive HTML report with charts
+    - json: Machine-readable JSON
+    - csv: Spreadsheet-compatible CSV
+
+    Examples:
+        # Estimate costs for current region
+        replimap cost -r us-east-1
+
+        # Estimate costs for a specific VPC
+        replimap cost -r us-east-1 --vpc vpc-12345
+
+        # Export to HTML report
+        replimap cost -r us-east-1 -f html -o cost-report.html
+
+        # Export to CSV for spreadsheet analysis
+        replimap cost -r us-east-1 -f csv -o costs.csv
+    """
+    import webbrowser
+
+    from replimap.cost import CostEstimator, CostReporter
+    from replimap.licensing import check_cost_allowed
+
+    # Check cost feature access (Pro+ feature)
+    cost_gate = check_cost_allowed()
+    if not cost_gate.allowed:
+        console.print(cost_gate.prompt)
+        raise typer.Exit(1)
+
+    # Determine region
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold green]Cost Estimator[/bold green]\n\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]\n"
+            + (f"VPC: [cyan]{vpc}[/]\n" if vpc else ""),
+            border_style="green",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Scan resources
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning AWS resources...", total=None)
+
+        try:
+            # Create graph and run scanners
+            graph = GraphEngine()
+            run_all_scanners(
+                session=session,
+                region=effective_region,
+                graph=graph,
+            )
+
+            # Apply VPC filter if specified
+            if vpc:
+                from replimap.core import ScanFilter, apply_filter_to_graph
+
+                filter_config = ScanFilter(
+                    vpc_ids=[vpc],
+                    include_vpc_resources=True,
+                )
+                graph = apply_filter_to_graph(graph, filter_config)
+
+            progress.update(task, description="Estimating costs...")
+
+            # Estimate costs
+            estimator = CostEstimator(effective_region)
+            estimate = estimator.estimate_from_graph_engine(graph)
+
+            progress.update(task, completed=True)
+
+        except Exception as e:
+            progress.stop()
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Cost estimation failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            logger.exception("Cost estimation failed")
+            raise typer.Exit(1)
+
+    # Report results
+    reporter = CostReporter()
+    console.print()
+
+    if output_format == "table":
+        reporter.to_table(estimate)
+    elif output_format == "json":
+        output_path = output or Path("./cost-estimate.json")
+        reporter.to_json(estimate, output_path)
+    elif output_format == "csv":
+        output_path = output or Path("./cost-estimate.csv")
+        reporter.to_csv(estimate, output_path)
+    elif output_format == "html":
+        output_path = output or Path("./cost-estimate.html")
+        reporter.to_html(estimate, output_path)
+        if open_report:
+            console.print()
+            console.print("[dim]Opening report in browser...[/dim]")
+            webbrowser.open(f"file://{output_path.absolute()}")
+    else:
+        # Default: console output
+        reporter.to_console(estimate)
+
+    # Also export if output path specified but format is console
+    if output and output_format == "console":
+        if output.suffix == ".html":
+            reporter.to_html(estimate, output)
+            if open_report:
+                console.print()
+                console.print("[dim]Opening report in browser...[/dim]")
+                webbrowser.open(f"file://{output.absolute()}")
+        elif output.suffix == ".json":
+            reporter.to_json(estimate, output)
+        elif output.suffix == ".csv":
+            reporter.to_csv(estimate, output)
+
+    console.print()
+
+
+# =============================================================================
 # UPGRADE COMMAND GROUP
 # =============================================================================
 
