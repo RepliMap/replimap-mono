@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from replimap.graph.visualizer import GraphNode
+    pass
 
 
 @dataclass

@@ -180,9 +180,7 @@ class HierarchicalLayoutEngine:
             "bounds": bounds,
         }
 
-    def _build_hierarchy(
-        self, nodes: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _build_hierarchy(self, nodes: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Group nodes into VPC -> Subnet -> Resources hierarchy.
 
@@ -312,9 +310,9 @@ class HierarchicalLayoutEngine:
         """Calculate width/height for each container based on contents."""
         cfg = self.config
 
-        for vpc_id, vpc in hierarchy["vpcs"].items():
+        for _vpc_id, vpc in hierarchy["vpcs"].items():
             # Calculate sizes for each subnet
-            for subnet_type, subnet in vpc["subnets"].items():
+            for _subnet_type, subnet in vpc["subnets"].items():
                 resource_count = len(subnet["resources"])
                 if resource_count == 0:
                     subnet["width"] = 0
@@ -383,7 +381,7 @@ class HierarchicalLayoutEngine:
         x_offset = cfg.canvas_padding
         y_base = cfg.canvas_padding
 
-        for vpc_id, vpc in hierarchy["vpcs"].items():
+        for _vpc_id, vpc in hierarchy["vpcs"].items():
             vpc["x"] = x_offset
             vpc["y"] = y_base
 
@@ -415,7 +413,6 @@ class HierarchicalLayoutEngine:
         """Position individual nodes within their containers."""
         cfg = self.config
         positioned: list[LayoutNode] = []
-        node_map = {n["id"]: n for n in original_nodes}
 
         for vpc_id, vpc in hierarchy["vpcs"].items():
             # Position nodes in subnets
@@ -468,7 +465,10 @@ class HierarchicalLayoutEngine:
 
                 # Position below subnets
                 max_subnet_y = max(
-                    (s.get("y", 0) + s.get("height", 0) for s in vpc["subnets"].values()),
+                    (
+                        s.get("y", 0) + s.get("height", 0)
+                        for s in vpc["subnets"].values()
+                    ),
                     default=vpc["y"] + cfg.vpc_header_height,
                 )
                 direct_y = max_subnet_y + cfg.vpc_padding
@@ -567,9 +567,9 @@ class HierarchicalLayoutEngine:
                 },
                 properties={
                     "resource_count": sum(
-                        len(s.get("resources", []))
-                        for s in vpc["subnets"].values()
-                    ) + len(vpc.get("direct_resources", [])),
+                        len(s.get("resources", [])) for s in vpc["subnets"].values()
+                    )
+                    + len(vpc.get("direct_resources", [])),
                 },
             )
             boxes.append(vpc_box)

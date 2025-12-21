@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Graph Visualization Optimization** - Major improvements to infrastructure visualization
+  - **Link Classification**: Toggle between traffic flow and dependency views
+  - **Summary Links**: Cross-VPC connection summaries for overview mode
+  - **Cost Overlay**: Heat map showing resource costs by tier (low/medium/high/critical)
+  - **Blast Radius Analysis**: Server-side impact calculation for resource changes
+  - **Tool Modes**: Select/Trace/Blast/Cost modes for click disambiguation
+  - **Drift Visualization**: Highlight resources drifted from Terraform state
+  - **Orphan Detection**: Find unused resources with cost savings estimates
+  - **Smart Aggregation**: Only aggregate similar resources (>80% homogeneity check)
+  - **D3 fx/fy Pinning**: Preserve Python-calculated layout positions in D3
+  - **Edge Routing**: Curved paths for cross-VPC links
+  - **Level of Detail**: Hide labels when zoomed out for performance
+  - **Breadcrumbs**: Navigation history with ESC key to go back
 - **Blast Radius Analyzer** (Pro+ feature) - Impact analysis for resource changes
   - `replimap blast RESOURCE_ID` command to analyze deletion/modification impact
   - Dependency graph visualization showing what will be affected
