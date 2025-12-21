@@ -214,8 +214,7 @@ class ViewManager:
                 for vpc_id in self.vpc_groups.keys()
             ],
             "global_summaries": [
-                summary.to_node_dict()
-                for summary in self._create_global_summaries()
+                summary.to_node_dict() for summary in self._create_global_summaries()
             ],
         }
 
@@ -352,8 +351,7 @@ class ViewManager:
         return [
             n
             for n in self.all_nodes
-            if not n.get("properties", {}).get("vpc_id")
-            and n.get("type") != "aws_vpc"
+            if not n.get("properties", {}).get("vpc_id") and n.get("type") != "aws_vpc"
         ]
 
     def _find_vpc_connections(self) -> dict[str, set[str]]:

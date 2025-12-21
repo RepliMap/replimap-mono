@@ -330,7 +330,9 @@ class SmartAggregator:
             props = node.get("properties", {})
             engines.add(props.get("engine"))
             clusters.add(props.get("cluster_id") or props.get("db_cluster_identifier"))
-            instance_classes.add(props.get("instance_class") or props.get("db_instance_class"))
+            instance_classes.add(
+                props.get("instance_class") or props.get("db_instance_class")
+            )
 
         # Same cluster = identical (Aurora replicas)
         if len(clusters) == 1 and None not in clusters:

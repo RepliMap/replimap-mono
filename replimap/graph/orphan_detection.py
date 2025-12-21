@@ -178,7 +178,6 @@ class OrphanDetector:
         """Check if a node is orphaned."""
         node_id = node.get("id")
         resource_type = node.get("type", "")
-        resource_name = node.get("name", node_id)
 
         # Skip summary nodes
         if node.get("is_summary"):
@@ -207,9 +206,7 @@ class OrphanDetector:
 
         return None
 
-    def _check_attachment_orphan(
-        self, node: dict[str, Any]
-    ) -> OrphanedResource | None:
+    def _check_attachment_orphan(self, node: dict[str, Any]) -> OrphanedResource | None:
         """Check if an attachment-type resource is orphaned."""
         node_id = node.get("id")
         resource_type = node.get("type", "")
@@ -227,9 +224,7 @@ class OrphanDetector:
 
         return None
 
-    def _check_container_orphan(
-        self, node: dict[str, Any]
-    ) -> OrphanedResource | None:
+    def _check_container_orphan(self, node: dict[str, Any]) -> OrphanedResource | None:
         """Check if a container resource has no children."""
         node_id = node.get("id")
         resource_type = node.get("type", "")
@@ -250,9 +245,7 @@ class OrphanDetector:
 
         return None
 
-    def _count_contained_resources(
-        self, container_id: str, container_type: str
-    ) -> int:
+    def _count_contained_resources(self, container_id: str, container_type: str) -> int:
         """Count resources contained in a VPC/Subnet."""
         count = 0
         for node in self.nodes:
@@ -337,9 +330,7 @@ class OrphanDetector:
 
         return OrphanSeverity.INFO
 
-    def _get_recommendation(
-        self, resource_type: str, reason: OrphanReason
-    ) -> str:
+    def _get_recommendation(self, resource_type: str, reason: OrphanReason) -> str:
         """Get recommendation for addressing the orphan."""
         recommendations = {
             ("aws_security_group", OrphanReason.NO_ATTACHMENTS): (

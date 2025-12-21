@@ -151,7 +151,7 @@ class SummaryLinkCalculator:
                 count=len(connections),
                 bidirectional=0 < outgoing_from_a < len(connections),
                 connection_types=list(
-                    set(f"{c['source_type']}->{c['target_type']}" for c in connections)
+                    {f"{c['source_type']}->{c['target_type']}" for c in connections}
                 ),
                 sample_connections=connections[:5],
                 label=f"{len(connections)} connections",

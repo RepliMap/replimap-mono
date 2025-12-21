@@ -139,7 +139,9 @@ class BlastRadiusCalculator:
         # Build lookup structures
         self.node_map: dict[str, dict[str, Any]] = {n["id"]: n for n in nodes}
         self.dependents: dict[str, list[str]] = defaultdict(list)  # who depends on this
-        self.dependencies: dict[str, list[str]] = defaultdict(list)  # what this depends on
+        self.dependencies: dict[str, list[str]] = defaultdict(
+            list
+        )  # what this depends on
 
         self._build_dependency_graph()
 
@@ -291,9 +293,7 @@ class BlastRadiusCalculator:
         if total == 0:
             return "No downstream dependencies detected."
 
-        summary_parts = [
-            f"{total} resource(s) affected"
-        ]
+        summary_parts = [f"{total} resource(s) affected"]
 
         if result.direct:
             summary_parts.append(f"{len(result.direct)} direct")
@@ -429,9 +429,11 @@ def find_critical_nodes(
     results = []
     for node_id, result in high_impact[:top_n]:
         node = calculator.node_map.get(node_id, {})
-        results.append({
-            "node": node,
-            "blast_radius": result.to_dict(),
-        })
+        results.append(
+            {
+                "node": node,
+                "blast_radius": result.to_dict(),
+            }
+        )
 
     return results

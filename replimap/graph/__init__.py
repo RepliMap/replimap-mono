@@ -17,7 +17,36 @@ from replimap.graph.aggregation import (
     SmartAggregator,
     create_aggregator,
 )
+from replimap.graph.blast_radius import (
+    AffectedResource,
+    BlastRadiusCalculator,
+    BlastRadiusResult,
+    ImpactSeverity,
+    calculate_blast_radius,
+    enrich_nodes_with_blast_radius,
+    find_critical_nodes,
+)
 from replimap.graph.builder import BuilderConfig, GraphBuilder
+from replimap.graph.cost_overlay import (
+    CostCalculator,
+    CostEstimate,
+    CostTier,
+    calculate_container_cost,
+    enrich_nodes_with_cost,
+    generate_cost_overlay_css,
+    generate_cost_overlay_js,
+)
+from replimap.graph.drift import (
+    DriftDetector,
+    DriftedAttribute,
+    DriftResult,
+    DriftSeverity,
+    DriftStatus,
+    detect_drift_from_plan,
+    enrich_nodes_with_drift,
+    generate_drift_visualization_css,
+    generate_drift_visualization_js,
+)
 from replimap.graph.environment import (
     EnvironmentDetector,
     EnvironmentInfo,
@@ -44,11 +73,40 @@ from replimap.graph.layout import (
     LayoutNode,
     create_layout,
 )
+from replimap.graph.link_classification import (
+    LinkType,
+    classify_link,
+    enrich_links_with_classification,
+    get_dependency_links,
+    get_traffic_flow_links,
+)
 from replimap.graph.naming import (
     DisplayName,
     ResourceNamer,
     get_type_display_name,
     get_type_plural_name,
+)
+from replimap.graph.orphan_detection import (
+    OrphanDetector,
+    OrphanedResource,
+    OrphanReason,
+    OrphanSeverity,
+    calculate_orphan_costs,
+    detect_orphans,
+    enrich_nodes_with_orphan_status,
+    generate_orphan_visualization_css,
+    generate_orphan_visualization_js,
+)
+from replimap.graph.summary_links import (
+    SummaryLink,
+    SummaryLinkCalculator,
+    calculate_summary_links,
+)
+from replimap.graph.tool_modes import (
+    ToolMode,
+    generate_tool_palette_css,
+    generate_tool_palette_html,
+    generate_tool_palette_js,
 )
 from replimap.graph.views import (
     GlobalCategorySummary,
@@ -64,64 +122,6 @@ from replimap.graph.visualizer import (
     GraphVisualizer,
     OutputFormat,
     VisualizationGraph,
-)
-from replimap.graph.link_classification import (
-    LinkType,
-    classify_link,
-    enrich_links_with_classification,
-    get_dependency_links,
-    get_traffic_flow_links,
-)
-from replimap.graph.summary_links import (
-    SummaryLink,
-    SummaryLinkCalculator,
-    calculate_summary_links,
-)
-from replimap.graph.tool_modes import (
-    ToolMode,
-    generate_tool_palette_css,
-    generate_tool_palette_html,
-    generate_tool_palette_js,
-)
-from replimap.graph.cost_overlay import (
-    CostCalculator,
-    CostEstimate,
-    CostTier,
-    calculate_container_cost,
-    enrich_nodes_with_cost,
-    generate_cost_overlay_css,
-    generate_cost_overlay_js,
-)
-from replimap.graph.blast_radius import (
-    AffectedResource,
-    BlastRadiusCalculator,
-    BlastRadiusResult,
-    ImpactSeverity,
-    calculate_blast_radius,
-    enrich_nodes_with_blast_radius,
-    find_critical_nodes,
-)
-from replimap.graph.drift import (
-    DriftDetector,
-    DriftResult,
-    DriftSeverity,
-    DriftStatus,
-    DriftedAttribute,
-    detect_drift_from_plan,
-    enrich_nodes_with_drift,
-    generate_drift_visualization_css,
-    generate_drift_visualization_js,
-)
-from replimap.graph.orphan_detection import (
-    OrphanDetector,
-    OrphanReason,
-    OrphanSeverity,
-    OrphanedResource,
-    calculate_orphan_costs,
-    detect_orphans,
-    enrich_nodes_with_orphan_status,
-    generate_orphan_visualization_css,
-    generate_orphan_visualization_js,
 )
 
 __all__ = [

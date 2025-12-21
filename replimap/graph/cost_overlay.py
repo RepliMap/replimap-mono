@@ -257,7 +257,8 @@ class CostCalculator:
                 "storage": round(storage_cost, 2),
             },
             confidence="medium",
-            notes=f"Based on {instance_class}" + (" Multi-AZ" if props.get("multi_az") else ""),
+            notes=f"Based on {instance_class}"
+            + (" Multi-AZ" if props.get("multi_az") else ""),
         )
 
     def _estimate_elasticache(self, props: dict[str, Any]) -> CostEstimate:
@@ -288,7 +289,10 @@ class CostCalculator:
 
         request_cost = estimated_invocations * LAMBDA_COST_PER_REQUEST
         compute_cost = (
-            estimated_invocations * (avg_duration_ms / 1000) * memory_gb * LAMBDA_COST_PER_GB_SECOND
+            estimated_invocations
+            * (avg_duration_ms / 1000)
+            * memory_gb
+            * LAMBDA_COST_PER_GB_SECOND
         )
 
         total = request_cost + compute_cost
@@ -346,7 +350,9 @@ class CostCalculator:
         volume_size = props.get("size", 100)
         volume_type = props.get("type", "gp3")
 
-        storage_cost = volume_size * STORAGE_COSTS.get(volume_type, 0.08) * self.multiplier
+        storage_cost = (
+            volume_size * STORAGE_COSTS.get(volume_type, 0.08) * self.multiplier
+        )
 
         # IOPS costs for io1/io2
         iops_cost = 0.0
@@ -450,7 +456,9 @@ def calculate_container_cost(
     return {
         "total_monthly": round(total, 2),
         "formatted": f"${total:,.2f}/mo",
-        "by_type": {k: round(v, 2) for k, v in sorted(by_type.items(), key=lambda x: -x[1])},
+        "by_type": {
+            k: round(v, 2) for k, v in sorted(by_type.items(), key=lambda x: -x[1])
+        },
         "by_tier": by_tier,
         "tier": get_tier(total).value,
     }

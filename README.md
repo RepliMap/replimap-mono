@@ -281,6 +281,20 @@ replimap graph -r us-east-1 --security
 | `--no-collapse` | Disable resource grouping |
 | `--security` | Security-focused view |
 
+### Advanced Graph Features
+
+The interactive HTML graph includes several advanced visualization features:
+
+| Feature | Description |
+|---------|-------------|
+| **Link Classification** | Toggle between traffic flow and infrastructure dependency views |
+| **Cost Overlay** | Heat map showing estimated monthly cost per resource (low/medium/high/critical) |
+| **Blast Radius** | Click a resource to visualize the impact of changes or failures |
+| **Orphan Detection** | Highlight unused resources with estimated cost savings |
+| **Drift Visualization** | Show resources that have drifted from Terraform state |
+| **Tool Modes** | Select/Trace/Blast modes for different analysis types |
+| **Breadcrumbs** | Navigation history with ESC key to go back |
+
 ## Infrastructure Drift Detection
 
 Detect drift between your Terraform state and actual AWS resources.
@@ -774,6 +788,17 @@ replimap/
 │   │   └── templates/       # Jinja2 HTML templates
 │   ├── graph/               # Infrastructure visualization
 │   │   ├── visualizer.py    # Graph building
+│   │   ├── layout.py        # Hierarchical container layout
+│   │   ├── aggregation.py   # Smart VPC-based aggregation
+│   │   ├── environment.py   # Environment detection (prod/staging/dev)
+│   │   ├── views.py         # View management (overview/detail)
+│   │   ├── link_classification.py  # Traffic vs dependency links
+│   │   ├── summary_links.py # Cross-VPC connection summaries
+│   │   ├── tool_modes.py    # Select/Trace/Blast tool palette
+│   │   ├── cost_overlay.py  # Cost heat map visualization
+│   │   ├── blast_radius.py  # Impact analysis calculation
+│   │   ├── drift.py         # Drift detection for graphs
+│   │   ├── orphan_detection.py # Unused resource detection
 │   │   ├── formatters/      # Mermaid, JSON, D3.js formatters
 │   │   └── templates/       # D3.js HTML template
 │   ├── drift/               # Drift detection

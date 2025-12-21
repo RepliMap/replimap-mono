@@ -251,9 +251,7 @@ class DriftDetector:
 
         return DriftSeverity.MEDIUM
 
-    def _calculate_severity(
-        self, drifted: list[DriftedAttribute]
-    ) -> DriftSeverity:
+    def _calculate_severity(self, drifted: list[DriftedAttribute]) -> DriftSeverity:
         """Calculate overall severity from drifted attributes."""
         if not drifted:
             return DriftSeverity.LOW
@@ -276,7 +274,9 @@ class DriftDetector:
 
         count = len(drifted)
         high_count = sum(
-            1 for d in drifted if d.severity in (DriftSeverity.HIGH, DriftSeverity.CRITICAL)
+            1
+            for d in drifted
+            if d.severity in (DriftSeverity.HIGH, DriftSeverity.CRITICAL)
         )
 
         if high_count > 0:
