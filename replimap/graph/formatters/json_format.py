@@ -7,7 +7,7 @@ Exports the graph data as a structured JSON document.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -44,7 +44,7 @@ class JSONFormatter:
 
         return {
             "version": "1.0",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "metadata": {
                 **graph.metadata,
             },

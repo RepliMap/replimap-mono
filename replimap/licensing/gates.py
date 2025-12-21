@@ -226,7 +226,6 @@ def get_upgrade_prompt(feature: Feature, current_plan: Plan) -> str:
     if required_plan is None:
         return f"Feature '{feature}' is not available in any plan."
 
-    from replimap.licensing.models import get_plan_features
 
     required_features = get_plan_features(required_plan)
     price = required_features.price_monthly
@@ -526,7 +525,6 @@ def format_audit_findings(
 
     # Limited view
     visible = all_findings[:visible_limit]
-    hidden_count = len(all_findings) - visible_limit
 
     # Count hidden critical findings
     visible_critical = sum(

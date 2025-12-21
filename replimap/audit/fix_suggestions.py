@@ -593,20 +593,6 @@ resource "aws_s3_bucket_replication_configuration" "this" {
     }
   }
 }""",
-    # ELB/ALB Additional
-    "CKV_AWS_91": """# Enable ELB access logging
-resource "aws_lb" "this" {
-  name               = var.name
-  internal           = var.internal
-  load_balancer_type = "application"
-  subnets            = var.subnet_ids
-
-  access_logs {
-    bucket  = aws_s3_bucket.lb_logs.id
-    prefix  = "alb-logs"
-    enabled = true
-  }
-}""",
     # EC2 Additional
     "CKV_AWS_135": """# Enable EBS optimization for EC2
 resource "aws_instance" "this" {

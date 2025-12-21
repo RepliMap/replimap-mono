@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class DriftType(str, Enum):
@@ -53,8 +53,8 @@ class ResourceDrift:
 
     # Metadata
     tf_address: str = ""  # e.g., "aws_security_group.web"
-    last_modified: Optional[datetime] = None
-    modifier: Optional[str] = None  # From CloudTrail if available
+    last_modified: datetime | None = None
+    modifier: str | None = None  # From CloudTrail if available
 
     @property
     def is_drifted(self) -> bool:
@@ -82,7 +82,7 @@ class DriftReport:
     # Metadata
     state_file: str = ""
     region: str = ""
-    scanned_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    scanned_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     scan_duration_seconds: float = 0.0
 
     @property

@@ -141,7 +141,7 @@ class GraphVisualizer:
 
     def __init__(
         self,
-        session: "boto3.Session",
+        session: boto3.Session,
         region: str,
         profile: str | None = None,
     ) -> None:
@@ -210,7 +210,7 @@ class GraphVisualizer:
             return output_path
         return content
 
-    def _filter_by_vpc(self, graph: "GraphEngine", vpc_id: str) -> "GraphEngine":
+    def _filter_by_vpc(self, graph: GraphEngine, vpc_id: str) -> GraphEngine:
         """Filter graph to only include resources in a specific VPC."""
         from replimap.core.models import ResourceType
 
@@ -240,7 +240,7 @@ class GraphVisualizer:
 
         return graph.get_subgraph(list(vpc_resource_ids))
 
-    def _to_visualization_graph(self, graph: "GraphEngine") -> VisualizationGraph:
+    def _to_visualization_graph(self, graph: GraphEngine) -> VisualizationGraph:
         """Convert GraphEngine to visualization graph."""
         nodes: list[GraphNode] = []
         edges: list[GraphEdge] = []
@@ -292,7 +292,7 @@ class GraphVisualizer:
             },
         )
 
-    def _extract_key_properties(self, resource: "ResourceNode") -> dict[str, Any]:
+    def _extract_key_properties(self, resource: ResourceNode) -> dict[str, Any]:
         """Extract key properties for display."""
         props: dict[str, Any] = {}
         config = resource.config

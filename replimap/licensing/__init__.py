@@ -51,12 +51,12 @@ from replimap.licensing.models import (
     has_feature,
 )
 from replimap.licensing.prompts import (
-    get_upgrade_prompt,
     format_audit_limited_prompt,
     format_clone_blocked_prompt,
     format_clone_preview_footer,
     format_multi_account_prompt,
     format_scan_limit_prompt,
+    get_upgrade_prompt,
 )
 from replimap.licensing.tracker import UsageTracker
 

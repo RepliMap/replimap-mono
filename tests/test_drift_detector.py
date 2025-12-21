@@ -4,21 +4,20 @@ Comprehensive tests for the Drift Detector feature.
 
 import json
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from replimap.drift import (
     DriftEngine,
-    DriftReporter,
     DriftReport,
+    DriftReporter,
     DriftSeverity,
     DriftType,
     TerraformStateParser,
     TFResource,
-    TFState,
 )
 from replimap.drift.comparator import DriftComparator
 from replimap.drift.models import AttributeDiff, ResourceDrift
@@ -985,7 +984,7 @@ class TestDriftEdgeCases:
     def test_report_serialization_with_datetime(self):
         """Test report serialization handles datetime correctly."""
         report = DriftReport(
-            scanned_at=datetime.now(timezone.utc),
+            scanned_at=datetime.now(UTC),
             state_file="test.tfstate",
             region="us-east-1",
         )

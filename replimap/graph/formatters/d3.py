@@ -51,10 +51,10 @@ class D3Formatter:
         graph_data = self._prepare_graph_data(graph)
 
         # Get unique groups for filter controls
-        groups = sorted(set(node.group for node in graph.nodes))
+        groups = sorted({node.group for node in graph.nodes})
 
         # Get unique resource types
-        resource_types = sorted(set(node.resource_type for node in graph.nodes))
+        resource_types = sorted({node.resource_type for node in graph.nodes})
 
         # Render template
         template = self.env.get_template("graph.html.j2")

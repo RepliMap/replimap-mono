@@ -17,8 +17,12 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from replimap.audit.checkov_runner import CheckovResults
 
 import boto3
 import typer
@@ -49,16 +53,8 @@ from replimap.licensing import (
     Feature,
     LicenseStatus,
     LicenseValidationError,
-    check_scan_allowed,
     check_drift_allowed,
-    check_drift_watch_allowed,
-    check_audit_ci_mode_allowed,
-    check_audit_export_allowed,
-    check_clone_download_allowed,
-    check_graph_export_watermark,
-    check_output_format_allowed,
-    format_audit_findings,
-    format_clone_output,
+    check_scan_allowed,
     get_scans_remaining,
 )
 from replimap.licensing.manager import get_license_manager
@@ -1762,7 +1758,7 @@ def license_usage() -> None:
 
 
 def _output_audit_json(
-    results: "CheckovResults",
+    results: CheckovResults,
     output_path: Path,
     region: str,
     profile: str | None,
@@ -1782,7 +1778,7 @@ def _output_audit_json(
         Path to the generated JSON file
     """
     import json
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from replimap.audit.fix_suggestions import FIX_SUGGESTIONS
     from replimap.audit.soc2_mapping import get_soc2_mapping
@@ -1822,7 +1818,7 @@ def _output_audit_json(
             "region": region,
             "profile": profile,
             "vpc_id": vpc_id,
-            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         },
         "severity_breakdown": {
             "critical": len(results.findings_by_severity["CRITICAL"]),

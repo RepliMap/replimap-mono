@@ -9,7 +9,6 @@ import pytest
 
 from replimap.licensing.gates import (
     FeatureNotAvailableError,
-    ResourceLimitExceededError,
     check_resource_limit,
     feature_gate,
     get_available_features,

@@ -5,7 +5,7 @@ Comprehensive tests for the Graph Visualizer feature.
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
@@ -44,9 +44,7 @@ class ReportMetadata:
 
     def __post_init__(self) -> None:
         if not self.generated_at:
-            self.generated_at = datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
+            self.generated_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class AuditReporter:

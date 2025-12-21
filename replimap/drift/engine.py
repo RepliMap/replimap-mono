@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from replimap.drift.comparator import DriftComparator
 from replimap.drift.models import DriftReport, DriftType
-from replimap.drift.state_parser import TerraformStateParser, TFState
+from replimap.drift.state_parser import TerraformStateParser
 
 if TYPE_CHECKING:
     import boto3
@@ -22,7 +22,7 @@ class DriftEngine:
 
     def __init__(
         self,
-        session: "boto3.Session",
+        session: boto3.Session,
         region: str,
         profile: str | None = None,
     ) -> None:
@@ -41,9 +41,9 @@ class DriftEngine:
 
     def detect(
         self,
-        state_path: Optional[Path] = None,
-        remote_backend: Optional[dict[str, str]] = None,
-        vpc_id: Optional[str] = None,
+        state_path: Path | None = None,
+        remote_backend: dict[str, str] | None = None,
+        vpc_id: str | None = None,
     ) -> DriftReport:
         """Run drift detection.
 

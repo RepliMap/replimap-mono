@@ -8,7 +8,7 @@ Used for security auditing and compliance reporting.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -100,7 +100,7 @@ class AuditRenderer:
         self.env.filters["quote_key"] = self._quote_key_filter
         self.env.filters["d"] = self._default_if_none_filter
 
-    def render(self, graph: "GraphEngine", output_dir: Path) -> dict[str, Path]:
+    def render(self, graph: GraphEngine, output_dir: Path) -> dict[str, Path]:
         """
         Render the graph to raw Terraform files.
 
@@ -154,7 +154,7 @@ class AuditRenderer:
 
     def _generate_header(self) -> str:
         """Generate audit header comment."""
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         return f"""# ============================================================================
 # RepliMap Audit Snapshot
 # Generated: {timestamp}
@@ -164,7 +164,7 @@ class AuditRenderer:
 # This file contains a raw representation of infrastructure for security scanning.
 # ============================================================================"""
 
-    def _render_resource(self, resource: object, graph: "GraphEngine") -> str:
+    def _render_resource(self, resource: object, graph: GraphEngine) -> str:
         """
         Render a single resource to raw Terraform.
 
@@ -202,7 +202,7 @@ class AuditRenderer:
 
         return "\n".join(lines)
 
-    def _render_config(self, resource: object, graph: "GraphEngine") -> list[str]:
+    def _render_config(self, resource: object, graph: GraphEngine) -> list[str]:
         """
         Render resource configuration attributes.
 
@@ -277,7 +277,7 @@ class AuditRenderer:
             lines.append(f'instance_tenancy = "{instance_tenancy}"')
         return lines
 
-    def _render_subnet(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_subnet(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Subnet attributes."""
         lines = []
         if vpc_id := config.get("vpc_id"):
@@ -294,7 +294,7 @@ class AuditRenderer:
             lines.append("map_public_ip_on_launch = true")
         return lines
 
-    def _render_security_group(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_security_group(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Security Group attributes."""
         lines = []
         if name := config.get("group_name"):
@@ -372,7 +372,7 @@ class AuditRenderer:
 
         return lines
 
-    def _render_ec2(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_ec2(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render EC2 instance attributes."""
         lines = []
 
@@ -438,7 +438,7 @@ class AuditRenderer:
             lines.append(f'bucket = "{bucket}"')
         return lines
 
-    def _render_rds(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_rds(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render RDS instance attributes."""
         lines = []
 
@@ -511,7 +511,7 @@ class AuditRenderer:
             lines.append(f"iops = {iops}")
         return lines
 
-    def _render_lb(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_lb(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Load Balancer attributes."""
         lines = []
         if name := config.get("load_balancer_name"):
@@ -563,7 +563,7 @@ class AuditRenderer:
             lines.append("# AUDIT: No encryption configured")
         return lines
 
-    def _render_elasticache(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_elasticache(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render ElastiCache cluster attributes."""
         lines = []
         if cluster_id := config.get("cache_cluster_id"):
@@ -592,7 +592,7 @@ class AuditRenderer:
 
         return lines
 
-    def _render_route_table(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_route_table(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Route Table attributes."""
         lines = []
         if vpc_id := config.get("vpc_id"):
@@ -603,7 +603,7 @@ class AuditRenderer:
                 lines.append(f'vpc_id = "{vpc_id}"')
         return lines
 
-    def _render_igw(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_igw(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Internet Gateway attributes."""
         lines = []
         if vpc_id := config.get("vpc_id"):
@@ -614,7 +614,7 @@ class AuditRenderer:
                 lines.append(f'vpc_id = "{vpc_id}"')
         return lines
 
-    def _render_nat_gateway(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_nat_gateway(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render NAT Gateway attributes."""
         lines = []
         if subnet_id := config.get("subnet_id"):
@@ -629,7 +629,7 @@ class AuditRenderer:
             lines.append(f'allocation_id = "{allocation_id}"')
         return lines
 
-    def _render_vpc_endpoint(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_vpc_endpoint(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render VPC Endpoint attributes."""
         lines = []
         if vpc_id := config.get("vpc_id"):
@@ -646,7 +646,7 @@ class AuditRenderer:
             lines.append("private_dns_enabled = true")
         return lines
 
-    def _render_launch_template(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_launch_template(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Launch Template attributes."""
         lines = []
         if name := config.get("launch_template_name"):
@@ -671,7 +671,7 @@ class AuditRenderer:
         return lines
 
     def _render_autoscaling_group(
-        self, config: dict, graph: "GraphEngine"
+        self, config: dict, graph: GraphEngine
     ) -> list[str]:
         """Render Auto Scaling Group attributes."""
         lines = []
@@ -687,7 +687,7 @@ class AuditRenderer:
             lines.append(f'health_check_type = "{health_check_type}"')
         return lines
 
-    def _render_lb_listener(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_lb_listener(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Load Balancer Listener attributes."""
         lines = []
         if lb_arn := config.get("load_balancer_arn"):
@@ -702,7 +702,7 @@ class AuditRenderer:
             lines.append(f'certificate_arn = "{cert_arn}"')
         return lines
 
-    def _render_lb_target_group(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_lb_target_group(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Load Balancer Target Group attributes."""
         lines = []
         if name := config.get("target_group_name"):

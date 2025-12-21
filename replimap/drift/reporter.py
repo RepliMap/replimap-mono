@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -123,7 +123,7 @@ class DriftReporter:
 
         html = template.render(
             report=report,
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
             DriftType=DriftType,
             DriftSeverity=DriftSeverity,
         )
