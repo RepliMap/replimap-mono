@@ -599,19 +599,25 @@ def check_cost_allowed() -> GateResult:
     return GateResult(allowed=False, prompt=prompt)
 
 
-def check_blast_allowed() -> GateResult:
-    """Check if user can use blast radius analysis."""
+def check_deps_allowed() -> GateResult:
+    """Check if user can use dependency exploration (Pro+ feature)."""
     from replimap.licensing.manager import get_license_manager
     from replimap.licensing.prompts import get_upgrade_prompt
 
     manager = get_license_manager()
     features = manager.current_features
 
-    if features.blast_enabled:
+    if features.deps_enabled:
         return GateResult(allowed=True)
 
-    prompt = get_upgrade_prompt("blast_not_available")
+    prompt = get_upgrade_prompt("deps_not_available")
     return GateResult(allowed=False, prompt=prompt)
+
+
+# Backward compatibility alias
+def check_blast_allowed() -> GateResult:
+    """Deprecated: Use check_deps_allowed instead."""
+    return check_deps_allowed()
 
 
 def check_multi_account_allowed(account_count: int) -> GateResult:

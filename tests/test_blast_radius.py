@@ -1,5 +1,8 @@
 """
-Comprehensive tests for the Blast Radius Analyzer feature.
+Comprehensive tests for the Dependency Explorer feature (formerly Blast Radius).
+
+These tests validate the core functionality of dependency analysis.
+See test_deps_disclaimer.py for tests ensuring disclaimers are present.
 """
 
 import json
@@ -9,18 +12,25 @@ from pathlib import Path
 import networkx as nx
 import pytest
 
-from replimap.blast import (
+# Import from new module - backward compatibility aliases also work
+from replimap.dependencies import (
     RESOURCE_IMPACT_SCORES,
-    BlastNode,
-    BlastRadiusReporter,
-    BlastRadiusResult,
-    BlastZone,
     DependencyEdge,
+    DependencyExplorerReporter,
+    DependencyExplorerResult,
     DependencyGraphBuilder,
     DependencyType,
+    DependencyZone,
     ImpactCalculator,
     ImpactLevel,
+    ResourceNode,
 )
+
+# Backward compatibility aliases for existing tests
+BlastNode = ResourceNode
+BlastRadiusResult = DependencyExplorerResult
+BlastZone = DependencyZone
+BlastRadiusReporter = DependencyExplorerReporter
 
 
 class TestBlastModels:
@@ -154,16 +164,16 @@ class TestBlastModels:
             affected_resources=[],
             total_affected=2,
             max_depth=1,
-            overall_impact=ImpactLevel.HIGH,
-            overall_score=85,
-            safe_deletion_order=["i-123", "sg-abc"],
+            estimated_impact=ImpactLevel.HIGH,
+            estimated_score=85,
+            suggested_review_order=["i-123", "sg-abc"],
             warnings=["Critical resource"],
         )
 
         assert result.center_resource.id == "sg-abc"
         assert len(result.zones) == 1
         assert result.total_affected == 2
-        assert result.overall_impact == ImpactLevel.HIGH
+        assert result.estimated_impact == ImpactLevel.HIGH
 
     def test_blast_radius_result_to_dict(self):
         """Test BlastRadiusResult serialization."""
@@ -172,16 +182,16 @@ class TestBlastModels:
             center_resource=center,
             zones=[],
             total_affected=0,
-            overall_impact=ImpactLevel.LOW,
-            overall_score=30,
+            estimated_impact=ImpactLevel.LOW,
+            estimated_score=30,
         )
 
         data = result.to_dict()
 
         assert data["center"]["id"] == "sg-abc"
         assert data["summary"]["total_affected"] == 0
-        assert data["summary"]["overall_impact"] == "LOW"
-        assert data["summary"]["overall_score"] == 30
+        assert data["summary"]["estimated_impact"] == "LOW"
+        assert data["summary"]["estimated_score"] == 30
 
 
 class TestDependencyGraphBuilder:
@@ -413,20 +423,20 @@ class TestImpactCalculator:
         depths = [z.depth for z in result.zones]
         assert depths == sorted(depths)
 
-    def test_safe_deletion_order(self):
-        """Test safe deletion order generation."""
+    def test_suggested_review_order(self):
+        """Test suggested review order generation."""
         graph, nodes = self._create_simple_graph()
 
         calculator = ImpactCalculator(graph, nodes)
         result = calculator.calculate_blast_radius("vpc-123")
 
-        # Safe deletion order should have entries
-        assert isinstance(result.safe_deletion_order, list)
+        # Suggested review order should have entries
+        assert isinstance(result.suggested_review_order, list)
         # Check that order contains expected resources
-        assert len(result.safe_deletion_order) > 0
+        assert len(result.suggested_review_order) > 0
 
-    def test_overall_impact_critical(self):
-        """Test overall impact for critical resource."""
+    def test_estimated_impact_critical(self):
+        """Test estimated impact for critical resource."""
         graph = nx.DiGraph()
         nodes = {
             "vpc-123": BlastNode(id="vpc-123", type="aws_vpc", name="vpc"),
@@ -446,7 +456,7 @@ class TestImpactCalculator:
         result = calculator.calculate_blast_radius("vpc-123")
 
         # VPC with DB dependent should be critical or high
-        assert result.overall_impact in (ImpactLevel.CRITICAL, ImpactLevel.HIGH)
+        assert result.estimated_impact in (ImpactLevel.CRITICAL, ImpactLevel.HIGH)
 
     def test_max_depth_limit(self):
         """Test that max_depth limits traversal."""
@@ -564,9 +574,9 @@ class TestBlastRadiusReporter:
             edges=[edge1, edge2],
             total_affected=2,
             max_depth=1,
-            overall_impact=ImpactLevel.HIGH,
-            overall_score=80,
-            safe_deletion_order=["i-456", "i-789", "sg-123"],
+            estimated_impact=ImpactLevel.HIGH,
+            estimated_score=80,
+            suggested_review_order=["i-456", "i-789", "sg-123"],
             warnings=["Production resources affected"],
         )
 
@@ -642,8 +652,8 @@ class TestBlastRadiusReporter:
             zones=[],
             affected_resources=[],
             total_affected=0,
-            overall_impact=ImpactLevel.NONE,
-            overall_score=0,
+            estimated_impact=ImpactLevel.NONE,
+            estimated_score=0,
         )
 
         # Should not raise
@@ -706,7 +716,7 @@ class TestBlastIntegration:
         # Verify result
         assert result.center_resource.id == "vpc-main"
         assert result.total_affected >= 2  # At least subnet and sg
-        assert result.overall_impact in (ImpactLevel.CRITICAL, ImpactLevel.HIGH)
+        assert result.estimated_impact in (ImpactLevel.CRITICAL, ImpactLevel.HIGH)
 
         # Export to JSON
         with tempfile.TemporaryDirectory() as tmpdir:

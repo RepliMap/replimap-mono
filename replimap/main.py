@@ -2575,12 +2575,12 @@ def drift(
 
 
 # =============================================================================
-# BLAST RADIUS COMMAND
+# DEPENDENCY EXPLORER COMMAND (formerly Blast Radius)
 # =============================================================================
 
 
 @app.command()
-def blast(
+def deps(
     resource_id: str = typer.Argument(
         ...,
         help="Resource ID to analyze (e.g., vpc-12345, sg-abc123)",
@@ -2626,6 +2626,11 @@ def blast(
         "--open/--no-open",
         help="Open HTML report in browser after generation",
     ),
+    show_disclaimer: bool = typer.Option(
+        True,
+        "--disclaimer/--no-disclaimer",
+        help="Show disclaimer about limitations",
+    ),
     no_cache: bool = typer.Option(
         False,
         "--no-cache",
@@ -2633,12 +2638,14 @@ def blast(
     ),
 ) -> None:
     """
-    Analyze blast radius for a resource.
+    Explore dependencies for a resource.
 
-    Shows what will be affected if you delete or modify a resource:
-    - What resources depend on this one?
-    - What will break if you delete it?
-    - What's the safe deletion order?
+    Shows what resources MAY be affected if you modify or delete a resource.
+    This analysis is based on AWS API metadata only.
+
+    IMPORTANT: Application-level dependencies (hardcoded IPs, DNS,
+    config files) are NOT detected. Always validate all dependencies
+    before making infrastructure changes.
 
     This is a Pro+ feature.
 
@@ -2650,31 +2657,32 @@ def blast(
     - json: Machine-readable JSON
 
     Examples:
-        # Analyze blast radius for a security group
-        replimap blast sg-12345 -r us-east-1
+        # Explore dependencies for a security group
+        replimap deps sg-12345 -r us-east-1
 
         # Show as tree view
-        replimap blast vpc-abc123 -r us-east-1 --format tree
+        replimap deps vpc-abc123 -r us-east-1 --format tree
 
         # Generate HTML visualization
-        replimap blast i-xyz789 -r us-east-1 -f html -o blast.html
+        replimap deps i-xyz789 -r us-east-1 -f html -o deps.html
 
         # Limit depth of analysis
-        replimap blast vpc-12345 -r us-east-1 --depth 3
+        replimap deps vpc-12345 -r us-east-1 --depth 3
     """
     import webbrowser
 
-    from replimap.blast import (
-        BlastRadiusReporter,
+    from replimap.dependencies import (
+        DISCLAIMER_SHORT,
+        DependencyExplorerReporter,
         DependencyGraphBuilder,
         ImpactCalculator,
     )
-    from replimap.licensing import check_blast_allowed
+    from replimap.licensing import check_deps_allowed
 
-    # Check blast feature access (Pro+ feature)
-    blast_gate = check_blast_allowed()
-    if not blast_gate.allowed:
-        console.print(blast_gate.prompt)
+    # Check deps feature access (Pro+ feature)
+    deps_gate = check_deps_allowed()
+    if not deps_gate.allowed:
+        console.print(deps_gate.prompt)
         raise typer.Exit(1)
 
     # Determine region
@@ -2693,13 +2701,14 @@ def blast(
     console.print()
     console.print(
         Panel(
-            f"[bold magenta]Blast Radius Analyzer[/bold magenta]\n\n"
+            f"[bold blue]Dependency Explorer[/bold blue]\n\n"
             f"Resource: [cyan]{resource_id}[/]\n"
             f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
             f"Profile: [cyan]{profile or 'default'}[/]\n"
             + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
-            + f"Max Depth: [cyan]{max_depth}[/]",
-            border_style="magenta",
+            + f"Max Depth: [cyan]{max_depth}[/]\n\n"
+            f"[dim]{DISCLAIMER_SHORT}[/dim]",
+            border_style="blue",
         )
     )
 
@@ -2736,13 +2745,13 @@ def blast(
 
             progress.update(task, description="Building dependency graph...")
 
-            # Build blast dependency graph
+            # Build dependency graph
             builder = DependencyGraphBuilder()
             dep_graph = builder.build_from_graph_engine(graph, effective_region)
 
-            progress.update(task, description="Calculating blast radius...")
+            progress.update(task, description="Exploring dependencies...")
 
-            # Calculate blast radius
+            # Explore dependencies
             calculator = ImpactCalculator(
                 dep_graph,
                 builder.get_nodes(),
@@ -2772,16 +2781,16 @@ def blast(
             console.print()
             console.print(
                 Panel(
-                    f"[red]Blast radius analysis failed:[/]\n{e}",
+                    f"[red]Dependency exploration failed:[/]\n{e}",
                     title="Error",
                     border_style="red",
                 )
             )
-            logger.exception("Blast radius analysis failed")
+            logger.exception("Dependency exploration failed")
             raise typer.Exit(1)
 
     # Report results
-    reporter = BlastRadiusReporter()
+    reporter = DependencyExplorerReporter()
     console.print()
 
     if output_format == "tree":
@@ -2789,10 +2798,10 @@ def blast(
     elif output_format == "table":
         reporter.to_table(result)
     elif output_format == "json":
-        output_path = output or Path("./blast-radius.json")
+        output_path = output or Path("./deps.json")
         reporter.to_json(result, output_path)
     elif output_format == "html":
-        output_path = output or Path("./blast-radius.html")
+        output_path = output or Path("./deps.html")
         reporter.to_html(result, output_path)
         if open_report:
             console.print()
@@ -2814,6 +2823,38 @@ def blast(
             reporter.to_json(result, output)
 
     console.print()
+
+
+# Backward compatibility alias for blast command
+@app.command(hidden=True)
+def blast(
+    resource_id: str = typer.Argument(...),
+    profile: str | None = typer.Option(None, "--profile", "-p"),
+    region: str | None = typer.Option(None, "--region", "-r"),
+    vpc: str | None = typer.Option(None, "--vpc", "-v"),
+    max_depth: int = typer.Option(10, "--depth", "-d"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+    output_format: str = typer.Option("console", "--format", "-f"),
+    open_report: bool = typer.Option(True, "--open/--no-open"),
+    no_cache: bool = typer.Option(False, "--no-cache"),
+) -> None:
+    """Deprecated: Use 'replimap deps' instead."""
+    console.print(
+        "[yellow]Note: 'replimap blast' is deprecated. "
+        "Use 'replimap deps' instead.[/yellow]\n"
+    )
+    deps(
+        resource_id=resource_id,
+        profile=profile,
+        region=region,
+        vpc=vpc,
+        max_depth=max_depth,
+        output=output,
+        output_format=output_format,
+        open_report=open_report,
+        show_disclaimer=True,
+        no_cache=no_cache,
+    )
 
 
 # =============================================================================
@@ -3094,8 +3135,8 @@ def _show_upgrade_info(plan_name: str) -> None:
     if config.cost_enabled:
         console.print("  [green]✓[/] Cost estimation")
 
-    if config.blast_enabled:
-        console.print("  [green]✓[/] Blast radius analysis")
+    if config.deps_enabled:
+        console.print("  [green]✓[/] Dependency exploration")
 
     if config.max_aws_accounts is None or config.max_aws_accounts > 1:
         accounts = (
@@ -3148,7 +3189,7 @@ def upgrade_default(ctx: typer.Context) -> None:
                 "[bold blue]RepliMap Plans[/bold blue]\n\n"
                 "[dim]Solo[/]     $49/mo  - Download code, full reports\n"
                 "[dim]Pro[/]      $99/mo  - Drift detection, CI/CD mode\n"
-                "[dim]Team[/]    $199/mo  - Watch mode, alerts, blast radius\n"
+                "[dim]Team[/]    $199/mo  - Watch mode, alerts, dependency explorer\n"
                 "[dim]Enterprise[/] Custom - SSO, audit logs, SLA",
                 border_style="blue",
             )

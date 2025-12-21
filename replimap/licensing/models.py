@@ -92,7 +92,8 @@ class Feature(str, Enum):
 
     # Advanced features
     COST_ESTIMATE = "cost_estimate"
-    BLAST_RADIUS = "blast_radius"
+    DEPENDENCY_EXPLORER = "dependency_explorer"
+    BLAST_RADIUS = "dependency_explorer"  # Backward compatibility alias
 
     # Transformation features
     BASIC_TRANSFORM = "basic_transform"
@@ -157,7 +158,7 @@ class PlanFeatures:
     drift_watch_enabled: bool
     drift_alerts_enabled: bool
     cost_enabled: bool
-    blast_enabled: bool
+    deps_enabled: bool  # Dependency explorer (formerly blast_enabled)
 
     # Team features
     max_team_members: int | None  # None = unlimited
@@ -199,7 +200,8 @@ class PlanFeatures:
             "drift_watch_enabled": self.drift_watch_enabled,
             "drift_alerts_enabled": self.drift_alerts_enabled,
             "cost_enabled": self.cost_enabled,
-            "blast_enabled": self.blast_enabled,
+            "deps_enabled": self.deps_enabled,
+            "blast_enabled": self.deps_enabled,  # Backward compatibility alias
             "max_team_members": self.max_team_members,
             "features": [str(f) for f in self.features],
             # Legacy field
@@ -243,7 +245,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=False,
         drift_alerts_enabled=False,
         cost_enabled=False,
-        blast_enabled=False,
+        deps_enabled=False,
         # Team: Solo only
         max_team_members=1,
         features={
@@ -277,7 +279,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=False,
         drift_alerts_enabled=False,
         cost_enabled=False,
-        blast_enabled=False,
+        deps_enabled=False,
         max_team_members=1,
         features={
             Feature.SCAN,
@@ -319,7 +321,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=False,  # Watch is Team
         drift_alerts_enabled=False,
         cost_enabled=True,  # Cost enabled!
-        blast_enabled=False,
+        deps_enabled=False,
         max_team_members=1,
         features={
             Feature.SCAN,
@@ -368,7 +370,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=True,  # Watch mode!
         drift_alerts_enabled=True,  # Alerts!
         cost_enabled=True,
-        blast_enabled=True,  # Blast radius!
+        deps_enabled=True,  # Dependency explorer!
         max_team_members=5,  # 5 members included
         features={
             Feature.SCAN,
@@ -386,7 +388,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
             Feature.DRIFT_WATCH,
             Feature.DRIFT_ALERTS,
             Feature.COST_ESTIMATE,
-            Feature.BLAST_RADIUS,
+            Feature.DEPENDENCY_EXPLORER,
             Feature.MULTI_ACCOUNT,
             Feature.BASIC_TRANSFORM,
             Feature.ADVANCED_TRANSFORM,
@@ -423,7 +425,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=True,
         drift_alerts_enabled=True,
         cost_enabled=True,
-        blast_enabled=True,
+        deps_enabled=True,
         max_team_members=None,  # Unlimited
         features=set(Feature),  # All features
     ),

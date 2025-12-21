@@ -1,38 +1,55 @@
 """
 Blast Radius module for RepliMap.
 
-Provides impact analysis for resource deletion/modification:
-- What resources depend on this one?
-- What will break if I delete this?
-- What's the safe deletion order?
+DEPRECATED: This module has been renamed to 'dependencies'.
+All imports are re-exported from the new location for backward compatibility.
 
-This is a Pro+ feature ($99/mo).
+See replimap.dependencies for the new API.
 """
 
-from replimap.blast.graph_builder import DependencyGraphBuilder
-from replimap.blast.impact_calculator import RESOURCE_IMPACT_SCORES, ImpactCalculator
-from replimap.blast.models import (
+# Re-export everything from dependencies module for backward compatibility
+from replimap.dependencies import (
+    DISCLAIMER_FULL,
+    DISCLAIMER_SHORT,
+    RESOURCE_IMPACT_SCORES,
+    STANDARD_LIMITATIONS,
+    # Backward compatibility names
     BlastNode,
+    BlastRadiusReporter,
     BlastRadiusResult,
     BlastZone,
     DependencyEdge,
+    DependencyGraphBuilder,
     DependencyType,
+    ImpactCalculator,
     ImpactLevel,
+    # New names also available
+    DependencyExplorerReporter,
+    DependencyExplorerResult,
+    DependencyZone,
+    ResourceNode,
 )
-from replimap.blast.reporter import BlastRadiusReporter
 
 __all__ = [
-    # Models
+    # Deprecated names (still work)
     "BlastNode",
     "BlastRadiusResult",
     "BlastZone",
-    "DependencyEdge",
-    "DependencyType",
-    "ImpactLevel",
+    "BlastRadiusReporter",
     # Core classes
     "DependencyGraphBuilder",
     "ImpactCalculator",
-    "BlastRadiusReporter",
+    "DependencyEdge",
+    "DependencyType",
+    "ImpactLevel",
     # Constants
     "RESOURCE_IMPACT_SCORES",
+    "DISCLAIMER_FULL",
+    "DISCLAIMER_SHORT",
+    "STANDARD_LIMITATIONS",
+    # New names
+    "ResourceNode",
+    "DependencyExplorerResult",
+    "DependencyZone",
+    "DependencyExplorerReporter",
 ]
