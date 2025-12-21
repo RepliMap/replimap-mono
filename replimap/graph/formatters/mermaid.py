@@ -108,9 +108,7 @@ class MermaidFormatter:
 
         return "\n".join(lines)
 
-    def _group_nodes(
-        self, nodes: list[GraphNode]
-    ) -> dict[str, list[GraphNode]]:
+    def _group_nodes(self, nodes: list[GraphNode]) -> dict[str, list[GraphNode]]:
         """Group nodes by their resource category."""
         groups: dict[str, list[GraphNode]] = {
             "network": [],
@@ -148,7 +146,7 @@ class MermaidFormatter:
         elif node.group == "database":
             return f'{node_id}[("{label}")]'  # Cylinder (database)
         elif node.group == "security":
-            return f'{node_id}{{{"{label}"}}}'  # Hexagon
+            return f"{node_id}{{{'{label}'}}}"  # Hexagon
         elif node.group == "storage":
             return f'{node_id}[["{label}"]]'  # Subroutine
         else:
@@ -173,7 +171,9 @@ class MermaidFormatter:
             node_id = self._sanitize_id(node.id)
             color = node.color
             # Convert hex to Mermaid style
-            styles.append(f"    style {node_id} fill:{color},stroke:#333,stroke-width:2px")
+            styles.append(
+                f"    style {node_id} fill:{color},stroke:#333,stroke-width:2px"
+            )
 
         return styles
 

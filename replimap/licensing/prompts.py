@@ -39,7 +39,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     # =========================================================================
     # CLONE LIMITS
     # =========================================================================
@@ -75,7 +74,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     "clone_preview_truncated": """
 # ─────────────────────────────────────────────────────────────────────────────
 # ... {remaining_lines:,} more lines hidden ...
@@ -88,7 +86,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 # → replimap upgrade solo  (Download complete code)
 # ─────────────────────────────────────────────────────────────────────────────
 """,
-
     # =========================================================================
     # AUDIT LIMITS
     # =========================================================================
@@ -126,7 +123,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     "audit_export_blocked": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │
@@ -146,7 +142,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     "audit_ci_blocked": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │
@@ -164,7 +159,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     # =========================================================================
     # DRIFT LIMITS
     # =========================================================================
@@ -189,7 +183,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     "drift_watch_not_available": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │
@@ -211,7 +204,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     # =========================================================================
     # OTHER FEATURE LIMITS
     # =========================================================================
@@ -229,7 +221,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     "blast_not_available": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │
@@ -244,7 +235,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     "multi_account_limit": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │
@@ -259,7 +249,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     # =========================================================================
     # GRAPH WATERMARK
     # =========================================================================
@@ -276,7 +265,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     # =========================================================================
     # OUTPUT FORMAT LIMITS
     # =========================================================================
@@ -297,7 +285,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     "pulumi_not_available": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │
@@ -315,7 +302,6 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
-
     "cdk_not_available": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │
@@ -358,11 +344,14 @@ def get_upgrade_prompt(key: str, params: dict[str, Any] | None = None) -> str:
 
 def format_scan_limit_prompt(used: int, limit: int, reset_date: str) -> str:
     """Format the scan limit reached prompt."""
-    return get_upgrade_prompt("scan_monthly_limit", {
-        "used": used,
-        "limit": limit,
-        "reset_date": reset_date,
-    })
+    return get_upgrade_prompt(
+        "scan_monthly_limit",
+        {
+            "used": used,
+            "limit": limit,
+            "reset_date": reset_date,
+        },
+    )
 
 
 def format_clone_blocked_prompt(
@@ -375,14 +364,17 @@ def format_clone_blocked_prompt(
     hours_saved = max(1, resource_count // 10)
     money_saved = hours_saved * 100  # $100/hour estimate
 
-    return get_upgrade_prompt("clone_download_blocked", {
-        "resource_count": resource_count,
-        "lines_count": lines_count,
-        "file_count": file_count,
-        "preview_lines": preview_lines,
-        "hours_saved": hours_saved,
-        "money_saved": money_saved,
-    })
+    return get_upgrade_prompt(
+        "clone_download_blocked",
+        {
+            "resource_count": resource_count,
+            "lines_count": lines_count,
+            "file_count": file_count,
+            "preview_lines": preview_lines,
+            "hours_saved": hours_saved,
+            "money_saved": money_saved,
+        },
+    )
 
 
 def format_clone_preview_footer(
@@ -395,14 +387,17 @@ def format_clone_preview_footer(
     """Format the footer to append to truncated clone output."""
     hours_saved = max(1, resource_count // 10)
 
-    return get_upgrade_prompt("clone_preview_truncated", {
-        "remaining_lines": remaining_lines,
-        "preview_lines": preview_lines,
-        "total_lines": total_lines,
-        "resource_count": resource_count,
-        "file_count": file_count,
-        "hours_saved": hours_saved,
-    })
+    return get_upgrade_prompt(
+        "clone_preview_truncated",
+        {
+            "remaining_lines": remaining_lines,
+            "preview_lines": preview_lines,
+            "total_lines": total_lines,
+            "resource_count": resource_count,
+            "file_count": file_count,
+            "hours_saved": hours_saved,
+        },
+    )
 
 
 def format_audit_limited_prompt(
@@ -417,17 +412,20 @@ def format_audit_limited_prompt(
     hidden_critical: int,
 ) -> str:
     """Format the audit limited findings prompt."""
-    return get_upgrade_prompt("audit_limited_view", {
-        "score": score,
-        "grade": grade,
-        "critical_count": critical_count,
-        "high_count": high_count,
-        "medium_count": medium_count,
-        "low_count": low_count,
-        "shown_count": shown_count,
-        "total_count": total_count,
-        "hidden_critical": hidden_critical,
-    })
+    return get_upgrade_prompt(
+        "audit_limited_view",
+        {
+            "score": score,
+            "grade": grade,
+            "critical_count": critical_count,
+            "high_count": high_count,
+            "medium_count": medium_count,
+            "low_count": low_count,
+            "shown_count": shown_count,
+            "total_count": total_count,
+            "hidden_critical": hidden_critical,
+        },
+    )
 
 
 def format_multi_account_prompt(
@@ -437,10 +435,13 @@ def format_multi_account_prompt(
     upgrade_price: int,
 ) -> str:
     """Format the multi-account limit prompt."""
-    return get_upgrade_prompt("multi_account_limit", {
-        "current_count": current_count,
-        "limit": limit,
-        "upgrade_plan": upgrade_plan,
-        "upgrade_price": upgrade_price,
-        "upgrade_plan_lower": upgrade_plan.lower(),
-    })
+    return get_upgrade_prompt(
+        "multi_account_limit",
+        {
+            "current_count": current_count,
+            "limit": limit,
+            "upgrade_plan": upgrade_plan,
+            "upgrade_price": upgrade_price,
+            "upgrade_plan_lower": upgrade_plan.lower(),
+        },
+    )

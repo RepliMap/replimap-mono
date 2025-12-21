@@ -94,9 +94,7 @@ class JSONFormatter:
             groups[node.group].append(node.id)
         return groups
 
-    def _group_nodes_by_type(
-        self, graph: VisualizationGraph
-    ) -> dict[str, list[str]]:
+    def _group_nodes_by_type(self, graph: VisualizationGraph) -> dict[str, list[str]]:
         """Group node IDs by their resource type."""
         types: dict[str, list[str]] = {}
         for node in graph.nodes:

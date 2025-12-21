@@ -368,14 +368,17 @@ def check_clone_download_allowed() -> GateResult:
         return GateResult(allowed=True)
 
     # FREE users cannot download
-    prompt = get_upgrade_prompt("clone_download_blocked", {
-        "resource_count": 0,  # Will be filled in later
-        "lines_count": 0,
-        "file_count": 0,
-        "preview_lines": features.clone_preview_lines or 100,
-        "hours_saved": 0,
-        "money_saved": 0,
-    })
+    prompt = get_upgrade_prompt(
+        "clone_download_blocked",
+        {
+            "resource_count": 0,  # Will be filled in later
+            "lines_count": 0,
+            "file_count": 0,
+            "preview_lines": features.clone_preview_lines or 100,
+            "hours_saved": 0,
+            "money_saved": 0,
+        },
+    )
     return GateResult(allowed=False, prompt=prompt)
 
 
@@ -512,9 +515,13 @@ def format_audit_findings(
         return all_findings, None
 
     # Count by severity
-    critical_count = sum(1 for f in all_findings if getattr(f, "severity", "") == "CRITICAL")
+    critical_count = sum(
+        1 for f in all_findings if getattr(f, "severity", "") == "CRITICAL"
+    )
     high_count = sum(1 for f in all_findings if getattr(f, "severity", "") == "HIGH")
-    medium_count = sum(1 for f in all_findings if getattr(f, "severity", "") == "MEDIUM")
+    medium_count = sum(
+        1 for f in all_findings if getattr(f, "severity", "") == "MEDIUM"
+    )
     low_count = sum(1 for f in all_findings if getattr(f, "severity", "") == "LOW")
 
     # Limited view
@@ -522,7 +529,9 @@ def format_audit_findings(
     hidden_count = len(all_findings) - visible_limit
 
     # Count hidden critical findings
-    visible_critical = sum(1 for f in visible if getattr(f, "severity", "") == "CRITICAL")
+    visible_critical = sum(
+        1 for f in visible if getattr(f, "severity", "") == "CRITICAL"
+    )
     hidden_critical = max(0, critical_count - visible_critical)
 
     prompt = format_audit_limited_prompt(

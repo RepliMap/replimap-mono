@@ -343,14 +343,18 @@ class AuditRenderer:
         lines.append(f'  protocol    = "{protocol}"')
 
         # CIDR blocks
-        cidrs = [r.get("cidr_ip") for r in rule.get("ip_ranges", []) if r.get("cidr_ip")]
+        cidrs = [
+            r.get("cidr_ip") for r in rule.get("ip_ranges", []) if r.get("cidr_ip")
+        ]
         if cidrs:
             cidr_list = ", ".join(f'"{c}"' for c in cidrs)
             lines.append(f"  cidr_blocks = [{cidr_list}]")
 
         # IPv6 CIDR blocks
         ipv6_cidrs = [
-            r.get("cidr_ipv6") for r in rule.get("ipv6_ranges", []) if r.get("cidr_ipv6")
+            r.get("cidr_ipv6")
+            for r in rule.get("ipv6_ranges", [])
+            if r.get("cidr_ipv6")
         ]
         if ipv6_cidrs:
             cidr_list = ", ".join(f'"{c}"' for c in ipv6_cidrs)
@@ -358,7 +362,9 @@ class AuditRenderer:
 
         # Security group references
         sg_refs = [
-            g.get("group_id") for g in rule.get("user_id_group_pairs", []) if g.get("group_id")
+            g.get("group_id")
+            for g in rule.get("user_id_group_pairs", [])
+            if g.get("group_id")
         ]
         if sg_refs:
             sg_list = ", ".join(f'"{s}"' for s in sg_refs)
@@ -386,7 +392,9 @@ class AuditRenderer:
         if subnet_id := config.get("subnet_id"):
             subnet_resource = graph.get_resource(subnet_id)
             if subnet_resource:
-                lines.append(f"subnet_id = aws_subnet.{subnet_resource.terraform_name}.id")
+                lines.append(
+                    f"subnet_id = aws_subnet.{subnet_resource.terraform_name}.id"
+                )
             else:
                 lines.append(f'subnet_id = "{subnet_id}"')
 
@@ -571,12 +579,16 @@ class AuditRenderer:
         if config.get("at_rest_encryption_enabled"):
             lines.append("at_rest_encryption_enabled = true")
         else:
-            lines.append("at_rest_encryption_enabled = false  # AUDIT: Not encrypted at rest")
+            lines.append(
+                "at_rest_encryption_enabled = false  # AUDIT: Not encrypted at rest"
+            )
 
         if config.get("transit_encryption_enabled"):
             lines.append("transit_encryption_enabled = true")
         else:
-            lines.append("transit_encryption_enabled = false  # AUDIT: Not encrypted in transit")
+            lines.append(
+                "transit_encryption_enabled = false  # AUDIT: Not encrypted in transit"
+            )
 
         return lines
 
@@ -608,7 +620,9 @@ class AuditRenderer:
         if subnet_id := config.get("subnet_id"):
             subnet_resource = graph.get_resource(subnet_id)
             if subnet_resource:
-                lines.append(f"subnet_id = aws_subnet.{subnet_resource.terraform_name}.id")
+                lines.append(
+                    f"subnet_id = aws_subnet.{subnet_resource.terraform_name}.id"
+                )
             else:
                 lines.append(f'subnet_id = "{subnet_id}"')
         if allocation_id := config.get("allocation_id"):
@@ -656,7 +670,9 @@ class AuditRenderer:
 
         return lines
 
-    def _render_autoscaling_group(self, config: dict, graph: "GraphEngine") -> list[str]:
+    def _render_autoscaling_group(
+        self, config: dict, graph: "GraphEngine"
+    ) -> list[str]:
         """Render Auto Scaling Group attributes."""
         lines = []
         if name := config.get("auto_scaling_group_name"):

@@ -103,7 +103,9 @@ class DriftReporter:
         # Show diffs for modified resources
         if drift.drift_type == DriftType.MODIFIED and drift.diffs:
             for diff in drift.diffs[:3]:  # Limit to 3
-                line += f"\n      {diff.attribute}: {diff.expected!r} -> {diff.actual!r}"
+                line += (
+                    f"\n      {diff.attribute}: {diff.expected!r} -> {diff.actual!r}"
+                )
             if len(drift.diffs) > 3:
                 line += f"\n      ... and {len(drift.diffs) - 3} more changes"
 

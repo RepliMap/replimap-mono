@@ -323,11 +323,17 @@ class TestTerraformStateParser:
                     "instances": [
                         {
                             "index_key": 0,
-                            "attributes": {"id": "subnet-1", "cidr_block": "10.0.1.0/24"},
+                            "attributes": {
+                                "id": "subnet-1",
+                                "cidr_block": "10.0.1.0/24",
+                            },
                         },
                         {
                             "index_key": 1,
-                            "attributes": {"id": "subnet-2", "cidr_block": "10.0.2.0/24"},
+                            "attributes": {
+                                "id": "subnet-2",
+                                "cidr_block": "10.0.2.0/24",
+                            },
                         },
                     ],
                 }
@@ -364,11 +370,17 @@ class TestTerraformStateParser:
                     "instances": [
                         {
                             "index_key": "us-east-1a",
-                            "attributes": {"id": "subnet-a", "availability_zone": "us-east-1a"},
+                            "attributes": {
+                                "id": "subnet-a",
+                                "availability_zone": "us-east-1a",
+                            },
                         },
                         {
                             "index_key": "us-east-1b",
-                            "attributes": {"id": "subnet-b", "availability_zone": "us-east-1b"},
+                            "attributes": {
+                                "id": "subnet-b",
+                                "availability_zone": "us-east-1b",
+                            },
                         },
                     ],
                 }
@@ -615,7 +627,10 @@ class TestDriftComparator:
         """Test _severity_for_added returns correct severity."""
         comparator = DriftComparator()
 
-        assert comparator._severity_for_added("aws_security_group") == DriftSeverity.CRITICAL
+        assert (
+            comparator._severity_for_added("aws_security_group")
+            == DriftSeverity.CRITICAL
+        )
         assert comparator._severity_for_added("aws_iam_role") == DriftSeverity.CRITICAL
         assert comparator._severity_for_added("aws_instance") == DriftSeverity.HIGH
         assert comparator._severity_for_added("aws_db_instance") == DriftSeverity.HIGH
@@ -701,9 +716,7 @@ class TestDriftReporter:
         reporter = DriftReporter()
         report = self.create_sample_report()
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             temp_path = Path(f.name)
 
         try:
@@ -724,9 +737,7 @@ class TestDriftReporter:
         reporter = DriftReporter()
         report = self.create_sample_report()
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".html", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
             temp_path = Path(f.name)
 
         try:
@@ -747,9 +758,7 @@ class TestDriftReporter:
         reporter = DriftReporter()
         report = DriftReport(total_resources=10, drifted_resources=0)
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".html", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
             temp_path = Path(f.name)
 
         try:
@@ -842,6 +851,7 @@ class TestDriftEngine:
             temp_path = Path(f.name)
 
         import sys
+
         original_core = sys.modules.get("replimap.core")
         original_scanners = sys.modules.get("replimap.scanners")
 

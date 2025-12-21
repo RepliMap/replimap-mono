@@ -2658,7 +2658,11 @@ def _show_upgrade_info(plan_name: str) -> None:
         console.print("  [green]✓[/] Blast radius analysis")
 
     if config.max_aws_accounts is None or config.max_aws_accounts > 1:
-        accounts = "Unlimited" if config.max_aws_accounts is None else str(config.max_aws_accounts)
+        accounts = (
+            "Unlimited"
+            if config.max_aws_accounts is None
+            else str(config.max_aws_accounts)
+        )
         console.print(f"  [green]✓[/] {accounts} AWS accounts")
 
     console.print()

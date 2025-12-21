@@ -9,7 +9,7 @@ from __future__ import annotations
 # Fix suggestions for common Checkov checks
 FIX_SUGGESTIONS: dict[str, str] = {
     # S3 Bucket Security
-    "CKV_AWS_19": '''# Enable S3 bucket encryption
+    "CKV_AWS_19": """# Enable S3 bucket encryption
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
@@ -18,22 +18,22 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
       sse_algorithm = "AES256"
     }
   }
-}''',
-    "CKV_AWS_18": '''# Enable S3 bucket versioning
+}""",
+    "CKV_AWS_18": """# Enable S3 bucket versioning
 resource "aws_s3_bucket_versioning" "this" {
   bucket = aws_s3_bucket.this.id
 
   versioning_configuration {
     status = "Enabled"
   }
-}''',
-    "CKV_AWS_21": '''# Enable S3 bucket logging
+}""",
+    "CKV_AWS_21": """# Enable S3 bucket logging
 resource "aws_s3_bucket_logging" "this" {
   bucket        = aws_s3_bucket.this.id
   target_bucket = aws_s3_bucket.logs.id
   target_prefix = "s3-access-logs/"
-}''',
-    "CKV_AWS_20": '''# Enforce SSL-only access to S3 bucket
+}""",
+    "CKV_AWS_20": """# Enforce SSL-only access to S3 bucket
 resource "aws_s3_bucket_policy" "ssl_only" {
   bucket = aws_s3_bucket.this.id
 
@@ -57,8 +57,8 @@ resource "aws_s3_bucket_policy" "ssl_only" {
       }
     ]
   })
-}''',
-    "CKV_AWS_53": '''# Block public access to S3 bucket
+}""",
+    "CKV_AWS_53": """# Block public access to S3 bucket
 resource "aws_s3_bucket_public_access_block" "this" {
   bucket = aws_s3_bucket.this.id
 
@@ -66,9 +66,9 @@ resource "aws_s3_bucket_public_access_block" "this" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-}''',
+}""",
     # EBS/EC2 Security
-    "CKV_AWS_3": '''# Enable EBS volume encryption
+    "CKV_AWS_3": """# Enable EBS volume encryption
 resource "aws_ebs_volume" "this" {
   availability_zone = var.availability_zone
   size              = var.size
@@ -79,8 +79,8 @@ resource "aws_ebs_volume" "this" {
   tags = {
     Name = var.name
   }
-}''',
-    "CKV_AWS_8": '''# Enable EC2 launch configuration encryption
+}""",
+    "CKV_AWS_8": """# Enable EC2 launch configuration encryption
 resource "aws_launch_configuration" "this" {
   name_prefix   = var.name_prefix
   image_id      = var.ami_id
@@ -96,8 +96,8 @@ resource "aws_launch_configuration" "this" {
     encrypted   = true
     volume_type = "gp3"
   }
-}''',
-    "CKV_AWS_79": '''# Enable IMDSv2 for EC2 instances
+}""",
+    "CKV_AWS_79": """# Enable IMDSv2 for EC2 instances
 resource "aws_instance" "this" {
   ami           = var.ami_id
   instance_type = var.instance_type
@@ -107,9 +107,9 @@ resource "aws_instance" "this" {
     http_tokens                 = "required"  # Enforce IMDSv2
     http_put_response_hop_limit = 1
   }
-}''',
+}""",
     # Security Groups
-    "CKV_AWS_23": '''# Restrict security group ingress - avoid 0.0.0.0/0
+    "CKV_AWS_23": """# Restrict security group ingress - avoid 0.0.0.0/0
 resource "aws_security_group" "this" {
   name        = var.name
   description = var.description
@@ -125,8 +125,8 @@ resource "aws_security_group" "this" {
 
   # Avoid rules like:
   # cidr_blocks = ["0.0.0.0/0"]  # DANGEROUS: Open to internet
-}''',
-    "CKV_AWS_24": '''# Restrict SSH access
+}""",
+    "CKV_AWS_24": """# Restrict SSH access
 ingress {
   description = "SSH from bastion only"
   from_port   = 22
@@ -134,17 +134,17 @@ ingress {
   protocol    = "tcp"
   cidr_blocks = [var.bastion_cidr]  # Bastion host CIDR only
   # Or use security_groups = [aws_security_group.bastion.id]
-}''',
-    "CKV_AWS_25": '''# Restrict RDP access
+}""",
+    "CKV_AWS_25": """# Restrict RDP access
 ingress {
   description = "RDP from VPN only"
   from_port   = 3389
   to_port     = 3389
   protocol    = "tcp"
   cidr_blocks = [var.vpn_cidr]  # VPN CIDR only
-}''',
+}""",
     # RDS Security
-    "CKV_AWS_16": '''# Enable RDS encryption
+    "CKV_AWS_16": """# Enable RDS encryption
 resource "aws_db_instance" "this" {
   identifier     = var.identifier
   engine         = var.engine
@@ -155,14 +155,14 @@ resource "aws_db_instance" "this" {
   kms_key_id        = var.kms_key_arn  # Optional: Use CMK
 
   # Other required attributes...
-}''',
-    "CKV_AWS_17": '''# RDS snapshots inherit encryption from the source DB
+}""",
+    "CKV_AWS_17": """# RDS snapshots inherit encryption from the source DB
 # Ensure the source RDS instance has encryption enabled
 resource "aws_db_instance" "this" {
   storage_encrypted = true
   # Snapshots will automatically be encrypted
-}''',
-    "CKV_AWS_157": '''# Enable Multi-AZ for high availability
+}""",
+    "CKV_AWS_157": """# Enable Multi-AZ for high availability
 resource "aws_db_instance" "this" {
   identifier     = var.identifier
   engine         = var.engine
@@ -171,17 +171,17 @@ resource "aws_db_instance" "this" {
   multi_az = true  # Enable Multi-AZ deployment
 
   # Other required attributes...
-}''',
-    "CKV_AWS_128": '''# Enable deletion protection
+}""",
+    "CKV_AWS_128": """# Enable deletion protection
 resource "aws_db_instance" "this" {
   identifier = var.identifier
 
   deletion_protection = true  # Prevent accidental deletion
 
   # Other required attributes...
-}''',
+}""",
     # ALB/ELB Security
-    "CKV_AWS_2": '''# Use HTTPS listener with TLS
+    "CKV_AWS_2": """# Use HTTPS listener with TLS
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.this.arn
   port              = 443
@@ -209,8 +209,8 @@ resource "aws_lb_listener" "http_redirect" {
       status_code = "HTTP_301"
     }
   }
-}''',
-    "CKV_AWS_103": '''# Use TLS 1.2+ security policy
+}""",
+    "CKV_AWS_103": """# Use TLS 1.2+ security policy
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.this.arn
   port              = 443
@@ -226,8 +226,8 @@ resource "aws_lb_listener" "https" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.this.arn
   }
-}''',
-    "CKV_AWS_104": '''# Enable ALB access logging
+}""",
+    "CKV_AWS_104": """# Enable ALB access logging
 resource "aws_lb" "this" {
   name               = var.name
   internal           = var.internal
@@ -240,9 +240,9 @@ resource "aws_lb" "this" {
     prefix  = "alb-logs"
     enabled = true
   }
-}''',
+}""",
     # VPC/Network Security
-    "CKV_AWS_48": '''# Enable VPC Flow Logs
+    "CKV_AWS_48": """# Enable VPC Flow Logs
 resource "aws_flow_log" "this" {
   vpc_id          = aws_vpc.this.id
   traffic_type    = "ALL"
@@ -257,9 +257,9 @@ resource "aws_flow_log" "this" {
 resource "aws_cloudwatch_log_group" "flow_logs" {
   name              = "/aws/vpc/flow-logs/${var.name}"
   retention_in_days = 30
-}''',
+}""",
     # CloudTrail
-    "CKV_AWS_67": '''# Enable CloudTrail
+    "CKV_AWS_67": """# Enable CloudTrail
 resource "aws_cloudtrail" "this" {
   name                          = var.name
   s3_bucket_name                = aws_s3_bucket.cloudtrail.id
@@ -271,30 +271,30 @@ resource "aws_cloudtrail" "this" {
     read_write_type           = "All"
     include_management_events = true
   }
-}''',
-    "CKV_AWS_35": '''# Enable CloudTrail log file validation
+}""",
+    "CKV_AWS_35": """# Enable CloudTrail log file validation
 resource "aws_cloudtrail" "this" {
   name           = var.name
   s3_bucket_name = aws_s3_bucket.cloudtrail.id
 
   enable_log_file_validation = true  # Enable log integrity validation
-}''',
+}""",
     # SQS/SNS Security
-    "CKV_AWS_27": '''# Enable SQS queue encryption
+    "CKV_AWS_27": """# Enable SQS queue encryption
 resource "aws_sqs_queue" "this" {
   name = var.name
 
   sqs_managed_sse_enabled = true
   # Or use KMS:
   # kms_master_key_id = var.kms_key_id
-}''',
-    "CKV_AWS_26": '''# Enable SNS topic encryption
+}""",
+    "CKV_AWS_26": """# Enable SNS topic encryption
 resource "aws_sns_topic" "this" {
   name              = var.name
   kms_master_key_id = var.kms_key_id  # Required for encryption
-}''',
+}""",
     # ElastiCache Security
-    "CKV_AWS_83": '''# Enable ElastiCache encryption in transit
+    "CKV_AWS_83": """# Enable ElastiCache encryption in transit
 resource "aws_elasticache_replication_group" "this" {
   replication_group_id = var.name
   description          = var.description
@@ -303,8 +303,8 @@ resource "aws_elasticache_replication_group" "this" {
   auth_token                 = var.auth_token  # Optional but recommended
 
   # Other required attributes...
-}''',
-    "CKV_AWS_84": '''# Enable ElastiCache encryption at rest
+}""",
+    "CKV_AWS_84": """# Enable ElastiCache encryption at rest
 resource "aws_elasticache_replication_group" "this" {
   replication_group_id = var.name
   description          = var.description
@@ -313,16 +313,16 @@ resource "aws_elasticache_replication_group" "this" {
   kms_key_id                 = var.kms_key_id  # Optional: Use CMK
 
   # Other required attributes...
-}''',
+}""",
     # KMS
-    "CKV_AWS_7": '''# Enable KMS key rotation
+    "CKV_AWS_7": """# Enable KMS key rotation
 resource "aws_kms_key" "this" {
   description             = var.description
   deletion_window_in_days = 30
 
   enable_key_rotation = true  # Enable automatic annual rotation
-}''',
-    "CKV_AWS_33": '''# Restrict KMS key policy to specific principals
+}""",
+    "CKV_AWS_33": """# Restrict KMS key policy to specific principals
 resource "aws_kms_key" "this" {
   description             = var.description
   deletion_window_in_days = 30
@@ -364,9 +364,9 @@ resource "aws_kms_key" "this" {
       }
     ]
   })
-}''',
+}""",
     # IAM Security
-    "CKV_AWS_40": '''# Enable strong password policy
+    "CKV_AWS_40": """# Enable strong password policy
 resource "aws_iam_account_password_policy" "strict" {
   minimum_password_length        = 14
   require_lowercase_characters   = true
@@ -376,8 +376,8 @@ resource "aws_iam_account_password_policy" "strict" {
   allow_users_to_change_password = true
   max_password_age               = 90
   password_reuse_prevention      = 24
-}''',
-    "CKV_AWS_41": '''# Enable MFA for root account (manual step required)
+}""",
+    "CKV_AWS_41": """# Enable MFA for root account (manual step required)
 # 1. Go to AWS Console → IAM → Dashboard
 # 2. Click "Activate MFA on your root account"
 # 3. Follow the wizard to set up virtual or hardware MFA
@@ -397,8 +397,8 @@ resource "aws_iam_policy" "require_mfa" {
       }
     }]
   })
-}''',
-    "CKV_AWS_49": '''# Follow IAM least privilege principle
+}""",
+    "CKV_AWS_49": """# Follow IAM least privilege principle
 # Avoid using wildcard (*) in Actions and Resources
 resource "aws_iam_policy" "least_privilege" {
   name = "specific-permissions"
@@ -422,9 +422,9 @@ resource "aws_iam_policy" "least_privilege" {
 # AVOID patterns like:
 # Action   = "*"           # Too broad
 # Resource = "*"           # Too broad
-# Action   = "s3:*"        # All S3 actions''',
+# Action   = "s3:*"        # All S3 actions""",
     # Lambda Security
-    "CKV_AWS_62": '''# Ensure Lambda function is not publicly accessible
+    "CKV_AWS_62": """# Ensure Lambda function is not publicly accessible
 resource "aws_lambda_permission" "allow_specific" {
   statement_id  = "AllowSpecificInvoke"
   action        = "lambda:InvokeFunction"
@@ -434,8 +434,8 @@ resource "aws_lambda_permission" "allow_specific" {
 
   # Never use:
   # principal = "*"  # DANGEROUS: Allows anyone to invoke
-}''',
-    "CKV_AWS_50": '''# Enable Lambda X-Ray tracing
+}""",
+    "CKV_AWS_50": """# Enable Lambda X-Ray tracing
 resource "aws_lambda_function" "this" {
   function_name = var.function_name
   role          = aws_iam_role.lambda.arn
@@ -445,8 +445,8 @@ resource "aws_lambda_function" "this" {
   tracing_config {
     mode = "Active"  # Enable X-Ray tracing
   }
-}''',
-    "CKV_AWS_115": '''# Configure Lambda reserved concurrency
+}""",
+    "CKV_AWS_115": """# Configure Lambda reserved concurrency
 resource "aws_lambda_function" "this" {
   function_name = var.function_name
   role          = aws_iam_role.lambda.arn
@@ -454,8 +454,8 @@ resource "aws_lambda_function" "this" {
   runtime       = var.runtime
 
   reserved_concurrent_executions = 100  # Adjust based on needs
-}''',
-    "CKV_AWS_116": '''# Enable Lambda Dead Letter Queue
+}""",
+    "CKV_AWS_116": """# Enable Lambda Dead Letter Queue
 resource "aws_lambda_function" "this" {
   function_name = var.function_name
   role          = aws_iam_role.lambda.arn
@@ -469,8 +469,8 @@ resource "aws_lambda_function" "this" {
 
 resource "aws_sqs_queue" "dlq" {
   name = "${var.function_name}-dlq"
-}''',
-    "CKV_AWS_117": '''# Run Lambda inside VPC
+}""",
+    "CKV_AWS_117": """# Run Lambda inside VPC
 resource "aws_lambda_function" "this" {
   function_name = var.function_name
   role          = aws_iam_role.lambda.arn
@@ -481,9 +481,9 @@ resource "aws_lambda_function" "this" {
     subnet_ids         = var.private_subnet_ids
     security_group_ids = [aws_security_group.lambda.id]
   }
-}''',
+}""",
     # CloudTrail Additional
-    "CKV_AWS_36": '''# Enable CloudTrail S3 bucket access logging
+    "CKV_AWS_36": """# Enable CloudTrail S3 bucket access logging
 resource "aws_s3_bucket" "cloudtrail" {
   bucket = var.cloudtrail_bucket_name
 }
@@ -492,9 +492,9 @@ resource "aws_s3_bucket_logging" "cloudtrail" {
   bucket        = aws_s3_bucket.cloudtrail.id
   target_bucket = aws_s3_bucket.access_logs.id
   target_prefix = "cloudtrail-bucket-logs/"
-}''',
+}""",
     # API Gateway
-    "CKV_AWS_76": '''# Enable API Gateway access logging
+    "CKV_AWS_76": """# Enable API Gateway access logging
 resource "aws_api_gateway_stage" "this" {
   stage_name    = var.stage_name
   rest_api_id   = aws_api_gateway_rest_api.this.id
@@ -518,17 +518,17 @@ resource "aws_api_gateway_stage" "this" {
 resource "aws_cloudwatch_log_group" "api_gw" {
   name              = "/aws/apigateway/${var.api_name}"
   retention_in_days = 30
-}''',
+}""",
     # RDS Additional
-    "CKV_AWS_15": '''# Enable Multi-AZ for RDS high availability
+    "CKV_AWS_15": """# Enable Multi-AZ for RDS high availability
 resource "aws_db_instance" "this" {
   identifier     = var.identifier
   engine         = var.engine
   instance_class = var.instance_class
 
   multi_az = true  # Enable Multi-AZ deployment
-}''',
-    "CKV_AWS_91": '''# Enable RDS Enhanced Monitoring
+}""",
+    "CKV_AWS_91": """# Enable RDS Enhanced Monitoring
 resource "aws_db_instance" "this" {
   identifier     = var.identifier
   engine         = var.engine
@@ -556,17 +556,17 @@ resource "aws_iam_role" "rds_monitoring" {
 resource "aws_iam_role_policy_attachment" "rds_monitoring" {
   role       = aws_iam_role.rds_monitoring.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
-}''',
-    "CKV_AWS_118": '''# Enable RDS IAM authentication
+}""",
+    "CKV_AWS_118": """# Enable RDS IAM authentication
 resource "aws_db_instance" "this" {
   identifier     = var.identifier
   engine         = var.engine
   instance_class = var.instance_class
 
   iam_database_authentication_enabled = true
-}''',
+}""",
     # S3 Additional
-    "CKV_AWS_145": '''# Enable S3 bucket KMS encryption (instead of AES256)
+    "CKV_AWS_145": """# Enable S3 bucket KMS encryption (instead of AES256)
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
@@ -577,8 +577,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
     }
     bucket_key_enabled = true
   }
-}''',
-    "CKV_AWS_144": '''# Enable S3 cross-region replication
+}""",
+    "CKV_AWS_144": """# Enable S3 cross-region replication
 resource "aws_s3_bucket_replication_configuration" "this" {
   bucket = aws_s3_bucket.this.id
   role   = aws_iam_role.replication.arn
@@ -592,9 +592,9 @@ resource "aws_s3_bucket_replication_configuration" "this" {
       storage_class = "STANDARD"
     }
   }
-}''',
+}""",
     # ELB/ALB Additional
-    "CKV_AWS_91": '''# Enable ELB access logging
+    "CKV_AWS_91": """# Enable ELB access logging
 resource "aws_lb" "this" {
   name               = var.name
   internal           = var.internal
@@ -606,24 +606,24 @@ resource "aws_lb" "this" {
     prefix  = "alb-logs"
     enabled = true
   }
-}''',
+}""",
     # EC2 Additional
-    "CKV_AWS_135": '''# Enable EBS optimization for EC2
+    "CKV_AWS_135": """# Enable EBS optimization for EC2
 resource "aws_instance" "this" {
   ami           = var.ami_id
   instance_type = var.instance_type
 
   ebs_optimized = true
-}''',
-    "CKV_AWS_126": '''# Enable detailed monitoring for EC2
+}""",
+    "CKV_AWS_126": """# Enable detailed monitoring for EC2
 resource "aws_instance" "this" {
   ami           = var.ami_id
   instance_type = var.instance_type
 
   monitoring = true  # Enable detailed monitoring
-}''',
+}""",
     # EBS Additional
-    "CKV_AWS_4": '''# Enable EBS snapshot encryption
+    "CKV_AWS_4": """# Enable EBS snapshot encryption
 # Note: Snapshots inherit encryption from source volume
 # Ensure source volume is encrypted first
 resource "aws_ebs_volume" "this" {
@@ -639,9 +639,9 @@ resource "aws_ebs_snapshot_copy" "encrypted" {
   source_region      = var.region
   encrypted          = true
   kms_key_id         = var.kms_key_id
-}''',
+}""",
     # ElastiCache Additional
-    "CKV_AWS_31": '''# Enable ElastiCache encryption at rest and in transit
+    "CKV_AWS_31": """# Enable ElastiCache encryption at rest and in transit
 resource "aws_elasticache_replication_group" "this" {
   replication_group_id = var.name
   description          = var.description
@@ -649,9 +649,9 @@ resource "aws_elasticache_replication_group" "this" {
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
   kms_key_id                 = aws_kms_key.elasticache.arn
-}''',
+}""",
     # GuardDuty
-    "CKV_AWS_52": '''# Enable GuardDuty
+    "CKV_AWS_52": """# Enable GuardDuty
 resource "aws_guardduty_detector" "this" {
   enable = true
 
@@ -672,9 +672,9 @@ resource "aws_guardduty_detector" "this" {
       }
     }
   }
-}''',
+}""",
     # AWS Config
-    "CKV_AWS_78": '''# Enable AWS Config
+    "CKV_AWS_78": """# Enable AWS Config
 resource "aws_config_configuration_recorder" "this" {
   name     = "default"
   role_arn = aws_iam_role.config.arn
@@ -694,9 +694,9 @@ resource "aws_config_delivery_channel" "this" {
   name           = "default"
   s3_bucket_name = aws_s3_bucket.config.id
   depends_on     = [aws_config_configuration_recorder.this]
-}''',
+}""",
     # Redshift
-    "CKV_AWS_64": '''# Enable Redshift cluster encryption
+    "CKV_AWS_64": """# Enable Redshift cluster encryption
 resource "aws_redshift_cluster" "this" {
   cluster_identifier = var.cluster_identifier
   database_name      = var.database_name
@@ -706,9 +706,9 @@ resource "aws_redshift_cluster" "this" {
 
   encrypted  = true
   kms_key_id = var.kms_key_id
-}''',
+}""",
     # ECR
-    "CKV_AWS_65": '''# Enable ECR repository encryption
+    "CKV_AWS_65": """# Enable ECR repository encryption
 resource "aws_ecr_repository" "this" {
   name                 = var.name
   image_tag_mutability = "IMMUTABLE"
@@ -721,9 +721,9 @@ resource "aws_ecr_repository" "this" {
   image_scanning_configuration {
     scan_on_push = true
   }
-}''',
+}""",
     # DocumentDB
-    "CKV_AWS_5": '''# Enable DocumentDB backup retention
+    "CKV_AWS_5": """# Enable DocumentDB backup retention
 resource "aws_docdb_cluster" "this" {
   cluster_identifier = var.cluster_identifier
   engine             = "docdb"
@@ -732,9 +732,9 @@ resource "aws_docdb_cluster" "this" {
 
   backup_retention_period = 7  # Days (1-35)
   preferred_backup_window = "07:00-09:00"
-}''',
+}""",
     # DynamoDB
-    "CKV_AWS_28": '''# Enable DynamoDB point-in-time recovery
+    "CKV_AWS_28": """# Enable DynamoDB point-in-time recovery
 resource "aws_dynamodb_table" "this" {
   name         = var.table_name
   billing_mode = "PAY_PER_REQUEST"
@@ -743,7 +743,7 @@ resource "aws_dynamodb_table" "this" {
   point_in_time_recovery {
     enabled = true
   }
-}''',
+}""",
 }
 
 

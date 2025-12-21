@@ -114,7 +114,11 @@ RESOURCE_VISUALS: dict[str, dict[str, str]] = {
     "aws_route_table": {"icon": "RT", "color": "#06b6d4", "group": "network"},
     "aws_internet_gateway": {"icon": "IGW", "color": "#0ea5e9", "group": "network"},
     "aws_db_subnet_group": {"icon": "DSG", "color": "#7c3aed", "group": "database"},
-    "aws_elasticache_subnet_group": {"icon": "ESG", "color": "#dc2626", "group": "database"},
+    "aws_elasticache_subnet_group": {
+        "icon": "ESG",
+        "color": "#dc2626",
+        "group": "database",
+    },
     "aws_sqs_queue": {"icon": "SQS", "color": "#f472b6", "group": "messaging"},
     "aws_sns_topic": {"icon": "SNS", "color": "#fb7185", "group": "messaging"},
     "aws_ebs_volume": {"icon": "EBS", "color": "#a78bfa", "group": "storage"},

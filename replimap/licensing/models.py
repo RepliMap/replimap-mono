@@ -226,33 +226,26 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         plan=Plan.FREE,
         price_monthly=0,
         price_annual_monthly=0,
-
         # Scan: UNLIMITED resources, limited frequency
         max_scans_per_month=3,
         max_aws_accounts=1,
-
         # Clone: Generate but NO download
         clone_preview_lines=100,  # Show first 100 lines
         clone_download_enabled=False,
-
         # Audit: Scan all, show limited findings
         audit_visible_findings=3,  # Show only 3 findings
         audit_report_export=False,
         audit_ci_mode=False,
-
         # Graph: View all, watermark on export
         graph_export_watermark=True,
-
         # Advanced: Disabled
         drift_enabled=False,
         drift_watch_enabled=False,
         drift_alerts_enabled=False,
         cost_enabled=False,
         blast_enabled=False,
-
         # Team: Solo only
         max_team_members=1,
-
         features={
             Feature.SCAN,
             Feature.GRAPH_VIEW,
@@ -265,7 +258,6 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
             Feature.BASIC_SCAN,
         },
     ),
-
     # =========================================================================
     # SOLO TIER ($49/mo) - For individual developers
     # =========================================================================
@@ -273,27 +265,20 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         plan=Plan.SOLO,
         price_monthly=49,
         price_annual_monthly=39,
-
         max_scans_per_month=None,  # Unlimited
         max_aws_accounts=1,
-
         clone_preview_lines=None,  # Full preview
         clone_download_enabled=True,  # Can download!
-
         audit_visible_findings=None,  # All findings
         audit_report_export=True,  # Can export
         audit_ci_mode=False,  # CI mode is Pro
-
         graph_export_watermark=False,  # No watermark
-
         drift_enabled=False,  # Drift is Pro
         drift_watch_enabled=False,
         drift_alerts_enabled=False,
         cost_enabled=False,
         blast_enabled=False,
-
         max_team_members=1,
-
         features={
             Feature.SCAN,
             Feature.SCAN_UNLIMITED_FREQUENCY,
@@ -315,7 +300,6 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
             Feature.UNLIMITED_RESOURCES,
         },
     ),
-
     # =========================================================================
     # PRO TIER ($99/mo) - For teams managing multiple environments
     # =========================================================================
@@ -323,27 +307,20 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         plan=Plan.PRO,
         price_monthly=99,
         price_annual_monthly=79,
-
         max_scans_per_month=None,
         max_aws_accounts=3,  # dev/staging/prod
-
         clone_preview_lines=None,
         clone_download_enabled=True,
-
         audit_visible_findings=None,
         audit_report_export=True,
         audit_ci_mode=True,  # CI mode enabled!
-
         graph_export_watermark=False,
-
         drift_enabled=True,  # Drift enabled!
         drift_watch_enabled=False,  # Watch is Team
         drift_alerts_enabled=False,
         cost_enabled=True,  # Cost enabled!
         blast_enabled=False,
-
         max_team_members=1,
-
         features={
             Feature.SCAN,
             Feature.SCAN_UNLIMITED_FREQUENCY,
@@ -372,7 +349,6 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
             Feature.UNLIMITED_RESOURCES,
         },
     ),
-
     # =========================================================================
     # TEAM TIER ($199/mo) - For DevOps teams with advanced needs
     # =========================================================================
@@ -380,27 +356,20 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         plan=Plan.TEAM,
         price_monthly=199,
         price_annual_monthly=149,
-
         max_scans_per_month=None,
         max_aws_accounts=10,
-
         clone_preview_lines=None,
         clone_download_enabled=True,
-
         audit_visible_findings=None,
         audit_report_export=True,
         audit_ci_mode=True,
-
         graph_export_watermark=False,
-
         drift_enabled=True,
         drift_watch_enabled=True,  # Watch mode!
         drift_alerts_enabled=True,  # Alerts!
         cost_enabled=True,
         blast_enabled=True,  # Blast radius!
-
         max_team_members=5,  # 5 members included
-
         features={
             Feature.SCAN,
             Feature.SCAN_UNLIMITED_FREQUENCY,
@@ -435,7 +404,6 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
             Feature.UNLIMITED_RESOURCES,
         },
     ),
-
     # =========================================================================
     # ENTERPRISE TIER ($499+/mo) - For organizations with compliance needs
     # =========================================================================
@@ -443,27 +411,20 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         plan=Plan.ENTERPRISE,
         price_monthly=499,  # Starting price
         price_annual_monthly=399,
-
         max_scans_per_month=None,
         max_aws_accounts=None,  # Unlimited
-
         clone_preview_lines=None,
         clone_download_enabled=True,
-
         audit_visible_findings=None,
         audit_report_export=True,
         audit_ci_mode=True,
-
         graph_export_watermark=False,
-
         drift_enabled=True,
         drift_watch_enabled=True,
         drift_alerts_enabled=True,
         cost_enabled=True,
         blast_enabled=True,
-
         max_team_members=None,  # Unlimited
-
         features=set(Feature),  # All features
     ),
 }
