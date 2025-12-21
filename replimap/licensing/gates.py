@@ -226,7 +226,6 @@ def get_upgrade_prompt(feature: Feature, current_plan: Plan) -> str:
     if required_plan is None:
         return f"Feature '{feature}' is not available in any plan."
 
-
     required_features = get_plan_features(required_plan)
     price = required_features.price_monthly
 

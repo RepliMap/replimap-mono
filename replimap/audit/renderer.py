@@ -670,9 +670,7 @@ class AuditRenderer:
 
         return lines
 
-    def _render_autoscaling_group(
-        self, config: dict, graph: GraphEngine
-    ) -> list[str]:
+    def _render_autoscaling_group(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Auto Scaling Group attributes."""
         lines = []
         if name := config.get("auto_scaling_group_name"):
