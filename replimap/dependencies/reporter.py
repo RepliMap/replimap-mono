@@ -1,7 +1,10 @@
 """
-Blast radius report formatting.
+Dependency Explorer report formatting.
 
-Generates console output, JSON, and HTML reports for blast radius analysis.
+Generates console output, JSON, and HTML reports for dependency analysis.
+
+IMPORTANT: All outputs include disclaimers about limitations.
+This analysis is based on AWS API metadata only.
 """
 
 from __future__ import annotations
@@ -14,20 +17,26 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
-from replimap.blast.models import BlastRadiusResult, ImpactLevel
+from replimap.dependencies.models import (
+    DISCLAIMER_FULL,
+    DISCLAIMER_SHORT,
+    DependencyExplorerResult,
+    ImpactLevel,
+)
 
 console = Console()
 
 
-class BlastRadiusReporter:
-    """Generate blast radius reports in various formats."""
+class DependencyExplorerReporter:
+    """Generate dependency exploration reports in various formats."""
 
-    def to_console(self, result: BlastRadiusResult) -> None:
-        """Print blast radius to console."""
-        # Header
-        impact_color = self._get_impact_color(result.overall_impact)
+    def to_console(self, result: DependencyExplorerResult) -> None:
+        """Print dependency exploration to console."""
+        # Header with warning
+        impact_color = self._get_impact_color(result.estimated_impact)
 
-        console.print("\n[bold]Blast Radius Analysis[/bold]\n")
+        console.print("\n[bold blue]Dependency Explorer[/bold blue]")
+        console.print(f"[dim]{DISCLAIMER_SHORT}[/dim]\n")
 
         # Summary panel
         summary = f"""
@@ -35,8 +44,9 @@ class BlastRadiusReporter:
 [bold]Type:[/bold] {result.center_resource.type}
 [bold]Name:[/bold] {result.center_resource.name}
 
-[{impact_color}]Overall Impact: {result.overall_impact.value} ({result.overall_score}/100)[/{impact_color}]
-[bold]Total Affected:[/bold] {result.total_affected} resources
+[{impact_color}]Estimated Impact: {result.estimated_impact.value} ({result.estimated_score}/100)[/{impact_color}]
+[dim](Impact estimates are based on AWS API metadata only)[/dim]
+[bold]Resources Found:[/bold] {result.total_affected}
 [bold]Max Depth:[/bold] {result.max_depth} levels
 """
         console.print(
@@ -50,17 +60,17 @@ class BlastRadiusReporter:
                 console.print(f"  [yellow]![/yellow] {warning}")
 
         # Impact zones
-        console.print("\n[bold]Impact Zones:[/bold]\n")
+        console.print("\n[bold]Dependency Zones:[/bold]\n")
 
         for zone in result.zones:
             if zone.depth == 0:
-                zone_label = "[red]Blast Center[/red]"
+                zone_label = "[cyan]Center Resource[/cyan]"
             else:
                 zone_label = f"Depth {zone.depth}"
 
             console.print(
                 f"[bold]{zone_label}[/bold] ({len(zone.resources)} resources, "
-                f"score: {zone.total_impact_score})"
+                f"estimated score: {zone.total_impact_score})"
             )
 
             for resource in zone.resources[:10]:  # Limit display
@@ -75,31 +85,64 @@ class BlastRadiusReporter:
 
             console.print()
 
-        # Safe deletion order
-        if result.safe_deletion_order:
-            console.print("[bold]Safe Deletion Order:[/bold]\n")
-            for i, resource_id in enumerate(result.safe_deletion_order[:15], 1):
+        # Suggested review order (NOT "Safe Deletion Order")
+        if result.suggested_review_order:
+            console.print("[bold]Suggested Review Order:[/bold]")
+            console.print(
+                "[dim](Review these resources in this order before making changes)[/dim]\n"
+            )
+
+            for i, resource_id in enumerate(result.suggested_review_order[:15], 1):
                 console.print(f"  {i:2}. {resource_id}")
 
-            if len(result.safe_deletion_order) > 15:
-                remaining = len(result.safe_deletion_order) - 15
+            if len(result.suggested_review_order) > 15:
+                remaining = len(result.suggested_review_order) - 15
                 console.print(f"  [dim]... and {remaining} more[/dim]")
 
-    def to_tree(self, result: BlastRadiusResult) -> None:
-        """Print blast radius as a tree."""
+            # Warning after the list
+            console.print()
+            console.print("[yellow]This order is a SUGGESTION only.[/yellow]")
+            console.print(
+                "[yellow]Validate all dependencies before making any changes.[/yellow]"
+            )
+
+        # Always end with full disclaimer
+        console.print()
+        console.print(
+            Panel(
+                DISCLAIMER_FULL.strip(),
+                title="Important Disclaimer",
+                border_style="yellow",
+            )
+        )
+
+    def to_tree(self, result: DependencyExplorerResult) -> None:
+        """Print dependency exploration as a tree."""
+        # Show disclaimer first
+        console.print(f"\n[dim]{DISCLAIMER_SHORT}[/dim]")
+
         center = result.center_resource
-        tree = Tree(f"[bold red]{center.type}[/bold red]: {center.id} ({center.name})")
+        tree = Tree(
+            f"[bold cyan]{center.type}[/bold cyan]: {center.id} ({center.name})"
+        )
 
         self._build_tree(tree, center.id, result, visited=set())
 
         console.print("\n[bold]Dependency Tree:[/bold]\n")
         console.print(tree)
 
+        # Disclaimer at end
+        console.print()
+        console.print(
+            "[yellow]Note: This tree shows AWS API-detected dependencies only.[/yellow]"
+        )
+        console.print("[yellow]Application-level dependencies are NOT shown.[/yellow]")
+
     def _build_tree(
         self,
         parent: Tree,
         resource_id: str,
-        result: BlastRadiusResult,
+        result: DependencyExplorerResult,
         visited: set[str],
     ) -> None:
         """Recursively build tree."""
@@ -115,28 +158,33 @@ class BlastRadiusReporter:
                 branch = parent.add(label)
                 self._build_tree(branch, resource.id, result, visited)
 
-    def to_json(self, result: BlastRadiusResult, output_path: Path) -> Path:
-        """Export to JSON."""
+    def to_json(self, result: DependencyExplorerResult, output_path: Path) -> Path:
+        """Export to JSON with disclaimer."""
         data = result.to_dict()
         output_path.write_text(json.dumps(data, indent=2))
         console.print(f"[green]Exported to {output_path}[/green]")
+        console.print(f"[dim]{DISCLAIMER_SHORT}[/dim]")
         return output_path
 
-    def to_html(self, result: BlastRadiusResult, output_path: Path) -> Path:
-        """Export to HTML with D3.js visualization."""
+    def to_html(self, result: DependencyExplorerResult, output_path: Path) -> Path:
+        """Export to HTML with D3.js visualization and prominent disclaimers."""
         html = self._generate_html(result)
         output_path.write_text(html)
         console.print(f"[green]Exported to {output_path}[/green]")
+        console.print(f"[dim]{DISCLAIMER_SHORT}[/dim]")
         return output_path
 
-    def to_table(self, result: BlastRadiusResult) -> None:
+    def to_table(self, result: DependencyExplorerResult) -> None:
         """Print affected resources as a table."""
-        table = Table(title="Affected Resources")
+        # Show disclaimer first
+        console.print(f"\n[dim]{DISCLAIMER_SHORT}[/dim]\n")
+
+        table = Table(title="Potentially Affected Resources (AWS API metadata only)")
         table.add_column("Depth", justify="center")
         table.add_column("Resource ID", style="cyan")
         table.add_column("Type")
         table.add_column("Name")
-        table.add_column("Impact", justify="center")
+        table.add_column("Est. Impact", justify="center")
         table.add_column("Score", justify="right")
 
         for resource in sorted(result.affected_resources, key=lambda r: r.depth):
@@ -152,6 +200,10 @@ class BlastRadiusReporter:
 
         console.print(table)
 
+        # Disclaimer after table
+        console.print()
+        console.print("[yellow]Note: Impact levels are estimates only.[/yellow]")
+
     def _get_impact_color(self, level: ImpactLevel) -> str:
         """Get color for impact level."""
         colors = {
@@ -160,11 +212,12 @@ class BlastRadiusReporter:
             ImpactLevel.MEDIUM: "yellow",
             ImpactLevel.LOW: "blue",
             ImpactLevel.NONE: "dim",
+            ImpactLevel.UNKNOWN: "dim italic",
         }
         return colors.get(level, "white")
 
-    def _generate_html(self, result: BlastRadiusResult) -> str:
-        """Generate HTML report with D3.js visualization."""
+    def _generate_html(self, result: DependencyExplorerResult) -> str:
+        """Generate HTML report with D3.js visualization and prominent disclaimers."""
         # Prepare nodes for D3.js
         nodes_js = []
         for resource in result.affected_resources:
@@ -174,6 +227,7 @@ class BlastRadiusReporter:
                 ImpactLevel.MEDIUM: "#f1c40f",
                 ImpactLevel.LOW: "#3498db",
                 ImpactLevel.NONE: "#95a5a6",
+                ImpactLevel.UNKNOWN: "#7f8c8d",
             }.get(resource.impact_level, "#95a5a6")
 
             size = 10 + (resource.impact_score / 10)
@@ -212,6 +266,9 @@ class BlastRadiusReporter:
                 f'<div class="warning">{w}</div>' for w in result.warnings
             )
 
+        # Generate limitations HTML
+        limitations_html = "\n".join(f"<li>{lim}</li>" for lim in result.limitations)
+
         # Generate zone summary
         zones_html = ""
         for zone in result.zones:
@@ -219,7 +276,7 @@ class BlastRadiusReporter:
             zones_html += f"""
             <div class="zone {zone_class}">
                 <strong>Depth {zone.depth}</strong>: {len(zone.resources)} resources
-                (Score: {zone.total_impact_score})
+                (Est. Score: {zone.total_impact_score})
             </div>
             """
 
@@ -228,7 +285,7 @@ class BlastRadiusReporter:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blast Radius: {result.center_resource.id}</title>
+    <title>Dependency Explorer: {result.center_resource.id}</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         * {{
@@ -248,10 +305,44 @@ class BlastRadiusReporter:
         #header h1 {{
             margin: 0 0 10px 0;
             font-size: 24px;
+            color: #3498db;
         }}
         #header .subtitle {{
             color: #888;
             font-size: 14px;
+        }}
+        .disclaimer {{
+            background: #44350a;
+            border: 2px solid #f1c40f;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 30px;
+        }}
+        .disclaimer-title {{
+            color: #f1c40f;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }}
+        .disclaimer p {{
+            color: #ffeeba;
+            margin: 10px 0;
+        }}
+        .disclaimer ul {{
+            color: #ffeeba;
+            margin: 10px 0;
+            padding-left: 20px;
+        }}
+        .disclaimer li {{
+            margin: 5px 0;
+        }}
+        .disclaimer-critical {{
+            font-weight: bold;
+            color: #fff;
+            background: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 15px;
         }}
         .stats {{
             display: flex;
@@ -270,9 +361,15 @@ class BlastRadiusReporter:
             color: #888;
             text-transform: uppercase;
         }}
+        .stat-note {{
+            font-size: 10px;
+            color: #666;
+            font-style: italic;
+        }}
         .stat-critical {{ color: #e74c3c; }}
         .stat-high {{ color: #e67e22; }}
         .stat-medium {{ color: #f1c40f; }}
+        .stat-unknown {{ color: #7f8c8d; }}
         .warning {{
             background: #44350a;
             border-left: 4px solid #f1c40f;
@@ -294,11 +391,11 @@ class BlastRadiusReporter:
             font-size: 13px;
         }}
         .zone-center {{
-            border: 2px solid #e74c3c;
+            border: 2px solid #3498db;
         }}
         #graph {{
             width: 100%;
-            height: calc(100vh - 250px);
+            height: calc(100vh - 450px);
             min-height: 400px;
         }}
         .tooltip {{
@@ -323,61 +420,104 @@ class BlastRadiusReporter:
             stroke: #fff;
             stroke-width: 3px;
         }}
-        #deletion-order {{
+        #review-order {{
             padding: 20px 30px;
             background: #16213e;
         }}
-        #deletion-order h3 {{
-            margin: 0 0 10px 0;
+        #review-order h3 {{
+            margin: 0 0 5px 0;
             font-size: 16px;
         }}
-        #deletion-order ol {{
+        #review-order .note {{
+            color: #f1c40f;
+            font-size: 13px;
+            margin-bottom: 15px;
+        }}
+        #review-order ol {{
             margin: 0;
             padding-left: 20px;
             columns: 2;
         }}
-        #deletion-order li {{
+        #review-order li {{
             font-size: 13px;
             color: #aaa;
             margin-bottom: 5px;
+        }}
+        .footer-disclaimer {{
+            background: #44350a;
+            border-top: 2px solid #f1c40f;
+            padding: 20px 30px;
+            margin-top: 20px;
+        }}
+        .footer-disclaimer p {{
+            color: #ffeeba;
+            margin: 5px 0;
+            font-size: 14px;
         }}
     </style>
 </head>
 <body>
     <div id="header">
-        <h1>Blast Radius Analysis</h1>
+        <h1>Dependency Explorer</h1>
         <div class="subtitle">
             <strong>{result.center_resource.type}</strong>: {result.center_resource.id}
             ({result.center_resource.name})
         </div>
         <div class="stats">
             <div class="stat">
-                <div class="stat-value stat-{result.overall_impact.value.lower()}">{result.overall_impact.value}</div>
-                <div class="stat-label">Impact Level</div>
+                <div class="stat-value stat-{result.estimated_impact.value.lower()}">{result.estimated_impact.value}</div>
+                <div class="stat-label">Est. Impact</div>
+                <div class="stat-note">(estimate only)</div>
             </div>
             <div class="stat">
                 <div class="stat-value">{result.total_affected}</div>
-                <div class="stat-label">Affected Resources</div>
+                <div class="stat-label">Resources Found</div>
+                <div class="stat-note">(via AWS API)</div>
             </div>
             <div class="stat">
                 <div class="stat-value">{result.max_depth}</div>
                 <div class="stat-label">Max Depth</div>
             </div>
             <div class="stat">
-                <div class="stat-value">{result.overall_score}/100</div>
-                <div class="stat-label">Impact Score</div>
+                <div class="stat-value">{result.estimated_score}/100</div>
+                <div class="stat-label">Est. Score</div>
+                <div class="stat-note">(estimate only)</div>
             </div>
         </div>
     </div>
+
+    <!-- Prominent disclaimer at top -->
+    <div class="disclaimer">
+        <div class="disclaimer-title">Important Disclaimer</div>
+        <p>This analysis is based on <strong>AWS API metadata only</strong>.</p>
+        <p>The following dependencies <strong>CANNOT</strong> be detected:</p>
+        <ul>
+            {limitations_html}
+        </ul>
+        <div class="disclaimer-critical">
+            ALWAYS review application logs, code, and configuration before making any infrastructure changes.
+            RepliMap provides suggestions only.
+        </div>
+    </div>
+
     {warnings_html}
     <div class="zones">{zones_html}</div>
     <div id="graph"></div>
-    <div id="deletion-order">
-        <h3>Safe Deletion Order</h3>
+
+    <div id="review-order">
+        <h3>Suggested Review Order</h3>
+        <div class="note">This is a SUGGESTION only. Validate all dependencies before making any changes.</div>
         <ol>
-            {"".join(f"<li>{rid}</li>" for rid in result.safe_deletion_order[:20])}
-            {f"<li>... and {len(result.safe_deletion_order) - 20} more</li>" if len(result.safe_deletion_order) > 20 else ""}
+            {"".join(f"<li>{rid}</li>" for rid in result.suggested_review_order[:20])}
+            {f"<li>... and {len(result.suggested_review_order) - 20} more</li>" if len(result.suggested_review_order) > 20 else ""}
         </ol>
+    </div>
+
+    <!-- Disclaimer at bottom too -->
+    <div class="footer-disclaimer">
+        <p><strong>RepliMap provides suggestions only.</strong></p>
+        <p>You are responsible for validating all dependencies before making changes to your infrastructure.</p>
+        <p>This analysis cannot detect application-level dependencies, hardcoded IPs, DNS references, or configuration file dependencies.</p>
     </div>
 
     <div class="tooltip" style="display: none;"></div>
@@ -387,7 +527,7 @@ class BlastRadiusReporter:
         const links = {json.dumps(edges_js)};
 
         const width = window.innerWidth;
-        const height = Math.max(400, window.innerHeight - 300);
+        const height = Math.max(400, window.innerHeight - 500);
 
         const svg = d3.select("#graph")
             .append("svg")
@@ -449,8 +589,9 @@ class BlastRadiusReporter:
                     <strong>${{d.type}}</strong><br/>
                     ID: ${{d.id}}<br/>
                     Name: ${{d.name}}<br/>
-                    Impact: ${{d.impact}} (${{d.score}}/100)<br/>
-                    Depth: ${{d.depth}}
+                    Est. Impact: ${{d.impact}} (${{d.score}}/100)<br/>
+                    Depth: ${{d.depth}}<br/>
+                    <em style="color: #888; font-size: 10px;">Impact is an estimate only</em>
                 `)
                 .style("left", (event.pageX + 15) + "px")
                 .style("top", (event.pageY - 10) + "px");
@@ -488,3 +629,7 @@ class BlastRadiusReporter:
     </script>
 </body>
 </html>"""
+
+
+# Backward compatibility alias
+BlastRadiusReporter = DependencyExplorerReporter

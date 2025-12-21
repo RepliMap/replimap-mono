@@ -249,8 +249,37 @@ replimap graph --profile prod --format html --output infra-graph.html
 replimap graph --profile prod --format json --output graph.json
 
 # Scope to specific VPC
-replimap graph --profile prod --scope vpc:vpc-12345678
+replimap graph --profile prod --vpc vpc-12345678
 ```
+
+### Graph Simplification
+
+By default, graphs are simplified for readability by hiding noisy resources (SG rules, routes) and collapsing large groups of similar resources.
+
+```bash
+# Show all resources (no filtering or grouping)
+replimap graph -r us-east-1 --all
+
+# Include security group rules
+replimap graph -r us-east-1 --sg-rules
+
+# Include routes and route tables
+replimap graph -r us-east-1 --routes
+
+# Disable resource grouping (show individual nodes)
+replimap graph -r us-east-1 --no-collapse
+
+# Security-focused view (show SGs, IAM, KMS)
+replimap graph -r us-east-1 --security
+```
+
+| Option | Description |
+|--------|-------------|
+| `--all, -a` | Show all resources without filtering |
+| `--sg-rules` | Include security group rules |
+| `--routes` | Include routes and route tables |
+| `--no-collapse` | Disable resource grouping |
+| `--security` | Security-focused view |
 
 ## Infrastructure Drift Detection
 
@@ -286,25 +315,29 @@ replimap drift --profile prod --state ./terraform.tfstate \
 | 1 | Drift detected (or critical/high severity drift) |
 | 2 | Error during detection |
 
-## Blast Radius Analysis
+## Dependency Explorer
 
-Analyze the impact of deleting or modifying a resource before making changes.
+Explore what resources may be affected before modifying or deleting a resource.
+
+> **Important**: This analysis is based on AWS API metadata only. Application-level
+> dependencies (hardcoded IPs, DNS, config files) are NOT detected. Always validate
+> all dependencies before making infrastructure changes.
 
 ```bash
-# Analyze blast radius for a security group
-replimap blast sg-12345 -r us-east-1
+# Explore dependencies for a security group
+replimap deps sg-12345 -r us-east-1
 
 # Show dependency tree view
-replimap blast vpc-abc123 -r us-east-1 --format tree
+replimap deps vpc-abc123 -r us-east-1 --format tree
 
 # Generate interactive HTML visualization
-replimap blast i-xyz789 -r us-east-1 -f html -o blast.html
+replimap deps i-xyz789 -r us-east-1 -f html -o deps.html
 
 # Limit analysis depth
-replimap blast vpc-12345 -r us-east-1 --depth 3
+replimap deps vpc-12345 -r us-east-1 --depth 3
 
 # Scope to a specific VPC
-replimap blast sg-12345 -r us-east-1 --vpc vpc-abc123
+replimap deps sg-12345 -r us-east-1 --vpc vpc-abc123
 ```
 
 ### Output Formats
@@ -317,7 +350,9 @@ replimap blast sg-12345 -r us-east-1 --vpc vpc-abc123
 | `html` | Interactive D3.js visualization |
 | `json` | Machine-readable JSON |
 
-### Impact Levels
+### Estimated Impact Levels
+
+> Note: These are estimates based on AWS API metadata only.
 
 | Level | Score | Description |
 |-------|-------|-------------|
@@ -325,11 +360,14 @@ replimap blast sg-12345 -r us-east-1 --vpc vpc-abc123
 | HIGH | 70-89 | Production services |
 | MEDIUM | 40-69 | Supporting resources |
 | LOW | 1-39 | Peripheral resources |
-| NONE | 0 | No downstream impact |
+| NONE | 0 | No downstream impact detected |
+| UNKNOWN | - | Impact cannot be determined |
 
 ## Cost Estimation
 
 Estimate monthly AWS costs for your infrastructure with optimization recommendations.
+
+**Important**: Cost estimates are for planning purposes only. Actual costs may differ due to data transfer, API calls, reserved instances, and other factors not included in estimates.
 
 ```bash
 # Estimate costs for current region
@@ -346,6 +384,12 @@ replimap cost -r us-east-1 -f csv -o costs.csv
 
 # Export to JSON for automation
 replimap cost -r us-east-1 -f json -o costs.json
+
+# Export to Markdown report
+replimap cost -r us-east-1 -f markdown -o costs.md
+
+# Skip confirmation prompt for exports
+replimap cost -r us-east-1 -f html -o report.html --acknowledge
 ```
 
 ### Output Formats
@@ -357,6 +401,27 @@ replimap cost -r us-east-1 -f json -o costs.json
 | `html` | Interactive HTML report with Chart.js |
 | `json` | Machine-readable JSON |
 | `csv` | Spreadsheet-compatible CSV |
+| `markdown` | Markdown report for documentation |
+
+### Estimate Accuracy
+
+| Confidence | Range | Description |
+|------------|-------|-------------|
+| HIGH | ±10% | Standard on-demand pricing |
+| MEDIUM | ±20% | Some usage assumptions |
+| LOW | ±40% | Many factors unknown |
+
+### What's NOT Included
+
+- Data transfer costs (can be 10-30% of bill)
+- API request charges (S3, Lambda, API Gateway)
+- Reserved Instance / Savings Plan discounts
+- Spot Instance pricing
+- Free tier benefits
+- CloudWatch, CloudTrail fees
+- Support plan costs
+
+For accurate billing, use [AWS Cost Explorer](https://console.aws.amazon.com/cost-management/) or [AWS Pricing Calculator](https://calculator.aws/).
 
 ### Cost Categories
 
@@ -448,7 +513,7 @@ The cost estimator provides actionable recommendations:
 | Pulumi Output | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Async Scanning | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Custom Templates | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Blast Radius Analysis | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Dependency Explorer | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Cost Estimation | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Web Dashboard | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Team Collaboration | ❌ | ❌ | ❌ | ✅ | ✅ |
@@ -528,8 +593,9 @@ replimap drift [OPTIONS]
   --output, -o PATH        Output file path
   --ci                     CI mode (exit code reflects drift status)
 
-# Blast radius command (impact analysis, Pro+)
-replimap blast RESOURCE_ID [OPTIONS]
+# Dependency explorer command (impact analysis, Pro+)
+# Note: Based on AWS API metadata only. Application-level deps not detected.
+replimap deps RESOURCE_ID [OPTIONS]
   --profile, -p TEXT       AWS profile name
   --region, -r TEXT        AWS region [default: us-east-1]
   --vpc, -v TEXT           VPC ID to scope the scan
@@ -713,11 +779,11 @@ replimap/
 │   │   ├── comparator.py    # Resource comparison
 │   │   ├── reporter.py      # Report generation
 │   │   └── templates/       # HTML report template
-│   ├── blast/               # Blast radius analysis
-│   │   ├── models.py        # BlastNode, BlastZone, etc.
+│   ├── dependencies/        # Dependency exploration (formerly blast/)
+│   │   ├── models.py        # ResourceNode, DependencyZone, etc.
 │   │   ├── graph_builder.py # Dependency graph building
-│   │   ├── impact_calculator.py # Impact score calculation
-│   │   └── reporter.py      # Console/HTML/JSON output
+│   │   ├── impact_calculator.py # Impact score estimation
+│   │   └── reporter.py      # Console/HTML/JSON output (with disclaimers)
 │   ├── cost/                # Cost estimation
 │   │   ├── models.py        # ResourceCost, CostEstimate
 │   │   ├── pricing.py       # AWS pricing data

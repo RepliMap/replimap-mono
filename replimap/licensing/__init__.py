@@ -20,9 +20,10 @@ from replimap.licensing.gates import (
     GateResult,
     check_audit_ci_mode_allowed,
     check_audit_export_allowed,
-    check_blast_allowed,
+    check_blast_allowed,  # Deprecated: use check_deps_allowed
     check_clone_download_allowed,
     check_cost_allowed,
+    check_deps_allowed,
     check_drift_allowed,
     check_drift_watch_allowed,
     check_graph_export_watermark,
@@ -75,9 +76,10 @@ __all__ = [
     # Gate checks
     "check_audit_ci_mode_allowed",
     "check_audit_export_allowed",
-    "check_blast_allowed",
+    "check_blast_allowed",  # Deprecated: use check_deps_allowed
     "check_clone_download_allowed",
     "check_cost_allowed",
+    "check_deps_allowed",
     "check_drift_allowed",
     "check_drift_watch_allowed",
     "check_graph_export_watermark",

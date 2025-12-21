@@ -1861,6 +1861,94 @@ def _output_audit_json(
     return json_path
 
 
+def _generate_remediation(results: CheckovResults, output_dir: Path) -> None:
+    """
+    Generate Terraform remediation code from audit results.
+
+    Args:
+        results: Checkov scan results containing findings
+        output_dir: Directory to write remediation files
+    """
+    from replimap.audit.remediation import RemediationGenerator
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold blue]🔧 Generating Remediation Code[/bold blue]\n\n"
+            f"Output: [cyan]{output_dir}[/]",
+            border_style="blue",
+        )
+    )
+
+    generator = RemediationGenerator(results.findings, output_dir)
+    plan = generator.generate()
+
+    if plan.files:
+        # Write all files
+        plan.write_all(output_dir)
+
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Remediation Generated[/bold]\n\n"
+                f"[green]✓ Files:[/] {len(plan.files)}\n"
+                f"[green]✓ Coverage:[/] {plan.coverage_percent}%\n"
+                f"[dim]Skipped:[/] {plan.skipped_findings} (no template available)",
+                title="🔧 Remediation Summary",
+                border_style="green",
+            )
+        )
+
+        # Show by severity
+        by_severity = plan.files_by_severity()
+        from replimap.audit.remediation.models import RemediationSeverity
+
+        severity_info = []
+        if by_severity[RemediationSeverity.CRITICAL]:
+            severity_info.append(
+                f"[red]CRITICAL: {len(by_severity[RemediationSeverity.CRITICAL])}[/]"
+            )
+        if by_severity[RemediationSeverity.HIGH]:
+            severity_info.append(
+                f"[orange1]HIGH: {len(by_severity[RemediationSeverity.HIGH])}[/]"
+            )
+        if by_severity[RemediationSeverity.MEDIUM]:
+            severity_info.append(
+                f"[yellow]MEDIUM: {len(by_severity[RemediationSeverity.MEDIUM])}[/]"
+            )
+        if by_severity[RemediationSeverity.LOW]:
+            severity_info.append(
+                f"[green]LOW: {len(by_severity[RemediationSeverity.LOW])}[/]"
+            )
+
+        if severity_info:
+            console.print(f"  Fixes by severity: {' | '.join(severity_info)}")
+
+        console.print()
+        console.print(f"[green]✓ Remediation:[/] {output_dir.absolute()}")
+        console.print(f"[green]✓ README:[/] {output_dir.absolute()}/README.md")
+
+        if plan.has_imports:
+            console.print(
+                f"[yellow]⚠ Import script:[/] {output_dir.absolute()}/import.sh"
+            )
+            console.print()
+            console.print(
+                "[dim]Some fixes require terraform import. "
+                "Run import.sh before terraform apply.[/dim]"
+            )
+
+        if plan.warnings:
+            console.print()
+            for warning in plan.warnings:
+                console.print(f"[yellow]⚠[/] {warning}")
+    else:
+        console.print()
+        console.print(
+            "[yellow]No remediation templates available for the detected findings.[/yellow]"
+        )
+
+
 @app.command()
 def audit(
     profile: str | None = typer.Option(
@@ -1919,6 +2007,16 @@ def audit(
         "-f",
         help="Output format: html or json",
     ),
+    fix: bool = typer.Option(
+        False,
+        "--fix",
+        help="Generate Terraform remediation code for findings",
+    ),
+    fix_output: Path = typer.Option(
+        Path("./remediation"),
+        "--fix-output",
+        help="Directory for remediation Terraform files",
+    ),
 ) -> None:
     """
     Run security audit on AWS infrastructure.
@@ -1936,6 +2034,7 @@ def audit(
         replimap audit -r us-east-1 --fail-on-high --no-open  # CI/CD mode
         replimap audit -r us-east-1 --fail-on-score 70 --no-open
         replimap audit -r us-east-1 --format json
+        replimap audit -r us-east-1 --fix --fix-output ./remediation
     """
     import webbrowser
 
@@ -2074,6 +2173,10 @@ def audit(
             console.print("[dim]Opening report in browser...[/dim]")
             webbrowser.open(f"file://{report_path.absolute()}")
 
+    # Generate remediation if requested
+    if fix and results.findings:
+        _generate_remediation(results, fix_output)
+
     # CI/CD checks
     exit_code = 0
 
@@ -2152,12 +2255,43 @@ def graph(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    # Graph simplification options
+    show_all: bool = typer.Option(
+        False,
+        "--all",
+        "-a",
+        help="Show all resources (disable filtering)",
+    ),
+    show_sg_rules: bool = typer.Option(
+        False,
+        "--sg-rules",
+        help="Show security group rules (hidden by default)",
+    ),
+    show_routes: bool = typer.Option(
+        False,
+        "--routes",
+        help="Show routes and route tables (hidden by default)",
+    ),
+    no_collapse: bool = typer.Option(
+        False,
+        "--no-collapse",
+        help="Disable resource grouping (show all individual resources)",
+    ),
+    security_view: bool = typer.Option(
+        False,
+        "--security",
+        help="Security-focused view (show SGs, IAM, KMS)",
+    ),
 ) -> None:
     """
     Generate visual dependency graph of AWS infrastructure.
 
     Scans your AWS environment and generates an interactive visualization
     showing resources and their dependencies.
+
+    By default, the graph is simplified for readability:
+    - Noisy resources (SG rules, routes) are hidden
+    - Large groups of similar resources are collapsed
 
     Output formats:
     - html: Interactive D3.js force-directed graph (default)
@@ -2167,8 +2301,12 @@ def graph(
     Examples:
         replimap graph --region us-east-1
         replimap graph -p prod -r us-west-2 -v vpc-abc123
+        replimap graph -r us-east-1 --all           # Show everything
+        replimap graph -r us-east-1 --sg-rules      # Include SG rules
+        replimap graph -r us-east-1 --routes        # Include routes
+        replimap graph -r us-east-1 --no-collapse   # No grouping
+        replimap graph -r us-east-1 --security      # Security focus
         replimap graph -r us-east-1 --format mermaid -o docs/graph.md
-        replimap graph -r us-east-1 --format json -o graph.json
     """
     import webbrowser
 
@@ -2197,6 +2335,23 @@ def graph(
         )
         raise typer.Exit(1)
 
+    # Build filter summary
+    filter_parts = []
+    if show_all:
+        filter_parts.append("all resources")
+    else:
+        filter_parts.append("simplified")
+        if show_sg_rules:
+            filter_parts.append("+SG rules")
+        if show_routes:
+            filter_parts.append("+routes")
+        if security_view:
+            filter_parts.append("+security focus")
+    if no_collapse:
+        filter_parts.append("no grouping")
+
+    filter_desc = ", ".join(filter_parts)
+
     console.print()
     console.print(
         Panel(
@@ -2205,6 +2360,7 @@ def graph(
             f"Profile: [cyan]{profile or 'default'}[/]\n"
             + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
             + f"Format: [cyan]{fmt.value}[/]\n"
+            f"Filter: [cyan]{filter_desc}[/]\n"
             f"Output: [cyan]{output}[/]",
             border_style="cyan",
         )
@@ -2212,6 +2368,10 @@ def graph(
 
     # Get AWS session
     session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Configure filter based on options
+    effective_show_sg_rules = show_sg_rules or security_view
+    effective_show_routes = show_routes
 
     # Run visualization
     console.print()
@@ -2233,6 +2393,10 @@ def graph(
                 vpc_id=vpc,
                 output_format=fmt,
                 output_path=output,
+                show_all=show_all,
+                show_sg_rules=effective_show_sg_rules,
+                show_routes=effective_show_routes,
+                no_collapse=no_collapse,
             )
 
             progress.update(task, completed=True)
@@ -2575,12 +2739,12 @@ def drift(
 
 
 # =============================================================================
-# BLAST RADIUS COMMAND
+# DEPENDENCY EXPLORER COMMAND (formerly Blast Radius)
 # =============================================================================
 
 
 @app.command()
-def blast(
+def deps(
     resource_id: str = typer.Argument(
         ...,
         help="Resource ID to analyze (e.g., vpc-12345, sg-abc123)",
@@ -2626,6 +2790,11 @@ def blast(
         "--open/--no-open",
         help="Open HTML report in browser after generation",
     ),
+    show_disclaimer: bool = typer.Option(
+        True,
+        "--disclaimer/--no-disclaimer",
+        help="Show disclaimer about limitations",
+    ),
     no_cache: bool = typer.Option(
         False,
         "--no-cache",
@@ -2633,12 +2802,14 @@ def blast(
     ),
 ) -> None:
     """
-    Analyze blast radius for a resource.
+    Explore dependencies for a resource.
 
-    Shows what will be affected if you delete or modify a resource:
-    - What resources depend on this one?
-    - What will break if you delete it?
-    - What's the safe deletion order?
+    Shows what resources MAY be affected if you modify or delete a resource.
+    This analysis is based on AWS API metadata only.
+
+    IMPORTANT: Application-level dependencies (hardcoded IPs, DNS,
+    config files) are NOT detected. Always validate all dependencies
+    before making infrastructure changes.
 
     This is a Pro+ feature.
 
@@ -2650,31 +2821,32 @@ def blast(
     - json: Machine-readable JSON
 
     Examples:
-        # Analyze blast radius for a security group
-        replimap blast sg-12345 -r us-east-1
+        # Explore dependencies for a security group
+        replimap deps sg-12345 -r us-east-1
 
         # Show as tree view
-        replimap blast vpc-abc123 -r us-east-1 --format tree
+        replimap deps vpc-abc123 -r us-east-1 --format tree
 
         # Generate HTML visualization
-        replimap blast i-xyz789 -r us-east-1 -f html -o blast.html
+        replimap deps i-xyz789 -r us-east-1 -f html -o deps.html
 
         # Limit depth of analysis
-        replimap blast vpc-12345 -r us-east-1 --depth 3
+        replimap deps vpc-12345 -r us-east-1 --depth 3
     """
     import webbrowser
 
-    from replimap.blast import (
-        BlastRadiusReporter,
+    from replimap.dependencies import (
+        DISCLAIMER_SHORT,
+        DependencyExplorerReporter,
         DependencyGraphBuilder,
         ImpactCalculator,
     )
-    from replimap.licensing import check_blast_allowed
+    from replimap.licensing import check_deps_allowed
 
-    # Check blast feature access (Pro+ feature)
-    blast_gate = check_blast_allowed()
-    if not blast_gate.allowed:
-        console.print(blast_gate.prompt)
+    # Check deps feature access (Pro+ feature)
+    deps_gate = check_deps_allowed()
+    if not deps_gate.allowed:
+        console.print(deps_gate.prompt)
         raise typer.Exit(1)
 
     # Determine region
@@ -2693,13 +2865,14 @@ def blast(
     console.print()
     console.print(
         Panel(
-            f"[bold magenta]Blast Radius Analyzer[/bold magenta]\n\n"
+            f"[bold blue]Dependency Explorer[/bold blue]\n\n"
             f"Resource: [cyan]{resource_id}[/]\n"
             f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
             f"Profile: [cyan]{profile or 'default'}[/]\n"
             + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
-            + f"Max Depth: [cyan]{max_depth}[/]",
-            border_style="magenta",
+            + f"Max Depth: [cyan]{max_depth}[/]\n\n"
+            f"[dim]{DISCLAIMER_SHORT}[/dim]",
+            border_style="blue",
         )
     )
 
@@ -2736,13 +2909,13 @@ def blast(
 
             progress.update(task, description="Building dependency graph...")
 
-            # Build blast dependency graph
+            # Build dependency graph
             builder = DependencyGraphBuilder()
             dep_graph = builder.build_from_graph_engine(graph, effective_region)
 
-            progress.update(task, description="Calculating blast radius...")
+            progress.update(task, description="Exploring dependencies...")
 
-            # Calculate blast radius
+            # Explore dependencies
             calculator = ImpactCalculator(
                 dep_graph,
                 builder.get_nodes(),
@@ -2772,16 +2945,16 @@ def blast(
             console.print()
             console.print(
                 Panel(
-                    f"[red]Blast radius analysis failed:[/]\n{e}",
+                    f"[red]Dependency exploration failed:[/]\n{e}",
                     title="Error",
                     border_style="red",
                 )
             )
-            logger.exception("Blast radius analysis failed")
+            logger.exception("Dependency exploration failed")
             raise typer.Exit(1)
 
     # Report results
-    reporter = BlastRadiusReporter()
+    reporter = DependencyExplorerReporter()
     console.print()
 
     if output_format == "tree":
@@ -2789,10 +2962,10 @@ def blast(
     elif output_format == "table":
         reporter.to_table(result)
     elif output_format == "json":
-        output_path = output or Path("./blast-radius.json")
+        output_path = output or Path("./deps.json")
         reporter.to_json(result, output_path)
     elif output_format == "html":
-        output_path = output or Path("./blast-radius.html")
+        output_path = output or Path("./deps.html")
         reporter.to_html(result, output_path)
         if open_report:
             console.print()
@@ -2814,6 +2987,38 @@ def blast(
             reporter.to_json(result, output)
 
     console.print()
+
+
+# Backward compatibility alias for blast command
+@app.command(hidden=True)
+def blast(
+    resource_id: str = typer.Argument(...),
+    profile: str | None = typer.Option(None, "--profile", "-p"),
+    region: str | None = typer.Option(None, "--region", "-r"),
+    vpc: str | None = typer.Option(None, "--vpc", "-v"),
+    max_depth: int = typer.Option(10, "--depth", "-d"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+    output_format: str = typer.Option("console", "--format", "-f"),
+    open_report: bool = typer.Option(True, "--open/--no-open"),
+    no_cache: bool = typer.Option(False, "--no-cache"),
+) -> None:
+    """Deprecated: Use 'replimap deps' instead."""
+    console.print(
+        "[yellow]Note: 'replimap blast' is deprecated. "
+        "Use 'replimap deps' instead.[/yellow]\n"
+    )
+    deps(
+        resource_id=resource_id,
+        profile=profile,
+        region=region,
+        vpc=vpc,
+        max_depth=max_depth,
+        output=output,
+        output_format=output_format,
+        open_report=open_report,
+        show_disclaimer=True,
+        no_cache=no_cache,
+    )
 
 
 # =============================================================================
@@ -2845,13 +3050,13 @@ def cost(
         None,
         "--output",
         "-o",
-        help="Output file path (HTML, JSON, or CSV)",
+        help="Output file path (HTML, JSON, CSV, or Markdown)",
     ),
     output_format: str = typer.Option(
         "console",
         "--format",
         "-f",
-        help="Output format: console, table, html, json, or csv",
+        help="Output format: console, table, html, json, csv, or markdown",
     ),
     open_report: bool = typer.Option(
         True,
@@ -2863,9 +3068,18 @@ def cost(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    acknowledge: bool = typer.Option(
+        False,
+        "--acknowledge",
+        "-y",
+        help="Acknowledge that this is an estimate only (skip confirmation for exports)",
+    ),
 ) -> None:
     """
     Estimate monthly AWS costs for your infrastructure.
+
+    ⚠️ IMPORTANT: These are rough estimates only. Actual AWS costs may differ
+    by 20-40% depending on usage patterns, data transfer, and pricing agreements.
 
     Provides cost breakdown by category, resource, and region with
     optimization recommendations.
@@ -2878,6 +3092,7 @@ def cost(
     - html: Interactive HTML report with charts
     - json: Machine-readable JSON
     - csv: Spreadsheet-compatible CSV
+    - markdown: Markdown report
 
     Examples:
         # Estimate costs for current region
@@ -2889,8 +3104,8 @@ def cost(
         # Export to HTML report
         replimap cost -r us-east-1 -f html -o cost-report.html
 
-        # Export to CSV for spreadsheet analysis
-        replimap cost -r us-east-1 -f csv -o costs.csv
+        # Export with acknowledgment (skip prompt)
+        replimap cost -r us-east-1 -f json -o costs.json --acknowledge
     """
     import webbrowser
 
@@ -2983,27 +3198,53 @@ def cost(
     reporter = CostReporter()
     console.print()
 
+    # Helper function to confirm export
+    def confirm_export() -> bool:
+        """Ask user to acknowledge estimate disclaimer before export."""
+        if acknowledge:
+            return True
+
+        console.print()
+        console.print("[yellow]⚠️ Before exporting, please acknowledge:[/yellow]")
+        console.print("   This estimate is for planning purposes only.")
+        console.print("   Actual costs may differ by 20-40%.")
+        console.print("   Data transfer, API calls, and other fees are NOT included.")
+        console.print()
+
+        return typer.confirm("I understand this is an estimate only. Export anyway?")
+
     if output_format == "table":
         reporter.to_table(estimate)
     elif output_format == "json":
         output_path = output or Path("./cost-estimate.json")
-        reporter.to_json(estimate, output_path)
+        if confirm_export():
+            reporter.to_json(estimate, output_path)
     elif output_format == "csv":
         output_path = output or Path("./cost-estimate.csv")
-        reporter.to_csv(estimate, output_path)
+        if confirm_export():
+            reporter.to_csv(estimate, output_path)
     elif output_format == "html":
         output_path = output or Path("./cost-estimate.html")
-        reporter.to_html(estimate, output_path)
-        if open_report:
-            console.print()
-            console.print("[dim]Opening report in browser...[/dim]")
-            webbrowser.open(f"file://{output_path.absolute()}")
+        if confirm_export():
+            reporter.to_html(estimate, output_path)
+            if open_report:
+                console.print()
+                console.print("[dim]Opening report in browser...[/dim]")
+                webbrowser.open(f"file://{output_path.absolute()}")
+    elif output_format in ("md", "markdown"):
+        output_path = output or Path("./cost-estimate.md")
+        if confirm_export():
+            reporter.to_markdown(estimate, output_path)
     else:
         # Default: console output
         reporter.to_console(estimate)
 
     # Also export if output path specified but format is console
     if output and output_format == "console":
+        if not confirm_export():
+            console.print()
+            return
+
         if output.suffix == ".html":
             reporter.to_html(estimate, output)
             if open_report:
@@ -3014,6 +3255,8 @@ def cost(
             reporter.to_json(estimate, output)
         elif output.suffix == ".csv":
             reporter.to_csv(estimate, output)
+        elif output.suffix == ".md":
+            reporter.to_markdown(estimate, output)
 
     console.print()
 
@@ -3094,8 +3337,8 @@ def _show_upgrade_info(plan_name: str) -> None:
     if config.cost_enabled:
         console.print("  [green]✓[/] Cost estimation")
 
-    if config.blast_enabled:
-        console.print("  [green]✓[/] Blast radius analysis")
+    if config.deps_enabled:
+        console.print("  [green]✓[/] Dependency exploration")
 
     if config.max_aws_accounts is None or config.max_aws_accounts > 1:
         accounts = (
@@ -3148,7 +3391,7 @@ def upgrade_default(ctx: typer.Context) -> None:
                 "[bold blue]RepliMap Plans[/bold blue]\n\n"
                 "[dim]Solo[/]     $49/mo  - Download code, full reports\n"
                 "[dim]Pro[/]      $99/mo  - Drift detection, CI/CD mode\n"
-                "[dim]Team[/]    $199/mo  - Watch mode, alerts, blast radius\n"
+                "[dim]Team[/]    $199/mo  - Watch mode, alerts, dependency explorer\n"
                 "[dim]Enterprise[/] Custom - SSO, audit logs, SLA",
                 border_style="blue",
             )
@@ -3161,6 +3404,676 @@ def upgrade_default(ctx: typer.Context) -> None:
         console.print()
         console.print(f"[dim]Opening {PRICING_URL}...[/dim]")
         webbrowser.open(PRICING_URL)
+
+
+# =============================================================================
+# REMEDIATE COMMAND
+# =============================================================================
+
+
+@app.command()
+def remediate(
+    input_file: Path = typer.Argument(
+        ...,
+        help="Path to audit JSON file (from: replimap audit --format json)",
+    ),
+    output: Path = typer.Option(
+        Path("./remediation"),
+        "--output",
+        "-o",
+        help="Directory for remediation Terraform files",
+    ),
+) -> None:
+    """
+    Generate Terraform remediation code from an audit JSON file.
+
+    This command reads a JSON audit report (generated by `replimap audit --format json`)
+    and generates Terraform code to fix the detected security issues.
+
+    Examples:
+        replimap remediate audit_report.json
+        replimap remediate audit_report.json --output ./fixes
+    """
+    from replimap.audit.checkov_runner import CheckovFinding
+    from replimap.audit.remediation import RemediationGenerator
+    from replimap.audit.remediation.models import RemediationSeverity
+
+    if not input_file.exists():
+        console.print(f"[red]Error: File not found: {input_file}[/]")
+        raise typer.Exit(1)
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold blue]🔧 RepliMap Remediation Generator[/bold blue]\n\n"
+            f"Input: [cyan]{input_file}[/]\n"
+            f"Output: [cyan]{output}[/]",
+            border_style="blue",
+        )
+    )
+
+    # Load the audit JSON
+    try:
+        data = json.loads(input_file.read_text())
+    except json.JSONDecodeError as e:
+        console.print(f"[red]Error: Invalid JSON file: {e}[/]")
+        raise typer.Exit(1)
+
+    # Extract findings from JSON
+    findings: list[CheckovFinding] = []
+    for f in data.get("findings", []):
+        try:
+            finding = CheckovFinding(
+                check_id=f.get("check_id", "UNKNOWN"),
+                check_name=f.get("check_name", "Unknown"),
+                severity=f.get("severity", "MEDIUM"),
+                resource=f.get("resource", "Unknown"),
+                file_path=f.get("file_path", ""),
+                file_line_range=tuple(f.get("line_range", [0, 0])),
+                guideline=f.get("guideline"),
+            )
+            findings.append(finding)
+        except Exception as e:
+            console.print(f"[yellow]Warning: Skipping malformed finding: {e}[/]")
+
+    if not findings:
+        console.print("[yellow]No findings to remediate.[/yellow]")
+        raise typer.Exit(0)
+
+    console.print(f"\n[dim]Found {len(findings)} findings in audit report...[/dim]")
+
+    # Generate remediation
+    generator = RemediationGenerator(findings, output)
+    plan = generator.generate()
+
+    if plan.files:
+        # Write all files
+        plan.write_all(output)
+
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Remediation Generated[/bold]\n\n"
+                f"[green]✓ Files:[/] {len(plan.files)}\n"
+                f"[green]✓ Coverage:[/] {plan.coverage_percent}%\n"
+                f"[dim]Skipped:[/] {plan.skipped_findings} (no template available)",
+                title="🔧 Remediation Summary",
+                border_style="green",
+            )
+        )
+
+        # Show by severity
+        by_severity = plan.files_by_severity()
+
+        severity_info = []
+        if by_severity[RemediationSeverity.CRITICAL]:
+            severity_info.append(
+                f"[red]CRITICAL: {len(by_severity[RemediationSeverity.CRITICAL])}[/]"
+            )
+        if by_severity[RemediationSeverity.HIGH]:
+            severity_info.append(
+                f"[orange1]HIGH: {len(by_severity[RemediationSeverity.HIGH])}[/]"
+            )
+        if by_severity[RemediationSeverity.MEDIUM]:
+            severity_info.append(
+                f"[yellow]MEDIUM: {len(by_severity[RemediationSeverity.MEDIUM])}[/]"
+            )
+        if by_severity[RemediationSeverity.LOW]:
+            severity_info.append(
+                f"[green]LOW: {len(by_severity[RemediationSeverity.LOW])}[/]"
+            )
+
+        if severity_info:
+            console.print(f"  Fixes by severity: {' | '.join(severity_info)}")
+
+        console.print()
+        console.print(f"[green]✓ Remediation:[/] {output.absolute()}")
+        console.print(f"[green]✓ README:[/] {output.absolute()}/README.md")
+
+        if plan.has_imports:
+            console.print(f"[yellow]⚠ Import script:[/] {output.absolute()}/import.sh")
+            console.print()
+            console.print(
+                "[dim]Some fixes require terraform import. "
+                "Run import.sh before terraform apply.[/dim]"
+            )
+
+        if plan.warnings:
+            console.print()
+            for warning in plan.warnings:
+                console.print(f"[yellow]⚠[/] {warning}")
+    else:
+        console.print()
+        console.print(
+            "[yellow]No remediation templates available for the detected findings.[/yellow]"
+        )
+
+    console.print()
+
+
+# =============================================================================
+# SNAPSHOT COMMANDS
+# =============================================================================
+
+# Create snapshot subcommand group
+snapshot_app = typer.Typer(help="Infrastructure snapshots for change tracking")
+
+
+@snapshot_app.command("save")
+def snapshot_save(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to snapshot",
+    ),
+    name: str = typer.Option(
+        ...,
+        "--name",
+        "-n",
+        help="Snapshot name",
+    ),
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        "-v",
+        help="VPC ID to scope the snapshot (optional)",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Custom output file path",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Save an infrastructure snapshot.
+
+    Captures the current state of AWS resources for future comparison.
+    Perfect for change management evidence and SOC2 compliance.
+
+    Examples:
+        replimap snapshot save -r us-east-1 -n "before-migration"
+        replimap snapshot save -r us-east-1 -n "prod-baseline" -v vpc-abc123
+        replimap snapshot save -r us-west-2 -n "weekly-backup" -o ./snapshots/weekly.json
+    """
+    from replimap.core import GraphEngine
+    from replimap.scanners.base import run_all_scanners
+    from replimap.snapshot import InfraSnapshot, ResourceSnapshot, SnapshotStore
+
+    # Determine region
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold blue]📸 Creating Infrastructure Snapshot[/bold blue]\n\n"
+            f"Name: [cyan]{name}[/]\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]"
+            + (f"\nVPC: [cyan]{vpc}[/]" if vpc else ""),
+            border_style="blue",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Scan resources
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning infrastructure...", total=None)
+
+        graph = GraphEngine()
+        run_all_scanners(session, effective_region, graph)
+
+        progress.update(task, completed=True)
+
+    # Filter by VPC if specified
+    if vpc:
+        filtered_resources = []
+        for resource in graph.get_all_resources():
+            resource_vpc = resource.config.get("vpc_id") or resource.config.get("VpcId")
+            if (
+                resource_vpc == vpc
+                or resource.id == vpc
+                or vpc in resource.dependencies
+            ):
+                filtered_resources.append(resource)
+        resources = filtered_resources
+    else:
+        resources = graph.get_all_resources()
+
+    console.print(f"[dim]Found {len(resources)} resources[/dim]")
+
+    # Create resource snapshots
+    resource_snapshots = []
+    for r in resources:
+        rs = ResourceSnapshot(
+            id=r.id,
+            type=str(r.resource_type),
+            arn=r.arn,
+            name=r.original_name,
+            region=effective_region,
+            config=r.config,
+            tags=r.tags,
+        )
+        resource_snapshots.append(rs)
+
+    # Create snapshot
+    snapshot = InfraSnapshot(
+        name=name,
+        region=effective_region,
+        vpc_id=vpc,
+        profile=profile or "default",
+        resources=resource_snapshots,
+    )
+
+    # Save snapshot
+    if output:
+        snapshot.save(output)
+        filepath = output
+    else:
+        store = SnapshotStore()
+        filepath = store.save(snapshot)
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold]Snapshot Saved[/bold]\n\n"
+            f"[green]✓ Name:[/] {snapshot.name}\n"
+            f"[green]✓ Resources:[/] {snapshot.resource_count}\n"
+            f"[green]✓ Created:[/] {snapshot.created_at[:19]}\n"
+            f"[green]✓ Path:[/] {filepath}",
+            title="📸 Snapshot Complete",
+            border_style="green",
+        )
+    )
+
+    # Show resource breakdown
+    by_type = snapshot.resource_types()
+    if by_type:
+        console.print()
+        console.print("[bold]Resources by Type:[/bold]")
+        for rtype, count in sorted(by_type.items(), key=lambda x: -x[1])[:10]:
+            console.print(f"  {rtype}: {count}")
+        if len(by_type) > 10:
+            console.print(f"  [dim]... and {len(by_type) - 10} more types[/dim]")
+
+
+@snapshot_app.command("list")
+def snapshot_list(
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="Filter by region",
+    ),
+) -> None:
+    """
+    List saved snapshots.
+
+    Examples:
+        replimap snapshot list
+        replimap snapshot list -r us-east-1
+    """
+    from replimap.snapshot import SnapshotStore
+
+    store = SnapshotStore()
+    snapshots = store.list(region=region)
+
+    if not snapshots:
+        console.print("[dim]No snapshots found[/dim]")
+        return
+
+    table = Table(title="Saved Snapshots")
+    table.add_column("Name")
+    table.add_column("Region")
+    table.add_column("Resources", justify="right")
+    table.add_column("Created")
+
+    for snap in snapshots:
+        table.add_row(
+            snap["name"],
+            snap.get("region", "-"),
+            str(snap.get("resource_count", 0)),
+            snap.get("created_at", "-")[:19],
+        )
+
+    console.print(table)
+
+
+@snapshot_app.command("show")
+def snapshot_show(
+    name: str = typer.Argument(..., help="Snapshot name or path"),
+) -> None:
+    """
+    Show snapshot details.
+
+    Examples:
+        replimap snapshot show "before-migration"
+        replimap snapshot show ./snapshots/baseline.json
+    """
+    from replimap.snapshot import SnapshotStore
+
+    store = SnapshotStore()
+    snapshot = store.load(name)
+
+    if not snapshot:
+        console.print(f"[red]Snapshot not found: {name}[/red]")
+        raise typer.Exit(1)
+
+    console.print()
+    console.print(f"[bold]Snapshot: {snapshot.name}[/bold]")
+    console.print()
+    console.print(f"Created: {snapshot.created_at[:19]}")
+    console.print(f"Region: {snapshot.region}")
+    console.print(f"Profile: {snapshot.profile}")
+    if snapshot.vpc_id:
+        console.print(f"VPC: {snapshot.vpc_id}")
+    console.print(f"Resources: {snapshot.resource_count}")
+    console.print(f"Version: {snapshot.version}")
+
+    # Count by type
+    by_type = snapshot.resource_types()
+    if by_type:
+        console.print()
+        console.print("[bold]Resources by Type:[/bold]")
+        for rtype, count in sorted(by_type.items(), key=lambda x: -x[1]):
+            console.print(f"  {rtype}: {count}")
+
+
+@snapshot_app.command("diff")
+def snapshot_diff(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to scan",
+    ),
+    baseline: str = typer.Option(
+        ...,
+        "--baseline",
+        "-b",
+        help="Baseline snapshot name or path",
+    ),
+    current: str | None = typer.Option(
+        None,
+        "--current",
+        "-c",
+        help="Current snapshot name (default: scan current state)",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, json, markdown, html",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-V",
+        help="Show detailed attribute changes",
+    ),
+    fail_on_change: bool = typer.Option(
+        False,
+        "--fail-on-change",
+        help="Exit with code 1 if any changes detected (for CI/CD)",
+    ),
+    fail_on_critical: bool = typer.Option(
+        False,
+        "--fail-on-critical",
+        help="Exit with code 1 only for critical/high changes (for CI/CD)",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Compare snapshots to find infrastructure changes.
+
+    Compare a baseline snapshot to either the current AWS state or another
+    saved snapshot. Perfect for change management and SOC2 evidence.
+
+    Examples:
+        # Compare baseline to current AWS state
+        replimap snapshot diff -r us-east-1 -b "before-migration"
+
+        # Compare two saved snapshots
+        replimap snapshot diff -r us-east-1 -b "v1" -c "v2"
+
+        # Export for SOC2 evidence
+        replimap snapshot diff -r us-east-1 -b "baseline" -o changes.md -f markdown
+
+        # CI/CD mode - fail on any change
+        replimap snapshot diff -r us-east-1 -b "baseline" --fail-on-change
+    """
+    from replimap.core import GraphEngine
+    from replimap.scanners.base import run_all_scanners
+    from replimap.snapshot import (
+        InfraSnapshot,
+        ResourceSnapshot,
+        SnapshotDiffer,
+        SnapshotReporter,
+        SnapshotStore,
+    )
+
+    store = SnapshotStore()
+
+    # Load baseline
+    baseline_snap = store.load(baseline)
+    if not baseline_snap:
+        console.print(f"[red]Baseline snapshot not found: {baseline}[/red]")
+        raise typer.Exit(1)
+
+    # Use baseline's region if not specified
+    if not region:
+        region = baseline_snap.region
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold blue]📸 Comparing Infrastructure Snapshots[/bold blue]\n\n"
+            f"Baseline: [cyan]{baseline_snap.name}[/] ({baseline_snap.created_at[:19]})\n"
+            f"Region: [cyan]{region}[/]",
+            border_style="blue",
+        )
+    )
+
+    # Get current state
+    if current:
+        current_snap = store.load(current)
+        if not current_snap:
+            console.print(f"[red]Current snapshot not found: {current}[/red]")
+            raise typer.Exit(1)
+        console.print(
+            f"Current: [cyan]{current_snap.name}[/] ({current_snap.created_at[:19]})"
+        )
+    else:
+        # Scan current state
+        console.print()
+        console.print("[dim]Scanning current infrastructure...[/dim]")
+
+        session = get_aws_session(profile, region, use_cache=not no_cache)
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning...", total=None)
+
+            graph = GraphEngine()
+            run_all_scanners(session, region, graph)
+
+            progress.update(task, completed=True)
+
+        # Filter by VPC if baseline was scoped
+        if baseline_snap.vpc_id:
+            filtered_resources = []
+            for resource in graph.get_all_resources():
+                resource_vpc = resource.config.get("vpc_id") or resource.config.get(
+                    "VpcId"
+                )
+                if (
+                    resource_vpc == baseline_snap.vpc_id
+                    or resource.id == baseline_snap.vpc_id
+                    or baseline_snap.vpc_id in resource.dependencies
+                ):
+                    filtered_resources.append(resource)
+            resources = filtered_resources
+        else:
+            resources = graph.get_all_resources()
+
+        resource_snapshots = [
+            ResourceSnapshot(
+                id=r.id,
+                type=str(r.resource_type),
+                arn=r.arn,
+                name=r.original_name,
+                region=region,
+                config=r.config,
+                tags=r.tags,
+            )
+            for r in resources
+        ]
+
+        current_snap = InfraSnapshot(
+            name="current",
+            region=region,
+            vpc_id=baseline_snap.vpc_id,
+            resources=resource_snapshots,
+        )
+
+    # Perform diff
+    console.print()
+    differ = SnapshotDiffer()
+    diff_result = differ.diff(baseline_snap, current_snap)
+
+    # Report
+    reporter = SnapshotReporter()
+
+    if output_format == "console":
+        reporter.to_console(diff_result, verbose=verbose)
+    elif output_format == "json":
+        output_path = output or Path("snapshot_diff.json")
+        reporter.to_json(diff_result, output_path)
+    elif output_format in ("md", "markdown"):
+        output_path = output or Path("snapshot_diff.md")
+        reporter.to_markdown(diff_result, output_path)
+    elif output_format == "html":
+        output_path = output or Path("snapshot_diff.html")
+        reporter.to_html(diff_result, output_path)
+    else:
+        reporter.to_console(diff_result, verbose=verbose)
+        if output:
+            reporter.to_json(diff_result, output)
+
+    # CI/CD checks
+    exit_code = 0
+
+    if fail_on_change and diff_result.has_changes:
+        console.print()
+        console.print(
+            f"[bold red]❌ CI/CD FAILED: {diff_result.total_changes} changes detected[/bold red]"
+        )
+        exit_code = 1
+
+    if fail_on_critical and diff_result.has_critical_changes:
+        console.print()
+        console.print(
+            f"[bold red]❌ CI/CD FAILED: {len(diff_result.critical_changes)} critical/high changes detected[/bold red]"
+        )
+        exit_code = 1
+
+    if exit_code == 0 and (fail_on_change or fail_on_critical):
+        console.print()
+        console.print("[bold green]✓ CI/CD PASSED[/bold green]")
+
+    console.print()
+
+    if exit_code != 0:
+        raise typer.Exit(exit_code)
+
+
+@snapshot_app.command("delete")
+def snapshot_delete(
+    name: str = typer.Argument(..., help="Snapshot name to delete"),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Skip confirmation",
+    ),
+) -> None:
+    """
+    Delete a saved snapshot.
+
+    Examples:
+        replimap snapshot delete "old-snapshot"
+        replimap snapshot delete "old-snapshot" --force
+    """
+    from replimap.snapshot import SnapshotStore
+
+    store = SnapshotStore()
+
+    if not store.exists(name):
+        console.print(f"[red]Snapshot not found: {name}[/red]")
+        raise typer.Exit(1)
+
+    if not force:
+        if not Confirm.ask(f"Delete snapshot '{name}'?"):
+            console.print("[dim]Cancelled[/dim]")
+            raise typer.Exit(0)
+
+    if store.delete(name):
+        console.print(f"[green]✓ Deleted snapshot: {name}[/green]")
+    else:
+        console.print(f"[red]Failed to delete snapshot: {name}[/red]")
+        raise typer.Exit(1)
+
+
+# Register snapshot command group
+app.add_typer(snapshot_app, name="snapshot")
 
 
 def cli() -> None:

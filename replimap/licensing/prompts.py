@@ -195,7 +195,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  Team plan ($199/mo) includes:                                               │
 │  ✓ Drift watch mode                                                          │
 │  ✓ Alert notifications                                                       │
-│  ✓ Blast radius analysis                                                     │
+│  ✓ Dependency exploration                                                    │
 │  ✓ 10 AWS accounts                                                           │
 │  ✓ 5 team members                                                            │
 │                                                                               │
@@ -220,15 +220,36 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
+    "deps_not_available": """
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                               │
+│  🔍 Dependency Explorer is a Team Feature                                    │
+│                                                                               │
+│  Dependency Explorer helps you understand:                                   │
+│  • What resources may be affected by changes                                 │
+│  • AWS API-detected dependency chains                                        │
+│  • Suggested order for reviewing changes                                     │
+│                                                                               │
+│  Note: Only AWS API-visible dependencies are detected.                       │
+│  Application-level dependencies are not detected.                            │
+│                                                                               │
+│  → replimap upgrade team ($199/mo)                                           │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+""",
+    # Backward compatibility alias
     "blast_not_available": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │
-│  💥 Blast Radius Analysis is a Team Feature                                  │
+│  🔍 Dependency Explorer is a Team Feature                                    │
 │                                                                               │
-│  Blast radius shows you:                                                     │
-│  • What will break if you delete a resource                                  │
-│  • Dependency chains you might not know about                                │
-│  • Safe deletion order for cleanup                                           │
+│  Dependency Explorer helps you understand:                                   │
+│  • What resources may be affected by changes                                 │
+│  • AWS API-detected dependency chains                                        │
+│  • Suggested order for reviewing changes                                     │
+│                                                                               │
+│  Note: Only AWS API-visible dependencies are detected.                       │
+│  Application-level dependencies are not detected.                            │
 │                                                                               │
 │  → replimap upgrade team ($199/mo)                                           │
 │                                                                               │
@@ -310,7 +331,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  ✓ AWS CDK output                                                            │
 │  ✓ All IaC formats (Terraform, CloudFormation, Pulumi)                       │
 │  ✓ Drift watch mode with alerts                                              │
-│  ✓ Blast radius analysis                                                     │
+│  ✓ Dependency exploration                                                    │
 │  ✓ 10 AWS accounts                                                           │
 │                                                                               │
 │  → replimap upgrade team                                                     │

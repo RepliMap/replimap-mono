@@ -1,11 +1,14 @@
 """
 Build dependency graph from scanned resources.
 
-Analyzes resource configurations to find dependencies:
+Analyzes resource configurations to find dependencies detectable via AWS API:
 - Security Group -> EC2 Instance
 - Subnet -> VPC
 - RDS -> Subnet Group -> Subnets
 - etc.
+
+IMPORTANT: This analysis is based on AWS API metadata only.
+Application-level dependencies cannot be detected.
 """
 
 from __future__ import annotations
@@ -15,8 +18,8 @@ from typing import Any
 
 import networkx as nx
 
-from replimap.blast.models import BlastNode, DependencyEdge, DependencyType
 from replimap.core import GraphEngine
+from replimap.dependencies.models import DependencyEdge, DependencyType, ResourceNode
 
 logger = logging.getLogger(__name__)
 
@@ -97,12 +100,16 @@ class DependencyGraphBuilder:
     Builds a dependency graph from RepliMap's GraphEngine.
 
     Uses the existing dependency information from GraphEngine and
-    enhances it with blast-specific analysis.
+    enhances it with additional analysis.
+
+    NOTE: This builder can only detect dependencies visible via AWS API.
+    Application-level dependencies (hardcoded IPs, DNS, config files)
+    are NOT detected.
     """
 
     def __init__(self) -> None:
         self.graph: nx.DiGraph = nx.DiGraph()
-        self.nodes: dict[str, BlastNode] = {}
+        self.nodes: dict[str, ResourceNode] = {}
         self.edges: list[DependencyEdge] = []
 
     def build_from_graph_engine(
@@ -117,10 +124,13 @@ class DependencyGraphBuilder:
 
         Returns:
             NetworkX directed graph
+
+        Note:
+            Only AWS API-visible dependencies are detected.
         """
         # Step 1: Create nodes from GraphEngine resources
         for resource in graph_engine.get_all_resources():
-            node = BlastNode(
+            node = ResourceNode(
                 id=resource.id,
                 type=str(resource.resource_type),
                 name=resource.original_name or resource.id,
@@ -164,7 +174,7 @@ class DependencyGraphBuilder:
         """
         # Step 1: Create nodes
         for resource in resources:
-            node = BlastNode(
+            node = ResourceNode(
                 id=resource["id"],
                 type=resource["type"],
                 name=resource.get("name", resource["id"]),
@@ -324,7 +334,7 @@ class DependencyGraphBuilder:
                 if edge.source_id not in target.depended_by:
                     target.depended_by.append(edge.source_id)
 
-    def get_nodes(self) -> dict[str, BlastNode]:
+    def get_nodes(self) -> dict[str, ResourceNode]:
         """Get all nodes."""
         return self.nodes
 

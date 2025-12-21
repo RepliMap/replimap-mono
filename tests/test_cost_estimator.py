@@ -9,9 +9,12 @@ from pathlib import Path
 import pytest
 
 from replimap.cost import (
+    COST_DISCLAIMER_FULL,
+    COST_DISCLAIMER_SHORT,
     EBS_VOLUME_PRICING,
     EC2_INSTANCE_PRICING,
     ELASTICACHE_PRICING,
+    EXCLUDED_FACTORS,
     RDS_INSTANCE_PRICING,
     CostBreakdown,
     CostCategory,
@@ -106,12 +109,18 @@ class TestCostModels:
     def test_cost_breakdown_creation(self):
         """Test CostBreakdown dataclass creation."""
         cost1 = ResourceCost(
-            resource_id="i-1", resource_type="aws_instance", resource_name="web1",
-            monthly_cost=100, category=CostCategory.COMPUTE,
+            resource_id="i-1",
+            resource_type="aws_instance",
+            resource_name="web1",
+            monthly_cost=100,
+            category=CostCategory.COMPUTE,
         )
         cost2 = ResourceCost(
-            resource_id="i-2", resource_type="aws_instance", resource_name="web2",
-            monthly_cost=100, category=CostCategory.COMPUTE,
+            resource_id="i-2",
+            resource_type="aws_instance",
+            resource_name="web2",
+            monthly_cost=100,
+            category=CostCategory.COMPUTE,
         )
 
         breakdown = CostBreakdown(
@@ -129,8 +138,11 @@ class TestCostModels:
     def test_cost_breakdown_to_dict(self):
         """Test CostBreakdown serialization."""
         cost = ResourceCost(
-            resource_id="i-1", resource_type="aws_instance", resource_name="web",
-            monthly_cost=100, category=CostCategory.COMPUTE,
+            resource_id="i-1",
+            resource_type="aws_instance",
+            resource_name="web",
+            monthly_cost=100,
+            category=CostCategory.COMPUTE,
         )
 
         breakdown = CostBreakdown(
@@ -211,10 +223,13 @@ class TestCostModels:
 
         data = estimate.to_dict()
 
-        assert data["summary"]["monthly_total"] == 1500.00
-        assert data["summary"]["annual_total"] == 18000.00
-        assert data["summary"]["resource_count"] == 10
+        # Updated structure with disclaimer
+        assert data["summary"]["monthly_estimate"] == 1500.00
+        assert data["summary"]["annual_estimate"] == 18000.00
+        assert data["resources"]["total"] == 10
         assert data["optimization"]["potential_monthly_savings"] == 300.00
+        assert "disclaimer" in data
+        assert "not_included" in data
 
 
 class TestPricingData:
@@ -392,7 +407,9 @@ class TestPricingLookup:
         assert lookup.get_resource_category("aws_db_instance") == CostCategory.DATABASE
         assert lookup.get_resource_category("aws_s3_bucket") == CostCategory.STORAGE
         assert lookup.get_resource_category("aws_nat_gateway") == CostCategory.NETWORK
-        assert lookup.get_resource_category("aws_security_group") == CostCategory.SECURITY
+        assert (
+            lookup.get_resource_category("aws_security_group") == CostCategory.SECURITY
+        )
         assert lookup.get_resource_category("aws_unknown") == CostCategory.OTHER
 
 
@@ -464,23 +481,27 @@ class TestCostEstimator:
         """Test RDS Multi-AZ doubles compute cost."""
         estimator = CostEstimator("us-east-1")
 
-        single_az = estimator.estimate_from_resources([
-            {
-                "id": "db-1",
-                "type": "aws_db_instance",
-                "name": "db",
-                "config": {"instance_class": "db.t3.medium", "multi_az": False},
-            }
-        ])
+        single_az = estimator.estimate_from_resources(
+            [
+                {
+                    "id": "db-1",
+                    "type": "aws_db_instance",
+                    "name": "db",
+                    "config": {"instance_class": "db.t3.medium", "multi_az": False},
+                }
+            ]
+        )
 
-        multi_az = estimator.estimate_from_resources([
-            {
-                "id": "db-2",
-                "type": "aws_db_instance",
-                "name": "db",
-                "config": {"instance_class": "db.t3.medium", "multi_az": True},
-            }
-        ])
+        multi_az = estimator.estimate_from_resources(
+            [
+                {
+                    "id": "db-2",
+                    "type": "aws_db_instance",
+                    "name": "db",
+                    "config": {"instance_class": "db.t3.medium", "multi_az": True},
+                }
+            ]
+        )
 
         # Multi-AZ should cost more (approximately double compute)
         assert multi_az.monthly_total > single_az.monthly_total
@@ -558,7 +579,9 @@ class TestCostEstimator:
 
         assert estimate.monthly_total > 0
         assert estimate.resource_costs[0].category == CostCategory.STORAGE
-        assert estimate.resource_costs[0].confidence == CostConfidence.LOW  # Usage-based
+        assert (
+            estimate.resource_costs[0].confidence == CostConfidence.LOW
+        )  # Usage-based
 
     def test_estimate_free_resources(self):
         """Test that free resources have zero cost."""
@@ -593,8 +616,18 @@ class TestCostEstimator:
     def test_category_breakdown(self):
         """Test cost breakdown by category."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "web", "config": {"instance_type": "t3.medium"}},
-            {"id": "db-1", "type": "aws_db_instance", "name": "db", "config": {"instance_class": "db.t3.medium"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "web",
+                "config": {"instance_type": "t3.medium"},
+            },
+            {
+                "id": "db-1",
+                "type": "aws_db_instance",
+                "name": "db",
+                "config": {"instance_class": "db.t3.medium"},
+            },
             {"id": "nat-1", "type": "aws_nat_gateway", "name": "nat", "config": {}},
         ]
 
@@ -609,9 +642,24 @@ class TestCostEstimator:
     def test_top_resources_sorted(self):
         """Test top resources are sorted by cost."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "small", "config": {"instance_type": "t3.nano"}},
-            {"id": "i-2", "type": "aws_instance", "name": "large", "config": {"instance_type": "m5.4xlarge"}},
-            {"id": "i-3", "type": "aws_instance", "name": "medium", "config": {"instance_type": "t3.medium"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "small",
+                "config": {"instance_type": "t3.nano"},
+            },
+            {
+                "id": "i-2",
+                "type": "aws_instance",
+                "name": "large",
+                "config": {"instance_type": "m5.4xlarge"},
+            },
+            {
+                "id": "i-3",
+                "type": "aws_instance",
+                "name": "medium",
+                "config": {"instance_type": "t3.medium"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
@@ -642,9 +690,24 @@ class TestCostEstimator:
     def test_reserved_instance_recommendation(self):
         """Test reserved instance recommendations for high-cost resources."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "prod1", "config": {"instance_type": "m5.2xlarge"}},
-            {"id": "i-2", "type": "aws_instance", "name": "prod2", "config": {"instance_type": "m5.2xlarge"}},
-            {"id": "i-3", "type": "aws_instance", "name": "prod3", "config": {"instance_type": "m5.2xlarge"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "prod1",
+                "config": {"instance_type": "m5.2xlarge"},
+            },
+            {
+                "id": "i-2",
+                "type": "aws_instance",
+                "name": "prod2",
+                "config": {"instance_type": "m5.2xlarge"},
+            },
+            {
+                "id": "i-3",
+                "type": "aws_instance",
+                "name": "prod3",
+                "config": {"instance_type": "m5.2xlarge"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
@@ -657,24 +720,38 @@ class TestCostEstimator:
     def test_annual_cost_calculated(self):
         """Test annual cost is 12x monthly."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "web", "config": {"instance_type": "t3.medium"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "web",
+                "config": {"instance_type": "t3.medium"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
         estimate = estimator.estimate_from_resources(resources)
 
-        assert estimate.annual_total == pytest.approx(estimate.monthly_total * 12, rel=0.01)
+        assert estimate.annual_total == pytest.approx(
+            estimate.monthly_total * 12, rel=0.01
+        )
 
     def test_daily_average_calculated(self):
         """Test daily average is monthly / 30."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "web", "config": {"instance_type": "t3.medium"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "web",
+                "config": {"instance_type": "t3.medium"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
         estimate = estimator.estimate_from_resources(resources)
 
-        assert estimate.daily_average == pytest.approx(estimate.monthly_total / 30, rel=0.01)
+        assert estimate.daily_average == pytest.approx(
+            estimate.monthly_total / 30, rel=0.01
+        )
 
 
 class TestCostReporter:
@@ -786,10 +863,12 @@ class TestCostReporter:
             with open(output_path) as f:
                 data = json.load(f)
 
-            assert data["summary"]["monthly_total"] == 350.00
-            assert data["summary"]["resource_count"] == 2
+            # Updated structure with disclaimer
+            assert data["summary"]["monthly_estimate"] == 350.00
+            assert data["resources"]["total"] == 2
             assert len(data["resource_costs"]) == 2
             assert len(data["by_category"]) == 2
+            assert "_disclaimer" in data
 
     def test_to_html(self):
         """Test HTML export."""
@@ -821,10 +900,11 @@ class TestCostReporter:
             content = output_path.read_text()
             lines = content.strip().split("\n")
 
-            # Header + 2 resources
-            assert len(lines) == 3
-            assert "resource_id" in lines[0]
-            assert "i-12345" in lines[1] or "i-12345" in lines[2]
+            # Disclaimer header (5 lines) + column header (1 line) + 2 resources
+            assert len(lines) == 8
+            assert lines[0].startswith("# DISCLAIMER:")
+            assert "resource_id" in lines[5]  # Column header
+            assert "i-12345" in content
 
     def test_empty_estimate(self):
         """Test handling of empty estimate."""
@@ -852,12 +932,37 @@ class TestCostIntegration:
     def test_full_workflow(self):
         """Test complete workflow from resources to report."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "web-1", "config": {"instance_type": "t3.medium"}},
-            {"id": "i-2", "type": "aws_instance", "name": "web-2", "config": {"instance_type": "t3.medium"}},
-            {"id": "db-1", "type": "aws_db_instance", "name": "main-db", "config": {"instance_class": "db.r5.large", "allocated_storage": 100}},
-            {"id": "nat-1", "type": "aws_nat_gateway", "name": "main-nat", "config": {}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "web-1",
+                "config": {"instance_type": "t3.medium"},
+            },
+            {
+                "id": "i-2",
+                "type": "aws_instance",
+                "name": "web-2",
+                "config": {"instance_type": "t3.medium"},
+            },
+            {
+                "id": "db-1",
+                "type": "aws_db_instance",
+                "name": "main-db",
+                "config": {"instance_class": "db.r5.large", "allocated_storage": 100},
+            },
+            {
+                "id": "nat-1",
+                "type": "aws_nat_gateway",
+                "name": "main-nat",
+                "config": {},
+            },
             {"id": "alb-1", "type": "aws_lb", "name": "web-alb", "config": {}},
-            {"id": "vol-1", "type": "aws_ebs_volume", "name": "data", "config": {"size": 500, "type": "gp2"}},
+            {
+                "id": "vol-1",
+                "type": "aws_ebs_volume",
+                "name": "data",
+                "config": {"size": 500, "type": "gp2"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
@@ -890,30 +995,36 @@ class TestCostIntegration:
 
         # 20 EC2 instances
         for i in range(20):
-            resources.append({
-                "id": f"i-{i:05d}",
-                "type": "aws_instance",
-                "name": f"server-{i}",
-                "config": {"instance_type": "t3.medium"},
-            })
+            resources.append(
+                {
+                    "id": f"i-{i:05d}",
+                    "type": "aws_instance",
+                    "name": f"server-{i}",
+                    "config": {"instance_type": "t3.medium"},
+                }
+            )
 
         # 5 RDS instances
         for i in range(5):
-            resources.append({
-                "id": f"db-{i:05d}",
-                "type": "aws_db_instance",
-                "name": f"db-{i}",
-                "config": {"instance_class": "db.t3.medium"},
-            })
+            resources.append(
+                {
+                    "id": f"db-{i:05d}",
+                    "type": "aws_db_instance",
+                    "name": f"db-{i}",
+                    "config": {"instance_class": "db.t3.medium"},
+                }
+            )
 
         # 3 NAT Gateways
         for i in range(3):
-            resources.append({
-                "id": f"nat-{i:05d}",
-                "type": "aws_nat_gateway",
-                "name": f"nat-{i}",
-                "config": {},
-            })
+            resources.append(
+                {
+                    "id": f"nat-{i:05d}",
+                    "type": "aws_nat_gateway",
+                    "name": f"nat-{i}",
+                    "config": {},
+                }
+            )
 
         estimator = CostEstimator("us-east-1")
         estimate = estimator.estimate_from_resources(resources)
@@ -922,9 +1033,21 @@ class TestCostIntegration:
         assert estimate.monthly_total > 500  # Should be substantial
 
         # Check category breakdown
-        compute_cost = sum(b.monthly_total for b in estimate.by_category if b.category == CostCategory.COMPUTE)
-        db_cost = sum(b.monthly_total for b in estimate.by_category if b.category == CostCategory.DATABASE)
-        network_cost = sum(b.monthly_total for b in estimate.by_category if b.category == CostCategory.NETWORK)
+        compute_cost = sum(
+            b.monthly_total
+            for b in estimate.by_category
+            if b.category == CostCategory.COMPUTE
+        )
+        db_cost = sum(
+            b.monthly_total
+            for b in estimate.by_category
+            if b.category == CostCategory.DATABASE
+        )
+        network_cost = sum(
+            b.monthly_total
+            for b in estimate.by_category
+            if b.category == CostCategory.NETWORK
+        )
 
         assert compute_cost > 0
         assert db_cost > 0
@@ -933,9 +1056,27 @@ class TestCostIntegration:
     def test_multi_region(self):
         """Test resources across multiple regions."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "us-web", "config": {"instance_type": "t3.medium"}, "region": "us-east-1"},
-            {"id": "i-2", "type": "aws_instance", "name": "eu-web", "config": {"instance_type": "t3.medium"}, "region": "eu-west-1"},
-            {"id": "i-3", "type": "aws_instance", "name": "ap-web", "config": {"instance_type": "t3.medium"}, "region": "ap-northeast-1"},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "us-web",
+                "config": {"instance_type": "t3.medium"},
+                "region": "us-east-1",
+            },
+            {
+                "id": "i-2",
+                "type": "aws_instance",
+                "name": "eu-web",
+                "config": {"instance_type": "t3.medium"},
+                "region": "eu-west-1",
+            },
+            {
+                "id": "i-3",
+                "type": "aws_instance",
+                "name": "ap-web",
+                "config": {"instance_type": "t3.medium"},
+                "region": "ap-northeast-1",
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
@@ -943,3 +1084,312 @@ class TestCostIntegration:
 
         # Different regions should have different costs
         assert len(estimate.by_region) >= 1
+
+
+# =============================================================================
+# DISCLAIMER TESTS
+# =============================================================================
+
+
+class TestCostDisclaimers:
+    """Tests for cost estimate disclaimers and accuracy information."""
+
+    def test_disclaimer_constants_exist(self):
+        """Test that disclaimer constants are defined."""
+        assert COST_DISCLAIMER_SHORT
+        assert COST_DISCLAIMER_FULL
+        assert EXCLUDED_FACTORS
+
+    def test_disclaimer_short_contains_warning(self):
+        """Test short disclaimer contains warning text."""
+        assert "ESTIMATE" in COST_DISCLAIMER_SHORT.upper()
+        assert "may vary" in COST_DISCLAIMER_SHORT.lower()
+
+    def test_disclaimer_full_contains_included_excluded(self):
+        """Test full disclaimer lists what's included and excluded."""
+        assert "INCLUDED" in COST_DISCLAIMER_FULL
+        assert "NOT INCLUDED" in COST_DISCLAIMER_FULL
+        assert "Data transfer" in COST_DISCLAIMER_FULL
+
+    def test_excluded_factors_list(self):
+        """Test excluded factors list is populated."""
+        assert len(EXCLUDED_FACTORS) > 5
+        assert "Data transfer" in EXCLUDED_FACTORS[0]
+        assert any("Reserved" in f for f in EXCLUDED_FACTORS)
+
+    def test_confidence_accuracy_range(self):
+        """Test confidence levels have accuracy ranges."""
+        assert CostConfidence.HIGH.accuracy_range == "±10%"
+        assert CostConfidence.MEDIUM.accuracy_range == "±20%"
+        assert CostConfidence.LOW.accuracy_range == "±40%"
+        assert CostConfidence.UNKNOWN.accuracy_range == "N/A"
+
+    def test_confidence_multiplier(self):
+        """Test confidence levels have multipliers."""
+        assert CostConfidence.HIGH.multiplier == 0.10
+        assert CostConfidence.MEDIUM.multiplier == 0.20
+        assert CostConfidence.LOW.multiplier == 0.40
+        assert CostConfidence.UNKNOWN.multiplier == 0.50
+
+    def test_confidence_description(self):
+        """Test confidence levels have descriptions."""
+        assert "on-demand pricing" in CostConfidence.HIGH.description.lower()
+        assert "assumptions" in CostConfidence.MEDIUM.description.lower()
+        assert "rough" in CostConfidence.LOW.description.lower()
+
+    def test_resource_cost_accuracy_range(self):
+        """Test ResourceCost has accuracy_range property."""
+        cost = ResourceCost(
+            resource_id="i-12345",
+            resource_type="aws_instance",
+            resource_name="test",
+            monthly_cost=100.0,
+            confidence=CostConfidence.HIGH,
+        )
+        assert cost.accuracy_range == "±10%"
+
+        cost_low = ResourceCost(
+            resource_id="i-12345",
+            resource_type="aws_instance",
+            resource_name="test",
+            monthly_cost=100.0,
+            confidence=CostConfidence.LOW,
+        )
+        assert cost_low.accuracy_range == "±40%"
+
+    def test_resource_cost_to_dict_includes_accuracy(self):
+        """Test ResourceCost.to_dict includes accuracy_range."""
+        cost = ResourceCost(
+            resource_id="i-12345",
+            resource_type="aws_instance",
+            resource_name="test",
+            monthly_cost=100.0,
+            confidence=CostConfidence.MEDIUM,
+        )
+
+        data = cost.to_dict()
+        assert "accuracy_range" in data
+        assert data["accuracy_range"] == "±20%"
+
+    def test_estimate_range_calculation(self):
+        """Test CostEstimate calculates range based on confidence."""
+        estimate = CostEstimate(
+            monthly_total=1000.0,
+            confidence=CostConfidence.MEDIUM,  # ±20%
+        )
+
+        assert estimate.estimated_range_low == 800.0  # 1000 * 0.8
+        assert estimate.estimated_range_high == 1200.0  # 1000 * 1.2
+        assert estimate.accuracy_range == "±20%"
+
+    def test_estimate_range_high_confidence(self):
+        """Test range calculation with HIGH confidence."""
+        estimate = CostEstimate(
+            monthly_total=1000.0,
+            confidence=CostConfidence.HIGH,  # ±10%
+        )
+
+        assert estimate.estimated_range_low == 900.0
+        assert estimate.estimated_range_high == 1100.0
+
+    def test_estimate_range_low_confidence(self):
+        """Test range calculation with LOW confidence."""
+        estimate = CostEstimate(
+            monthly_total=1000.0,
+            confidence=CostConfidence.LOW,  # ±40%
+        )
+
+        assert estimate.estimated_range_low == 600.0
+        assert estimate.estimated_range_high == 1400.0
+
+    def test_estimate_has_excluded_factors(self):
+        """Test CostEstimate has excluded_factors by default."""
+        estimate = CostEstimate(monthly_total=100.0)
+        assert len(estimate.excluded_factors) > 0
+        assert estimate.excluded_factors == EXCLUDED_FACTORS
+
+    def test_estimate_to_dict_includes_disclaimer(self):
+        """Test CostEstimate.to_dict includes disclaimer."""
+        estimate = CostEstimate(
+            monthly_total=1000.0,
+            annual_total=12000.0,
+            confidence=CostConfidence.MEDIUM,
+        )
+
+        data = estimate.to_dict()
+
+        assert "disclaimer" in data
+        assert data["disclaimer"] == COST_DISCLAIMER_SHORT
+        assert "not_included" in data
+        assert len(data["not_included"]) > 0
+        assert "_note" in data
+
+    def test_estimate_to_dict_includes_range(self):
+        """Test CostEstimate.to_dict includes range information."""
+        estimate = CostEstimate(
+            monthly_total=1000.0,
+            confidence=CostConfidence.MEDIUM,
+        )
+
+        data = estimate.to_dict()
+
+        assert "summary" in data
+        assert "range_low" in data["summary"]
+        assert "range_high" in data["summary"]
+        assert "accuracy" in data["summary"]
+        assert data["summary"]["range_low"] == 800.0
+        assert data["summary"]["range_high"] == 1200.0
+        assert data["summary"]["accuracy"] == "±20%"
+
+
+class TestCostReporterDisclaimers:
+    """Tests for disclaimer output in CostReporter."""
+
+    def _create_sample_estimate(self) -> CostEstimate:
+        """Create a sample estimate for testing."""
+        cost = ResourceCost(
+            resource_id="i-12345",
+            resource_type="aws_instance",
+            resource_name="web-server",
+            monthly_cost=150.00,
+            category=CostCategory.COMPUTE,
+            confidence=CostConfidence.HIGH,
+        )
+
+        breakdown = CostBreakdown(
+            category=CostCategory.COMPUTE,
+            resources=[cost],
+            monthly_total=150.00,
+            percentage=100.0,
+        )
+
+        return CostEstimate(
+            monthly_total=150.00,
+            annual_total=1800.00,
+            daily_average=5.00,
+            resource_costs=[cost],
+            by_category=[breakdown],
+            top_resources=[cost],
+            resource_count=1,
+            estimated_resources=1,
+            confidence=CostConfidence.MEDIUM,
+        )
+
+    def test_json_includes_full_disclaimer(self):
+        """Test JSON export includes full disclaimer."""
+        reporter = CostReporter()
+        estimate = self._create_sample_estimate()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "cost.json"
+            reporter.to_json(estimate, output_path)
+
+            content = output_path.read_text()
+            data = json.loads(content)
+
+            assert "_disclaimer" in data
+            assert "COST ESTIMATE DISCLAIMER" in data["_disclaimer"]
+            assert "_generated_by" in data
+            assert "_accuracy_note" in data
+
+    def test_csv_includes_disclaimer_header(self):
+        """Test CSV export includes disclaimer in header."""
+        reporter = CostReporter()
+        estimate = self._create_sample_estimate()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "cost.csv"
+            reporter.to_csv(estimate, output_path)
+
+            content = output_path.read_text()
+            lines = content.split("\n")
+
+            # First lines should be comments with disclaimer
+            assert lines[0].startswith("# DISCLAIMER:")
+            assert "ESTIMATE" in lines[0].upper()
+            assert "accuracy_range" in content
+
+    def test_markdown_includes_disclaimer(self):
+        """Test Markdown export includes disclaimer."""
+        reporter = CostReporter()
+        estimate = self._create_sample_estimate()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "cost.md"
+            reporter.to_markdown(estimate, output_path)
+
+            content = output_path.read_text()
+
+            assert "DISCLAIMER" in content
+            assert "NOT Included" in content
+            assert "AWS Cost Explorer" in content
+            assert "AWS Pricing Calculator" in content
+            assert "estimate only" in content.lower()
+
+    def test_html_includes_disclaimer_banner(self):
+        """Test HTML export includes disclaimer banner."""
+        reporter = CostReporter()
+        estimate = self._create_sample_estimate()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "cost.html"
+            reporter.to_html(estimate, output_path)
+
+            content = output_path.read_text()
+
+            assert "disclaimer-banner" in content
+            assert "ESTIMATE ONLY" in content
+            assert "NOT Included" in content
+            assert "AWS Cost Explorer" in content
+
+    def test_html_includes_range(self):
+        """Test HTML export includes estimate range."""
+        reporter = CostReporter()
+        estimate = self._create_sample_estimate()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "cost.html"
+            reporter.to_html(estimate, output_path)
+
+            content = output_path.read_text()
+
+            # Should show range values
+            assert str(int(estimate.estimated_range_low)) in content
+            assert str(int(estimate.estimated_range_high)) in content
+
+    def test_markdown_includes_range(self):
+        """Test Markdown export includes estimate range."""
+        reporter = CostReporter()
+        estimate = self._create_sample_estimate()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "cost.md"
+            reporter.to_markdown(estimate, output_path)
+
+            content = output_path.read_text()
+
+            assert "Estimated Range" in content
+            assert estimate.accuracy_range in content
+
+    def test_excluded_factors_in_all_formats(self):
+        """Test excluded factors appear in all export formats."""
+        reporter = CostReporter()
+        estimate = self._create_sample_estimate()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            json_path = Path(tmpdir) / "cost.json"
+            md_path = Path(tmpdir) / "cost.md"
+            html_path = Path(tmpdir) / "cost.html"
+
+            reporter.to_json(estimate, json_path)
+            reporter.to_markdown(estimate, md_path)
+            reporter.to_html(estimate, html_path)
+
+            json_content = json_path.read_text()
+            md_content = md_path.read_text()
+            html_content = html_path.read_text()
+
+            # Check a common excluded factor appears in all
+            assert "Data transfer" in json_content
+            assert "Data transfer" in md_content
+            assert "Data transfer" in html_content

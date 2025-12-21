@@ -3,6 +3,10 @@ Graph Visualization Engine.
 
 Generates visual representations of AWS infrastructure dependency graphs
 in multiple formats: Mermaid, HTML (D3.js), and JSON.
+
+Supports graph simplification through:
+- Filtering: Hide noisy resources (SG rules, routes) by default
+- Grouping: Collapse large collections into single nodes
 """
 
 from __future__ import annotations
@@ -18,6 +22,8 @@ if TYPE_CHECKING:
 
     from replimap.core import GraphEngine
     from replimap.core.models import ResourceNode
+    from replimap.graph.filters import GraphFilter
+    from replimap.graph.grouper import GroupingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +168,13 @@ class GraphVisualizer:
         vpc_id: str | None = None,
         output_format: OutputFormat = OutputFormat.HTML,
         output_path: Path | None = None,
+        *,
+        filter_config: GraphFilter | None = None,
+        grouping_config: GroupingConfig | None = None,
+        show_all: bool = False,
+        show_sg_rules: bool = False,
+        show_routes: bool = False,
+        no_collapse: bool = False,
     ) -> str | Path:
         """
         Generate visualization in specified format.
@@ -170,11 +183,20 @@ class GraphVisualizer:
             vpc_id: Optional VPC to scope the scan
             output_format: mermaid, html, or json
             output_path: Where to save (None for stdout)
+            filter_config: Custom filter configuration
+            grouping_config: Custom grouping configuration
+            show_all: Show all resources (overrides filter)
+            show_sg_rules: Show security group rules
+            show_routes: Show routes and route tables
+            no_collapse: Disable resource grouping
 
         Returns:
             Generated content (str) or path to file
         """
         from replimap.core import GraphEngine
+        from replimap.graph.builder import BuilderConfig, GraphBuilder
+        from replimap.graph.filters import GraphFilter as GF
+        from replimap.graph.grouper import GroupingConfig as GC
         from replimap.scanners import run_all_scanners
 
         # 1. Build dependency graph using existing scanners
@@ -182,14 +204,43 @@ class GraphVisualizer:
         logger.info(f"Scanning AWS resources in {self.region}...")
         run_all_scanners(self.session, self.region, graph)
 
-        # 2. Filter by VPC if specified
-        if vpc_id:
-            graph = self._filter_by_vpc(graph, vpc_id)
+        # 2. Configure filter
+        if filter_config is not None:
+            graph_filter = filter_config
+        elif show_all:
+            graph_filter = GF.show_everything()
+        else:
+            graph_filter = GF(
+                show_all=False,
+                show_sg_rules=show_sg_rules,
+                show_routes=show_routes,
+            )
 
-        # 3. Convert to visualization graph
-        viz_graph = self._to_visualization_graph(graph)
+        # 3. Configure grouping
+        if grouping_config is not None:
+            grouping = grouping_config
+        elif no_collapse:
+            grouping = GC.disabled()
+        else:
+            grouping = GC()
 
-        # 4. Format output
+        # 4. Build visualization graph with filtering and grouping
+        builder_config = BuilderConfig(
+            filter=graph_filter,
+            grouping=grouping,
+        )
+        builder = GraphBuilder(builder_config)
+        viz_graph = builder.build(graph, vpc_id=vpc_id)
+
+        # Add region/profile to metadata
+        viz_graph.metadata.update(
+            {
+                "region": self.region,
+                "profile": self.profile,
+            }
+        )
+
+        # 5. Format output
         if output_format == OutputFormat.MERMAID:
             content = self._to_mermaid(viz_graph)
             suffix = ".md"
@@ -200,7 +251,7 @@ class GraphVisualizer:
             content = self._to_html(viz_graph)
             suffix = ".html"
 
-        # 5. Save or return
+        # 6. Save or return
         if output_path:
             # Ensure correct suffix
             if output_path.suffix != suffix:
@@ -209,6 +260,59 @@ class GraphVisualizer:
             output_path.write_text(content)
             return output_path
         return content
+
+    def generate_simplified(
+        self,
+        vpc_id: str | None = None,
+        output_format: OutputFormat = OutputFormat.HTML,
+        output_path: Path | None = None,
+    ) -> str | Path:
+        """
+        Generate simplified visualization (default behavior).
+
+        Hides noisy resources and collapses large groups.
+        Equivalent to generate() with default options.
+
+        Args:
+            vpc_id: Optional VPC to scope the scan
+            output_format: mermaid, html, or json
+            output_path: Where to save (None for stdout)
+
+        Returns:
+            Generated content (str) or path to file
+        """
+        return self.generate(
+            vpc_id=vpc_id,
+            output_format=output_format,
+            output_path=output_path,
+        )
+
+    def generate_full(
+        self,
+        vpc_id: str | None = None,
+        output_format: OutputFormat = OutputFormat.HTML,
+        output_path: Path | None = None,
+    ) -> str | Path:
+        """
+        Generate full visualization showing all resources.
+
+        Shows all resources without filtering or grouping.
+
+        Args:
+            vpc_id: Optional VPC to scope the scan
+            output_format: mermaid, html, or json
+            output_path: Where to save (None for stdout)
+
+        Returns:
+            Generated content (str) or path to file
+        """
+        return self.generate(
+            vpc_id=vpc_id,
+            output_format=output_format,
+            output_path=output_path,
+            show_all=True,
+            no_collapse=True,
+        )
 
     def _filter_by_vpc(self, graph: GraphEngine, vpc_id: str) -> GraphEngine:
         """Filter graph to only include resources in a specific VPC."""
