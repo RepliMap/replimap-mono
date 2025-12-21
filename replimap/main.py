@@ -2245,12 +2245,43 @@ def graph(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    # Graph simplification options
+    show_all: bool = typer.Option(
+        False,
+        "--all",
+        "-a",
+        help="Show all resources (disable filtering)",
+    ),
+    show_sg_rules: bool = typer.Option(
+        False,
+        "--sg-rules",
+        help="Show security group rules (hidden by default)",
+    ),
+    show_routes: bool = typer.Option(
+        False,
+        "--routes",
+        help="Show routes and route tables (hidden by default)",
+    ),
+    no_collapse: bool = typer.Option(
+        False,
+        "--no-collapse",
+        help="Disable resource grouping (show all individual resources)",
+    ),
+    security_view: bool = typer.Option(
+        False,
+        "--security",
+        help="Security-focused view (show SGs, IAM, KMS)",
+    ),
 ) -> None:
     """
     Generate visual dependency graph of AWS infrastructure.
 
     Scans your AWS environment and generates an interactive visualization
     showing resources and their dependencies.
+
+    By default, the graph is simplified for readability:
+    - Noisy resources (SG rules, routes) are hidden
+    - Large groups of similar resources are collapsed
 
     Output formats:
     - html: Interactive D3.js force-directed graph (default)
@@ -2260,8 +2291,12 @@ def graph(
     Examples:
         replimap graph --region us-east-1
         replimap graph -p prod -r us-west-2 -v vpc-abc123
+        replimap graph -r us-east-1 --all           # Show everything
+        replimap graph -r us-east-1 --sg-rules      # Include SG rules
+        replimap graph -r us-east-1 --routes        # Include routes
+        replimap graph -r us-east-1 --no-collapse   # No grouping
+        replimap graph -r us-east-1 --security      # Security focus
         replimap graph -r us-east-1 --format mermaid -o docs/graph.md
-        replimap graph -r us-east-1 --format json -o graph.json
     """
     import webbrowser
 
@@ -2290,6 +2325,23 @@ def graph(
         )
         raise typer.Exit(1)
 
+    # Build filter summary
+    filter_parts = []
+    if show_all:
+        filter_parts.append("all resources")
+    else:
+        filter_parts.append("simplified")
+        if show_sg_rules:
+            filter_parts.append("+SG rules")
+        if show_routes:
+            filter_parts.append("+routes")
+        if security_view:
+            filter_parts.append("+security focus")
+    if no_collapse:
+        filter_parts.append("no grouping")
+
+    filter_desc = ", ".join(filter_parts)
+
     console.print()
     console.print(
         Panel(
@@ -2298,6 +2350,7 @@ def graph(
             f"Profile: [cyan]{profile or 'default'}[/]\n"
             + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
             + f"Format: [cyan]{fmt.value}[/]\n"
+            f"Filter: [cyan]{filter_desc}[/]\n"
             f"Output: [cyan]{output}[/]",
             border_style="cyan",
         )
@@ -2305,6 +2358,10 @@ def graph(
 
     # Get AWS session
     session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Configure filter based on options
+    effective_show_sg_rules = show_sg_rules or security_view
+    effective_show_routes = show_routes
 
     # Run visualization
     console.print()
@@ -2326,6 +2383,10 @@ def graph(
                 vpc_id=vpc,
                 output_format=fmt,
                 output_path=output,
+                show_all=show_all,
+                show_sg_rules=effective_show_sg_rules,
+                show_routes=effective_show_routes,
+                no_collapse=no_collapse,
             )
 
             progress.update(task, completed=True)
