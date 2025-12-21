@@ -74,6 +74,7 @@ class AggregationConfig:
     # Thresholds for aggregation
     min_group_size: int = 3  # Don't aggregate fewer than this
     max_visible_per_type: int = 8  # Show at most this many individual nodes per type
+    homogeneity_threshold: float = 0.8  # Only aggregate if >80% similar
 
     # Important resources to never aggregate (entry points, databases, etc.)
     never_aggregate: set[str] = field(
@@ -228,12 +229,123 @@ class SmartAggregator:
             if len(vpc_nodes) < self.config.min_group_size:
                 # Too few to aggregate, keep individual
                 aggregated.extend(vpc_nodes)
+            elif not self._should_aggregate(vpc_nodes):
+                # Nodes are too heterogeneous, keep individual
+                aggregated.extend(vpc_nodes)
             else:
                 # Create aggregated node
                 agg_node = self._create_aggregated_node(vpc_nodes, vpc_id)
                 aggregated.append(agg_node)
 
         return aggregated
+
+    def _should_aggregate(self, nodes: list[dict[str, Any]]) -> bool:
+        """
+        Check if nodes should be aggregated based on homogeneity.
+
+        Only aggregate resources that are >80% similar in configuration.
+        This prevents grouping 15 different pet servers as "15 EC2 instances".
+        """
+        if len(nodes) < self.config.min_group_size:
+            return False
+
+        homogeneity = self._calculate_homogeneity(nodes)
+        return homogeneity >= self.config.homogeneity_threshold
+
+    def _calculate_homogeneity(self, nodes: list[dict[str, Any]]) -> float:
+        """
+        Calculate how similar the nodes are (0.0 to 1.0).
+
+        Returns:
+            0.0 = completely different
+            1.0 = identical configurations
+        """
+        if not nodes:
+            return 0.0
+
+        resource_type = nodes[0].get("type", "")
+
+        # Use type-specific homogeneity calculations
+        if resource_type == "aws_instance":
+            return self._ec2_homogeneity(nodes)
+        elif resource_type == "aws_db_instance":
+            return self._rds_homogeneity(nodes)
+        elif resource_type == "aws_security_group":
+            # SGs are usually unique, but aggregate anyway if > threshold
+            return 0.3
+        elif resource_type in ("aws_sqs_queue", "aws_sns_topic", "aws_s3_bucket"):
+            # These are typically homogeneous
+            return 0.9
+        elif resource_type in self.config.always_aggregate:
+            # Default high homogeneity for always-aggregate types
+            return 0.85
+
+        return 1.0  # Default: assume homogeneous
+
+    def _ec2_homogeneity(self, nodes: list[dict[str, Any]]) -> float:
+        """
+        Calculate EC2 instance homogeneity.
+
+        Same ASG = identical
+        Same type + AMI = very similar
+        Same type only = somewhat similar
+        """
+        instance_types: set[str | None] = set()
+        amis: set[str | None] = set()
+        asgs: set[str | None] = set()
+
+        for node in nodes:
+            props = node.get("properties", {})
+            instance_types.add(props.get("instance_type"))
+            amis.add(props.get("ami_id") or props.get("image_id"))
+            asgs.add(props.get("asg_name") or props.get("autoscaling_group"))
+
+        # Same ASG = identical (workers from same ASG)
+        if len(asgs) == 1 and None not in asgs:
+            return 1.0
+
+        # Same type + AMI = very similar
+        if len(instance_types) == 1 and len(amis) == 1:
+            return 0.9
+
+        # Same type = somewhat similar
+        if len(instance_types) == 1:
+            return 0.6
+
+        # Different types = don't aggregate (pet servers)
+        return 0.3
+
+    def _rds_homogeneity(self, nodes: list[dict[str, Any]]) -> float:
+        """
+        Calculate RDS instance homogeneity.
+
+        Same cluster = identical
+        Same engine = somewhat similar
+        """
+        engines: set[str | None] = set()
+        clusters: set[str | None] = set()
+        instance_classes: set[str | None] = set()
+
+        for node in nodes:
+            props = node.get("properties", {})
+            engines.add(props.get("engine"))
+            clusters.add(props.get("cluster_id") or props.get("db_cluster_identifier"))
+            instance_classes.add(props.get("instance_class") or props.get("db_instance_class"))
+
+        # Same cluster = identical (Aurora replicas)
+        if len(clusters) == 1 and None not in clusters:
+            return 1.0
+
+        # Same engine + class = very similar
+        if len(engines) == 1 and len(instance_classes) == 1:
+            return 0.85
+
+        # Same engine = somewhat similar
+        if len(engines) == 1:
+            return 0.7
+
+        # Different engines = different databases, should not aggregate
+        return 0.2
 
     def _create_aggregated_node(
         self,

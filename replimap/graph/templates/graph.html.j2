@@ -89,6 +89,19 @@
             opacity: 0.2;
         }
 
+        .node-label {
+            font-size: 10px;
+        }
+
+        /* Hide labels when zoomed out (LOD) */
+        .lod-hidden .node-label {
+            display: none;
+        }
+
+        .lod-hidden .minor-link {
+            display: none;
+        }
+
         /* Environment borders */
         .node[data-env="prod"] circle { stroke: #ef4444 !important; }
         .node[data-env="stage"] circle { stroke: #f59e0b !important; }
@@ -120,22 +133,273 @@
             stroke-opacity: 0.8;
         }
 
+        .link.cross-vpc {
+            stroke-opacity: 0.2;
+        }
+
+        .link.cross-vpc:hover {
+            stroke-opacity: 0.8;
+        }
+
+        /* Traffic/Dependency link colors */
+        .link.traffic {
+            stroke: #22c55e;
+        }
+
+        .link.dependency {
+            stroke: #6366f1;
+        }
+
+        /* Trace styles */
+        .node.trace-upstream circle {
+            stroke: #3b82f6 !important;
+            stroke-width: 3px !important;
+        }
+
+        .node.trace-downstream circle {
+            stroke: #22c55e !important;
+            stroke-width: 3px !important;
+        }
+
+        .link.trace-path {
+            stroke: #818cf8 !important;
+            stroke-width: 3px !important;
+            stroke-opacity: 1 !important;
+        }
+
+        /* Blast radius styles */
+        .node.blast-source circle {
+            stroke: #dc2626 !important;
+            stroke-width: 4px !important;
+            filter: drop-shadow(0 0 12px #dc2626);
+        }
+
+        .node.blast-affected circle {
+            stroke: #f97316 !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 6px #f97316);
+        }
+
+        .node.blast-indirect circle {
+            stroke: #fbbf24 !important;
+            stroke-width: 2px !important;
+        }
+
+        .link.blast-path {
+            stroke: #f97316 !important;
+            stroke-width: 3px !important;
+            stroke-opacity: 1 !important;
+        }
+
+        /* Breadcrumbs */
+        .breadcrumbs {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 8px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #334155;
+            z-index: 100;
+            font-size: 13px;
+        }
+
+        .breadcrumbs .crumb {
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .breadcrumbs .crumb:hover {
+            background: #334155;
+            color: #f1f5f9;
+        }
+
+        .breadcrumbs .crumb.active {
+            color: #f1f5f9;
+            font-weight: 600;
+        }
+
+        .breadcrumbs .separator {
+            color: #475569;
+        }
+
+        /* Filter Banner */
+        #filterBanner {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #6366f1;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        #filterBanner.visible {
+            display: flex;
+        }
+
+        #filterBanner button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        #filterBanner button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Tool Palette */
+        .tool-palette {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 12px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border: 1px solid #334155;
+            z-index: 100;
+        }
+
+        .tool-palette .tool-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .tool-palette .tool-btn:hover {
+            background: #334155;
+            color: #f1f5f9;
+        }
+
+        .tool-palette .tool-btn.active {
+            background: #6366f1;
+            border-color: #6366f1;
+            color: white;
+        }
+
+        /* Blast/Trace panels */
+        #blastPanel, #tracePanel {
+            position: absolute;
+            bottom: 80px;
+            left: 80px;
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 12px;
+            padding: 16px;
+            width: 280px;
+            display: none;
+            z-index: 100;
+            border: 2px solid #dc2626;
+        }
+
+        #tracePanel {
+            border-color: #6366f1;
+        }
+
+        #blastPanel.visible, #tracePanel.visible {
+            display: block;
+        }
+
+        .blast-summary h4, .trace-summary h4 {
+            margin: 0 0 12px 0;
+            color: #f1f5f9;
+            font-size: 14px;
+        }
+
+        .blast-stats, .trace-stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .blast-stat, .trace-stat {
+            text-align: center;
+        }
+
+        .blast-count, .trace-count {
+            font-size: 24px;
+            font-weight: 700;
+            display: block;
+        }
+
+        .blast-count.direct, .trace-count.upstream { color: #f97316; }
+        .blast-count.indirect, .trace-count.downstream { color: #fbbf24; }
+
+        .blast-label, .trace-label {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .blast-list h5 {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #64748b;
+            margin: 0 0 6px 0;
+        }
+
+        .blast-list ul {
+            margin: 0;
+            padding: 0 0 0 16px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .blast-list li {
+            margin-bottom: 4px;
+        }
+
         /* Control Panel */
         .control-panel {
             position: absolute;
             top: 20px;
-            left: 20px;
+            right: 20px;
             background: rgba(30, 41, 59, 0.95);
             border-radius: 12px;
             padding: 16px;
-            max-width: 300px;
+            width: 280px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
             border: 1px solid #334155;
             z-index: 100;
         }
 
         .control-panel h2 {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             margin-bottom: 12px;
             color: #f1f5f9;
@@ -143,6 +407,43 @@
             align-items: center;
             gap: 8px;
         }
+
+        /* View Toggle */
+        .view-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .toggle-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            width: 100%;
+            margin-bottom: 4px;
+        }
+
+        .toggle-btn {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn:hover { background: #334155; color: #f1f5f9; }
+        .toggle-btn.active { background: #6366f1; border-color: #6366f1; color: white; }
 
         /* Environment Filter */
         .env-filter {
@@ -195,7 +496,7 @@
             border: 1px solid #475569;
             background: #1e293b;
             color: #f1f5f9;
-            font-size: 14px;
+            font-size: 13px;
             margin-bottom: 12px;
         }
 
@@ -206,11 +507,11 @@
         }
 
         .filter-section {
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .filter-section h3 {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
@@ -227,7 +528,7 @@
         .filter-btn {
             padding: 4px 10px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
             border: 1px solid #475569;
             background: #1e293b;
@@ -272,58 +573,16 @@
             text-transform: uppercase;
         }
 
-        /* View Navigation */
-        .view-nav {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(30, 41, 59, 0.95);
-            border-radius: 8px;
-            padding: 8px 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border: 1px solid #334155;
-            z-index: 100;
-        }
-
-        .back-btn {
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            border: 1px solid #6366f1;
-            background: transparent;
-            color: #6366f1;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .back-btn:hover {
-            background: #6366f1;
-            color: white;
-        }
-
-        .current-view {
-            font-size: 14px;
-            font-weight: 600;
-            color: #f1f5f9;
-        }
-
         /* Details Panel */
         .details-panel {
             position: absolute;
-            top: 20px;
+            bottom: 20px;
             right: 20px;
             background: rgba(30, 41, 59, 0.95);
             border-radius: 12px;
             padding: 16px;
             width: 320px;
-            max-height: calc(100vh - 40px);
+            max-height: 50vh;
             overflow-y: auto;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
             border: 1px solid #334155;
@@ -336,7 +595,7 @@
         }
 
         .details-panel h3 {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
             margin-bottom: 4px;
             color: #f1f5f9;
@@ -465,7 +724,7 @@
         .legend {
             position: absolute;
             bottom: 20px;
-            left: 20px;
+            left: 80px;
             background: rgba(30, 41, 59, 0.95);
             border-radius: 12px;
             padding: 12px 16px;
@@ -493,7 +752,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 12px;
+            font-size: 11px;
         }
 
         .legend-dot {
@@ -506,7 +765,7 @@
         .controls {
             position: absolute;
             bottom: 20px;
-            right: 20px;
+            right: 340px;
             display: flex;
             gap: 8px;
             z-index: 100;
@@ -608,6 +867,46 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Performance warning */
+        .perf-warning {
+            position: fixed;
+            top: 20px;
+            right: 320px;
+            background: rgba(245, 158, 11, 0.9);
+            color: #1e293b;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            display: none;
+            z-index: 1000;
+        }
+
+        .perf-warning.visible {
+            display: block;
+        }
+
+        /* Keyboard shortcut hint */
+        .shortcut-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.8);
+            color: #94a3b8;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            z-index: 50;
+        }
+
+        .shortcut-hint kbd {
+            background: #475569;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin: 0 2px;
+        }
     </style>
 </head>
 <body>
@@ -618,23 +917,64 @@
             <div class="loading-text">Analyzing infrastructure...</div>
         </div>
 
+        <!-- Performance warning -->
+        <div class="perf-warning" id="perfWarning">
+            ⚠️ Large graph detected. Some features may be slower.
+        </div>
+
         <!-- SVG Graph -->
         <svg id="graph"></svg>
 
-        <!-- View Navigation (shown when drilling down) -->
-        <div class="view-nav" id="viewNav" style="display: none;">
-            <button class="back-btn" id="backToOverview">
-                &#x25C0; Back to Overview
-            </button>
-            <span class="current-view" id="currentViewLabel"></span>
+        <!-- Breadcrumbs Navigation -->
+        <div class="breadcrumbs" id="breadcrumbs">
+            <span class="crumb active" data-level="0">Overview</span>
         </div>
+
+        <!-- Filter Banner -->
+        <div id="filterBanner">
+            <span id="filterBannerText">🔍 Filtering active</span>
+            <button onclick="clearAllFilters()" title="Clear filter">✕</button>
+        </div>
+
+        <!-- Tool Palette -->
+        <div class="tool-palette" id="toolPalette">
+            <button class="tool-btn active" data-mode="select" title="Select (show details)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-mode="trace" title="Trace (show data flow)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-mode="blast" title="Blast Radius (show impact)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Blast Radius Panel -->
+        <div id="blastPanel"></div>
+
+        <!-- Trace Panel -->
+        <div id="tracePanel"></div>
 
         <!-- Control Panel -->
         <div class="control-panel">
             <h2>
-                <span style="font-size: 20px;">&#x1F50D;</span>
-                AWS Infrastructure
+                <span style="font-size: 18px;">🔍</span>
+                Infrastructure
             </h2>
+
+            <!-- View Toggle (Traffic/Dependencies) -->
+            <div class="view-toggle">
+                <span class="toggle-label">Link View</span>
+                <button class="toggle-btn active" data-view="all">All</button>
+                <button class="toggle-btn" data-view="traffic">Traffic</button>
+                <button class="toggle-btn" data-view="dependency">Deps</button>
+            </div>
 
             <!-- Environment Filter -->
             <div class="env-filter">
@@ -687,23 +1027,17 @@
 
             <div class="details-section">
                 <h4>Properties</h4>
-                <div class="property-list" id="detail-properties">
-                    <!-- Properties will be inserted here -->
-                </div>
+                <div class="property-list" id="detail-properties"></div>
             </div>
 
             <div class="details-section">
                 <h4>Dependencies</h4>
-                <div class="connections-list" id="detail-dependencies">
-                    <!-- Dependencies will be inserted here -->
-                </div>
+                <div class="connections-list" id="detail-dependencies"></div>
             </div>
 
             <div class="details-section">
                 <h4>Dependents</h4>
-                <div class="connections-list" id="detail-dependents">
-                    <!-- Dependents will be inserted here -->
-                </div>
+                <div class="connections-list" id="detail-dependents"></div>
             </div>
         </div>
 
@@ -731,18 +1065,14 @@
                     <div class="legend-dot" style="background: #f59e0b;"></div>
                     <span>Security</span>
                 </div>
-                <div class="legend-item">
-                    <div class="legend-dot" style="background: #f472b6;"></div>
-                    <span>Messaging</span>
-                </div>
             </div>
         </div>
 
         <!-- Zoom Controls -->
         <div class="controls">
             <button class="control-btn" id="zoom-in" title="Zoom In">+</button>
-            <button class="control-btn" id="zoom-out" title="Zoom Out">&#x2212;</button>
-            <button class="control-btn" id="zoom-reset" title="Reset View">&#x27F2;</button>
+            <button class="control-btn" id="zoom-out" title="Zoom Out">−</button>
+            <button class="control-btn" id="zoom-reset" title="Fit to Screen">⟲</button>
         </div>
 
         <!-- Tooltip -->
@@ -751,56 +1081,112 @@
             <div class="tooltip-type"></div>
             <div class="tooltip-env"></div>
         </div>
+
+        <!-- Keyboard shortcut hint -->
+        <div class="shortcut-hint">
+            Press <kbd>ESC</kbd> to reset view • Click empty space to clear selection
+        </div>
     </div>
 
     <script>
-        // Graph data from server
-        const graphData = {{ graph_data | safe }};
-
-        // Layout data (hierarchical containers)
-        const layoutData = {{ layout_data | safe if layout_data else '{}' }};
-
-        // Configuration
-        const config = {
-            nodeRadius: 24,
-            linkDistance: 120,
-            chargeStrength: -400,
-            collideRadius: 40,
-            useHierarchicalLayout: layoutData.layout_type === 'hierarchical',
+        // ============================================
+        // CONFIGURATION & CONSTANTS
+        // ============================================
+        const PERFORMANCE_THRESHOLDS = {
+            SVG_MAX_NODES: 500,
+            CANVAS_MAX_NODES: 2000,
+            LOD_ZOOM_THRESHOLD: 0.5,
         };
 
-        // State
+        // Graph data from server
+        const graphData = {{ graph_data | safe }};
+        const layoutData = {{ layout_data | safe if layout_data else '{}' }};
+        const viewData = {{ view_data | safe if view_data else '{}' }};
+
+        const config = {
+            nodeRadius: 24,
+            useHierarchicalLayout: layoutData.containers && layoutData.containers.length > 0,
+        };
+
+        // ============================================
+        // STATE
+        // ============================================
         let selectedNode = null;
         let activeGroup = 'all';
         let activeEnvironment = 'all';
+        let activeViewType = 'all';
         let searchTerm = '';
-        let currentViewMode = 'full';
-        let focusVpcId = null;
+        let currentToolMode = 'select';
+        let breadcrumbPath = ['Overview'];
+        let isFiltered = false;
 
-        // DOM elements
+        // ============================================
+        // DOM SETUP
+        // ============================================
         const svg = d3.select('#graph');
         const container = svg.append('g');
         const tooltip = d3.select('#tooltip');
         const detailsPanel = d3.select('#details');
         const loading = d3.select('#loading');
 
-        // Get dimensions
         const width = window.innerWidth;
         const height = window.innerHeight;
 
         svg.attr('width', width).attr('height', height);
 
-        // Create zoom behavior
+        // Check performance
+        if (graphData.nodes.length > PERFORMANCE_THRESHOLDS.SVG_MAX_NODES) {
+            document.getElementById('perfWarning').classList.add('visible');
+        }
+
+        // ============================================
+        // CONSTRAINT 1: D3 fx/fy PINNING
+        // Pin ALL nodes to Python-calculated positions
+        // D3 force simulation will NOT move pinned nodes
+        // ============================================
+        if (config.useHierarchicalLayout && layoutData.nodes) {
+            const positionMap = {};
+            layoutData.nodes.forEach(n => {
+                positionMap[n.id] = { x: n.x, y: n.y };
+            });
+
+            // Pin EVERY node with fx/fy - D3 won't move these
+            graphData.nodes.forEach(node => {
+                const pos = positionMap[node.id];
+                if (pos) {
+                    node.x = pos.x;
+                    node.y = pos.y;
+                    node.fx = pos.x;  // FIXED X - critical for Constraint 1
+                    node.fy = pos.y;  // FIXED Y - critical for Constraint 1
+                }
+            });
+        }
+
+        // ============================================
+        // ZOOM SETUP with LOD (Constraint 3)
+        // ============================================
         const zoom = d3.zoom()
             .scaleExtent([0.1, 4])
             .on('zoom', (event) => {
                 container.attr('transform', event.transform);
+
+                // Level of Detail - hide labels when zoomed out
+                const scale = event.transform.k;
+                if (scale < PERFORMANCE_THRESHOLDS.LOD_ZOOM_THRESHOLD) {
+                    container.classed('lod-hidden', true);
+                } else {
+                    container.classed('lod-hidden', false);
+                }
             });
 
         svg.call(zoom);
 
-        // Create arrow marker for directed edges
-        svg.append('defs').append('marker')
+        // ============================================
+        // ARROW MARKERS
+        // ============================================
+        const defs = svg.append('defs');
+
+        defs.append('marker')
             .attr('id', 'arrowhead')
             .attr('viewBox', '-0 -5 10 10')
             .attr('refX', 28)
@@ -812,82 +1198,110 @@
             .attr('d', 'M 0,-5 L 10,0 L 0,5')
             .attr('fill', '#475569');
 
-        // Draw container boxes if hierarchical layout
+        defs.append('marker')
+            .attr('id', 'arrowhead-traffic')
+            .attr('viewBox', '-0 -5 10 10')
+            .attr('refX', 28)
+            .attr('refY', 0)
+            .attr('orient', 'auto')
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .append('path')
+            .attr('d', 'M 0,-5 L 10,0 L 0,5')
+            .attr('fill', '#22c55e');
+
+        // ============================================
+        // DRAW CONTAINER BOXES (if hierarchical)
+        // ============================================
         let containerBoxes = null;
-        if (config.useHierarchicalLayout && layoutData.boxes) {
+        if (config.useHierarchicalLayout && layoutData.containers) {
             containerBoxes = container.append('g')
                 .attr('class', 'containers')
                 .selectAll('g')
-                .data(layoutData.boxes)
+                .data(layoutData.containers)
                 .enter()
                 .append('g')
                 .attr('class', 'container');
 
-            // Draw rectangles
             containerBoxes.append('rect')
-                .attr('class', d => `container-box level-${d.level}`)
+                .attr('class', d => `container-box level-${d.level || 0}`)
                 .attr('x', d => d.x)
                 .attr('y', d => d.y)
                 .attr('width', d => d.width)
                 .attr('height', d => d.height)
-                .attr('fill', d => d.style?.fill || 'rgba(30, 41, 59, 0.3)')
-                .attr('stroke', d => d.style?.stroke || '#334155')
-                .attr('stroke-width', d => d.style?.strokeWidth || '2')
-                .attr('stroke-dasharray', d => d.style?.strokeDasharray || 'none');
+                .attr('fill', d => d.fill || 'rgba(30, 41, 59, 0.3)')
+                .attr('stroke', d => d.stroke || '#334155')
+                .attr('stroke-width', d => d.strokeWidth || '2')
+                .attr('stroke-dasharray', d => d.strokeDasharray || 'none');
 
-            // Draw labels
             containerBoxes.append('text')
                 .attr('class', d => `container-label ${d.level === 0 ? 'vpc' : ''}`)
                 .attr('x', d => d.x + 16)
                 .attr('y', d => d.y + 24)
-                .text(d => d.label);
+                .text(d => d.label || d.name || d.id);
         }
 
-        // Apply positions from layout data if available
-        if (config.useHierarchicalLayout && layoutData.nodes) {
-            const positionMap = {};
-            layoutData.nodes.forEach(n => {
-                positionMap[n.id] = { x: n.x, y: n.y, fixed: n.fixed };
-            });
+        // ============================================
+        // CONSTRAINT 2: EDGE ROUTING
+        // Dynamic port selection for cross-container links
+        // ============================================
+        function getLinkPath(source, target) {
+            const sx = typeof source === 'object' ? source.x : source;
+            const sy = typeof source === 'object' ? source.y : source;
+            const tx = typeof target === 'object' ? target.x : target;
+            const ty = typeof target === 'object' ? target.y : target;
 
-            graphData.nodes.forEach(node => {
-                const pos = positionMap[node.id];
-                if (pos) {
-                    node.x = pos.x;
-                    node.y = pos.y;
-                    node.fx = pos.fixed ? pos.x : null;
-                    node.fy = pos.fixed ? pos.y : null;
+            // Calculate angle to determine best exit/entry direction
+            const dx = tx - sx;
+            const dy = ty - sy;
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+            // For cross-VPC links, use curved paths
+            const isCrossVpc = source.properties?.vpc_id !== target.properties?.vpc_id &&
+                              source.properties?.vpc_id && target.properties?.vpc_id;
+
+            if (isCrossVpc && config.useHierarchicalLayout) {
+                // Use curved path that routes around containers
+                const midX = (sx + tx) / 2;
+                const midY = (sy + ty) / 2;
+
+                // Add control point offset based on angle
+                let cpOffset = 50;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Horizontal route
+                    return `M${sx},${sy} Q${midX},${sy - cpOffset} ${midX},${midY} Q${midX},${ty + cpOffset} ${tx},${ty}`;
+                } else {
+                    // Vertical route
+                    return `M${sx},${sy} Q${sx - cpOffset},${midY} ${midX},${midY} Q${tx + cpOffset},${midY} ${tx},${ty}`;
                 }
-            });
+            }
+
+            // Default: straight line
+            return `M${sx},${sy} L${tx},${ty}`;
         }
 
-        // Create force simulation
-        const simulation = d3.forceSimulation(graphData.nodes)
-            .force('link', d3.forceLink(graphData.links)
-                .id(d => d.id)
-                .distance(config.linkDistance))
-            .force('charge', d3.forceManyBody()
-                .strength(config.useHierarchicalLayout ? -100 : config.chargeStrength))
-            .force('center', config.useHierarchicalLayout ? null : d3.forceCenter(width / 2, height / 2))
-            .force('collide', d3.forceCollide()
-                .radius(config.collideRadius));
-
-        // For hierarchical layout, stop simulation immediately
-        if (config.useHierarchicalLayout) {
-            simulation.stop();
-        }
-
-        // Create links
+        // ============================================
+        // CREATE LINKS
+        // ============================================
         const link = container.append('g')
             .attr('class', 'links')
             .selectAll('path')
             .data(graphData.links)
             .enter()
             .append('path')
-            .attr('class', d => `link ${d.type === 'vpc_connection' ? 'vpc-connection' : ''}`)
+            .attr('class', d => {
+                let classes = 'link';
+                if (d.type === 'vpc_connection') classes += ' vpc-connection';
+                if (d.link_type === 'traffic') classes += ' traffic';
+                if (d.link_type === 'dependency') classes += ' dependency';
+                if (d.is_cross_vpc) classes += ' cross-vpc';
+                return classes;
+            })
             .attr('marker-end', 'url(#arrowhead)');
 
-        // Create nodes
+        // ============================================
+        // CREATE NODES
+        // ============================================
         const node = container.append('g')
             .attr('class', 'nodes')
             .selectAll('g')
@@ -896,9 +1310,7 @@
             .append('g')
             .attr('class', d => {
                 let classes = 'node';
-                if (d.is_summary) classes += ' summary';
-                if (d.type === 'vpc_summary') classes += ' vpc-summary';
-                if (d.type === 'global_summary') classes += ' global-summary';
+                if (d.is_summary || d.is_group) classes += ' summary';
                 return classes;
             })
             .attr('data-env', d => d.environment || 'unknown')
@@ -908,103 +1320,471 @@
                 .on('drag', dragged)
                 .on('end', dragEnded));
 
-        // Set initial positions for hierarchical layout
-        if (config.useHierarchicalLayout) {
-            node.attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
-        }
+        // Position nodes (using pinned positions)
+        node.attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
 
-        // Add circles to nodes
+        // Add circles
         node.append('circle')
-            .attr('r', d => d.is_summary ? 32 : config.nodeRadius)
+            .attr('r', d => (d.is_summary || d.is_group) ? 32 : config.nodeRadius)
             .attr('fill', d => d.color)
-            .attr('stroke', d => {
-                // Use environment color for border if available
-                if (d.env_color) return d.env_color;
-                return d3.color(d.color).darker(0.5);
-            });
+            .attr('stroke', d => d.env_color || d3.color(d.color).darker(0.5));
 
-        // Add icon text to nodes
+        // Add icon text
         node.append('text')
             .attr('dy', '0.35em')
             .attr('text-anchor', 'middle')
             .text(d => d.icon);
 
-        // Add name labels below nodes
+        // Add name labels
         node.append('text')
             .attr('class', 'node-label')
-            .attr('dy', d => (d.is_summary ? 36 : config.nodeRadius) + 14)
+            .attr('dy', d => ((d.is_summary || d.is_group) ? 32 : config.nodeRadius) + 14)
             .attr('text-anchor', 'middle')
             .text(d => truncateText(d.name, 18));
 
-        // Event handlers
-        node.on('mouseover', function(event, d) {
-            showTooltip(event, d);
-        })
-        .on('mouseout', hideTooltip)
-        .on('click', function(event, d) {
-            event.stopPropagation();
-            if (d.is_summary && d.expandable) {
-                handleSummaryClick(d);
-            } else {
-                selectNode(d);
-            }
-        });
-
-        svg.on('click', () => {
-            clearSelection();
-        });
-
-        // Simulation tick (for force layout)
-        simulation.on('tick', () => {
+        // ============================================
+        // UPDATE LINK PATHS
+        // ============================================
+        function updateLinkPaths() {
             link.attr('d', d => {
-                return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
-            });
+                const sourceNode = typeof d.source === 'object' ? d.source :
+                    graphData.nodes.find(n => n.id === d.source);
+                const targetNode = typeof d.target === 'object' ? d.target :
+                    graphData.nodes.find(n => n.id === d.target);
 
-            node.attr('transform', d => `translate(${d.x},${d.y})`);
-        });
-
-        // For hierarchical layout, update positions immediately
-        if (config.useHierarchicalLayout) {
-            link.attr('d', d => {
-                const sx = typeof d.source === 'object' ? d.source.x : graphData.nodes.find(n => n.id === d.source)?.x || 0;
-                const sy = typeof d.source === 'object' ? d.source.y : graphData.nodes.find(n => n.id === d.source)?.y || 0;
-                const tx = typeof d.target === 'object' ? d.target.x : graphData.nodes.find(n => n.id === d.target)?.x || 0;
-                const ty = typeof d.target === 'object' ? d.target.y : graphData.nodes.find(n => n.id === d.target)?.y || 0;
-                return `M${sx},${sy} L${tx},${ty}`;
+                if (!sourceNode || !targetNode) return '';
+                return getLinkPath(sourceNode, targetNode);
             });
         }
 
-        // Hide loading after simulation settles
-        simulation.on('end', () => {
-            loading.classed('hidden', true);
+        updateLinkPaths();
+
+        // ============================================
+        // FORCE SIMULATION (minimal for hierarchical)
+        // ============================================
+        const simulation = d3.forceSimulation(graphData.nodes)
+            .force('link', d3.forceLink(graphData.links).id(d => d.id))
+            .alphaDecay(config.useHierarchicalLayout ? 1 : 0.02);  // Stop immediately if hierarchical
+
+        if (config.useHierarchicalLayout) {
+            simulation.stop();
+        } else {
+            simulation.on('tick', () => {
+                updateLinkPaths();
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+        }
+
+        // ============================================
+        // EVENT HANDLERS
+        // ============================================
+        node.on('mouseover', showTooltip)
+            .on('mouseout', hideTooltip)
+            .on('click', handleNodeClick);
+
+        // CONSTRAINT 7: Click empty space to reset
+        svg.on('click', function(event) {
+            if (event.target === this || event.target.tagName === 'rect') {
+                clearAllHighlights();
+            }
         });
 
-        // Also hide loading after a timeout
-        setTimeout(() => {
-            loading.classed('hidden', true);
-        }, 2000);
+        // CONSTRAINT 7: ESC key to reset
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                clearAllHighlights();
+                clearAllFilters();
+            }
+            if (e.key === 'Backspace' && !isInputFocused()) {
+                e.preventDefault();
+                navigateBack();
+            }
+        });
 
-        // Drag functions
+        function isInputFocused() {
+            return document.activeElement.tagName === 'INPUT';
+        }
+
+        // ============================================
+        // TOOL MODE HANDLING
+        // ============================================
+        document.querySelectorAll('#toolPalette .tool-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('#toolPalette .tool-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentToolMode = this.dataset.mode;
+                clearAllHighlights();
+            });
+        });
+
+        function handleNodeClick(event, d) {
+            event.stopPropagation();
+
+            if ((d.is_summary || d.is_group) && d.expandable) {
+                drillInto(d);
+                return;
+            }
+
+            switch (currentToolMode) {
+                case 'select':
+                    selectNode(d);
+                    highlightConnections(d);
+                    break;
+                case 'trace':
+                    traceDataFlow(d);
+                    break;
+                case 'blast':
+                    showBlastRadius(d.id);
+                    break;
+            }
+        }
+
+        // ============================================
+        // NODE SELECTION & HIGHLIGHTING
+        // ============================================
+        function selectNode(d) {
+            selectedNode = d;
+            showDetails(d);
+        }
+
+        function highlightConnections(d) {
+            const connectedNodeIds = new Set([d.id]);
+
+            graphData.links.forEach(link => {
+                const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                if (sourceId === d.id) connectedNodeIds.add(targetId);
+                if (targetId === d.id) connectedNodeIds.add(sourceId);
+            });
+
+            node.classed('dimmed', n => !connectedNodeIds.has(n.id));
+            node.classed('highlighted', n => n.id === d.id);
+
+            link.classed('dimmed', l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                return sourceId !== d.id && targetId !== d.id;
+            });
+            link.classed('highlighted', l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                return sourceId === d.id || targetId === d.id;
+            });
+
+            showFilterIndicator(`Showing connections for: ${d.name}`);
+        }
+
+        // ============================================
+        // TRACE DATA FLOW
+        // ============================================
+        function traceDataFlow(d) {
+            const upstream = new Set();
+            const downstream = new Set();
+            const allPath = new Set([d.id]);
+
+            // BFS upstream
+            let queue = [d.id];
+            while (queue.length > 0) {
+                const current = queue.shift();
+                graphData.links.forEach(link => {
+                    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                    if (targetId === current && !upstream.has(sourceId) && sourceId !== d.id) {
+                        upstream.add(sourceId);
+                        allPath.add(sourceId);
+                        if (upstream.size < 50) queue.push(sourceId);
+                    }
+                });
+            }
+
+            // BFS downstream
+            queue = [d.id];
+            while (queue.length > 0) {
+                const current = queue.shift();
+                graphData.links.forEach(link => {
+                    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                    if (sourceId === current && !downstream.has(targetId) && targetId !== d.id) {
+                        downstream.add(targetId);
+                        allPath.add(targetId);
+                        if (downstream.size < 50) queue.push(targetId);
+                    }
+                });
+            }
+
+            node.classed('dimmed', n => !allPath.has(n.id));
+            node.classed('highlighted', n => n.id === d.id);
+            node.classed('trace-upstream', n => upstream.has(n.id));
+            node.classed('trace-downstream', n => downstream.has(n.id));
+
+            link.classed('dimmed', l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                return !allPath.has(sourceId) || !allPath.has(targetId);
+            });
+            link.classed('trace-path', l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                return allPath.has(sourceId) && allPath.has(targetId);
+            });
+
+            document.getElementById('tracePanel').innerHTML = `
+                <div class="trace-summary">
+                    <h4>↔ Data Flow: ${d.name || d.id}</h4>
+                    <div class="trace-stats">
+                        <div class="trace-stat">
+                            <span class="trace-count upstream">${upstream.size}</span>
+                            <span class="trace-label">Upstream</span>
+                        </div>
+                        <div class="trace-stat">
+                            <span class="trace-count downstream">${downstream.size}</span>
+                            <span class="trace-label">Downstream</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('tracePanel').classList.add('visible');
+            showFilterIndicator(`Tracing data flow for: ${d.name}`);
+        }
+
+        // ============================================
+        // BLAST RADIUS
+        // ============================================
+        function showBlastRadius(nodeId) {
+            const direct = new Set();
+            const indirect = new Set();
+            const visited = new Set([nodeId]);
+
+            let queue = [{ id: nodeId, depth: 0 }];
+
+            while (queue.length > 0) {
+                const { id, depth } = queue.shift();
+
+                graphData.links.forEach(link => {
+                    const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                    const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+                    if (targetId === id && !visited.has(sourceId)) {
+                        visited.add(sourceId);
+                        if (depth === 0) {
+                            direct.add(sourceId);
+                        } else {
+                            indirect.add(sourceId);
+                        }
+                        if (depth < 5) {
+                            queue.push({ id: sourceId, depth: depth + 1 });
+                        }
+                    }
+                });
+            }
+
+            const all = new Set([...direct, ...indirect]);
+
+            node.classed('blast-affected', d => direct.has(d.id));
+            node.classed('blast-indirect', d => indirect.has(d.id));
+            node.classed('blast-source', d => d.id === nodeId);
+            node.classed('dimmed', d => !all.has(d.id) && d.id !== nodeId);
+
+            link.classed('blast-path', l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                return (all.has(sourceId) || sourceId === nodeId) && (all.has(targetId) || targetId === nodeId);
+            });
+            link.classed('dimmed', l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                return !all.has(sourceId) && sourceId !== nodeId;
+            });
+
+            const sourceNode = graphData.nodes.find(n => n.id === nodeId);
+            const directNodes = [...direct].map(id => graphData.nodes.find(n => n.id === id)).filter(Boolean);
+
+            document.getElementById('blastPanel').innerHTML = `
+                <div class="blast-summary">
+                    <h4>🔥 Blast Radius: ${sourceNode?.name || nodeId}</h4>
+                    <div class="blast-stats">
+                        <div class="blast-stat">
+                            <span class="blast-count direct">${direct.size}</span>
+                            <span class="blast-label">Direct Impact</span>
+                        </div>
+                        <div class="blast-stat">
+                            <span class="blast-count indirect">${indirect.size}</span>
+                            <span class="blast-label">Indirect Impact</span>
+                        </div>
+                    </div>
+                    <div class="blast-list">
+                        <h5>Directly Affected:</h5>
+                        <ul>
+                            ${directNodes.slice(0, 5).map(n => `<li>${n.name} (${n.type.replace('aws_', '')})</li>`).join('')}
+                            ${directNodes.length > 5 ? `<li>...and ${directNodes.length - 5} more</li>` : ''}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            document.getElementById('blastPanel').classList.add('visible');
+            showFilterIndicator(`Showing blast radius for: ${sourceNode?.name || nodeId}`);
+        }
+
+        // ============================================
+        // CLEAR HIGHLIGHTS
+        // ============================================
+        function clearAllHighlights() {
+            selectedNode = null;
+
+            node.classed('dimmed', false)
+                .classed('highlighted', false)
+                .classed('blast-affected', false)
+                .classed('blast-indirect', false)
+                .classed('blast-source', false)
+                .classed('trace-upstream', false)
+                .classed('trace-downstream', false);
+
+            link.classed('dimmed', false)
+                .classed('highlighted', false)
+                .classed('blast-path', false)
+                .classed('trace-path', false);
+
+            detailsPanel.classed('visible', false);
+            document.getElementById('blastPanel').classList.remove('visible');
+            document.getElementById('tracePanel').classList.remove('visible');
+            hideFilterIndicator();
+        }
+
+        // ============================================
+        // FILTER INDICATOR (Constraint 7)
+        // ============================================
+        function showFilterIndicator(message) {
+            isFiltered = true;
+            document.getElementById('filterBannerText').textContent = '🔍 ' + message;
+            document.getElementById('filterBanner').classList.add('visible');
+        }
+
+        function hideFilterIndicator() {
+            isFiltered = false;
+            document.getElementById('filterBanner').classList.remove('visible');
+        }
+
+        function clearAllFilters() {
+            activeGroup = 'all';
+            activeEnvironment = 'all';
+            activeViewType = 'all';
+            searchTerm = '';
+            document.getElementById('search').value = '';
+
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.filter-btn[data-group="all"]').classList.add('active');
+
+            document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.env-btn[data-env="all"]').classList.add('active');
+
+            document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.toggle-btn[data-view="all"]').classList.add('active');
+
+            clearAllHighlights();
+            filterNodes();
+        }
+
+        // ============================================
+        // BREADCRUMBS & NAVIGATION
+        // ============================================
+        function updateBreadcrumbs(path) {
+            breadcrumbPath = path;
+            const container = document.getElementById('breadcrumbs');
+            container.innerHTML = path.map((item, i) =>
+                `<span class="crumb ${i === path.length - 1 ? 'active' : ''}" data-level="${i}">${item}</span>` +
+                (i < path.length - 1 ? '<span class="separator">›</span>' : '')
+            ).join('');
+
+            container.querySelectorAll('.crumb').forEach(crumb => {
+                crumb.addEventListener('click', () => {
+                    const level = parseInt(crumb.dataset.level);
+                    navigateToLevel(level);
+                });
+            });
+        }
+
+        function navigateToLevel(level) {
+            if (level === 0) {
+                showAllNodes();
+                updateBreadcrumbs(['Overview']);
+            }
+        }
+
+        function navigateBack() {
+            if (breadcrumbPath.length > 1) {
+                breadcrumbPath.pop();
+                navigateToLevel(breadcrumbPath.length - 1);
+            }
+        }
+
+        function drillInto(d) {
+            if (d.scope_id || d.properties?.vpc_id) {
+                const vpcId = d.scope_id || d.properties.vpc_id;
+                const vpcName = d.scope_name || d.name || vpcId;
+                showVpcResources(vpcId);
+                updateBreadcrumbs(['Overview', vpcName]);
+            }
+        }
+
+        function showVpcResources(vpcId) {
+            node.style('display', d => {
+                if (d.id === vpcId) return null;
+                if (d.properties?.vpc_id === vpcId) return null;
+                if (d.scope_id === vpcId) return null;
+                return 'none';
+            });
+
+            link.style('display', l => {
+                const sourceNode = graphData.nodes.find(n => n.id === (typeof l.source === 'object' ? l.source.id : l.source));
+                const targetNode = graphData.nodes.find(n => n.id === (typeof l.target === 'object' ? l.target.id : l.target));
+                const sourceVpc = sourceNode?.properties?.vpc_id;
+                const targetVpc = targetNode?.properties?.vpc_id;
+                return (sourceVpc === vpcId || targetVpc === vpcId) ? null : 'none';
+            });
+
+            if (containerBoxes) {
+                containerBoxes.style('display', d => {
+                    return (d.id === vpcId || d.parent_id === vpcId) ? null : 'none';
+                });
+            }
+
+            zoomToFit();
+        }
+
+        function showAllNodes() {
+            node.style('display', null);
+            link.style('display', null);
+            if (containerBoxes) containerBoxes.style('display', null);
+            filterNodes();
+            zoomToFit();
+        }
+
+        // ============================================
+        // DRAG HANDLERS
+        // ============================================
         function dragStarted(event, d) {
+            if (config.useHierarchicalLayout) return;  // No dragging in hierarchical mode
             if (!event.active) simulation.alphaTarget(0.3).restart();
             d.fx = d.x;
             d.fy = d.y;
         }
 
         function dragged(event, d) {
+            if (config.useHierarchicalLayout) return;
             d.fx = event.x;
             d.fy = event.y;
         }
 
         function dragEnded(event, d) {
+            if (config.useHierarchicalLayout) return;
             if (!event.active) simulation.alphaTarget(0);
-            if (!config.useHierarchicalLayout) {
-                d.fx = null;
-                d.fy = null;
-            }
+            d.fx = null;
+            d.fy = null;
         }
 
-        // Tooltip functions
+        // ============================================
+        // TOOLTIP
+        // ============================================
         function showTooltip(event, d) {
             tooltip.select('.tooltip-title').text(d.full_name || d.name);
             tooltip.select('.tooltip-type').text(d.type);
@@ -1029,73 +1809,197 @@
             tooltip.classed('visible', false);
         }
 
-        // Summary node click handler for drill-down
-        function handleSummaryClick(d) {
-            if (d.type === 'vpc_summary') {
-                drillIntoVpc(d.properties.vpc_id);
-            }
-        }
+        // ============================================
+        // DETAILS PANEL
+        // ============================================
+        function showDetails(d) {
+            document.getElementById('detail-name').textContent = d.full_name || d.name;
+            document.getElementById('detail-type').textContent = d.type;
 
-        // View navigation functions
-        function showOverview() {
-            currentViewMode = 'overview';
-            focusVpcId = null;
-
-            document.getElementById('viewNav').style.display = 'none';
-
-            node.style('display', d => d.is_summary ? null : 'none');
-            link.style('display', l => {
-                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-                const sourceNode = graphData.nodes.find(n => n.id === sourceId);
-                const targetNode = graphData.nodes.find(n => n.id === targetId);
-                return (sourceNode?.is_summary && targetNode?.is_summary) ? null : 'none';
-            });
-
-            if (containerBoxes) {
-                containerBoxes.style('display', 'none');
+            const envBadge = document.getElementById('detail-env');
+            if (d.environment && d.environment !== 'unknown') {
+                envBadge.textContent = d.environment;
+                envBadge.className = `env-badge ${d.environment}`;
+                envBadge.style.display = 'inline-flex';
+            } else {
+                envBadge.style.display = 'none';
             }
 
-            zoomToFit();
-        }
+            // Properties
+            const propsContainer = document.getElementById('detail-properties');
+            propsContainer.innerHTML = '';
 
-        function drillIntoVpc(vpcId) {
-            currentViewMode = 'vpc_detail';
-            focusVpcId = vpcId;
-
-            document.getElementById('viewNav').style.display = 'flex';
-
-            const vpcNode = graphData.nodes.find(n =>
-                n.id === vpcId || n.properties?.vpc_id === vpcId
+            const props = d.properties || {};
+            const displayProps = Object.entries(props).filter(([key, value]) =>
+                !['is_group', 'ids', 'member_ids', 'unique_tags'].includes(key) &&
+                value !== null && value !== undefined
             );
-            const vpcName = vpcNode?.name || vpcId;
-            document.getElementById('currentViewLabel').textContent = vpcName;
 
+            if (displayProps.length > 0) {
+                displayProps.slice(0, 8).forEach(([key, value]) => {
+                    const item = document.createElement('div');
+                    item.className = 'property-item';
+                    let displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
+                    item.innerHTML = `
+                        <span class="property-key">${key}</span>
+                        <span class="property-value">${truncateText(String(displayValue), 25)}</span>
+                    `;
+                    propsContainer.appendChild(item);
+                });
+            } else {
+                propsContainer.innerHTML = '<div class="property-item"><span class="property-key">No properties</span></div>';
+            }
+
+            // Dependencies & Dependents
+            populateConnections('detail-dependencies', d, 'outgoing');
+            populateConnections('detail-dependents', d, 'incoming');
+
+            detailsPanel.classed('visible', true);
+        }
+
+        function populateConnections(containerId, d, direction) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            const connections = graphData.links
+                .filter(l => {
+                    const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                    return direction === 'outgoing' ? sourceId === d.id : targetId === d.id;
+                })
+                .map(l => {
+                    const nodeId = direction === 'outgoing' ?
+                        (typeof l.target === 'object' ? l.target.id : l.target) :
+                        (typeof l.source === 'object' ? l.source.id : l.source);
+                    return graphData.nodes.find(n => n.id === nodeId);
+                })
+                .filter(Boolean);
+
+            if (connections.length > 0) {
+                connections.slice(0, 8).forEach(conn => {
+                    const item = document.createElement('div');
+                    item.className = 'connection-item';
+                    item.innerHTML = `
+                        <div class="connection-icon" style="background: ${conn.color}">${conn.icon}</div>
+                        <span>${truncateText(conn.name, 25)}</span>
+                    `;
+                    item.onclick = () => { selectNode(conn); highlightConnections(conn); };
+                    container.appendChild(item);
+                });
+                if (connections.length > 8) {
+                    const more = document.createElement('div');
+                    more.style.cssText = 'font-size: 11px; color: #64748b; padding: 8px;';
+                    more.textContent = `... and ${connections.length - 8} more`;
+                    container.appendChild(more);
+                }
+            } else {
+                container.innerHTML = `<div style="font-size: 11px; color: #64748b; padding: 8px;">None</div>`;
+            }
+        }
+
+        // ============================================
+        // FILTERING
+        // ============================================
+        document.getElementById('search').addEventListener('input', function(e) {
+            searchTerm = e.target.value.toLowerCase();
+            filterNodes();
+        });
+
+        document.querySelectorAll('.env-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                activeEnvironment = this.dataset.env;
+                filterNodes();
+            });
+        });
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                activeGroup = this.dataset.group;
+                filterNodes();
+            });
+        });
+
+        document.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                activeViewType = this.dataset.view;
+                filterLinks();
+            });
+        });
+
+        function filterNodes() {
             node.style('display', d => {
-                if (d.id === vpcId) return null;
-                if (d.properties?.vpc_id === vpcId) return null;
-                if (d.is_summary) return 'none';
-                return 'none';
+                const matchesSearch = d.name.toLowerCase().includes(searchTerm) ||
+                                     d.id.toLowerCase().includes(searchTerm) ||
+                                     d.type.toLowerCase().includes(searchTerm);
+                const matchesGroup = activeGroup === 'all' || d.group === activeGroup;
+                const matchesEnv = activeEnvironment === 'all' || d.environment === activeEnvironment;
+
+                return matchesSearch && matchesGroup && matchesEnv ? null : 'none';
             });
 
+            filterLinks();
+        }
+
+        function filterLinks() {
             link.style('display', l => {
                 const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
                 const targetId = typeof l.target === 'object' ? l.target.id : l.target;
                 const sourceNode = graphData.nodes.find(n => n.id === sourceId);
                 const targetNode = graphData.nodes.find(n => n.id === targetId);
-                const sourceVpc = sourceNode?.properties?.vpc_id;
-                const targetVpc = targetNode?.properties?.vpc_id;
-                return (sourceVpc === vpcId || targetVpc === vpcId) ? null : 'none';
+
+                if (!sourceNode || !targetNode) return 'none';
+
+                const sourceVisible = isNodeVisible(sourceNode);
+                const targetVisible = isNodeVisible(targetNode);
+
+                if (!sourceVisible || !targetVisible) return 'none';
+
+                // View type filter
+                if (activeViewType !== 'all') {
+                    const linkType = l.link_type || 'dependency';
+                    if (linkType !== activeViewType && linkType !== 'both') return 'none';
+                }
+
+                return null;
             });
 
-            if (containerBoxes) {
-                containerBoxes.style('display', d => {
-                    return (d.id === vpcId || d.parent_id === vpcId) ? null : 'none';
-                });
-            }
-
-            zoomToFit();
+            // Update link colors based on view type
+            link.attr('stroke', l => {
+                if (activeViewType === 'traffic' && l.link_type === 'traffic') return '#22c55e';
+                if (activeViewType === 'dependency' && l.link_type === 'dependency') return '#6366f1';
+                return null;
+            });
         }
+
+        function isNodeVisible(d) {
+            const matchesSearch = d.name.toLowerCase().includes(searchTerm) ||
+                                 d.id.toLowerCase().includes(searchTerm) ||
+                                 d.type.toLowerCase().includes(searchTerm);
+            const matchesGroup = activeGroup === 'all' || d.group === activeGroup;
+            const matchesEnv = activeEnvironment === 'all' || d.environment === activeEnvironment;
+            return matchesSearch && matchesGroup && matchesEnv;
+        }
+
+        // ============================================
+        // ZOOM CONTROLS
+        // ============================================
+        document.getElementById('zoom-in').addEventListener('click', () => {
+            svg.transition().call(zoom.scaleBy, 1.3);
+        });
+
+        document.getElementById('zoom-out').addEventListener('click', () => {
+            svg.transition().call(zoom.scaleBy, 0.7);
+        });
+
+        document.getElementById('zoom-reset').addEventListener('click', zoomToFit);
+
+        document.getElementById('close-details').addEventListener('click', clearAllHighlights);
 
         function zoomToFit() {
             const visibleNodes = graphData.nodes.filter(d => {
@@ -1125,292 +2029,28 @@
                 .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
         }
 
-        // Node selection
-        function selectNode(d) {
-            selectedNode = d;
-
-            const connectedNodeIds = new Set();
-            connectedNodeIds.add(d.id);
-
-            graphData.links.forEach(link => {
-                const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
-                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-                if (sourceId === d.id) connectedNodeIds.add(targetId);
-                if (targetId === d.id) connectedNodeIds.add(sourceId);
-            });
-
-            node.classed('dimmed', n => !connectedNodeIds.has(n.id));
-            node.classed('highlighted', n => n.id === d.id);
-
-            link.classed('dimmed', l => {
-                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-                return sourceId !== d.id && targetId !== d.id;
-            });
-            link.classed('highlighted', l => {
-                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-                return sourceId === d.id || targetId === d.id;
-            });
-
-            showDetails(d);
-        }
-
-        function clearSelection() {
-            selectedNode = null;
-            node.classed('dimmed', false).classed('highlighted', false);
-            link.classed('dimmed', false).classed('highlighted', false);
-            detailsPanel.classed('visible', false);
-        }
-
-        function showDetails(d) {
-            document.getElementById('detail-name').textContent = d.full_name || d.name;
-            document.getElementById('detail-type').textContent = d.type;
-
-            // Environment badge
-            const envBadge = document.getElementById('detail-env');
-            if (d.environment && d.environment !== 'unknown') {
-                envBadge.textContent = d.environment;
-                envBadge.className = `env-badge ${d.environment}`;
-                envBadge.style.display = 'inline-flex';
-            } else {
-                envBadge.style.display = 'none';
-            }
-
-            // Properties
-            const propsContainer = document.getElementById('detail-properties');
-            propsContainer.innerHTML = '';
-
-            const props = d.properties || {};
-            const displayProps = Object.entries(props).filter(([key, value]) =>
-                !['is_group', 'ids', 'member_ids', 'unique_tags'].includes(key) &&
-                value !== null && value !== undefined
-            );
-
-            if (displayProps.length > 0) {
-                displayProps.forEach(([key, value]) => {
-                    const item = document.createElement('div');
-                    item.className = 'property-item';
-                    let displayValue = value;
-                    if (typeof value === 'object') {
-                        displayValue = JSON.stringify(value);
-                    }
-                    item.innerHTML = `
-                        <span class="property-key">${key}</span>
-                        <span class="property-value">${truncateText(String(displayValue), 25)}</span>
-                    `;
-                    propsContainer.appendChild(item);
-                });
-            } else {
-                propsContainer.innerHTML = '<div class="property-item"><span class="property-key">No properties</span></div>';
-            }
-
-            // Dependencies
-            const depsContainer = document.getElementById('detail-dependencies');
-            depsContainer.innerHTML = '';
-
-            const dependencies = graphData.links
-                .filter(l => {
-                    const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-                    return sourceId === d.id;
-                })
-                .map(l => {
-                    const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-                    return graphData.nodes.find(n => n.id === targetId);
-                })
-                .filter(Boolean);
-
-            if (dependencies.length > 0) {
-                dependencies.slice(0, 10).forEach(dep => {
-                    const item = document.createElement('div');
-                    item.className = 'connection-item';
-                    item.innerHTML = `
-                        <div class="connection-icon" style="background: ${dep.color}">${dep.icon}</div>
-                        <span>${truncateText(dep.name, 25)}</span>
-                    `;
-                    item.onclick = () => selectNode(dep);
-                    depsContainer.appendChild(item);
-                });
-                if (dependencies.length > 10) {
-                    const more = document.createElement('div');
-                    more.style.cssText = 'font-size: 12px; color: #64748b; padding: 8px;';
-                    more.textContent = `... and ${dependencies.length - 10} more`;
-                    depsContainer.appendChild(more);
-                }
-            } else {
-                depsContainer.innerHTML = '<div style="font-size: 12px; color: #64748b; padding: 8px;">No dependencies</div>';
-            }
-
-            // Dependents
-            const dependentsContainer = document.getElementById('detail-dependents');
-            dependentsContainer.innerHTML = '';
-
-            const dependents = graphData.links
-                .filter(l => {
-                    const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-                    return targetId === d.id;
-                })
-                .map(l => {
-                    const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-                    return graphData.nodes.find(n => n.id === sourceId);
-                })
-                .filter(Boolean);
-
-            if (dependents.length > 0) {
-                dependents.slice(0, 10).forEach(dep => {
-                    const item = document.createElement('div');
-                    item.className = 'connection-item';
-                    item.innerHTML = `
-                        <div class="connection-icon" style="background: ${dep.color}">${dep.icon}</div>
-                        <span>${truncateText(dep.name, 25)}</span>
-                    `;
-                    item.onclick = () => selectNode(dep);
-                    dependentsContainer.appendChild(item);
-                });
-                if (dependents.length > 10) {
-                    const more = document.createElement('div');
-                    more.style.cssText = 'font-size: 12px; color: #64748b; padding: 8px;';
-                    more.textContent = `... and ${dependents.length - 10} more`;
-                    dependentsContainer.appendChild(more);
-                }
-            } else {
-                dependentsContainer.innerHTML = '<div style="font-size: 12px; color: #64748b; padding: 8px;">No dependents</div>';
-            }
-
-            detailsPanel.classed('visible', true);
-        }
-
-        // Search functionality
-        document.getElementById('search').addEventListener('input', function(e) {
-            searchTerm = e.target.value.toLowerCase();
-            filterNodes();
-        });
-
-        // Environment filter
-        document.querySelectorAll('.env-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                activeEnvironment = this.dataset.env;
-                filterNodes();
-            });
-        });
-
-        // Group filter buttons
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                activeGroup = this.dataset.group;
-                filterNodes();
-            });
-        });
-
-        function filterNodes() {
-            node.style('display', d => {
-                // In overview mode, only show summaries
-                if (currentViewMode === 'overview' && !d.is_summary) return 'none';
-                // In VPC detail mode, only show resources in that VPC
-                if (currentViewMode === 'vpc_detail') {
-                    if (d.is_summary) return 'none';
-                    if (d.id !== focusVpcId && d.properties?.vpc_id !== focusVpcId) return 'none';
-                }
-
-                const matchesSearch = d.name.toLowerCase().includes(searchTerm) ||
-                                     d.id.toLowerCase().includes(searchTerm) ||
-                                     d.type.toLowerCase().includes(searchTerm);
-                const matchesGroup = activeGroup === 'all' || d.group === activeGroup;
-                const matchesEnv = activeEnvironment === 'all' || d.environment === activeEnvironment;
-
-                return matchesSearch && matchesGroup && matchesEnv ? null : 'none';
-            });
-
-            link.style('display', l => {
-                const sourceVisible = isNodeVisible(typeof l.source === 'object' ? l.source : graphData.nodes.find(n => n.id === l.source));
-                const targetVisible = isNodeVisible(typeof l.target === 'object' ? l.target : graphData.nodes.find(n => n.id === l.target));
-                return sourceVisible && targetVisible ? null : 'none';
-            });
-        }
-
-        function isNodeVisible(d) {
-            if (!d) return false;
-            if (currentViewMode === 'overview' && !d.is_summary) return false;
-            if (currentViewMode === 'vpc_detail') {
-                if (d.is_summary) return false;
-                if (d.id !== focusVpcId && d.properties?.vpc_id !== focusVpcId) return false;
-            }
-            const matchesSearch = d.name.toLowerCase().includes(searchTerm) ||
-                                 d.id.toLowerCase().includes(searchTerm) ||
-                                 d.type.toLowerCase().includes(searchTerm);
-            const matchesGroup = activeGroup === 'all' || d.group === activeGroup;
-            const matchesEnv = activeEnvironment === 'all' || d.environment === activeEnvironment;
-            return matchesSearch && matchesGroup && matchesEnv;
-        }
-
-        // Zoom controls
-        document.getElementById('zoom-in').addEventListener('click', () => {
-            svg.transition().call(zoom.scaleBy, 1.3);
-        });
-
-        document.getElementById('zoom-out').addEventListener('click', () => {
-            svg.transition().call(zoom.scaleBy, 0.7);
-        });
-
-        document.getElementById('zoom-reset').addEventListener('click', () => {
-            zoomToFit();
-        });
-
-        // Close details panel
-        document.getElementById('close-details').addEventListener('click', () => {
-            clearSelection();
-        });
-
-        // Back to overview
-        document.getElementById('backToOverview').addEventListener('click', () => {
-            const hasSummaryNodes = graphData.nodes.some(n => n.is_summary);
-            if (hasSummaryNodes) {
-                showOverview();
-            } else {
-                // No overview mode available, just show all
-                currentViewMode = 'full';
-                document.getElementById('viewNav').style.display = 'none';
-                node.style('display', null);
-                link.style('display', null);
-                if (containerBoxes) containerBoxes.style('display', null);
-                zoomToFit();
-            }
-        });
-
-        // Utility functions
+        // ============================================
+        // UTILITIES
+        // ============================================
         function truncateText(text, maxLength) {
             if (!text) return '';
-            return text.length > maxLength ? text.substring(0, maxLength - 1) + '\u2026' : text;
+            return text.length > maxLength ? text.substring(0, maxLength - 1) + '…' : text;
         }
 
-        // Handle window resize
+        // ============================================
+        // INITIALIZATION
+        // ============================================
         window.addEventListener('resize', () => {
             const newWidth = window.innerWidth;
             const newHeight = window.innerHeight;
             svg.attr('width', newWidth).attr('height', newHeight);
-            if (!config.useHierarchicalLayout) {
-                simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2));
-                simulation.alpha(0.3).restart();
-            }
         });
 
-        // Initialize view
-        function initializeView() {
-            const hasSummaryNodes = graphData.nodes.some(n => n.is_summary);
-            if (hasSummaryNodes) {
-                showOverview();
-            } else {
-                currentViewMode = 'full';
-                zoomToFit();
-            }
-        }
-
-        // Start initialization after a brief delay
-        setTimeout(initializeView, 100);
+        // Hide loading and initialize
+        setTimeout(() => {
+            loading.classed('hidden', true);
+            zoomToFit();
+        }, 500);
     </script>
 </body>
 </html>

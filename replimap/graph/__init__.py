@@ -65,6 +65,64 @@ from replimap.graph.visualizer import (
     OutputFormat,
     VisualizationGraph,
 )
+from replimap.graph.link_classification import (
+    LinkType,
+    classify_link,
+    enrich_links_with_classification,
+    get_dependency_links,
+    get_traffic_flow_links,
+)
+from replimap.graph.summary_links import (
+    SummaryLink,
+    SummaryLinkCalculator,
+    calculate_summary_links,
+)
+from replimap.graph.tool_modes import (
+    ToolMode,
+    generate_tool_palette_css,
+    generate_tool_palette_html,
+    generate_tool_palette_js,
+)
+from replimap.graph.cost_overlay import (
+    CostCalculator,
+    CostEstimate,
+    CostTier,
+    calculate_container_cost,
+    enrich_nodes_with_cost,
+    generate_cost_overlay_css,
+    generate_cost_overlay_js,
+)
+from replimap.graph.blast_radius import (
+    AffectedResource,
+    BlastRadiusCalculator,
+    BlastRadiusResult,
+    ImpactSeverity,
+    calculate_blast_radius,
+    enrich_nodes_with_blast_radius,
+    find_critical_nodes,
+)
+from replimap.graph.drift import (
+    DriftDetector,
+    DriftResult,
+    DriftSeverity,
+    DriftStatus,
+    DriftedAttribute,
+    detect_drift_from_plan,
+    enrich_nodes_with_drift,
+    generate_drift_visualization_css,
+    generate_drift_visualization_js,
+)
+from replimap.graph.orphan_detection import (
+    OrphanDetector,
+    OrphanReason,
+    OrphanSeverity,
+    OrphanedResource,
+    calculate_orphan_costs,
+    detect_orphans,
+    enrich_nodes_with_orphan_status,
+    generate_orphan_visualization_css,
+    generate_orphan_visualization_js,
+)
 
 __all__ = [
     # Visualizer
@@ -115,4 +173,55 @@ __all__ = [
     "ViewState",
     "VPCSummary",
     "GlobalCategorySummary",
+    # Link Classification
+    "LinkType",
+    "classify_link",
+    "enrich_links_with_classification",
+    "get_dependency_links",
+    "get_traffic_flow_links",
+    # Summary Links
+    "SummaryLink",
+    "SummaryLinkCalculator",
+    "calculate_summary_links",
+    # Tool Modes
+    "ToolMode",
+    "generate_tool_palette_css",
+    "generate_tool_palette_html",
+    "generate_tool_palette_js",
+    # Cost Overlay
+    "CostCalculator",
+    "CostEstimate",
+    "CostTier",
+    "calculate_container_cost",
+    "enrich_nodes_with_cost",
+    "generate_cost_overlay_css",
+    "generate_cost_overlay_js",
+    # Blast Radius
+    "AffectedResource",
+    "BlastRadiusCalculator",
+    "BlastRadiusResult",
+    "ImpactSeverity",
+    "calculate_blast_radius",
+    "enrich_nodes_with_blast_radius",
+    "find_critical_nodes",
+    # Drift Detection
+    "DriftDetector",
+    "DriftResult",
+    "DriftSeverity",
+    "DriftStatus",
+    "DriftedAttribute",
+    "detect_drift_from_plan",
+    "enrich_nodes_with_drift",
+    "generate_drift_visualization_css",
+    "generate_drift_visualization_js",
+    # Orphan Detection
+    "OrphanDetector",
+    "OrphanReason",
+    "OrphanSeverity",
+    "OrphanedResource",
+    "calculate_orphan_costs",
+    "detect_orphans",
+    "enrich_nodes_with_orphan_status",
+    "generate_orphan_visualization_css",
+    "generate_orphan_visualization_js",
 ]
