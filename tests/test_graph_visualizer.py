@@ -5,7 +5,7 @@ Comprehensive tests for the Graph Visualizer feature.
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -333,7 +333,9 @@ class TestD3Formatter:
         formatter = D3Formatter()
         nodes = [
             GraphNode(id="1", resource_type="aws_vpc", name="vpc", group="network"),
-            GraphNode(id="2", resource_type="aws_instance", name="ec2", group="compute"),
+            GraphNode(
+                id="2", resource_type="aws_instance", name="ec2", group="compute"
+            ),
         ]
         graph = VisualizationGraph(nodes=nodes, edges=[], metadata={})
 
@@ -419,9 +421,7 @@ class TestGraphVisualizerIntegration:
         formatter = JSONFormatter()
         output = formatter.format(graph)
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write(output)
             temp_path = Path(f.name)
 
@@ -450,9 +450,7 @@ class TestGraphVisualizerIntegration:
         formatter = D3Formatter()
         output = formatter.format(graph)
 
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".html", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
             f.write(output)
             temp_path = Path(f.name)
 
@@ -528,8 +526,7 @@ class TestGraphEdgeCases:
             for i in range(100)
         ]
         edges = [
-            GraphEdge(source=f"node-{i}", target=f"node-{i+1}")
-            for i in range(99)
+            GraphEdge(source=f"node-{i}", target=f"node-{i + 1}") for i in range(99)
         ]
         graph = VisualizationGraph(nodes=nodes, edges=edges, metadata={})
 

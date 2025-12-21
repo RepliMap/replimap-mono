@@ -46,7 +46,7 @@ class AuditEngine:
 
     def __init__(
         self,
-        session: "Session",
+        session: Session,
         region: str,
         profile: str | None = None,
         vpc_id: str | None = None,
@@ -162,7 +162,6 @@ class AuditEngine:
         Returns:
             Filtered graph
         """
-        from replimap.core.models import ResourceType
 
         filtered = GraphEngine()
 

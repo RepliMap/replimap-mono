@@ -223,7 +223,7 @@ class CheckovRunner:
             # --quiet: Reduce verbosity
             # --compact: Compact output
             # -o json: JSON output format
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603
                 [
                     "checkov",
                     "-d",

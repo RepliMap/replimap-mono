@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -103,7 +103,9 @@ class DriftReporter:
         # Show diffs for modified resources
         if drift.drift_type == DriftType.MODIFIED and drift.diffs:
             for diff in drift.diffs[:3]:  # Limit to 3
-                line += f"\n      {diff.attribute}: {diff.expected!r} -> {diff.actual!r}"
+                line += (
+                    f"\n      {diff.attribute}: {diff.expected!r} -> {diff.actual!r}"
+                )
             if len(drift.diffs) > 3:
                 line += f"\n      ... and {len(drift.diffs) - 3} more changes"
 
@@ -121,7 +123,7 @@ class DriftReporter:
 
         html = template.render(
             report=report,
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
             DriftType=DriftType,
             DriftSeverity=DriftSeverity,
         )

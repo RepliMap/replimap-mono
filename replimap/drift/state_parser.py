@@ -6,7 +6,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class TFState:
     resources: list[TFResource]
     outputs: dict[str, Any]
 
-    def get_resource_by_id(self, resource_id: str) -> Optional[TFResource]:
+    def get_resource_by_id(self, resource_id: str) -> TFResource | None:
         """Find resource by AWS ID."""
         for r in self.resources:
             if r.id == resource_id:

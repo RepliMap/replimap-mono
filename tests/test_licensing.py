@@ -9,7 +9,6 @@ import pytest
 
 from replimap.licensing.gates import (
     FeatureNotAvailableError,
-    ResourceLimitExceededError,
     check_resource_limit,
     feature_gate,
     get_available_features,
@@ -68,7 +67,8 @@ class TestPlanFeatures:
     def test_free_plan_limits(self) -> None:
         """Test free plan has correct limits."""
         features = get_plan_features(Plan.FREE)
-        assert features.max_resources_per_scan == 5
+        # Resources per scan are unlimited - gating happens at output time
+        assert features.max_resources_per_scan is None
         assert features.max_scans_per_month == 3
         assert features.max_aws_accounts == 1
         assert features.price_monthly == 0
@@ -110,14 +110,20 @@ class TestPlanFeatures:
         assert not free_features.has_feature(Feature.ASYNC_SCANNING)
 
     def test_can_scan_resources(self) -> None:
-        """Test resource limit checking."""
+        """Test resource limit checking.
+
+        Note: Under the new output-focused gating philosophy, resources per scan
+        are unlimited for all plans. Gating happens at export/download time.
+        """
         free_features = get_plan_features(Plan.FREE)
+        # All resource counts are allowed - gating is at output time
         assert free_features.can_scan_resources(3)
         assert free_features.can_scan_resources(5)
-        assert not free_features.can_scan_resources(10)
+        assert free_features.can_scan_resources(10)
+        assert free_features.can_scan_resources(1000)
 
         solo_features = get_plan_features(Plan.SOLO)
-        assert solo_features.can_scan_resources(1000)  # Unlimited
+        assert solo_features.can_scan_resources(1000)  # Also unlimited
 
 
 class TestLicense:
@@ -355,17 +361,20 @@ class TestFeatureGates:
                 pro_feature()
 
     def test_check_resource_limit(self) -> None:
-        """Test resource limit checking."""
+        """Test resource limit checking.
+
+        Note: Under the new output-focused gating philosophy, resources per scan
+        are unlimited for all plans. This test verifies no error is raised
+        regardless of resource count.
+        """
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = LicenseManager(cache_dir=Path(tmpdir))
-            set_license_manager(manager)  # Free tier (5 resources max)
+            set_license_manager(manager)  # Free tier
 
-            # Within limit
+            # All resource counts are allowed - gating is at output time
             check_resource_limit(3)  # Should not raise
-
-            # Exceeds limit
-            with pytest.raises(ResourceLimitExceededError):
-                check_resource_limit(10)
+            check_resource_limit(10)  # Should not raise
+            check_resource_limit(1000)  # Should not raise
 
     def test_is_feature_available(self) -> None:
         """Test is_feature_available helper."""

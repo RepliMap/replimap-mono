@@ -159,7 +159,9 @@ class DriftComparator:
                     diffs.append(diff)
 
                     # Track maximum severity
-                    if self._severity_rank(severity) > self._severity_rank(max_severity):
+                    if self._severity_rank(severity) > self._severity_rank(
+                        max_severity
+                    ):
                         max_severity = severity
 
         # Determine drift type

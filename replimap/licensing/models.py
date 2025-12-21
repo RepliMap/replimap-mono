@@ -45,11 +45,24 @@ class LicenseStatus(str, Enum):
 
 
 class Feature(str, Enum):
-    """Available features that can be gated by plan."""
+    """
+    Available features that can be gated by plan.
 
-    # Core scanning
-    BASIC_SCAN = "basic_scan"
-    UNLIMITED_RESOURCES = "unlimited_resources"
+    Gate Philosophy: Gate at OUTPUT, not at SCAN.
+    - Scanning is always free (user experiences full value)
+    - Gating happens when users try to export/download
+
+    Core Principles:
+    - SCAN: Unlimited resources, frequency limited only
+    - GRAPH: Full viewing free, watermark on export
+    - CLONE: Full generation, download is paid
+    - AUDIT: Full scan, detailed findings are paid
+    - DRIFT: Fully paid feature
+    """
+
+    # Core scanning (always available, frequency limited for FREE)
+    SCAN = "scan"
+    SCAN_UNLIMITED_FREQUENCY = "scan_unlimited_frequency"
     ASYNC_SCANNING = "async_scanning"
 
     # Multi-account support
@@ -57,13 +70,38 @@ class Feature(str, Enum):
     MULTI_ACCOUNT = "multi_account"
     UNLIMITED_ACCOUNTS = "unlimited_accounts"
 
+    # Clone features (gate at DOWNLOAD, not generation)
+    CLONE_GENERATE = "clone_generate"  # Always available
+    CLONE_FULL_PREVIEW = "clone_full_preview"  # See all lines
+    CLONE_DOWNLOAD = "clone_download"  # Download to disk
+
+    # Graph features (gate at EXPORT, not viewing)
+    GRAPH_VIEW = "graph_view"  # Always available
+    GRAPH_EXPORT_NO_WATERMARK = "graph_export_no_watermark"
+
+    # Audit features (gate at DETAILS, not scan)
+    AUDIT_SCAN = "audit_scan"  # Always available
+    AUDIT_FULL_FINDINGS = "audit_full_findings"  # See all findings
+    AUDIT_REPORT_EXPORT = "audit_report_export"  # Export HTML/PDF
+    AUDIT_CI_MODE = "audit_ci_mode"  # --fail-on-high
+
+    # Drift features (Pro+ only)
+    DRIFT_DETECT = "drift_detect"
+    DRIFT_WATCH = "drift_watch"
+    DRIFT_ALERTS = "drift_alerts"
+
+    # Advanced features
+    COST_ESTIMATE = "cost_estimate"
+    BLAST_RADIUS = "blast_radius"
+
     # Transformation features
     BASIC_TRANSFORM = "basic_transform"
     ADVANCED_TRANSFORM = "advanced_transform"
     CUSTOM_TEMPLATES = "custom_templates"
 
-    # Output features
+    # Output format features
     TERRAFORM_OUTPUT = "terraform_output"
+    CLOUDFORMATION_OUTPUT = "cloudformation_output"
     PULUMI_OUTPUT = "pulumi_output"
     CDK_OUTPUT = "cdk_output"
 
@@ -79,138 +117,315 @@ class Feature(str, Enum):
     SLA_GUARANTEE = "sla_guarantee"
     CUSTOM_INTEGRATIONS = "custom_integrations"
 
+    # Legacy compatibility (mapped to new features)
+    BASIC_SCAN = "basic_scan"
+    UNLIMITED_RESOURCES = "unlimited_resources"
+
 
 @dataclass
 class PlanFeatures:
-    """Feature configuration for a plan tier."""
+    """
+    Feature configuration for a plan tier.
+
+    Gate Philosophy: Gate at OUTPUT, not at SCAN.
+    - max_resources_per_scan: DEPRECATED - always None (unlimited)
+    - Limits are on OUTPUT actions (download, export, view findings)
+    """
 
     plan: Plan
     price_monthly: int  # USD
-    max_resources_per_scan: int | None  # None = unlimited
+    price_annual_monthly: int  # USD, annual price per month
+
+    # Scan limits (frequency only - NO resource count limit!)
     max_scans_per_month: int | None  # None = unlimited
     max_aws_accounts: int | None  # None = unlimited
+
+    # Clone output limits
+    clone_preview_lines: int | None  # Lines shown in preview, None = full
+    clone_download_enabled: bool  # Can download generated code
+
+    # Audit output limits
+    audit_visible_findings: int | None  # Findings shown, None = all
+    audit_report_export: bool  # Can export HTML/PDF report
+    audit_ci_mode: bool  # Can use --fail-on-high
+
+    # Graph export limits
+    graph_export_watermark: bool  # Export has watermark
+
+    # Advanced features
+    drift_enabled: bool
+    drift_watch_enabled: bool
+    drift_alerts_enabled: bool
+    cost_enabled: bool
+    blast_enabled: bool
+
+    # Team features
+    max_team_members: int | None  # None = unlimited
+
+    # Feature set
     features: set[Feature] = field(default_factory=set)
+
+    # Legacy: kept for backwards compatibility, always None
+    max_resources_per_scan: int | None = None  # DEPRECATED: always unlimited
 
     def has_feature(self, feature: Feature) -> bool:
         """Check if this plan includes a feature."""
         return feature in self.features
 
     def can_scan_resources(self, count: int) -> bool:
-        """Check if the plan allows scanning this many resources."""
-        if self.max_resources_per_scan is None:
-            return True
-        return count <= self.max_resources_per_scan
+        """
+        Check if the plan allows scanning this many resources.
+
+        DEPRECATED: Always returns True. Resources are unlimited.
+        Gating happens at output time, not scan time.
+        """
+        return True  # Always allow scanning
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "plan": str(self.plan),
             "price_monthly": self.price_monthly,
-            "max_resources_per_scan": self.max_resources_per_scan,
+            "price_annual_monthly": self.price_annual_monthly,
             "max_scans_per_month": self.max_scans_per_month,
             "max_aws_accounts": self.max_aws_accounts,
+            "clone_preview_lines": self.clone_preview_lines,
+            "clone_download_enabled": self.clone_download_enabled,
+            "audit_visible_findings": self.audit_visible_findings,
+            "audit_report_export": self.audit_report_export,
+            "audit_ci_mode": self.audit_ci_mode,
+            "graph_export_watermark": self.graph_export_watermark,
+            "drift_enabled": self.drift_enabled,
+            "drift_watch_enabled": self.drift_watch_enabled,
+            "drift_alerts_enabled": self.drift_alerts_enabled,
+            "cost_enabled": self.cost_enabled,
+            "blast_enabled": self.blast_enabled,
+            "max_team_members": self.max_team_members,
             "features": [str(f) for f in self.features],
+            # Legacy field
+            "max_resources_per_scan": None,
         }
 
 
-# Plan feature configurations
+# =============================================================================
+# PLAN FEATURE CONFIGURATIONS
+#
+# Gate Strategy (核心原则):
+# - SCAN: Unlimited resources, limit frequency (3/month for FREE)
+# - GRAPH: Full visualization, watermark on export for FREE
+# - CLONE: Full generation, block download for FREE
+# - AUDIT: Full scan, limit visible findings for FREE
+# - DRIFT: Disabled for FREE and SOLO
+# =============================================================================
+
 PLAN_FEATURES: dict[Plan, PlanFeatures] = {
+    # =========================================================================
+    # FREE TIER - Experience everything, pay to export
+    # =========================================================================
     Plan.FREE: PlanFeatures(
         plan=Plan.FREE,
         price_monthly=0,
-        max_resources_per_scan=5,
+        price_annual_monthly=0,
+        # Scan: UNLIMITED resources, limited frequency
         max_scans_per_month=3,
         max_aws_accounts=1,
+        # Clone: Generate but NO download
+        clone_preview_lines=100,  # Show first 100 lines
+        clone_download_enabled=False,
+        # Audit: Scan all, show limited findings
+        audit_visible_findings=3,  # Show only 3 findings
+        audit_report_export=False,
+        audit_ci_mode=False,
+        # Graph: View all, watermark on export
+        graph_export_watermark=True,
+        # Advanced: Disabled
+        drift_enabled=False,
+        drift_watch_enabled=False,
+        drift_alerts_enabled=False,
+        cost_enabled=False,
+        blast_enabled=False,
+        # Team: Solo only
+        max_team_members=1,
         features={
-            Feature.BASIC_SCAN,
+            Feature.SCAN,
+            Feature.GRAPH_VIEW,
+            Feature.CLONE_GENERATE,
+            Feature.AUDIT_SCAN,
             Feature.SINGLE_ACCOUNT,
             Feature.BASIC_TRANSFORM,
             Feature.TERRAFORM_OUTPUT,
+            # Legacy compatibility
+            Feature.BASIC_SCAN,
         },
     ),
+    # =========================================================================
+    # SOLO TIER ($49/mo) - For individual developers
+    # =========================================================================
     Plan.SOLO: PlanFeatures(
         plan=Plan.SOLO,
         price_monthly=49,
-        max_resources_per_scan=None,  # Unlimited
+        price_annual_monthly=39,
         max_scans_per_month=None,  # Unlimited
         max_aws_accounts=1,
+        clone_preview_lines=None,  # Full preview
+        clone_download_enabled=True,  # Can download!
+        audit_visible_findings=None,  # All findings
+        audit_report_export=True,  # Can export
+        audit_ci_mode=False,  # CI mode is Pro
+        graph_export_watermark=False,  # No watermark
+        drift_enabled=False,  # Drift is Pro
+        drift_watch_enabled=False,
+        drift_alerts_enabled=False,
+        cost_enabled=False,
+        blast_enabled=False,
+        max_team_members=1,
         features={
-            Feature.BASIC_SCAN,
-            Feature.UNLIMITED_RESOURCES,
-            Feature.ASYNC_SCANNING,
+            Feature.SCAN,
+            Feature.SCAN_UNLIMITED_FREQUENCY,
+            Feature.GRAPH_VIEW,
+            Feature.GRAPH_EXPORT_NO_WATERMARK,
+            Feature.CLONE_GENERATE,
+            Feature.CLONE_DOWNLOAD,
+            Feature.CLONE_FULL_PREVIEW,
+            Feature.AUDIT_SCAN,
+            Feature.AUDIT_FULL_FINDINGS,
+            Feature.AUDIT_REPORT_EXPORT,
             Feature.SINGLE_ACCOUNT,
             Feature.BASIC_TRANSFORM,
             Feature.ADVANCED_TRANSFORM,
             Feature.TERRAFORM_OUTPUT,
+            Feature.ASYNC_SCANNING,
+            # Legacy compatibility
+            Feature.BASIC_SCAN,
+            Feature.UNLIMITED_RESOURCES,
         },
     ),
+    # =========================================================================
+    # PRO TIER ($99/mo) - For teams managing multiple environments
+    # =========================================================================
     Plan.PRO: PlanFeatures(
         plan=Plan.PRO,
         price_monthly=99,
-        max_resources_per_scan=None,
+        price_annual_monthly=79,
         max_scans_per_month=None,
-        max_aws_accounts=3,
+        max_aws_accounts=3,  # dev/staging/prod
+        clone_preview_lines=None,
+        clone_download_enabled=True,
+        audit_visible_findings=None,
+        audit_report_export=True,
+        audit_ci_mode=True,  # CI mode enabled!
+        graph_export_watermark=False,
+        drift_enabled=True,  # Drift enabled!
+        drift_watch_enabled=False,  # Watch is Team
+        drift_alerts_enabled=False,
+        cost_enabled=True,  # Cost enabled!
+        blast_enabled=False,
+        max_team_members=1,
         features={
-            Feature.BASIC_SCAN,
-            Feature.UNLIMITED_RESOURCES,
-            Feature.ASYNC_SCANNING,
+            Feature.SCAN,
+            Feature.SCAN_UNLIMITED_FREQUENCY,
+            Feature.GRAPH_VIEW,
+            Feature.GRAPH_EXPORT_NO_WATERMARK,
+            Feature.CLONE_GENERATE,
+            Feature.CLONE_DOWNLOAD,
+            Feature.CLONE_FULL_PREVIEW,
+            Feature.AUDIT_SCAN,
+            Feature.AUDIT_FULL_FINDINGS,
+            Feature.AUDIT_REPORT_EXPORT,
+            Feature.AUDIT_CI_MODE,
+            Feature.DRIFT_DETECT,
+            Feature.COST_ESTIMATE,
             Feature.MULTI_ACCOUNT,
             Feature.BASIC_TRANSFORM,
             Feature.ADVANCED_TRANSFORM,
             Feature.CUSTOM_TEMPLATES,
             Feature.TERRAFORM_OUTPUT,
+            Feature.CLOUDFORMATION_OUTPUT,
             Feature.PULUMI_OUTPUT,
             Feature.WEB_DASHBOARD,
+            Feature.ASYNC_SCANNING,
+            # Legacy compatibility
+            Feature.BASIC_SCAN,
+            Feature.UNLIMITED_RESOURCES,
         },
     ),
+    # =========================================================================
+    # TEAM TIER ($199/mo) - For DevOps teams with advanced needs
+    # =========================================================================
     Plan.TEAM: PlanFeatures(
         plan=Plan.TEAM,
         price_monthly=199,
-        max_resources_per_scan=None,
+        price_annual_monthly=149,
         max_scans_per_month=None,
         max_aws_accounts=10,
+        clone_preview_lines=None,
+        clone_download_enabled=True,
+        audit_visible_findings=None,
+        audit_report_export=True,
+        audit_ci_mode=True,
+        graph_export_watermark=False,
+        drift_enabled=True,
+        drift_watch_enabled=True,  # Watch mode!
+        drift_alerts_enabled=True,  # Alerts!
+        cost_enabled=True,
+        blast_enabled=True,  # Blast radius!
+        max_team_members=5,  # 5 members included
         features={
-            Feature.BASIC_SCAN,
-            Feature.UNLIMITED_RESOURCES,
-            Feature.ASYNC_SCANNING,
+            Feature.SCAN,
+            Feature.SCAN_UNLIMITED_FREQUENCY,
+            Feature.GRAPH_VIEW,
+            Feature.GRAPH_EXPORT_NO_WATERMARK,
+            Feature.CLONE_GENERATE,
+            Feature.CLONE_DOWNLOAD,
+            Feature.CLONE_FULL_PREVIEW,
+            Feature.AUDIT_SCAN,
+            Feature.AUDIT_FULL_FINDINGS,
+            Feature.AUDIT_REPORT_EXPORT,
+            Feature.AUDIT_CI_MODE,
+            Feature.DRIFT_DETECT,
+            Feature.DRIFT_WATCH,
+            Feature.DRIFT_ALERTS,
+            Feature.COST_ESTIMATE,
+            Feature.BLAST_RADIUS,
             Feature.MULTI_ACCOUNT,
             Feature.BASIC_TRANSFORM,
             Feature.ADVANCED_TRANSFORM,
             Feature.CUSTOM_TEMPLATES,
             Feature.TERRAFORM_OUTPUT,
+            Feature.CLOUDFORMATION_OUTPUT,
             Feature.PULUMI_OUTPUT,
             Feature.CDK_OUTPUT,
             Feature.WEB_DASHBOARD,
             Feature.COLLABORATION,
             Feature.SHARED_GRAPHS,
+            Feature.ASYNC_SCANNING,
+            # Legacy compatibility
+            Feature.BASIC_SCAN,
+            Feature.UNLIMITED_RESOURCES,
         },
     ),
+    # =========================================================================
+    # ENTERPRISE TIER ($499+/mo) - For organizations with compliance needs
+    # =========================================================================
     Plan.ENTERPRISE: PlanFeatures(
         plan=Plan.ENTERPRISE,
         price_monthly=499,  # Starting price
-        max_resources_per_scan=None,
+        price_annual_monthly=399,
         max_scans_per_month=None,
         max_aws_accounts=None,  # Unlimited
-        features={
-            Feature.BASIC_SCAN,
-            Feature.UNLIMITED_RESOURCES,
-            Feature.ASYNC_SCANNING,
-            Feature.UNLIMITED_ACCOUNTS,
-            Feature.BASIC_TRANSFORM,
-            Feature.ADVANCED_TRANSFORM,
-            Feature.CUSTOM_TEMPLATES,
-            Feature.TERRAFORM_OUTPUT,
-            Feature.PULUMI_OUTPUT,
-            Feature.CDK_OUTPUT,
-            Feature.WEB_DASHBOARD,
-            Feature.COLLABORATION,
-            Feature.SHARED_GRAPHS,
-            Feature.SSO,
-            Feature.AUDIT_LOGS,
-            Feature.PRIORITY_SUPPORT,
-            Feature.SLA_GUARANTEE,
-            Feature.CUSTOM_INTEGRATIONS,
-        },
+        clone_preview_lines=None,
+        clone_download_enabled=True,
+        audit_visible_findings=None,
+        audit_report_export=True,
+        audit_ci_mode=True,
+        graph_export_watermark=False,
+        drift_enabled=True,
+        drift_watch_enabled=True,
+        drift_alerts_enabled=True,
+        cost_enabled=True,
+        blast_enabled=True,
+        max_team_members=None,  # Unlimited
+        features=set(Feature),  # All features
     ),
 }
 
@@ -218,6 +433,56 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
 def get_plan_features(plan: Plan) -> PlanFeatures:
     """Get the feature configuration for a plan."""
     return PLAN_FEATURES[plan]
+
+
+def has_feature(plan: Plan, feature: Feature) -> bool:
+    """Check if a plan has a specific feature."""
+    return feature in PLAN_FEATURES[plan].features
+
+
+def get_upgrade_target(current_plan: Plan, required_feature: Feature) -> Plan | None:
+    """
+    Find the cheapest plan that has the required feature.
+
+    Args:
+        current_plan: User's current plan
+        required_feature: Feature they need
+
+    Returns:
+        The cheapest plan with the feature, or None if no upgrade available
+    """
+    plan_order = [Plan.FREE, Plan.SOLO, Plan.PRO, Plan.TEAM, Plan.ENTERPRISE]
+    current_idx = plan_order.index(current_plan)
+
+    for plan in plan_order[current_idx + 1 :]:
+        if has_feature(plan, required_feature):
+            return plan
+    return None
+
+
+def get_plan_for_limit(limit_type: str, required_value: int) -> Plan | None:
+    """
+    Find the cheapest plan that meets a limit requirement.
+
+    Args:
+        limit_type: Type of limit (e.g., "max_aws_accounts")
+        required_value: Minimum value needed
+
+    Returns:
+        The cheapest plan meeting the requirement
+    """
+    plan_order = [Plan.FREE, Plan.SOLO, Plan.PRO, Plan.TEAM, Plan.ENTERPRISE]
+
+    for plan in plan_order:
+        features = PLAN_FEATURES[plan]
+        limit_value = getattr(features, limit_type, None)
+
+        if limit_value is None:  # Unlimited
+            return plan
+        if limit_value >= required_value:
+            return plan
+
+    return Plan.ENTERPRISE
 
 
 @dataclass

@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from replimap.drift.comparator import DriftComparator
 from replimap.drift.models import DriftReport, DriftType
-from replimap.drift.state_parser import TerraformStateParser, TFState
+from replimap.drift.state_parser import TerraformStateParser
 
 if TYPE_CHECKING:
     import boto3
@@ -22,7 +22,7 @@ class DriftEngine:
 
     def __init__(
         self,
-        session: "boto3.Session",
+        session: boto3.Session,
         region: str,
         profile: str | None = None,
     ) -> None:
@@ -41,9 +41,9 @@ class DriftEngine:
 
     def detect(
         self,
-        state_path: Optional[Path] = None,
-        remote_backend: Optional[dict[str, str]] = None,
-        vpc_id: Optional[str] = None,
+        state_path: Path | None = None,
+        remote_backend: dict[str, str] | None = None,
+        vpc_id: str | None = None,
     ) -> DriftReport:
         """Run drift detection.
 
@@ -85,7 +85,9 @@ class DriftEngine:
         # Filter by VPC if specified
         if vpc_id:
             actual_resources = self._filter_by_vpc(actual_resources, vpc_id)
-            logger.info(f"Filtered to {len(actual_resources)} resources in VPC {vpc_id}")
+            logger.info(
+                f"Filtered to {len(actual_resources)} resources in VPC {vpc_id}"
+            )
 
         # 3. Build lookup maps
         tf_by_id = {r.id: r for r in tf_state.resources}
@@ -115,7 +117,9 @@ class DriftEngine:
         drifts.extend(added)
 
         # Check for removed resources (in TF but not in AWS)
-        removed = self.comparator.identify_removed_resources(tf_state.resources, actual_ids)
+        removed = self.comparator.identify_removed_resources(
+            tf_state.resources, actual_ids
+        )
         drifts.extend(removed)
 
         # 5. Build report
@@ -125,15 +129,21 @@ class DriftEngine:
             total_resources=len(tf_ids | actual_ids),
             drifted_resources=len(drifts),
             added_resources=len([d for d in drifts if d.drift_type == DriftType.ADDED]),
-            removed_resources=len([d for d in drifts if d.drift_type == DriftType.REMOVED]),
-            modified_resources=len([d for d in drifts if d.drift_type == DriftType.MODIFIED]),
+            removed_resources=len(
+                [d for d in drifts if d.drift_type == DriftType.REMOVED]
+            ),
+            modified_resources=len(
+                [d for d in drifts if d.drift_type == DriftType.MODIFIED]
+            ),
             drifts=drifts,
             state_file=state_source,
             region=self.region,
             scan_duration_seconds=round(end_time - start_time, 2),
         )
 
-        logger.info(f"Drift detection complete: {report.drifted_resources} drifts found")
+        logger.info(
+            f"Drift detection complete: {report.drifted_resources} drifts found"
+        )
 
         return report
 

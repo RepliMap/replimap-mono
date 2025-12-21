@@ -114,7 +114,11 @@ RESOURCE_VISUALS: dict[str, dict[str, str]] = {
     "aws_route_table": {"icon": "RT", "color": "#06b6d4", "group": "network"},
     "aws_internet_gateway": {"icon": "IGW", "color": "#0ea5e9", "group": "network"},
     "aws_db_subnet_group": {"icon": "DSG", "color": "#7c3aed", "group": "database"},
-    "aws_elasticache_subnet_group": {"icon": "ESG", "color": "#dc2626", "group": "database"},
+    "aws_elasticache_subnet_group": {
+        "icon": "ESG",
+        "color": "#dc2626",
+        "group": "database",
+    },
     "aws_sqs_queue": {"icon": "SQS", "color": "#f472b6", "group": "messaging"},
     "aws_sns_topic": {"icon": "SNS", "color": "#fb7185", "group": "messaging"},
     "aws_ebs_volume": {"icon": "EBS", "color": "#a78bfa", "group": "storage"},
@@ -137,7 +141,7 @@ class GraphVisualizer:
 
     def __init__(
         self,
-        session: "boto3.Session",
+        session: boto3.Session,
         region: str,
         profile: str | None = None,
     ) -> None:
@@ -206,7 +210,7 @@ class GraphVisualizer:
             return output_path
         return content
 
-    def _filter_by_vpc(self, graph: "GraphEngine", vpc_id: str) -> "GraphEngine":
+    def _filter_by_vpc(self, graph: GraphEngine, vpc_id: str) -> GraphEngine:
         """Filter graph to only include resources in a specific VPC."""
         from replimap.core.models import ResourceType
 
@@ -236,7 +240,7 @@ class GraphVisualizer:
 
         return graph.get_subgraph(list(vpc_resource_ids))
 
-    def _to_visualization_graph(self, graph: "GraphEngine") -> VisualizationGraph:
+    def _to_visualization_graph(self, graph: GraphEngine) -> VisualizationGraph:
         """Convert GraphEngine to visualization graph."""
         nodes: list[GraphNode] = []
         edges: list[GraphEdge] = []
@@ -288,7 +292,7 @@ class GraphVisualizer:
             },
         )
 
-    def _extract_key_properties(self, resource: "ResourceNode") -> dict[str, Any]:
+    def _extract_key_properties(self, resource: ResourceNode) -> dict[str, Any]:
         """Extract key properties for display."""
         props: dict[str, Any] = {}
         config = resource.config

@@ -1,5 +1,6 @@
 """Drift detection module for RepliMap."""
 
+from replimap.drift.engine import DriftEngine
 from replimap.drift.models import (
     AttributeDiff,
     DriftReport,
@@ -7,7 +8,6 @@ from replimap.drift.models import (
     DriftType,
     ResourceDrift,
 )
-from replimap.drift.engine import DriftEngine
 from replimap.drift.reporter import DriftReporter
 from replimap.drift.state_parser import TerraformStateParser, TFResource, TFState
 
