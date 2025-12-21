@@ -572,7 +572,9 @@ def get_machine_fingerprint() -> str:
     # Try to get MAC address
     try:
         mac = uuid.getnode()
-        if mac != uuid.getnode():  # Check for random MAC
+        # Check if MAC is stable (not random) by calling twice
+        # uuid.getnode() returns a random value if no real MAC is available
+        if mac == uuid.getnode():  # MAC is stable, use it
             components.append(str(mac))
     except OSError:
         # MAC address not available on this platform
