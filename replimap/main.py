@@ -1861,6 +1861,84 @@ def _output_audit_json(
     return json_path
 
 
+def _generate_remediation(results: CheckovResults, output_dir: Path) -> None:
+    """
+    Generate Terraform remediation code from audit results.
+
+    Args:
+        results: Checkov scan results containing findings
+        output_dir: Directory to write remediation files
+    """
+    from replimap.audit.remediation import RemediationGenerator
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold blue]🔧 Generating Remediation Code[/bold blue]\n\n"
+            f"Output: [cyan]{output_dir}[/]",
+            border_style="blue",
+        )
+    )
+
+    generator = RemediationGenerator(results.findings, output_dir)
+    plan = generator.generate()
+
+    if plan.files:
+        # Write all files
+        written = plan.write_all(output_dir)
+
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Remediation Generated[/bold]\n\n"
+                f"[green]✓ Files:[/] {len(plan.files)}\n"
+                f"[green]✓ Coverage:[/] {plan.coverage_percent}%\n"
+                f"[dim]Skipped:[/] {plan.skipped_findings} (no template available)",
+                title="🔧 Remediation Summary",
+                border_style="green",
+            )
+        )
+
+        # Show by severity
+        by_severity = plan.files_by_severity()
+        from replimap.audit.remediation.models import RemediationSeverity
+
+        severity_info = []
+        if by_severity[RemediationSeverity.CRITICAL]:
+            severity_info.append(f"[red]CRITICAL: {len(by_severity[RemediationSeverity.CRITICAL])}[/]")
+        if by_severity[RemediationSeverity.HIGH]:
+            severity_info.append(f"[orange1]HIGH: {len(by_severity[RemediationSeverity.HIGH])}[/]")
+        if by_severity[RemediationSeverity.MEDIUM]:
+            severity_info.append(f"[yellow]MEDIUM: {len(by_severity[RemediationSeverity.MEDIUM])}[/]")
+        if by_severity[RemediationSeverity.LOW]:
+            severity_info.append(f"[green]LOW: {len(by_severity[RemediationSeverity.LOW])}[/]")
+
+        if severity_info:
+            console.print(f"  Fixes by severity: {' | '.join(severity_info)}")
+
+        console.print()
+        console.print(f"[green]✓ Remediation:[/] {output_dir.absolute()}")
+        console.print(f"[green]✓ README:[/] {output_dir.absolute()}/README.md")
+
+        if plan.has_imports:
+            console.print(f"[yellow]⚠ Import script:[/] {output_dir.absolute()}/import.sh")
+            console.print()
+            console.print(
+                "[dim]Some fixes require terraform import. "
+                "Run import.sh before terraform apply.[/dim]"
+            )
+
+        if plan.warnings:
+            console.print()
+            for warning in plan.warnings:
+                console.print(f"[yellow]⚠[/] {warning}")
+    else:
+        console.print()
+        console.print(
+            "[yellow]No remediation templates available for the detected findings.[/yellow]"
+        )
+
+
 @app.command()
 def audit(
     profile: str | None = typer.Option(
@@ -1919,6 +1997,16 @@ def audit(
         "-f",
         help="Output format: html or json",
     ),
+    fix: bool = typer.Option(
+        False,
+        "--fix",
+        help="Generate Terraform remediation code for findings",
+    ),
+    fix_output: Path = typer.Option(
+        Path("./remediation"),
+        "--fix-output",
+        help="Directory for remediation Terraform files",
+    ),
 ) -> None:
     """
     Run security audit on AWS infrastructure.
@@ -1936,6 +2024,7 @@ def audit(
         replimap audit -r us-east-1 --fail-on-high --no-open  # CI/CD mode
         replimap audit -r us-east-1 --fail-on-score 70 --no-open
         replimap audit -r us-east-1 --format json
+        replimap audit -r us-east-1 --fix --fix-output ./remediation
     """
     import webbrowser
 
@@ -2073,6 +2162,10 @@ def audit(
             console.print()
             console.print("[dim]Opening report in browser...[/dim]")
             webbrowser.open(f"file://{report_path.absolute()}")
+
+    # Generate remediation if requested
+    if fix and results.findings:
+        _generate_remediation(results, fix_output)
 
     # CI/CD checks
     exit_code = 0
@@ -3202,6 +3295,143 @@ def upgrade_default(ctx: typer.Context) -> None:
         console.print()
         console.print(f"[dim]Opening {PRICING_URL}...[/dim]")
         webbrowser.open(PRICING_URL)
+
+
+# =============================================================================
+# REMEDIATE COMMAND
+# =============================================================================
+
+
+@app.command()
+def remediate(
+    input_file: Path = typer.Argument(
+        ...,
+        help="Path to audit JSON file (from: replimap audit --format json)",
+    ),
+    output: Path = typer.Option(
+        Path("./remediation"),
+        "--output",
+        "-o",
+        help="Directory for remediation Terraform files",
+    ),
+) -> None:
+    """
+    Generate Terraform remediation code from an audit JSON file.
+
+    This command reads a JSON audit report (generated by `replimap audit --format json`)
+    and generates Terraform code to fix the detected security issues.
+
+    Examples:
+        replimap remediate audit_report.json
+        replimap remediate audit_report.json --output ./fixes
+    """
+    from replimap.audit.checkov_runner import CheckovFinding
+    from replimap.audit.remediation import RemediationGenerator
+    from replimap.audit.remediation.models import RemediationSeverity
+
+    if not input_file.exists():
+        console.print(f"[red]Error: File not found: {input_file}[/]")
+        raise typer.Exit(1)
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold blue]🔧 RepliMap Remediation Generator[/bold blue]\n\n"
+            f"Input: [cyan]{input_file}[/]\n"
+            f"Output: [cyan]{output}[/]",
+            border_style="blue",
+        )
+    )
+
+    # Load the audit JSON
+    try:
+        data = json.loads(input_file.read_text())
+    except json.JSONDecodeError as e:
+        console.print(f"[red]Error: Invalid JSON file: {e}[/]")
+        raise typer.Exit(1)
+
+    # Extract findings from JSON
+    findings: list[CheckovFinding] = []
+    for f in data.get("findings", []):
+        try:
+            finding = CheckovFinding(
+                check_id=f.get("check_id", "UNKNOWN"),
+                check_name=f.get("check_name", "Unknown"),
+                severity=f.get("severity", "MEDIUM"),
+                resource=f.get("resource", "Unknown"),
+                file_path=f.get("file_path", ""),
+                file_line_range=tuple(f.get("line_range", [0, 0])),
+                guideline=f.get("guideline"),
+            )
+            findings.append(finding)
+        except Exception as e:
+            console.print(f"[yellow]Warning: Skipping malformed finding: {e}[/]")
+
+    if not findings:
+        console.print("[yellow]No findings to remediate.[/yellow]")
+        raise typer.Exit(0)
+
+    console.print(f"\n[dim]Found {len(findings)} findings in audit report...[/dim]")
+
+    # Generate remediation
+    generator = RemediationGenerator(findings, output)
+    plan = generator.generate()
+
+    if plan.files:
+        # Write all files
+        plan.write_all(output)
+
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]Remediation Generated[/bold]\n\n"
+                f"[green]✓ Files:[/] {len(plan.files)}\n"
+                f"[green]✓ Coverage:[/] {plan.coverage_percent}%\n"
+                f"[dim]Skipped:[/] {plan.skipped_findings} (no template available)",
+                title="🔧 Remediation Summary",
+                border_style="green",
+            )
+        )
+
+        # Show by severity
+        by_severity = plan.files_by_severity()
+
+        severity_info = []
+        if by_severity[RemediationSeverity.CRITICAL]:
+            severity_info.append(f"[red]CRITICAL: {len(by_severity[RemediationSeverity.CRITICAL])}[/]")
+        if by_severity[RemediationSeverity.HIGH]:
+            severity_info.append(f"[orange1]HIGH: {len(by_severity[RemediationSeverity.HIGH])}[/]")
+        if by_severity[RemediationSeverity.MEDIUM]:
+            severity_info.append(f"[yellow]MEDIUM: {len(by_severity[RemediationSeverity.MEDIUM])}[/]")
+        if by_severity[RemediationSeverity.LOW]:
+            severity_info.append(f"[green]LOW: {len(by_severity[RemediationSeverity.LOW])}[/]")
+
+        if severity_info:
+            console.print(f"  Fixes by severity: {' | '.join(severity_info)}")
+
+        console.print()
+        console.print(f"[green]✓ Remediation:[/] {output.absolute()}")
+        console.print(f"[green]✓ README:[/] {output.absolute()}/README.md")
+
+        if plan.has_imports:
+            console.print(f"[yellow]⚠ Import script:[/] {output.absolute()}/import.sh")
+            console.print()
+            console.print(
+                "[dim]Some fixes require terraform import. "
+                "Run import.sh before terraform apply.[/dim]"
+            )
+
+        if plan.warnings:
+            console.print()
+            for warning in plan.warnings:
+                console.print(f"[yellow]⚠[/] {warning}")
+    else:
+        console.print()
+        console.print(
+            "[yellow]No remediation templates available for the detected findings.[/yellow]"
+        )
+
+    console.print()
 
 
 def cli() -> None:
