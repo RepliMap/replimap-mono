@@ -190,6 +190,14 @@ export const Errors = {
     );
   },
 
+  unauthorized(message: string = 'Unauthorized'): AppError {
+    return new AppError(
+      'UNAUTHORIZED',
+      message,
+      401
+    );
+  },
+
   internal(message: string = 'An unexpected error occurred'): AppError {
     return new AppError(
       'INTERNAL_ERROR',

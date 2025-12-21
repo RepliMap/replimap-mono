@@ -137,6 +137,97 @@ WHERE changed_at >= datetime('now', 'start of month')
 GROUP BY license_id, strftime('%Y-%m', changed_at);
 
 -- ============================================================================
+-- Feature Usage Events (new detailed tracking)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS usage_events (
+    id TEXT PRIMARY KEY,
+    license_id TEXT NOT NULL REFERENCES licenses(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    region TEXT,
+    vpc_id TEXT,
+    resource_count INTEGER DEFAULT 0,
+    duration_ms INTEGER,
+    metadata TEXT,  -- JSON string
+    original_event_type TEXT,  -- Track deprecated event names (e.g., 'blast' when 'deps' was recorded)
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_events_license ON usage_events(license_id);
+CREATE INDEX IF NOT EXISTS idx_usage_events_type ON usage_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_usage_events_date ON usage_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_usage_events_license_type ON usage_events(license_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_usage_events_deps ON usage_events(license_id, event_type)
+    WHERE event_type IN ('deps', 'deps_export', 'deps_explore');
+
+-- ============================================================================
+-- Snapshot Storage
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS snapshots (
+    id TEXT PRIMARY KEY,
+    license_id TEXT NOT NULL REFERENCES licenses(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    region TEXT NOT NULL,
+    vpc_id TEXT,
+    resource_count INTEGER DEFAULT 0,
+    profile TEXT,
+    replimap_version TEXT,
+    storage_type TEXT DEFAULT 'local',
+    storage_path TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_license ON snapshots(license_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_name ON snapshots(license_id, name);
+CREATE INDEX IF NOT EXISTS idx_snapshots_created ON snapshots(created_at);
+
+-- ============================================================================
+-- Remediation Tracking
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS remediations (
+    id TEXT PRIMARY KEY,
+    license_id TEXT NOT NULL REFERENCES licenses(id) ON DELETE CASCADE,
+    audit_id TEXT,
+    region TEXT NOT NULL,
+    total_findings INTEGER DEFAULT 0,
+    total_fixable INTEGER DEFAULT 0,
+    total_manual INTEGER DEFAULT 0,
+    files_generated INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_remediations_license ON remediations(license_id);
+CREATE INDEX IF NOT EXISTS idx_remediations_created ON remediations(created_at);
+
+-- ============================================================================
+-- Migrations Log
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS migrations_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    migration_name TEXT NOT NULL UNIQUE,
+    executed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    notes TEXT
+);
+
+-- ============================================================================
+-- Feature Usage Summary View
+-- ============================================================================
+
+CREATE VIEW IF NOT EXISTS feature_usage_summary AS
+SELECT
+    license_id,
+    event_type,
+    COUNT(*) as total_count,
+    COUNT(CASE WHEN created_at > datetime('now', '-30 days') THEN 1 END) as last_30_days,
+    COUNT(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 END) as last_7_days,
+    MAX(created_at) as last_used
+FROM usage_events
+GROUP BY license_id, event_type;
+
+-- ============================================================================
 -- Cleanup: Remove old processed events (run via scheduled worker)
 -- DELETE FROM processed_events WHERE processed_at < datetime('now', '-30 days');
 -- ============================================================================

@@ -26,6 +26,7 @@ export {
   handleGetUsage,
   handleGetUsageHistory,
   handleCheckQuota,
+  handleTrackEvent,
 } from './usage';
 
 // Billing handlers
@@ -40,3 +41,19 @@ export {
   handleGetOwnMachines,
   handleResendKey,
 } from './user';
+
+// Features handlers
+export {
+  handleGetFeatures,
+  handleCheckFeature,
+  handleGetFeatureFlags,
+} from './features';
+
+// Metrics handlers
+export {
+  handleGetAdoption,
+  handleGetConversion,
+  handleGetRemediationImpact,
+  handleGetSnapshotUsage,
+  handleGetDepsUsage,
+} from './metrics';
