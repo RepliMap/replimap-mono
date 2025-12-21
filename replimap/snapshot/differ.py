@@ -26,12 +26,23 @@ HIGH_SEVERITY_ATTRIBUTES: dict[str, list[str]] = {
     "aws_iam_policy": ["policy", "policy_document"],
     "aws_s3_bucket": ["acl", "policy", "public_access_block", "website"],
     "aws_s3_bucket_policy": ["policy"],
-    "aws_db_instance": ["publicly_accessible", "storage_encrypted", "iam_database_authentication_enabled"],
-    "aws_instance": ["security_groups", "vpc_security_group_ids", "iam_instance_profile"],
+    "aws_db_instance": [
+        "publicly_accessible",
+        "storage_encrypted",
+        "iam_database_authentication_enabled",
+    ],
+    "aws_instance": [
+        "security_groups",
+        "vpc_security_group_ids",
+        "iam_instance_profile",
+    ],
     "aws_lb": ["internal", "security_groups"],
     "aws_vpc": ["enable_dns_support", "enable_dns_hostnames"],
     "aws_kms_key": ["policy", "key_rotation_enabled"],
-    "aws_elasticache_cluster": ["transit_encryption_enabled", "at_rest_encryption_enabled"],
+    "aws_elasticache_cluster": [
+        "transit_encryption_enabled",
+        "at_rest_encryption_enabled",
+    ],
 }
 
 # Resource types that are critical (changes are always high/critical severity)
@@ -85,9 +96,7 @@ class SnapshotDiffer:
             ignore_attributes: Attributes to ignore in comparisons
                 (uses DEFAULT_IGNORE_ATTRIBUTES if not provided)
         """
-        self.ignore_attributes = set(
-            ignore_attributes or DEFAULT_IGNORE_ATTRIBUTES
-        )
+        self.ignore_attributes = set(ignore_attributes or DEFAULT_IGNORE_ATTRIBUTES)
 
     def diff(
         self,
@@ -191,10 +200,7 @@ class SnapshotDiffer:
         total_unchanged = len(common_ids) - total_modified
 
         # Identify critical changes
-        critical_changes = [
-            c for c in changes
-            if c.severity in ("critical", "high")
-        ]
+        critical_changes = [c for c in changes if c.severity in ("critical", "high")]
 
         return SnapshotDiff(
             baseline_name=baseline.name,
@@ -273,6 +279,7 @@ class SnapshotDiffer:
         if list1 and isinstance(list1[0], dict):
             try:
                 import json
+
                 sorted1 = sorted(
                     list1, key=lambda x: json.dumps(x, sort_keys=True, default=str)
                 )
@@ -346,8 +353,16 @@ class SnapshotDiffer:
 
         # Security-related attributes are always high
         security_keywords = [
-            "security", "policy", "iam", "ingress", "egress",
-            "public", "encrypted", "password", "secret", "kms",
+            "security",
+            "policy",
+            "iam",
+            "ingress",
+            "egress",
+            "public",
+            "encrypted",
+            "password",
+            "secret",
+            "kms",
         ]
         for attr in changed_attrs:
             attr_lower = attr.lower()

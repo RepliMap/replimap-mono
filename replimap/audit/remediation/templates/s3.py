@@ -38,7 +38,11 @@ def generate_s3_encryption(
     safe_name = _sanitize_resource_name(resource_name)
 
     if use_kms:
-        kms_key_line = f'  kms_master_key_id = "{kms_key_id}"' if kms_key_id else "  kms_master_key_id = aws_kms_key.s3.arn"
+        kms_key_line = (
+            f'  kms_master_key_id = "{kms_key_id}"'
+            if kms_key_id
+            else "  kms_master_key_id = aws_kms_key.s3.arn"
+        )
         return f'''# S3 Bucket Encryption - KMS
 # Remediates: CKV_AWS_19, CKV_AWS_145
 # Bucket: {bucket_name}

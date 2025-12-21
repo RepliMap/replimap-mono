@@ -110,7 +110,9 @@ class SnapshotReporter:
                 for change in added[:max_display]:
                     self._print_change(change)
                 if len(added) > max_display:
-                    console.print(f"[dim]  ... and {len(added) - max_display} more[/dim]")
+                    console.print(
+                        f"[dim]  ... and {len(added) - max_display} more[/dim]"
+                    )
                 console.print()
 
             if removed:
@@ -118,7 +120,9 @@ class SnapshotReporter:
                 for change in removed[:max_display]:
                     self._print_change(change)
                 if len(removed) > max_display:
-                    console.print(f"[dim]  ... and {len(removed) - max_display} more[/dim]")
+                    console.print(
+                        f"[dim]  ... and {len(removed) - max_display} more[/dim]"
+                    )
                 console.print()
 
             if modified:
@@ -126,7 +130,9 @@ class SnapshotReporter:
                 for change in modified[:max_display]:
                     self._print_change(change, show_diff=verbose)
                 if len(modified) > max_display:
-                    console.print(f"[dim]  ... and {len(modified) - max_display} more[/dim]")
+                    console.print(
+                        f"[dim]  ... and {len(modified) - max_display} more[/dim]"
+                    )
 
     def _print_change(
         self,
@@ -368,9 +374,9 @@ This report supports the following SOC2 Trust Service Criteria:
                 by_type_rows += f"""
                 <tr>
                     <td class="px-4 py-2">{rtype}</td>
-                    <td class="px-4 py-2 text-green-600">{counts['added'] or '-'}</td>
-                    <td class="px-4 py-2 text-red-600">{counts['removed'] or '-'}</td>
-                    <td class="px-4 py-2 text-yellow-600">{counts['modified'] or '-'}</td>
+                    <td class="px-4 py-2 text-green-600">{counts["added"] or "-"}</td>
+                    <td class="px-4 py-2 text-red-600">{counts["removed"] or "-"}</td>
+                    <td class="px-4 py-2 text-yellow-600">{counts["modified"] or "-"}</td>
                 </tr>
                 """
 

@@ -22,7 +22,10 @@ This is a Pro+ feature ($99/mo).
 """
 
 from replimap.dependencies.graph_builder import DependencyGraphBuilder
-from replimap.dependencies.impact_calculator import RESOURCE_IMPACT_SCORES, ImpactCalculator
+from replimap.dependencies.impact_calculator import (
+    RESOURCE_IMPACT_SCORES,
+    ImpactCalculator,
+)
 from replimap.dependencies.models import (
     DISCLAIMER_FULL,
     DISCLAIMER_SHORT,

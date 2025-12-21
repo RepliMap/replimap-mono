@@ -421,9 +421,7 @@ class GraphBuilder:
             "after_grouping": final_count,
             "reduction": reduction,
             "reduction_percent": (
-                round(reduction / original_count * 100, 1)
-                if original_count > 0
-                else 0
+                round(reduction / original_count * 100, 1) if original_count > 0 else 0
             ),
             "grouping": group_summary,
             "filter_summary": self.config.filter.get_summary(),

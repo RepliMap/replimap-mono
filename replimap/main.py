@@ -1905,13 +1905,21 @@ def _generate_remediation(results: CheckovResults, output_dir: Path) -> None:
 
         severity_info = []
         if by_severity[RemediationSeverity.CRITICAL]:
-            severity_info.append(f"[red]CRITICAL: {len(by_severity[RemediationSeverity.CRITICAL])}[/]")
+            severity_info.append(
+                f"[red]CRITICAL: {len(by_severity[RemediationSeverity.CRITICAL])}[/]"
+            )
         if by_severity[RemediationSeverity.HIGH]:
-            severity_info.append(f"[orange1]HIGH: {len(by_severity[RemediationSeverity.HIGH])}[/]")
+            severity_info.append(
+                f"[orange1]HIGH: {len(by_severity[RemediationSeverity.HIGH])}[/]"
+            )
         if by_severity[RemediationSeverity.MEDIUM]:
-            severity_info.append(f"[yellow]MEDIUM: {len(by_severity[RemediationSeverity.MEDIUM])}[/]")
+            severity_info.append(
+                f"[yellow]MEDIUM: {len(by_severity[RemediationSeverity.MEDIUM])}[/]"
+            )
         if by_severity[RemediationSeverity.LOW]:
-            severity_info.append(f"[green]LOW: {len(by_severity[RemediationSeverity.LOW])}[/]")
+            severity_info.append(
+                f"[green]LOW: {len(by_severity[RemediationSeverity.LOW])}[/]"
+            )
 
         if severity_info:
             console.print(f"  Fixes by severity: {' | '.join(severity_info)}")
@@ -1921,7 +1929,9 @@ def _generate_remediation(results: CheckovResults, output_dir: Path) -> None:
         console.print(f"[green]✓ README:[/] {output_dir.absolute()}/README.md")
 
         if plan.has_imports:
-            console.print(f"[yellow]⚠ Import script:[/] {output_dir.absolute()}/import.sh")
+            console.print(
+                f"[yellow]⚠ Import script:[/] {output_dir.absolute()}/import.sh"
+            )
             console.print()
             console.print(
                 "[dim]Some fixes require terraform import. "
@@ -3497,13 +3507,21 @@ def remediate(
 
         severity_info = []
         if by_severity[RemediationSeverity.CRITICAL]:
-            severity_info.append(f"[red]CRITICAL: {len(by_severity[RemediationSeverity.CRITICAL])}[/]")
+            severity_info.append(
+                f"[red]CRITICAL: {len(by_severity[RemediationSeverity.CRITICAL])}[/]"
+            )
         if by_severity[RemediationSeverity.HIGH]:
-            severity_info.append(f"[orange1]HIGH: {len(by_severity[RemediationSeverity.HIGH])}[/]")
+            severity_info.append(
+                f"[orange1]HIGH: {len(by_severity[RemediationSeverity.HIGH])}[/]"
+            )
         if by_severity[RemediationSeverity.MEDIUM]:
-            severity_info.append(f"[yellow]MEDIUM: {len(by_severity[RemediationSeverity.MEDIUM])}[/]")
+            severity_info.append(
+                f"[yellow]MEDIUM: {len(by_severity[RemediationSeverity.MEDIUM])}[/]"
+            )
         if by_severity[RemediationSeverity.LOW]:
-            severity_info.append(f"[green]LOW: {len(by_severity[RemediationSeverity.LOW])}[/]")
+            severity_info.append(
+                f"[green]LOW: {len(by_severity[RemediationSeverity.LOW])}[/]"
+            )
 
         if severity_info:
             console.print(f"  Fixes by severity: {' | '.join(severity_info)}")
@@ -3641,7 +3659,11 @@ def snapshot_save(
         filtered_resources = []
         for resource in graph.get_all_resources():
             resource_vpc = resource.config.get("vpc_id") or resource.config.get("VpcId")
-            if resource_vpc == vpc or resource.id == vpc or vpc in resource.dependencies:
+            if (
+                resource_vpc == vpc
+                or resource.id == vpc
+                or vpc in resource.dependencies
+            ):
                 filtered_resources.append(resource)
         resources = filtered_resources
     else:
@@ -3903,7 +3925,9 @@ def snapshot_diff(
         if not current_snap:
             console.print(f"[red]Current snapshot not found: {current}[/red]")
             raise typer.Exit(1)
-        console.print(f"Current: [cyan]{current_snap.name}[/] ({current_snap.created_at[:19]})")
+        console.print(
+            f"Current: [cyan]{current_snap.name}[/] ({current_snap.created_at[:19]})"
+        )
     else:
         # Scan current state
         console.print()
@@ -3927,7 +3951,9 @@ def snapshot_diff(
         if baseline_snap.vpc_id:
             filtered_resources = []
             for resource in graph.get_all_resources():
-                resource_vpc = resource.config.get("vpc_id") or resource.config.get("VpcId")
+                resource_vpc = resource.config.get("vpc_id") or resource.config.get(
+                    "VpcId"
+                )
                 if (
                     resource_vpc == baseline_snap.vpc_id
                     or resource.id == baseline_snap.vpc_id

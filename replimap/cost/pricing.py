@@ -546,7 +546,9 @@ class PricingLookup:
         return base * multiplier
 
 
-def get_pricing_info(resource_type: str, config: dict[str, Any] | None = None) -> PricingInfo:
+def get_pricing_info(
+    resource_type: str, config: dict[str, Any] | None = None
+) -> PricingInfo:
     """Get pricing info for a resource type."""
     config = config or {}
 

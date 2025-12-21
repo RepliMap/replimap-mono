@@ -53,7 +53,9 @@ class BlastNode:
 
     # Dependencies
     depends_on: list[str] = field(default_factory=list)  # Resources this depends on
-    depended_by: list[str] = field(default_factory=list)  # Resources that depend on this
+    depended_by: list[str] = field(
+        default_factory=list
+    )  # Resources that depend on this
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""

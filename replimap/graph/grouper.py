@@ -128,21 +128,25 @@ class GroupingConfig:
     enabled: bool = True
     strategy: GroupingStrategy = GroupingStrategy.BY_SUBNET
     collapse_threshold: int = DEFAULT_COLLAPSE_THRESHOLD
-    collapse_types: set[str] = field(default_factory=lambda: {
-        "aws_instance",
-        "aws_security_group_rule",
-        "aws_route",
-        "aws_ebs_volume",
-        "aws_lb_target_group",
-    })
-    never_collapse: set[str] = field(default_factory=lambda: {
-        "aws_vpc",
-        "aws_subnet",
-        "aws_db_instance",
-        "aws_lb",
-        "aws_nat_gateway",
-        "aws_internet_gateway",
-    })
+    collapse_types: set[str] = field(
+        default_factory=lambda: {
+            "aws_instance",
+            "aws_security_group_rule",
+            "aws_route",
+            "aws_ebs_volume",
+            "aws_lb_target_group",
+        }
+    )
+    never_collapse: set[str] = field(
+        default_factory=lambda: {
+            "aws_vpc",
+            "aws_subnet",
+            "aws_db_instance",
+            "aws_lb",
+            "aws_nat_gateway",
+            "aws_internet_gateway",
+        }
+    )
 
     @classmethod
     def disabled(cls) -> GroupingConfig:
@@ -384,9 +388,7 @@ class ResourceGrouper:
             "after_grouping": total_after,
             "reduction": reduction,
             "reduction_percent": (
-                round(reduction / total_original * 100, 1)
-                if total_original > 0
-                else 0
+                round(reduction / total_original * 100, 1) if total_original > 0 else 0
             ),
             "ungrouped_count": len(resources),
             "group_count": len(groups),

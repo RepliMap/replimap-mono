@@ -233,10 +233,12 @@ class GraphVisualizer:
         viz_graph = builder.build(graph, vpc_id=vpc_id)
 
         # Add region/profile to metadata
-        viz_graph.metadata.update({
-            "region": self.region,
-            "profile": self.profile,
-        })
+        viz_graph.metadata.update(
+            {
+                "region": self.region,
+                "profile": self.profile,
+            }
+        )
 
         # 5. Format output
         if output_format == OutputFormat.MERMAID:

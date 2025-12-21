@@ -329,7 +329,9 @@ class CostEstimate:
             "top_resources": [r.to_dict() for r in self.top_resources],
             "resource_costs": [r.to_dict() for r in self.resource_costs],
             "optimization": {
-                "potential_monthly_savings": round(self.total_optimization_potential, 2),
+                "potential_monthly_savings": round(
+                    self.total_optimization_potential, 2
+                ),
                 "potential_percentage": round(self.optimization_percentage, 1),
                 "recommendations": [r.to_dict() for r in self.recommendations],
             },

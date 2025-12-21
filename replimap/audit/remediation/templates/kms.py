@@ -97,9 +97,11 @@ def generate_kms_policy(
 
     if admin_role_arns:
         admin_arns = ", ".join(f'"{arn}"' for arn in admin_role_arns)
-        admin_principal = f'AWS = [{admin_arns}]'
+        admin_principal = f"AWS = [{admin_arns}]"
     else:
-        admin_principal = f'AWS = "arn:aws:iam::{account_id}:role/REPLACE_WITH_ADMIN_ROLE"'
+        admin_principal = (
+            f'AWS = "arn:aws:iam::{account_id}:role/REPLACE_WITH_ADMIN_ROLE"'
+        )
 
     return f'''# KMS Key Policy - Least Privilege
 # Remediates: CKV_AWS_33

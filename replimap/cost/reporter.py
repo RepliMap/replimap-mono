@@ -52,7 +52,9 @@ class CostReporter:
 [dim]Resources: {estimate.resource_count} total ({estimate.estimated_resources} priced)
 Pricing: On-Demand (standard rates)[/dim]
 """
-        console.print(Panel(summary.strip(), title="💰 Estimate Summary", border_style="blue"))
+        console.print(
+            Panel(summary.strip(), title="💰 Estimate Summary", border_style="blue")
+        )
 
         # Warnings
         if estimate.warnings:
@@ -105,7 +107,11 @@ Pricing: On-Demand (standard rates)[/dim]
             for region, cost in sorted(
                 estimate.by_region.items(), key=lambda x: x[1], reverse=True
             ):
-                pct = (cost / estimate.monthly_total * 100) if estimate.monthly_total > 0 else 0
+                pct = (
+                    (cost / estimate.monthly_total * 100)
+                    if estimate.monthly_total > 0
+                    else 0
+                )
                 console.print(f"  {region:20} ${cost:>10,.2f} ({pct:5.1f}%)")
 
         # Optimization recommendations
@@ -126,7 +132,9 @@ Pricing: On-Demand (standard rates)[/dim]
                     f"[{effort_color}]({rec.effort} effort)[/{effort_color}]"
                 )
                 console.print(f"     {rec.description}")
-                console.print(f"     [green]Potential savings: ${rec.potential_savings:,.2f}/month[/green]")
+                console.print(
+                    f"     [green]Potential savings: ${rec.potential_savings:,.2f}/month[/green]"
+                )
                 console.print()
 
             if estimate.total_optimization_potential > 0:
@@ -141,13 +149,15 @@ Pricing: On-Demand (standard rates)[/dim]
 
         # Final disclaimer with links
         console.print()
-        console.print(Panel(
-            "[bold]For accurate cost projections, use:[/bold]\n"
-            "• AWS Cost Explorer: https://console.aws.amazon.com/cost-management/\n"
-            "• AWS Pricing Calculator: https://calculator.aws/",
-            title="📊 Accurate Cost Tools",
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                "[bold]For accurate cost projections, use:[/bold]\n"
+                "• AWS Cost Explorer: https://console.aws.amazon.com/cost-management/\n"
+                "• AWS Pricing Calculator: https://calculator.aws/",
+                title="📊 Accurate Cost Tools",
+                border_style="green",
+            )
+        )
 
     def _print_exclusions(self) -> None:
         """Print what's NOT included in the estimate."""
@@ -186,7 +196,9 @@ Pricing: On-Demand (standard rates)[/dim]
         table.add_column("Annual Est.", justify="right")
         table.add_column("Confidence")
 
-        for r in sorted(estimate.resource_costs, key=lambda x: x.monthly_cost, reverse=True):
+        for r in sorted(
+            estimate.resource_costs, key=lambda x: x.monthly_cost, reverse=True
+        ):
             confidence_color = self._get_confidence_color(r.confidence)
             table.add_row(
                 self._truncate(r.resource_id, 35),
@@ -320,14 +332,14 @@ The following cost factors are **NOT** included and may significantly increase y
             f"# Monthly Total Estimate: ${estimate.monthly_total:,.2f}",
             f"# Range: ${estimate.estimated_range_low:,.2f} - ${estimate.estimated_range_high:,.2f}",
             "#",
-            "resource_id,resource_type,category,instance_type,monthly_cost,annual_cost,confidence,accuracy_range"
+            "resource_id,resource_type,category,instance_type,monthly_cost,annual_cost,confidence,accuracy_range",
         ]
 
         for r in estimate.resource_costs:
             lines.append(
                 f'"{r.resource_id}",{r.resource_type},{r.category.value},'
-                f'{r.instance_type},{r.monthly_cost:.2f},{r.annual_cost:.2f},'
-                f'{r.confidence.value},{r.accuracy_range}'
+                f"{r.instance_type},{r.monthly_cost:.2f},{r.annual_cost:.2f},"
+                f"{r.confidence.value},{r.accuracy_range}"
             )
 
         output_path.write_text("\n".join(lines))
@@ -632,12 +644,15 @@ The following cost factors are **NOT** included and may significantly increase y
 
     <div id="header">
         <h1>💰 Cost Estimate Report</h1>
-        <div class="subtitle">Confidence: {estimate.confidence.value} ({estimate.accuracy_range})</div>
+        <div class="subtitle">Confidence: {estimate.confidence.value} ({
+            estimate.accuracy_range
+        })</div>
         <div class="stats">
             <div class="stat">
                 <div class="stat-value">${estimate.monthly_total:,.2f}</div>
                 <div class="stat-label">Monthly Estimate</div>
-                <div class="stat-range">${estimate.estimated_range_low:,.2f} - ${estimate.estimated_range_high:,.2f}</div>
+                <div class="stat-range">${estimate.estimated_range_low:,.2f} - ${
+            estimate.estimated_range_high:,.2f}</div>
             </div>
             <div class="stat">
                 <div class="stat-value">${estimate.annual_total:,.2f}</div>
@@ -674,14 +689,19 @@ The following cost factors are **NOT** included and may significantly increase y
                         </tr>
                     </thead>
                     <tbody>
-                        {"".join(f'''
+                        {
+            "".join(
+                f'''
                         <tr>
                             <td>{r["id"]}</td>
                             <td>{r["type"].replace("aws_", "")}</td>
                             <td class="cost" style="text-align: right">${r["cost"]:,.2f}</td>
                             <td class="confidence-{r["confidence"].lower()}">{r["confidence"]}</td>
                         </tr>
-                        ''' for r in top_data)}
+                        '''
+                for r in top_data
+            )
+        }
                     </tbody>
                 </table>
             </div>
@@ -697,14 +717,22 @@ The following cost factors are **NOT** included and may significantly increase y
 
         <div class="card">
             <h2>Optimization Recommendations</h2>
-            {recommendations_html if recommendations_html else '<p>No optimization recommendations at this time.</p>'}
+            {
+            recommendations_html
+            if recommendations_html
+            else "<p>No optimization recommendations at this time.</p>"
+        }
 
-            {f'''
+            {
+            f'''
             <div class="total-savings" style="margin-top: 20px">
                 <div class="value">${estimate.total_optimization_potential:,.2f}</div>
                 <div class="label">Potential Monthly Savings ({estimate.optimization_percentage:.1f}%)</div>
             </div>
-            ''' if estimate.total_optimization_potential > 0 else ''}
+            '''
+            if estimate.total_optimization_potential > 0
+            else ""
+        }
         </div>
 
         <div class="tools-box">
@@ -730,7 +758,9 @@ The following cost factors are **NOT** included and may significantly increase y
                     </tr>
                 </thead>
                 <tbody>
-                    {"".join(f'''
+                    {
+            "".join(
+                f'''
                     <tr>
                         <td>{r.resource_id[:40]}</td>
                         <td>{r.resource_type.replace("aws_", "")}</td>
@@ -740,7 +770,12 @@ The following cost factors are **NOT** included and may significantly increase y
                         <td style="text-align: right">${r.annual_cost:,.2f}</td>
                         <td class="confidence-{r.confidence.value.lower()}">{r.confidence.value}</td>
                     </tr>
-                    ''' for r in sorted(estimate.resource_costs, key=lambda x: x.monthly_cost, reverse=True))}
+                    '''
+                for r in sorted(
+                    estimate.resource_costs, key=lambda x: x.monthly_cost, reverse=True
+                )
+            )
+        }
                 </tbody>
             </table>
         </div>

@@ -247,7 +247,12 @@ class TestDependencyGraphBuilder:
         """Test retrieving edges."""
         resources = [
             {"id": "vpc-123", "type": "aws_vpc", "name": "vpc", "config": {}},
-            {"id": "subnet-abc", "type": "aws_subnet", "name": "subnet", "config": {"vpc_id": "vpc-123"}},
+            {
+                "id": "subnet-abc",
+                "type": "aws_subnet",
+                "name": "subnet",
+                "config": {"vpc_id": "vpc-123"},
+            },
         ]
 
         builder = DependencyGraphBuilder()
@@ -261,7 +266,12 @@ class TestDependencyGraphBuilder:
     def test_security_group_ec2_dependency(self):
         """Test security group to EC2 dependency detection."""
         resources = [
-            {"id": "sg-123", "type": "aws_security_group", "name": "web-sg", "config": {}},
+            {
+                "id": "sg-123",
+                "type": "aws_security_group",
+                "name": "web-sg",
+                "config": {},
+            },
             {
                 "id": "i-456",
                 "type": "aws_instance",
@@ -278,7 +288,12 @@ class TestDependencyGraphBuilder:
     def test_rds_subnet_group_dependency(self):
         """Test RDS to subnet group dependency."""
         resources = [
-            {"id": "dbsg-123", "type": "aws_db_subnet_group", "name": "main", "config": {}},
+            {
+                "id": "dbsg-123",
+                "type": "aws_db_subnet_group",
+                "name": "main",
+                "config": {},
+            },
             {
                 "id": "db-456",
                 "type": "aws_db_instance",
@@ -299,8 +314,18 @@ class TestDependencyGraphBuilder:
         """Test resource with multiple dependencies."""
         resources = [
             {"id": "vpc-123", "type": "aws_vpc", "name": "vpc", "config": {}},
-            {"id": "subnet-abc", "type": "aws_subnet", "name": "subnet", "config": {"vpc_id": "vpc-123"}},
-            {"id": "sg-123", "type": "aws_security_group", "name": "sg", "config": {"vpc_id": "vpc-123"}},
+            {
+                "id": "subnet-abc",
+                "type": "aws_subnet",
+                "name": "subnet",
+                "config": {"vpc_id": "vpc-123"},
+            },
+            {
+                "id": "sg-123",
+                "type": "aws_security_group",
+                "name": "sg",
+                "config": {"vpc_id": "vpc-123"},
+            },
             {
                 "id": "i-789",
                 "type": "aws_instance",
@@ -324,7 +349,12 @@ class TestDependencyGraphBuilder:
         """Test that reverse dependencies are calculated."""
         resources = [
             {"id": "vpc-123", "type": "aws_vpc", "name": "vpc", "config": {}},
-            {"id": "subnet-abc", "type": "aws_subnet", "name": "subnet", "config": {"vpc_id": "vpc-123"}},
+            {
+                "id": "subnet-abc",
+                "type": "aws_subnet",
+                "name": "subnet",
+                "config": {"vpc_id": "vpc-123"},
+            },
         ]
 
         builder = DependencyGraphBuilder()
@@ -731,7 +761,12 @@ class TestBlastIntegration:
         """Test blast radius for security group deletion."""
         resources = [
             {"id": "vpc-123", "type": "aws_vpc", "name": "vpc", "config": {}},
-            {"id": "sg-web", "type": "aws_security_group", "name": "web-sg", "config": {"vpc_id": "vpc-123"}},
+            {
+                "id": "sg-web",
+                "type": "aws_security_group",
+                "name": "web-sg",
+                "config": {"vpc_id": "vpc-123"},
+            },
             {
                 "id": "i-1",
                 "type": "aws_instance",

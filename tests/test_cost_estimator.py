@@ -109,12 +109,18 @@ class TestCostModels:
     def test_cost_breakdown_creation(self):
         """Test CostBreakdown dataclass creation."""
         cost1 = ResourceCost(
-            resource_id="i-1", resource_type="aws_instance", resource_name="web1",
-            monthly_cost=100, category=CostCategory.COMPUTE,
+            resource_id="i-1",
+            resource_type="aws_instance",
+            resource_name="web1",
+            monthly_cost=100,
+            category=CostCategory.COMPUTE,
         )
         cost2 = ResourceCost(
-            resource_id="i-2", resource_type="aws_instance", resource_name="web2",
-            monthly_cost=100, category=CostCategory.COMPUTE,
+            resource_id="i-2",
+            resource_type="aws_instance",
+            resource_name="web2",
+            monthly_cost=100,
+            category=CostCategory.COMPUTE,
         )
 
         breakdown = CostBreakdown(
@@ -132,8 +138,11 @@ class TestCostModels:
     def test_cost_breakdown_to_dict(self):
         """Test CostBreakdown serialization."""
         cost = ResourceCost(
-            resource_id="i-1", resource_type="aws_instance", resource_name="web",
-            monthly_cost=100, category=CostCategory.COMPUTE,
+            resource_id="i-1",
+            resource_type="aws_instance",
+            resource_name="web",
+            monthly_cost=100,
+            category=CostCategory.COMPUTE,
         )
 
         breakdown = CostBreakdown(
@@ -398,7 +407,9 @@ class TestPricingLookup:
         assert lookup.get_resource_category("aws_db_instance") == CostCategory.DATABASE
         assert lookup.get_resource_category("aws_s3_bucket") == CostCategory.STORAGE
         assert lookup.get_resource_category("aws_nat_gateway") == CostCategory.NETWORK
-        assert lookup.get_resource_category("aws_security_group") == CostCategory.SECURITY
+        assert (
+            lookup.get_resource_category("aws_security_group") == CostCategory.SECURITY
+        )
         assert lookup.get_resource_category("aws_unknown") == CostCategory.OTHER
 
 
@@ -470,23 +481,27 @@ class TestCostEstimator:
         """Test RDS Multi-AZ doubles compute cost."""
         estimator = CostEstimator("us-east-1")
 
-        single_az = estimator.estimate_from_resources([
-            {
-                "id": "db-1",
-                "type": "aws_db_instance",
-                "name": "db",
-                "config": {"instance_class": "db.t3.medium", "multi_az": False},
-            }
-        ])
+        single_az = estimator.estimate_from_resources(
+            [
+                {
+                    "id": "db-1",
+                    "type": "aws_db_instance",
+                    "name": "db",
+                    "config": {"instance_class": "db.t3.medium", "multi_az": False},
+                }
+            ]
+        )
 
-        multi_az = estimator.estimate_from_resources([
-            {
-                "id": "db-2",
-                "type": "aws_db_instance",
-                "name": "db",
-                "config": {"instance_class": "db.t3.medium", "multi_az": True},
-            }
-        ])
+        multi_az = estimator.estimate_from_resources(
+            [
+                {
+                    "id": "db-2",
+                    "type": "aws_db_instance",
+                    "name": "db",
+                    "config": {"instance_class": "db.t3.medium", "multi_az": True},
+                }
+            ]
+        )
 
         # Multi-AZ should cost more (approximately double compute)
         assert multi_az.monthly_total > single_az.monthly_total
@@ -564,7 +579,9 @@ class TestCostEstimator:
 
         assert estimate.monthly_total > 0
         assert estimate.resource_costs[0].category == CostCategory.STORAGE
-        assert estimate.resource_costs[0].confidence == CostConfidence.LOW  # Usage-based
+        assert (
+            estimate.resource_costs[0].confidence == CostConfidence.LOW
+        )  # Usage-based
 
     def test_estimate_free_resources(self):
         """Test that free resources have zero cost."""
@@ -599,8 +616,18 @@ class TestCostEstimator:
     def test_category_breakdown(self):
         """Test cost breakdown by category."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "web", "config": {"instance_type": "t3.medium"}},
-            {"id": "db-1", "type": "aws_db_instance", "name": "db", "config": {"instance_class": "db.t3.medium"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "web",
+                "config": {"instance_type": "t3.medium"},
+            },
+            {
+                "id": "db-1",
+                "type": "aws_db_instance",
+                "name": "db",
+                "config": {"instance_class": "db.t3.medium"},
+            },
             {"id": "nat-1", "type": "aws_nat_gateway", "name": "nat", "config": {}},
         ]
 
@@ -615,9 +642,24 @@ class TestCostEstimator:
     def test_top_resources_sorted(self):
         """Test top resources are sorted by cost."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "small", "config": {"instance_type": "t3.nano"}},
-            {"id": "i-2", "type": "aws_instance", "name": "large", "config": {"instance_type": "m5.4xlarge"}},
-            {"id": "i-3", "type": "aws_instance", "name": "medium", "config": {"instance_type": "t3.medium"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "small",
+                "config": {"instance_type": "t3.nano"},
+            },
+            {
+                "id": "i-2",
+                "type": "aws_instance",
+                "name": "large",
+                "config": {"instance_type": "m5.4xlarge"},
+            },
+            {
+                "id": "i-3",
+                "type": "aws_instance",
+                "name": "medium",
+                "config": {"instance_type": "t3.medium"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
@@ -648,9 +690,24 @@ class TestCostEstimator:
     def test_reserved_instance_recommendation(self):
         """Test reserved instance recommendations for high-cost resources."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "prod1", "config": {"instance_type": "m5.2xlarge"}},
-            {"id": "i-2", "type": "aws_instance", "name": "prod2", "config": {"instance_type": "m5.2xlarge"}},
-            {"id": "i-3", "type": "aws_instance", "name": "prod3", "config": {"instance_type": "m5.2xlarge"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "prod1",
+                "config": {"instance_type": "m5.2xlarge"},
+            },
+            {
+                "id": "i-2",
+                "type": "aws_instance",
+                "name": "prod2",
+                "config": {"instance_type": "m5.2xlarge"},
+            },
+            {
+                "id": "i-3",
+                "type": "aws_instance",
+                "name": "prod3",
+                "config": {"instance_type": "m5.2xlarge"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
@@ -663,24 +720,38 @@ class TestCostEstimator:
     def test_annual_cost_calculated(self):
         """Test annual cost is 12x monthly."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "web", "config": {"instance_type": "t3.medium"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "web",
+                "config": {"instance_type": "t3.medium"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
         estimate = estimator.estimate_from_resources(resources)
 
-        assert estimate.annual_total == pytest.approx(estimate.monthly_total * 12, rel=0.01)
+        assert estimate.annual_total == pytest.approx(
+            estimate.monthly_total * 12, rel=0.01
+        )
 
     def test_daily_average_calculated(self):
         """Test daily average is monthly / 30."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "web", "config": {"instance_type": "t3.medium"}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "web",
+                "config": {"instance_type": "t3.medium"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
         estimate = estimator.estimate_from_resources(resources)
 
-        assert estimate.daily_average == pytest.approx(estimate.monthly_total / 30, rel=0.01)
+        assert estimate.daily_average == pytest.approx(
+            estimate.monthly_total / 30, rel=0.01
+        )
 
 
 class TestCostReporter:
@@ -861,12 +932,37 @@ class TestCostIntegration:
     def test_full_workflow(self):
         """Test complete workflow from resources to report."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "web-1", "config": {"instance_type": "t3.medium"}},
-            {"id": "i-2", "type": "aws_instance", "name": "web-2", "config": {"instance_type": "t3.medium"}},
-            {"id": "db-1", "type": "aws_db_instance", "name": "main-db", "config": {"instance_class": "db.r5.large", "allocated_storage": 100}},
-            {"id": "nat-1", "type": "aws_nat_gateway", "name": "main-nat", "config": {}},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "web-1",
+                "config": {"instance_type": "t3.medium"},
+            },
+            {
+                "id": "i-2",
+                "type": "aws_instance",
+                "name": "web-2",
+                "config": {"instance_type": "t3.medium"},
+            },
+            {
+                "id": "db-1",
+                "type": "aws_db_instance",
+                "name": "main-db",
+                "config": {"instance_class": "db.r5.large", "allocated_storage": 100},
+            },
+            {
+                "id": "nat-1",
+                "type": "aws_nat_gateway",
+                "name": "main-nat",
+                "config": {},
+            },
             {"id": "alb-1", "type": "aws_lb", "name": "web-alb", "config": {}},
-            {"id": "vol-1", "type": "aws_ebs_volume", "name": "data", "config": {"size": 500, "type": "gp2"}},
+            {
+                "id": "vol-1",
+                "type": "aws_ebs_volume",
+                "name": "data",
+                "config": {"size": 500, "type": "gp2"},
+            },
         ]
 
         estimator = CostEstimator("us-east-1")
@@ -899,30 +995,36 @@ class TestCostIntegration:
 
         # 20 EC2 instances
         for i in range(20):
-            resources.append({
-                "id": f"i-{i:05d}",
-                "type": "aws_instance",
-                "name": f"server-{i}",
-                "config": {"instance_type": "t3.medium"},
-            })
+            resources.append(
+                {
+                    "id": f"i-{i:05d}",
+                    "type": "aws_instance",
+                    "name": f"server-{i}",
+                    "config": {"instance_type": "t3.medium"},
+                }
+            )
 
         # 5 RDS instances
         for i in range(5):
-            resources.append({
-                "id": f"db-{i:05d}",
-                "type": "aws_db_instance",
-                "name": f"db-{i}",
-                "config": {"instance_class": "db.t3.medium"},
-            })
+            resources.append(
+                {
+                    "id": f"db-{i:05d}",
+                    "type": "aws_db_instance",
+                    "name": f"db-{i}",
+                    "config": {"instance_class": "db.t3.medium"},
+                }
+            )
 
         # 3 NAT Gateways
         for i in range(3):
-            resources.append({
-                "id": f"nat-{i:05d}",
-                "type": "aws_nat_gateway",
-                "name": f"nat-{i}",
-                "config": {},
-            })
+            resources.append(
+                {
+                    "id": f"nat-{i:05d}",
+                    "type": "aws_nat_gateway",
+                    "name": f"nat-{i}",
+                    "config": {},
+                }
+            )
 
         estimator = CostEstimator("us-east-1")
         estimate = estimator.estimate_from_resources(resources)
@@ -931,9 +1033,21 @@ class TestCostIntegration:
         assert estimate.monthly_total > 500  # Should be substantial
 
         # Check category breakdown
-        compute_cost = sum(b.monthly_total for b in estimate.by_category if b.category == CostCategory.COMPUTE)
-        db_cost = sum(b.monthly_total for b in estimate.by_category if b.category == CostCategory.DATABASE)
-        network_cost = sum(b.monthly_total for b in estimate.by_category if b.category == CostCategory.NETWORK)
+        compute_cost = sum(
+            b.monthly_total
+            for b in estimate.by_category
+            if b.category == CostCategory.COMPUTE
+        )
+        db_cost = sum(
+            b.monthly_total
+            for b in estimate.by_category
+            if b.category == CostCategory.DATABASE
+        )
+        network_cost = sum(
+            b.monthly_total
+            for b in estimate.by_category
+            if b.category == CostCategory.NETWORK
+        )
 
         assert compute_cost > 0
         assert db_cost > 0
@@ -942,9 +1056,27 @@ class TestCostIntegration:
     def test_multi_region(self):
         """Test resources across multiple regions."""
         resources = [
-            {"id": "i-1", "type": "aws_instance", "name": "us-web", "config": {"instance_type": "t3.medium"}, "region": "us-east-1"},
-            {"id": "i-2", "type": "aws_instance", "name": "eu-web", "config": {"instance_type": "t3.medium"}, "region": "eu-west-1"},
-            {"id": "i-3", "type": "aws_instance", "name": "ap-web", "config": {"instance_type": "t3.medium"}, "region": "ap-northeast-1"},
+            {
+                "id": "i-1",
+                "type": "aws_instance",
+                "name": "us-web",
+                "config": {"instance_type": "t3.medium"},
+                "region": "us-east-1",
+            },
+            {
+                "id": "i-2",
+                "type": "aws_instance",
+                "name": "eu-web",
+                "config": {"instance_type": "t3.medium"},
+                "region": "eu-west-1",
+            },
+            {
+                "id": "i-3",
+                "type": "aws_instance",
+                "name": "ap-web",
+                "config": {"instance_type": "t3.medium"},
+                "region": "ap-northeast-1",
+            },
         ]
 
         estimator = CostEstimator("us-east-1")

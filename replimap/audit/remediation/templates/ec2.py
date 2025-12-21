@@ -208,7 +208,9 @@ def generate_security_group_restrict(
     cidrs = allowed_cidrs or ["10.0.0.0/8"]  # Default to RFC1918
 
     protocol_name = "SSH" if port == 22 else "RDP" if port == 3389 else f"Port {port}"
-    check_id = "CKV_AWS_24" if port == 22 else "CKV_AWS_25" if port == 3389 else "CKV_AWS_23"
+    check_id = (
+        "CKV_AWS_24" if port == 22 else "CKV_AWS_25" if port == 3389 else "CKV_AWS_23"
+    )
 
     cidr_list = ", ".join(f'"{c}"' for c in cidrs)
 

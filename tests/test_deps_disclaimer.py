@@ -207,7 +207,7 @@ class TestHtmlOutput:
 
             # Disclaimer should appear early in the HTML
             disclaimer_pos = content.find("Important Disclaimer")
-            graph_pos = content.find("id=\"graph\"")
+            graph_pos = content.find('id="graph"')
             assert disclaimer_pos < graph_pos, "Disclaimer should appear before graph"
 
     def test_html_has_footer_disclaimer(self):

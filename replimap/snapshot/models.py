@@ -88,9 +88,7 @@ class InfraSnapshot:
     """
 
     name: str
-    created_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     region: str = ""
     vpc_id: str | None = None
     profile: str = "default"
@@ -120,10 +118,7 @@ class InfraSnapshot:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> InfraSnapshot:
         """Create from dictionary."""
-        resources = [
-            ResourceSnapshot.from_dict(r)
-            for r in data.pop("resources", [])
-        ]
+        resources = [ResourceSnapshot.from_dict(r) for r in data.pop("resources", [])]
         return cls(resources=resources, **data)
 
     def save(self, path: Path) -> None:
@@ -196,9 +191,16 @@ class ResourceChange:
     def is_security_relevant(self) -> bool:
         """Check if change is security-relevant."""
         security_attrs = [
-            "ingress", "egress", "policy", "acl",
-            "security_groups", "iam", "public",
-            "encrypted", "kms", "password",
+            "ingress",
+            "egress",
+            "policy",
+            "acl",
+            "security_groups",
+            "iam",
+            "public",
+            "encrypted",
+            "kms",
+            "password",
         ]
         for attr in self.changed_attributes:
             attr_lower = attr.lower()
@@ -281,13 +283,9 @@ class SnapshotDiff:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SnapshotDiff:
         """Create from dictionary."""
-        changes = [
-            ResourceChange.from_dict(c)
-            for c in data.get("changes", [])
-        ]
+        changes = [ResourceChange.from_dict(c) for c in data.get("changes", [])]
         critical_changes = [
-            ResourceChange.from_dict(c)
-            for c in data.get("critical_changes", [])
+            ResourceChange.from_dict(c) for c in data.get("critical_changes", [])
         ]
         return cls(
             baseline_name=data["baseline"]["name"],

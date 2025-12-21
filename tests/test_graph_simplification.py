@@ -60,12 +60,8 @@ def create_sample_resources() -> list[ResourceNode]:
     return [
         # Core resources
         create_resource("vpc-123", ResourceType.VPC, "main-vpc"),
-        create_resource(
-            "subnet-1", ResourceType.SUBNET, "public-1", vpc_id="vpc-123"
-        ),
-        create_resource(
-            "subnet-2", ResourceType.SUBNET, "public-2", vpc_id="vpc-123"
-        ),
+        create_resource("subnet-1", ResourceType.SUBNET, "public-1", vpc_id="vpc-123"),
+        create_resource("subnet-2", ResourceType.SUBNET, "public-2", vpc_id="vpc-123"),
         # Compute resources
         create_resource(
             "i-001", ResourceType.EC2_INSTANCE, "web-1", subnet_id="subnet-1"
@@ -83,8 +79,12 @@ def create_sample_resources() -> list[ResourceNode]:
             "i-005", ResourceType.EC2_INSTANCE, "api-2", subnet_id="subnet-2"
         ),
         # Security resources
-        create_resource("sg-web", ResourceType.SECURITY_GROUP, "web-sg", vpc_id="vpc-123"),
-        create_resource("sg-api", ResourceType.SECURITY_GROUP, "api-sg", vpc_id="vpc-123"),
+        create_resource(
+            "sg-web", ResourceType.SECURITY_GROUP, "web-sg", vpc_id="vpc-123"
+        ),
+        create_resource(
+            "sg-api", ResourceType.SECURITY_GROUP, "api-sg", vpc_id="vpc-123"
+        ),
         # Database
         create_resource("db-1", ResourceType.RDS_INSTANCE, "primary-db"),
         # Network detail
@@ -422,7 +422,9 @@ class TestResourceGrouper:
 
         # Create 5 instances in same subnet (should collapse)
         resources = [
-            create_resource(f"i-{i}", ResourceType.EC2_INSTANCE, f"web-{i}", subnet_id="subnet-1")
+            create_resource(
+                f"i-{i}", ResourceType.EC2_INSTANCE, f"web-{i}", subnet_id="subnet-1"
+            )
             for i in range(5)
         ]
 
@@ -440,7 +442,9 @@ class TestResourceGrouper:
 
         # Create only 3 instances (below threshold)
         resources = [
-            create_resource(f"i-{i}", ResourceType.EC2_INSTANCE, f"web-{i}", subnet_id="subnet-1")
+            create_resource(
+                f"i-{i}", ResourceType.EC2_INSTANCE, f"web-{i}", subnet_id="subnet-1"
+            )
             for i in range(3)
         ]
 
@@ -457,11 +461,15 @@ class TestResourceGrouper:
 
         resources = [
             # 5 in subnet-1
-            create_resource(f"i-1-{i}", ResourceType.EC2_INSTANCE, f"web-{i}", subnet_id="subnet-1")
+            create_resource(
+                f"i-1-{i}", ResourceType.EC2_INSTANCE, f"web-{i}", subnet_id="subnet-1"
+            )
             for i in range(5)
         ] + [
             # 4 in subnet-2
-            create_resource(f"i-2-{i}", ResourceType.EC2_INSTANCE, f"api-{i}", subnet_id="subnet-2")
+            create_resource(
+                f"i-2-{i}", ResourceType.EC2_INSTANCE, f"api-{i}", subnet_id="subnet-2"
+            )
             for i in range(4)
         ]
 
@@ -481,7 +489,12 @@ class TestResourceGrouper:
 
         # 10 instances across different subnets
         resources = [
-            create_resource(f"i-{i}", ResourceType.EC2_INSTANCE, f"inst-{i}", subnet_id=f"subnet-{i % 3}")
+            create_resource(
+                f"i-{i}",
+                ResourceType.EC2_INSTANCE,
+                f"inst-{i}",
+                subnet_id=f"subnet-{i % 3}",
+            )
             for i in range(10)
         ]
 
@@ -497,7 +510,9 @@ class TestResourceGrouper:
         grouper = ResourceGrouper(config)
 
         resources = [
-            create_resource(f"i-{i}", ResourceType.EC2_INSTANCE, f"web-{i}", subnet_id="subnet-1")
+            create_resource(
+                f"i-{i}", ResourceType.EC2_INSTANCE, f"web-{i}", subnet_id="subnet-1"
+            )
             for i in range(5)
         ]
 
@@ -629,7 +644,9 @@ class TestGraphBuilder:
         graph = GraphEngine()
 
         vpc = create_resource("vpc-1", ResourceType.VPC, "main")
-        subnet = create_resource("subnet-1", ResourceType.SUBNET, "public", vpc_id="vpc-1")
+        subnet = create_resource(
+            "subnet-1", ResourceType.SUBNET, "public", vpc_id="vpc-1"
+        )
 
         graph.add_resource(vpc)
         graph.add_resource(subnet)
@@ -730,8 +747,14 @@ class TestGraphSimplificationIntegration:
 
         graph = GraphEngine()
         graph.add_resource(create_resource("vpc-1", ResourceType.VPC, "vpc"))
-        graph.add_resource(create_resource("sg-1", ResourceType.SECURITY_GROUP, "sg", vpc_id="vpc-1"))
-        graph.add_resource(create_resource("i-1", ResourceType.EC2_INSTANCE, "ec2", subnet_id="subnet-1"))
+        graph.add_resource(
+            create_resource("sg-1", ResourceType.SECURITY_GROUP, "sg", vpc_id="vpc-1")
+        )
+        graph.add_resource(
+            create_resource(
+                "i-1", ResourceType.EC2_INSTANCE, "ec2", subnet_id="subnet-1"
+            )
+        )
 
         config = BuilderConfig.security_view()
         builder = GraphBuilder(config)
@@ -767,11 +790,15 @@ class TestGraphSimplificationIntegration:
 
         # Resources in VPC-1
         graph.add_resource(create_resource("vpc-1", ResourceType.VPC, "vpc-1"))
-        graph.add_resource(create_resource("subnet-1", ResourceType.SUBNET, "subnet", vpc_id="vpc-1"))
+        graph.add_resource(
+            create_resource("subnet-1", ResourceType.SUBNET, "subnet", vpc_id="vpc-1")
+        )
 
         # Resources in VPC-2 (should be filtered out)
         graph.add_resource(create_resource("vpc-2", ResourceType.VPC, "vpc-2"))
-        graph.add_resource(create_resource("subnet-2", ResourceType.SUBNET, "subnet", vpc_id="vpc-2"))
+        graph.add_resource(
+            create_resource("subnet-2", ResourceType.SUBNET, "subnet", vpc_id="vpc-2")
+        )
 
         builder = GraphBuilder()
         result = builder.build(graph, vpc_id="vpc-1")

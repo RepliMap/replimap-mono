@@ -73,7 +73,11 @@ DEPENDENCY_PATTERNS: list[tuple[str, str, str]] = [
     ("aws_lambda_function", "aws_subnet", "vpc_config.subnet_ids"),
     # CloudWatch dependencies
     ("aws_cloudwatch_metric_alarm", "aws_sns_topic", "alarm_actions"),
-    ("aws_cloudwatch_log_subscription_filter", "aws_cloudwatch_log_group", "log_group_name"),
+    (
+        "aws_cloudwatch_log_subscription_filter",
+        "aws_cloudwatch_log_group",
+        "log_group_name",
+    ),
     # Auto Scaling dependencies
     ("aws_autoscaling_group", "aws_launch_template", "launch_template.id"),
     ("aws_autoscaling_group", "aws_subnet", "vpc_zone_identifier"),
@@ -108,7 +112,9 @@ class DependencyGraphBuilder:
         self.nodes: dict[str, ResourceNode] = {}
         self.edges: list[DependencyEdge] = []
 
-    def build_from_graph_engine(self, graph_engine: GraphEngine, region: str = "") -> nx.DiGraph:
+    def build_from_graph_engine(
+        self, graph_engine: GraphEngine, region: str = ""
+    ) -> nx.DiGraph:
         """
         Build dependency graph from RepliMap's GraphEngine.
 

@@ -394,9 +394,13 @@ class RemediationGenerator:
                 plan.remediable_findings += 1
 
             except Exception as e:
-                logger.warning(f"Failed to generate remediation for {finding.check_id}: {e}")
+                logger.warning(
+                    f"Failed to generate remediation for {finding.check_id}: {e}"
+                )
                 plan.skipped_findings += 1
-                plan.warnings.append(f"Failed to generate fix for {finding.check_id} on {finding.resource}")
+                plan.warnings.append(
+                    f"Failed to generate fix for {finding.check_id} on {finding.resource}"
+                )
 
         # Generate import script
         plan.import_script = self._generate_import_script(plan)
@@ -406,14 +410,22 @@ class RemediationGenerator:
 
         return plan
 
-    def _get_file_path(self, finding: CheckovFinding, remediation_type: RemediationType) -> Path:
+    def _get_file_path(
+        self, finding: CheckovFinding, remediation_type: RemediationType
+    ) -> Path:
         """Generate file path for remediation file."""
         # Extract resource name for file naming
-        resource_name = finding.resource.split(".")[-1] if "." in finding.resource else finding.resource
+        resource_name = (
+            finding.resource.split(".")[-1]
+            if "." in finding.resource
+            else finding.resource
+        )
         safe_name = "".join(c if c.isalnum() else "_" for c in resource_name).strip("_")
 
         # Group by remediation type
-        type_prefix = remediation_type.value.split("_")[0]  # e.g., "s3" from "s3_encryption"
+        type_prefix = remediation_type.value.split("_")[
+            0
+        ]  # e.g., "s3" from "s3_encryption"
 
         return Path(f"{type_prefix}/{safe_name}_{remediation_type.value}.tf")
 
@@ -459,10 +471,12 @@ class RemediationGenerator:
                     lines.append(cmd)
                 lines.append("")
 
-        lines.extend([
-            "echo 'All imports complete!'",
-            "echo 'Run terraform plan to verify the import was successful.'",
-        ])
+        lines.extend(
+            [
+                "echo 'All imports complete!'",
+                "echo 'Run terraform plan to verify the import was successful.'",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -534,7 +548,9 @@ terraform apply
 
         # List files by type
         by_type = plan.files_by_type()
-        for remediation_type, files in sorted(by_type.items(), key=lambda x: x[0].value):
+        for remediation_type, files in sorted(
+            by_type.items(), key=lambda x: x[0].value
+        ):
             readme += f"\n### {remediation_type.value.replace('_', ' ').title()}\n\n"
             for file in files:
                 severity_emoji = {

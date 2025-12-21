@@ -109,7 +109,11 @@ class DependencyExplorerReporter:
         # Always end with full disclaimer
         console.print()
         console.print(
-            Panel(DISCLAIMER_FULL.strip(), title="Important Disclaimer", border_style="yellow")
+            Panel(
+                DISCLAIMER_FULL.strip(),
+                title="Important Disclaimer",
+                border_style="yellow",
+            )
         )
 
     def to_tree(self, result: DependencyExplorerResult) -> None:
@@ -119,8 +123,7 @@ class DependencyExplorerReporter:
 
         center = result.center_resource
         tree = Tree(
-            f"[bold cyan]{center.type}[/bold cyan]: {center.id} "
-            f"({center.name})"
+            f"[bold cyan]{center.type}[/bold cyan]: {center.id} ({center.name})"
         )
 
         self._build_tree(tree, center.id, result, visited=set())
@@ -130,7 +133,9 @@ class DependencyExplorerReporter:
 
         # Disclaimer at end
         console.print()
-        console.print("[yellow]Note: This tree shows AWS API-detected dependencies only.[/yellow]")
+        console.print(
+            "[yellow]Note: This tree shows AWS API-detected dependencies only.[/yellow]"
+        )
         console.print("[yellow]Application-level dependencies are NOT shown.[/yellow]")
 
     def _build_tree(
@@ -262,9 +267,7 @@ class DependencyExplorerReporter:
             )
 
         # Generate limitations HTML
-        limitations_html = "\n".join(
-            f"<li>{lim}</li>" for lim in result.limitations
-        )
+        limitations_html = "\n".join(f"<li>{lim}</li>" for lim in result.limitations)
 
         # Generate zone summary
         zones_html = ""

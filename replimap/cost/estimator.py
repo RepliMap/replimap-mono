@@ -193,7 +193,11 @@ class CostEstimator:
         cost.compute_cost = hourly * HOURS_PER_MONTH
 
         # EBS root volume
-        root_volume = config.get("root_block_device", [{}])[0] if config.get("root_block_device") else {}
+        root_volume = (
+            config.get("root_block_device", [{}])[0]
+            if config.get("root_block_device")
+            else {}
+        )
         volume_size = root_volume.get("volume_size", 8)
         volume_type = root_volume.get("volume_type", "gp2")
         cost.storage_cost = self.pricing.get_ebs_monthly_cost(volume_size, volume_type)
@@ -213,7 +217,9 @@ class CostEstimator:
         cost.instance_type = instance_class
 
         multi_az = config.get("multi_az", False)
-        hourly = self.pricing.get_rds_hourly_cost(instance_class, multi_az, pricing_tier)
+        hourly = self.pricing.get_rds_hourly_cost(
+            instance_class, multi_az, pricing_tier
+        )
         cost.compute_cost = hourly * HOURS_PER_MONTH
 
         # Storage
@@ -268,7 +274,9 @@ class CostEstimator:
         cost.instance_type = node_type
 
         num_nodes = config.get("num_cache_nodes", 1)
-        hourly = self.pricing.get_elasticache_hourly_cost(node_type, num_nodes, pricing_tier)
+        hourly = self.pricing.get_elasticache_hourly_cost(
+            node_type, num_nodes, pricing_tier
+        )
 
         cost.compute_cost = hourly * HOURS_PER_MONTH
         cost.monthly_cost = cost.compute_cost
@@ -323,7 +331,9 @@ class CostEstimator:
         estimated_gb = config.get("estimated_storage_gb", 100)
         storage_class = config.get("storage_class", "STANDARD")
 
-        cost.storage_cost = self.pricing.get_s3_monthly_cost(estimated_gb, storage_class)
+        cost.storage_cost = self.pricing.get_s3_monthly_cost(
+            estimated_gb, storage_class
+        )
         cost.monthly_cost = cost.storage_cost
         cost.confidence = CostConfidence.LOW
         cost.assumptions.append(f"S3 estimated at {estimated_gb}GB {storage_class}")
@@ -474,7 +484,9 @@ class CostEstimator:
 
             # Suggest Graviton
             if instance_type.startswith(("m5.", "c5.", "r5.")):
-                tips.append("Consider Graviton instances (m6g/c6g/r6g) for ~20% savings")
+                tips.append(
+                    "Consider Graviton instances (m6g/c6g/r6g) for ~20% savings"
+                )
                 potential = max(potential, cost.monthly_cost * 0.20)
 
         elif cost.resource_type == "aws_db_instance":
@@ -538,13 +550,17 @@ class CostEstimator:
 
         # Calculate optimization potential
         total_optimization = sum(r.optimization_potential for r in resource_costs)
-        optimization_pct = (total_optimization / monthly_total * 100) if monthly_total > 0 else 0
+        optimization_pct = (
+            (total_optimization / monthly_total * 100) if monthly_total > 0 else 0
+        )
 
         # Generate recommendations
         recommendations = self._generate_recommendations(resource_costs, by_category)
 
         # Count estimated vs unestimated
-        estimated = len([r for r in resource_costs if r.confidence != CostConfidence.UNKNOWN])
+        estimated = len(
+            [r for r in resource_costs if r.confidence != CostConfidence.UNKNOWN]
+        )
         unestimated = len(resource_costs) - estimated
 
         # Determine overall confidence
@@ -624,7 +640,8 @@ class CostEstimator:
 
         # Check for Reserved Instance opportunities
         on_demand_compute = [
-            r for r in resource_costs
+            r
+            for r in resource_costs
             if r.resource_type in ("aws_instance", "aws_db_instance")
             and r.pricing_tier == PricingTier.ON_DEMAND
             and r.monthly_cost > 100
@@ -649,7 +666,8 @@ class CostEstimator:
 
         # Check for gp2 to gp3 migration
         gp2_volumes = [
-            r for r in resource_costs
+            r
+            for r in resource_costs
             if r.resource_type == "aws_ebs_volume"
             and r.assumptions
             and "gp2" in r.assumptions[0]

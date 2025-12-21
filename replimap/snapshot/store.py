@@ -134,14 +134,16 @@ class SnapshotStore:
             if region and meta.get("region") != region:
                 continue
 
-            snapshots.append({
-                "name": name,
-                "created_at": meta.get("created_at"),
-                "region": meta.get("region"),
-                "resource_count": meta.get("resource_count", 0),
-                "path": meta.get("latest_path"),
-                "vpc_id": meta.get("vpc_id"),
-            })
+            snapshots.append(
+                {
+                    "name": name,
+                    "created_at": meta.get("created_at"),
+                    "region": meta.get("region"),
+                    "resource_count": meta.get("resource_count", 0),
+                    "path": meta.get("latest_path"),
+                    "vpc_id": meta.get("vpc_id"),
+                }
+            )
 
         # Sort by date descending (newest first)
         snapshots.sort(key=lambda x: x.get("created_at", ""), reverse=True)

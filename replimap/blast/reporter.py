@@ -88,10 +88,7 @@ class BlastRadiusReporter:
     def to_tree(self, result: BlastRadiusResult) -> None:
         """Print blast radius as a tree."""
         center = result.center_resource
-        tree = Tree(
-            f"[bold red]{center.type}[/bold red]: {center.id} "
-            f"({center.name})"
-        )
+        tree = Tree(f"[bold red]{center.type}[/bold red]: {center.id} ({center.name})")
 
         self._build_tree(tree, center.id, result, visited=set())
 

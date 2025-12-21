@@ -63,12 +63,8 @@ class TestResourceSnapshot:
 
     def test_config_hash_differs_for_different_config(self):
         """Test that different configs produce different hashes."""
-        resource1 = ResourceSnapshot(
-            id="r1", type="aws_test", config={"key": "value1"}
-        )
-        resource2 = ResourceSnapshot(
-            id="r2", type="aws_test", config={"key": "value2"}
-        )
+        resource1 = ResourceSnapshot(id="r1", type="aws_test", config={"key": "value1"})
+        resource2 = ResourceSnapshot(id="r2", type="aws_test", config={"key": "value2"})
 
         assert resource1.config_hash != resource2.config_hash
 
@@ -754,7 +750,11 @@ class TestSnapshotDiffer:
                     id="sg-1",
                     type="aws_security_group",
                     config={
-                        "ingress": {"from_port": 22, "to_port": 22, "cidr_blocks": ["0.0.0.0/0"]}
+                        "ingress": {
+                            "from_port": 22,
+                            "to_port": 22,
+                            "cidr_blocks": ["0.0.0.0/0"],
+                        }
                     },
                 ),
             ],
@@ -766,7 +766,11 @@ class TestSnapshotDiffer:
                     id="sg-1",
                     type="aws_security_group",
                     config={
-                        "ingress": {"from_port": 22, "to_port": 22, "cidr_blocks": ["10.0.0.0/8"]}
+                        "ingress": {
+                            "from_port": 22,
+                            "to_port": 22,
+                            "cidr_blocks": ["10.0.0.0/8"],
+                        }
                     },
                 ),
             ],
@@ -963,7 +967,9 @@ class TestSnapshotReporter:
                 current_date="2024-01-02T00:00:00Z",
                 total_added=5,
                 total_removed=2,
-                by_type={"aws_vpc": {"added": 2, "removed": 1, "modified": 0, "unchanged": 0}},
+                by_type={
+                    "aws_vpc": {"added": 2, "removed": 1, "modified": 0, "unchanged": 0}
+                },
             )
 
             reporter = SnapshotReporter()
