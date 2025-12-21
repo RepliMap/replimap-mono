@@ -21,9 +21,22 @@
  *
  * Usage Endpoints:
  * - POST /v1/usage/sync - Sync usage data
+ * - POST /v1/usage/track - Track feature usage event (NEW)
  * - GET /v1/usage/{license_key} - Get usage for license
  * - GET /v1/usage/{license_key}/history - Get usage history
  * - POST /v1/usage/check-quota - Check quota availability
+ *
+ * Feature Endpoints (NEW):
+ * - GET /v1/features - Get all features info
+ * - POST /v1/features/check - Check feature access
+ * - GET /v1/features/flags - Get feature flags for license
+ *
+ * Metrics Endpoints (NEW, require X-API-Key):
+ * - GET /v1/metrics/adoption - Feature adoption metrics
+ * - GET /v1/metrics/conversion - Conversion metrics
+ * - GET /v1/metrics/remediation-impact - Remediation impact
+ * - GET /v1/metrics/snapshot-usage - Snapshot usage metrics
+ * - GET /v1/metrics/deps-usage - Dependency explorer metrics
  *
  * Admin Endpoints (require X-API-Key):
  * - POST /v1/admin/licenses - Create a new license
@@ -46,11 +59,20 @@ import {
   handleGetUsage,
   handleGetUsageHistory,
   handleCheckQuota,
+  handleTrackEvent,
   handleCreateCheckout,
   handleCreateBillingPortal,
   handleGetOwnLicense,
   handleGetOwnMachines,
   handleResendKey,
+  handleGetFeatures,
+  handleCheckFeature,
+  handleGetFeatureFlags,
+  handleGetAdoption,
+  handleGetConversion,
+  handleGetRemediationImpact,
+  handleGetSnapshotUsage,
+  handleGetDepsUsage,
 } from './handlers';
 import { AppError, Errors } from './lib/errors';
 
@@ -207,6 +229,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // ========================================================================
     if (!response && path === '/v1/usage/sync' && method === 'POST') {
       response = await handleSyncUsage(request, env, clientIP);
+    } else if (!response && path === '/v1/usage/track' && method === 'POST') {
+      response = await handleTrackEvent(request, env, clientIP);
     } else if (!response && path === '/v1/usage/check-quota' && method === 'POST') {
       response = await handleCheckQuota(request, env, clientIP);
     } else if (!response && method === 'GET') {
@@ -221,6 +245,32 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
           response = await handleGetUsage(request, env, usageKey, clientIP);
         }
       }
+    }
+
+    // ========================================================================
+    // Feature Endpoints (NEW)
+    // ========================================================================
+    if (!response && path === '/v1/features' && method === 'GET') {
+      response = await handleGetFeatures(request, env, clientIP);
+    } else if (!response && path === '/v1/features/check' && method === 'POST') {
+      response = await handleCheckFeature(request, env, clientIP);
+    } else if (!response && path === '/v1/features/flags' && method === 'GET') {
+      response = await handleGetFeatureFlags(request, env, clientIP);
+    }
+
+    // ========================================================================
+    // Metrics Endpoints (NEW - require X-API-Key)
+    // ========================================================================
+    if (!response && path === '/v1/metrics/adoption' && method === 'GET') {
+      response = await handleGetAdoption(request, env, clientIP);
+    } else if (!response && path === '/v1/metrics/conversion' && method === 'GET') {
+      response = await handleGetConversion(request, env, clientIP);
+    } else if (!response && path === '/v1/metrics/remediation-impact' && method === 'GET') {
+      response = await handleGetRemediationImpact(request, env, clientIP);
+    } else if (!response && path === '/v1/metrics/snapshot-usage' && method === 'GET') {
+      response = await handleGetSnapshotUsage(request, env, clientIP);
+    } else if (!response && path === '/v1/metrics/deps-usage' && method === 'GET') {
+      response = await handleGetDepsUsage(request, env, clientIP);
     }
 
     // ========================================================================
@@ -262,8 +312,12 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     } else if (!response && path === '/' && method === 'GET') {
       response = new Response(JSON.stringify({
         name: 'RepliMap License API',
-        version: env.API_VERSION || 'v1',
+        version: env.API_VERSION || 'v1.2.0',
         environment: env.ENVIRONMENT,
+        features: {
+          new: ['audit_fix', 'snapshot', 'snapshot_diff', 'graph_full', 'graph_security'],
+          renamed: [{ old: 'blast', new: 'deps' }],
+        },
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

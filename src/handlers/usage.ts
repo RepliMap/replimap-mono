@@ -1,6 +1,7 @@
 /**
  * Usage Tracking Handlers
  * POST /v1/usage/sync
+ * POST /v1/usage/track - Track feature usage events (NEW)
  * GET /v1/usage/{license_key}
  * GET /v1/usage/{license_key}/history
  * POST /v1/usage/check-quota
@@ -10,8 +11,14 @@ import type { Env } from '../types/env';
 import { Errors, AppError } from '../lib/errors';
 import { validateLicenseKey, normalizeLicenseKey, nowISO, generateId } from '../lib/license';
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
+import { Plan, PLAN_LIMITS } from '../features';
 import { rateLimit } from '../lib/rate-limiter';
 import { getLicenseByKey, getMonthlyUsageCount } from '../lib/db';
+import {
+  normalizeEventType,
+  isDeprecatedEvent,
+  getEventDeprecationWarning,
+} from '../utils/event-compat';
 
 // ============================================================================
 // Request/Response Types
@@ -70,6 +77,65 @@ interface UsageHistoryResponse {
     scans_count: number;
     resources_scanned: number;
   }>;
+}
+
+// =============================================================================
+// NEW: Event Tracking Types
+// =============================================================================
+
+// Valid event types for the new tracking system
+const VALID_EVENT_TYPES = [
+  // Core
+  'scan',
+  'graph',
+  'graph_full',
+  'graph_security',
+  'clone',
+  // Security
+  'audit',
+  'audit_fix',
+  // Change detection
+  'drift',
+  'snapshot_save',
+  'snapshot_diff',
+  'snapshot_list',
+  'snapshot_delete',
+  // Dependency Explorer (current names)
+  'deps',
+  'deps_explore',
+  'deps_export',
+  // DEPRECATED: Blast Radius (accept but map to deps)
+  'blast',
+  'blast_analyze',
+  'blast_export',
+  // Cost
+  'cost',
+  'cost_export',
+  // Exports
+  'export_json',
+  'export_html',
+  'export_markdown',
+  'export_terraform',
+] as const;
+
+type EventType = (typeof VALID_EVENT_TYPES)[number];
+
+interface TrackEventRequest {
+  license_key: string;
+  event_type: EventType;
+  region?: string;
+  vpc_id?: string;
+  resource_count?: number;
+  duration_ms?: number;
+  metadata?: Record<string, unknown>;
+}
+
+interface TrackEventResponse {
+  success: boolean;
+  event_id: string;
+  remaining?: number | null;
+  deprecation_warning?: string;
+  mapped_to?: string;
 }
 
 // ============================================================================
@@ -472,4 +538,267 @@ async function getUsageHistory(
   }
 
   return results;
+}
+
+// =============================================================================
+// NEW: Event Tracking Handler
+// =============================================================================
+
+/**
+ * Track feature usage event
+ * POST /v1/usage/track
+ */
+export async function handleTrackEvent(
+  request: Request,
+  env: Env,
+  clientIP: string
+): Promise<Response> {
+  const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+
+  try {
+    // Parse request body
+    let body: TrackEventRequest;
+    try {
+      body = (await request.json()) as TrackEventRequest;
+    } catch {
+      throw Errors.invalidRequest('Invalid JSON body');
+    }
+
+    // Validate required fields
+    if (!body.license_key) {
+      throw Errors.invalidRequest('Missing license_key');
+    }
+    if (!body.event_type) {
+      throw Errors.invalidRequest('Missing event_type');
+    }
+
+    // Validate event type
+    if (!VALID_EVENT_TYPES.includes(body.event_type)) {
+      throw Errors.invalidRequest(`Invalid event_type: ${body.event_type}`);
+    }
+
+    validateLicenseKey(body.license_key);
+    const licenseKey = normalizeLicenseKey(body.license_key);
+
+    // Get license
+    const license = await getLicenseByKey(env.DB, licenseKey);
+    if (!license) {
+      throw Errors.licenseNotFound();
+    }
+
+    // Handle deprecated event types (blast → deps)
+    const originalEventType = body.event_type;
+    const wasDeprecated = isDeprecatedEvent(body.event_type);
+    const eventType = normalizeEventType(body.event_type);
+
+    if (wasDeprecated) {
+      console.log(`[COMPAT] Mapped deprecated event: ${originalEventType} → ${eventType}`);
+    }
+
+    // Check usage limits
+    const plan = license.plan as Plan;
+    const limitCheck = await checkEventLimit(env.DB, license.id, plan, eventType);
+
+    if (!limitCheck.allowed) {
+      return new Response(
+        JSON.stringify({
+          error: 'Usage limit exceeded',
+          limit: limitCheck.limit,
+          used: limitCheck.used,
+          reset_at: limitCheck.reset_at,
+          upgrade_url: 'https://replimap.dev/pricing',
+        }),
+        {
+          status: 429,
+          headers: { 'Content-Type': 'application/json', ...rateLimitHeaders },
+        }
+      );
+    }
+
+    // Record event
+    const eventId = generateId();
+    const now = nowISO();
+
+    await env.DB.prepare(`
+      INSERT INTO usage_events (
+        id, license_id, event_type, region, vpc_id,
+        resource_count, duration_ms, metadata, original_event_type, created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      eventId,
+      license.id,
+      eventType,
+      body.region || null,
+      body.vpc_id || null,
+      body.resource_count || null,
+      body.duration_ms || null,
+      body.metadata ? JSON.stringify(body.metadata) : null,
+      wasDeprecated ? originalEventType : null,
+      now
+    ).run();
+
+    // Track feature-specific data
+    if (eventType === 'snapshot_save' && body.metadata?.snapshot_name) {
+      await trackSnapshot(env.DB, license.id, body.metadata);
+    } else if (eventType === 'audit_fix' && body.metadata) {
+      await trackRemediation(env.DB, license.id, body.metadata);
+    }
+
+    // Build response
+    const response: TrackEventResponse = {
+      success: true,
+      event_id: eventId,
+      remaining: limitCheck.remaining,
+    };
+
+    if (wasDeprecated) {
+      response.deprecation_warning = getEventDeprecationWarning(originalEventType);
+      response.mapped_to = eventType;
+    }
+
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...rateLimitHeaders },
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return new Response(JSON.stringify(error.toResponse()), {
+        status: error.statusCode,
+        headers: { 'Content-Type': 'application/json', ...rateLimitHeaders },
+      });
+    }
+    throw error;
+  }
+}
+
+// =============================================================================
+// NEW: Feature-Specific Tracking Helpers
+// =============================================================================
+
+async function checkEventLimit(
+  db: D1Database,
+  licenseId: string,
+  plan: Plan,
+  eventType: string
+): Promise<{
+  allowed: boolean;
+  limit: number;
+  used: number;
+  remaining: number | null;
+  reset_at: string;
+}> {
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS[Plan.FREE];
+
+  // Map event type to limit key
+  const limitKeyMap: Record<string, string> = {
+    audit_fix: 'audit_fix_count',
+    snapshot_save: 'snapshot_count',
+    snapshot_diff: 'snapshot_diff_count',
+    snapshot_list: 'snapshot_count',
+    snapshot_delete: 'snapshot_count',
+    deps: 'deps_count',
+    deps_explore: 'deps_count',
+    deps_export: 'deps_count',
+    graph_full: 'graph_count',
+    graph_security: 'graph_count',
+    drift: 'drift_count',
+    cost: 'cost_count',
+    scan: 'scan_count',
+  };
+
+  const limitKey = limitKeyMap[eventType] || `${eventType}_count`;
+  const limit = limits[limitKey] ?? -1;
+
+  // Unlimited
+  if (limit === -1) {
+    return {
+      allowed: true,
+      limit: -1,
+      used: 0,
+      remaining: null,
+      reset_at: '',
+    };
+  }
+
+  // Disabled (0)
+  if (limit === 0) {
+    return {
+      allowed: false,
+      limit: 0,
+      used: 0,
+      remaining: 0,
+      reset_at: getEndOfMonth().toISOString(),
+    };
+  }
+
+  // Count current period usage
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const result = await db.prepare(`
+    SELECT COUNT(*) as count
+    FROM usage_events
+    WHERE license_id = ? AND event_type = ? AND created_at >= ?
+  `).bind(licenseId, eventType, startOfMonth.toISOString()).first<{ count: number }>();
+
+  const used = result?.count || 0;
+  const remaining = Math.max(0, limit - used);
+
+  return {
+    allowed: used < limit,
+    limit,
+    used,
+    remaining,
+    reset_at: getEndOfMonth().toISOString(),
+  };
+}
+
+async function trackSnapshot(
+  db: D1Database,
+  licenseId: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  await db.prepare(`
+    INSERT INTO snapshots (id, license_id, name, region, vpc_id, resource_count, profile, replimap_version)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    generateId(),
+    licenseId,
+    metadata.snapshot_name as string,
+    metadata.region as string,
+    (metadata.vpc_id as string) || null,
+    (metadata.resource_count as number) || 0,
+    (metadata.profile as string) || null,
+    (metadata.version as string) || null
+  ).run();
+}
+
+async function trackRemediation(
+  db: D1Database,
+  licenseId: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  await db.prepare(`
+    INSERT INTO remediations (id, license_id, audit_id, region, total_findings, total_fixable, total_manual, files_generated)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    generateId(),
+    licenseId,
+    (metadata.audit_id as string) || null,
+    metadata.region as string,
+    (metadata.total_findings as number) || 0,
+    (metadata.total_fixable as number) || 0,
+    (metadata.total_manual as number) || 0,
+    (metadata.files_generated as number) || 0
+  ).run();
+}
+
+function getEndOfMonth(): Date {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 1);
+  date.setDate(0);
+  date.setHours(23, 59, 59, 999);
+  return date;
 }

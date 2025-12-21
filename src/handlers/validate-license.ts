@@ -17,6 +17,7 @@ import {
   checkCliVersion,
   type PlanType,
 } from '../lib/constants';
+import { Plan, getFeatureFlags, PLAN_LIMITS } from '../features';
 import { Errors, AppError } from '../lib/errors';
 import {
   validateLicenseKey,
@@ -114,6 +115,11 @@ export async function handleValidateLicense(
     // Check CLI version compatibility
     const cliVersionCheck = checkCliVersion(body.cli_version);
 
+    // Get new feature flags and limits
+    const planEnum = license.plan as Plan;
+    const featureFlags = getFeatureFlags(planEnum);
+    const newLimits = PLAN_LIMITS[planEnum] || PLAN_LIMITS[Plan.FREE];
+
     // Build success response
     const response: ValidateLicenseResponse = {
       valid: true,
@@ -138,6 +144,19 @@ export async function handleValidateLicense(
       expires_at: license.current_period_end,
       cache_until: calculateCacheUntil(license.status, license.current_period_end),
       cli_version: cliVersionCheck,
+      // NEW: Include feature flags for new features
+      new_features: featureFlags,
+      // NEW: Include extended limits
+      limits: {
+        audit_fix_count: newLimits.audit_fix_count,
+        snapshot_count: newLimits.snapshot_count,
+        snapshot_diff_count: newLimits.snapshot_diff_count,
+        drift_count: newLimits.drift_count,
+        deps_count: newLimits.deps_count,
+        cost_count: newLimits.cost_count,
+        clone_preview_lines: newLimits.clone_preview_lines,
+        audit_visible_findings: newLimits.audit_visible_findings,
+      },
     };
 
     return new Response(JSON.stringify(response), {

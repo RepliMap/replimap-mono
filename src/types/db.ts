@@ -113,3 +113,53 @@ export interface ValidateLicenseQueryResult {
   machine_is_active: number | null;
   machine_last_seen: string | null;
 }
+
+// =============================================================================
+// NEW: Feature Usage Tables
+// =============================================================================
+
+export interface UsageEventRow {
+  id: string;
+  license_id: string;
+  event_type: string;
+  region: string | null;
+  vpc_id: string | null;
+  resource_count: number;
+  duration_ms: number | null;
+  metadata: string | null; // JSON string
+  original_event_type: string | null; // For deprecated event tracking
+  created_at: string;
+}
+
+export interface SnapshotRow {
+  id: string;
+  license_id: string;
+  name: string;
+  region: string;
+  vpc_id: string | null;
+  resource_count: number;
+  profile: string | null;
+  replimap_version: string | null;
+  storage_type: string;
+  storage_path: string | null;
+  created_at: string;
+}
+
+export interface RemediationRow {
+  id: string;
+  license_id: string;
+  audit_id: string | null;
+  region: string;
+  total_findings: number;
+  total_fixable: number;
+  total_manual: number;
+  files_generated: number;
+  created_at: string;
+}
+
+export interface MigrationLogRow {
+  id: number;
+  migration_name: string;
+  executed_at: string;
+  notes: string | null;
+}
