@@ -1,129 +1,382 @@
 # RepliMap Backend API
 
-License validation and usage tracking API for RepliMap.
+License validation, feature gating, and usage tracking API for RepliMap CLI.
 
-## Overview
+Built on Cloudflare Workers + D1 (SQLite) for global edge deployment.
 
-This backend provides:
-- **License Validation API** - Validate license keys, check feature access
-- **Usage Sync API** - Track quota usage, aggregate metrics
-- **Admin API** - License management, usage reports
+## Features
+
+### Core Functionality
+- **License Validation** - Validate license keys, manage machine activations
+- **Feature Gating** - Plan-based feature access control
+- **Usage Tracking** - Track feature usage with monthly limits
+- **Admin Metrics** - Usage analytics and reporting
+
+### New Features (v2.0)
+
+| Feature | Description | Minimum Plan |
+|---------|-------------|--------------|
+| **Dependency Explorer** | Explore resource dependencies and impact analysis | TEAM |
+| **Audit Remediation** | Auto-generate Terraform fixes with `--fix` flag | SOLO |
+| **Drift Snapshots** | Save/compare infrastructure state without Terraform | SOLO |
+| **Graph Modes** | `--all` and `--security` filter modes | SOLO |
+| **Cost Estimation** | Infrastructure cost estimates (±20% accuracy) | PRO |
+
+### Backward Compatibility
+
+The "Blast Radius" feature has been renamed to "Dependency Explorer":
+
+| Old Command | New Command | Notes |
+|-------------|-------------|-------|
+| `replimap blast analyze` | `replimap deps explore` | Full replacement |
+| `replimap blast export` | `replimap deps export` | Full replacement |
+
+The API accepts deprecated event types (`blast`, `blast_analyze`, `blast_export`) and automatically maps them to the new names, returning deprecation warnings.
 
 ## Architecture
 
 ```
 replimap-backend/
-├── api/                    # API endpoints (FastAPI)
-│   ├── licenses.py         # License validation endpoints
-│   ├── usage.py            # Usage tracking endpoints
-│   └── admin.py            # Admin management endpoints
-├── services/               # Business logic
-│   ├── license_service.py  # License validation, generation
-│   └── usage_service.py    # Usage aggregation, quotas
-├── database/               # Database layer
-│   ├── models.py           # SQLAlchemy models
-│   └── migrations/         # Alembic migrations
-├── config/                 # Configuration
-│   └── settings.py         # Environment-based settings
-└── tests/                  # API tests
+├── src/
+│   ├── index.ts              # Main router
+│   ├── features.ts           # Feature definitions & plan limits
+│   ├── handlers/
+│   │   ├── index.ts          # Handler exports
+│   │   ├── validate-license.ts   # License validation
+│   │   ├── usage.ts          # Usage tracking & limits
+│   │   ├── features.ts       # Feature info endpoints
+│   │   └── metrics.ts        # Admin metrics
+│   ├── lib/
+│   │   ├── crypto.ts         # License key generation/validation
+│   │   ├── errors.ts         # Error handling
+│   │   └── helpers.ts        # Utility functions
+│   ├── types/
+│   │   ├── api.ts            # API types
+│   │   └── db.ts             # Database types
+│   └── utils/
+│       └── event-compat.ts   # Blast → Deps compatibility layer
+├── migrations/
+│   ├── 001_initial.sql
+│   ├── 002_usage_tracking.sql
+│   ├── 003_new_features.sql
+│   └── 004_blast_to_deps_rename.sql
+├── schema.sql                # Full database schema
+└── wrangler.toml             # Cloudflare config
 ```
-
-## Deployment Options
-
-### Option 1: Supabase (Recommended for MVP)
-- Use Supabase PostgreSQL for database
-- Deploy API as Supabase Edge Functions or external service
-- Built-in Row Level Security
-
-### Option 2: AWS Lambda + API Gateway
-- Serverless deployment
-- Good for production scale
-- Use RDS PostgreSQL or DynamoDB
-
-### Option 3: Docker + Any Cloud
-- Self-contained deployment
-- Deploy to ECS, Cloud Run, Fly.io, etc.
-
-## Quick Start
-
-```bash
-# Install dependencies
-pip install -e ".[dev]"
-
-# Set environment variables
-export DATABASE_URL="postgresql://..."
-export JWT_SECRET="your-secret-key"
-export STRIPE_SECRET_KEY="sk_..."  # For payment integration
-
-# Run migrations
-alembic upgrade head
-
-# Start development server
-uvicorn api.main:app --reload
-```
-
-## Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `JWT_SECRET` | Secret for JWT signing | Yes |
-| `STRIPE_SECRET_KEY` | Stripe API key for payments | No |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | No |
-| `CORS_ORIGINS` | Allowed CORS origins | No |
 
 ## API Endpoints
 
 ### License Validation
 
+```bash
+POST /v1/license/validate
 ```
-POST /api/v1/licenses/validate
-{
-  "license_key": "RP-XXXX-XXXX-XXXX-XXXX",
-  "machine_id": "abc123",
-  "product_version": "1.0.0"
-}
 
-Response:
+**Request:**
+```json
+{
+  "license_key": "RM-XXXX-XXXX-XXXX-XXXX",
+  "machine_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+  "product_version": "2.0.0"
+}
+```
+
+**Response:**
+```json
 {
   "valid": true,
-  "plan": "team",
-  "features": ["async_scanning", "unlimited_resources", ...],
-  "expires_at": "2025-12-31T23:59:59Z",
-  "max_activations": 5,
-  "current_activations": 2
-}
-```
-
-### Usage Sync
-
-```
-POST /api/v1/usage/sync
-{
-  "license_key": "RP-XXXX-XXXX-XXXX-XXXX",
-  "machine_id": "abc123",
-  "usage": {
-    "scans_count": 15,
-    "resources_scanned": 1250,
-    "terraform_generations": 8
+  "plan": "solo",
+  "features": ["scan", "graph", "audit", "clone_generate", "audit_fix", "snapshot"],
+  "new_features": {
+    "audit_fix": true,
+    "snapshot": true,
+    "snapshot_diff": true,
+    "deps": false,
+    "graph_full": true,
+    "graph_security": true,
+    "drift": false,
+    "cost": false
   },
-  "period": "2025-01"
+  "limits": {
+    "scan_count": 100,
+    "audit_fix_count": 50,
+    "snapshot_count": 20
+  },
+  "expires_at": "2026-01-15T00:00:00Z",
+  "max_activations": 2,
+  "current_activations": 1
 }
+```
 
-Response:
+### Feature Check
+
+```bash
+POST /v1/features/check
+```
+
+**Request:**
+```json
 {
-  "synced": true,
-  "quotas": {
-    "scans_remaining": 85,
-    "resources_remaining": null  // unlimited
+  "license_key": "RM-XXXX-XXXX-XXXX-XXXX",
+  "feature": "audit_fix"
+}
+```
+
+**Response (allowed):**
+```json
+{
+  "allowed": true,
+  "feature": "audit_fix",
+  "current_plan": "solo",
+  "feature_info": {
+    "id": "audit_fix",
+    "name": "Audit Remediation",
+    "description": "Auto-generate Terraform code to fix issues (--fix)",
+    "tier": "solo",
+    "available": true,
+    "isNew": true
   }
 }
 ```
 
+**Response (denied):**
+```json
+{
+  "allowed": false,
+  "feature": "deps",
+  "current_plan": "solo",
+  "required_plan": "team",
+  "feature_info": {
+    "id": "deps",
+    "name": "Dependency Explorer",
+    "tier": "team",
+    "available": false,
+    "isRenamed": true,
+    "previousName": "Blast Radius Analyzer"
+  },
+  "upgrade_url": "https://replimap.dev/pricing?feature=deps"
+}
+```
+
+### Feature Catalog
+
+```bash
+GET /v1/features
+```
+
+Returns complete feature catalog organized by category, with `new_features` and `renamed_features` arrays.
+
+### Usage Tracking
+
+```bash
+POST /v1/usage/track
+```
+
+**Request:**
+```json
+{
+  "license_key": "RM-XXXX-XXXX-XXXX-XXXX",
+  "event_type": "audit_fix",
+  "region": "us-west-2",
+  "metadata": {
+    "total_findings": 10,
+    "total_fixable": 8,
+    "files_generated": 3
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "event_id": "abc123...",
+  "remaining": 49
+}
+```
+
+**With deprecated event type:**
+```json
+{
+  "success": true,
+  "event_id": "abc123...",
+  "remaining": null,
+  "deprecation_warning": "Warning: 'blast' is deprecated. Use 'deps' instead.",
+  "mapped_to": "deps"
+}
+```
+
+### Snapshot Tracking
+
+```bash
+POST /v1/usage/track
+```
+
+**Request:**
+```json
+{
+  "license_key": "RM-XXXX-XXXX-XXXX-XXXX",
+  "event_type": "snapshot_save",
+  "region": "us-east-1",
+  "metadata": {
+    "snapshot_name": "prod-baseline-2025-01",
+    "resource_count": 150,
+    "vpc_id": "vpc-abc123"
+  }
+}
+```
+
+## Event Types
+
+| Event Type | Description | Plan |
+|------------|-------------|------|
+| `scan` | Infrastructure scan | FREE |
+| `graph` | Graph generation | FREE |
+| `graph_full` | Full graph mode (--all) | SOLO |
+| `graph_security` | Security graph mode | SOLO |
+| `audit` | Security audit | FREE |
+| `audit_fix` | Remediation generation | SOLO |
+| `snapshot_save` | Save snapshot | SOLO |
+| `snapshot_diff` | Compare snapshots | SOLO |
+| `drift` | Drift detection | PRO |
+| `deps` | Dependency explorer | TEAM |
+| `deps_explore` | Dependency analysis | TEAM |
+| `deps_export` | Export dependencies | TEAM |
+| `cost` | Cost estimation | PRO |
+
+### Deprecated Event Types
+
+| Deprecated | Maps To | Removal Date |
+|------------|---------|--------------|
+| `blast` | `deps` | 2025-06-01 |
+| `blast_analyze` | `deps_explore` | 2025-06-01 |
+| `blast_export` | `deps_export` | 2025-06-01 |
+
+## Plan Limits
+
+| Feature | FREE | SOLO | PRO | TEAM | ENTERPRISE |
+|---------|------|------|-----|------|------------|
+| Scans/month | 10 | 100 | 500 | ∞ | ∞ |
+| Audit fixes | 0 | 50 | 200 | ∞ | ∞ |
+| Snapshots | 0 | 20 | 100 | ∞ | ∞ |
+| Dependencies | 0 | 0 | 0 | ∞ | ∞ |
+| Machine limit | 1 | 2 | 5 | 20 | ∞ |
+
+## Deployment
+
+### Prerequisites
+
+- Node.js 18+
+- Wrangler CLI (`npm install -g wrangler`)
+- Cloudflare account
+
+### Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Run locally
+npm run dev
+```
+
+### Deploy to Cloudflare
+
+```bash
+# Login to Cloudflare
+wrangler login
+
+# Create D1 database
+wrangler d1 create replimap-prod
+
+# Update wrangler.toml with database_id
+
+# Run migrations
+wrangler d1 execute replimap-prod --remote --file=migrations/001_initial.sql
+wrangler d1 execute replimap-prod --remote --file=migrations/002_usage_tracking.sql
+wrangler d1 execute replimap-prod --remote --file=migrations/003_new_features.sql
+wrangler d1 execute replimap-prod --remote --file=migrations/004_blast_to_deps_rename.sql
+
+# Deploy
+wrangler deploy
+```
+
+### Environment Variables
+
+Set via `wrangler secret put <NAME>`:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `STRIPE_SECRET_KEY` | Stripe API key | No |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | No |
+| `ADMIN_API_KEY` | Admin endpoint auth | Yes |
+
 ## Database Schema
 
-See `database/models.py` for full schema. Key tables:
+### Core Tables
+
 - `licenses` - License records with plan, features, expiry
 - `activations` - Machine activations per license
-- `usage_records` - Usage tracking per license/period
-- `customers` - Customer information (for admin)
+- `usage_events` - All tracked events with metadata
+- `snapshots` - Infrastructure snapshot records
+- `remediations` - Audit fix generation records
+
+See `schema.sql` for complete schema.
+
+## Testing
+
+```bash
+# Run tests
+npm test
+
+# Type check
+npm run typecheck
+```
+
+### Manual API Tests
+
+```bash
+# Health check
+curl https://your-api.workers.dev/health
+
+# Validate license
+curl -X POST https://your-api.workers.dev/v1/license/validate \
+  -H "Content-Type: application/json" \
+  -d '{"license_key": "RM-XXXX-XXXX-XXXX-XXXX", "machine_id": "..."}'
+
+# Check feature access
+curl -X POST https://your-api.workers.dev/v1/features/check \
+  -H "Content-Type: application/json" \
+  -d '{"license_key": "RM-XXXX-XXXX-XXXX-XXXX", "feature": "audit_fix"}'
+
+# Track usage
+curl -X POST https://your-api.workers.dev/v1/usage/track \
+  -H "Content-Type: application/json" \
+  -d '{"license_key": "...", "event_type": "audit_fix", "region": "us-west-2"}'
+```
+
+## Changelog
+
+### v2.0.0 (2025-01)
+
+**New Features:**
+- Dependency Explorer (renamed from Blast Radius)
+- Audit Remediation (`--fix` flag support)
+- Drift Snapshots (save/diff without Terraform)
+- Graph filter modes (`--all`, `--security`)
+- Cost Estimation with confidence levels
+
+**API Changes:**
+- Added `POST /v1/features/check` endpoint
+- Added `GET /v1/features` endpoint
+- Added `new_features` and `limits` to license validation response
+- Added deprecation warnings for `blast*` event types
+- Added `snapshot_save`, `snapshot_diff` event types
+- Added `audit_fix` event type with metadata tracking
+
+**Breaking Changes:**
+- None (backward compatible with blast → deps mapping)
+
+## License
+
+Proprietary - RepliMap Inc.
