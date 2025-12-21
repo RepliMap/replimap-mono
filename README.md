@@ -286,6 +286,99 @@ replimap drift --profile prod --state ./terraform.tfstate \
 | 1 | Drift detected (or critical/high severity drift) |
 | 2 | Error during detection |
 
+## Blast Radius Analysis
+
+Analyze the impact of deleting or modifying a resource before making changes.
+
+```bash
+# Analyze blast radius for a security group
+replimap blast sg-12345 -r us-east-1
+
+# Show dependency tree view
+replimap blast vpc-abc123 -r us-east-1 --format tree
+
+# Generate interactive HTML visualization
+replimap blast i-xyz789 -r us-east-1 -f html -o blast.html
+
+# Limit analysis depth
+replimap blast vpc-12345 -r us-east-1 --depth 3
+
+# Scope to a specific VPC
+replimap blast sg-12345 -r us-east-1 --vpc vpc-abc123
+```
+
+### Output Formats
+
+| Format | Description |
+|--------|-------------|
+| `console` | Rich terminal output with summary (default) |
+| `tree` | Tree view of dependencies |
+| `table` | Table of affected resources |
+| `html` | Interactive D3.js visualization |
+| `json` | Machine-readable JSON |
+
+### Impact Levels
+
+| Level | Score | Description |
+|-------|-------|-------------|
+| CRITICAL | 90-100 | Core infrastructure (VPC, main DB) |
+| HIGH | 70-89 | Production services |
+| MEDIUM | 40-69 | Supporting resources |
+| LOW | 1-39 | Peripheral resources |
+| NONE | 0 | No downstream impact |
+
+## Cost Estimation
+
+Estimate monthly AWS costs for your infrastructure with optimization recommendations.
+
+```bash
+# Estimate costs for current region
+replimap cost -r us-east-1
+
+# Estimate costs for a specific VPC
+replimap cost -r us-east-1 --vpc vpc-12345
+
+# Export to HTML report with charts
+replimap cost -r us-east-1 -f html -o cost-report.html
+
+# Export to CSV for spreadsheet analysis
+replimap cost -r us-east-1 -f csv -o costs.csv
+
+# Export to JSON for automation
+replimap cost -r us-east-1 -f json -o costs.json
+```
+
+### Output Formats
+
+| Format | Description |
+|--------|-------------|
+| `console` | Rich terminal output with summary (default) |
+| `table` | Full table of all resource costs |
+| `html` | Interactive HTML report with Chart.js |
+| `json` | Machine-readable JSON |
+| `csv` | Spreadsheet-compatible CSV |
+
+### Cost Categories
+
+| Category | Resources |
+|----------|-----------|
+| COMPUTE | EC2, Lambda, ECS, EKS |
+| DATABASE | RDS, DynamoDB, ElastiCache |
+| STORAGE | S3, EBS, EFS |
+| NETWORK | VPC, NAT Gateway, Load Balancer |
+| SECURITY | IAM, KMS, WAF |
+| MONITORING | CloudWatch, SNS, SQS |
+
+### Optimization Recommendations
+
+The cost estimator provides actionable recommendations:
+
+- **Reserved Instances**: ~40% savings for steady-state workloads
+- **Savings Plans**: ~35% savings with flexibility
+- **gp2 to gp3 Migration**: ~20% savings with better performance
+- **NAT Gateway Optimization**: Consolidation opportunities
+- **Right-sizing**: Instance type recommendations
+
 ## Output Formats
 
 | Format | Plan Required | Status |
@@ -355,6 +448,8 @@ replimap drift --profile prod --state ./terraform.tfstate \
 | Pulumi Output | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Async Scanning | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Custom Templates | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Blast Radius Analysis | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Cost Estimation | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Web Dashboard | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Team Collaboration | ❌ | ❌ | ❌ | ✅ | ✅ |
 | SSO Integration | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -432,6 +527,25 @@ replimap drift [OPTIONS]
   --format, -f TEXT        Output format: console, html, json [default: console]
   --output, -o PATH        Output file path
   --ci                     CI mode (exit code reflects drift status)
+
+# Blast radius command (impact analysis, Pro+)
+replimap blast RESOURCE_ID [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        AWS region [default: us-east-1]
+  --vpc, -v TEXT           VPC ID to scope the scan
+  --depth, -d INT          Maximum depth to traverse [default: 10]
+  --format, -f TEXT        Output format: console, tree, table, html, json [default: console]
+  --output, -o PATH        Output file path
+  --open/--no-open         Open HTML report in browser [default: open]
+
+# Cost estimation command (Pro+)
+replimap cost [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        AWS region [default: us-east-1]
+  --vpc, -v TEXT           VPC ID to scope the scan
+  --format, -f TEXT        Output format: console, table, html, json, csv [default: console]
+  --output, -o PATH        Output file path
+  --open/--no-open         Open HTML report in browser [default: open]
 
 # License commands
 replimap license activate KEY
@@ -599,6 +713,16 @@ replimap/
 │   │   ├── comparator.py    # Resource comparison
 │   │   ├── reporter.py      # Report generation
 │   │   └── templates/       # HTML report template
+│   ├── blast/               # Blast radius analysis
+│   │   ├── models.py        # BlastNode, BlastZone, etc.
+│   │   ├── graph_builder.py # Dependency graph building
+│   │   ├── impact_calculator.py # Impact score calculation
+│   │   └── reporter.py      # Console/HTML/JSON output
+│   ├── cost/                # Cost estimation
+│   │   ├── models.py        # ResourceCost, CostEstimate
+│   │   ├── pricing.py       # AWS pricing data
+│   │   ├── estimator.py     # Cost calculation engine
+│   │   └── reporter.py      # Console/HTML/CSV output
 │   └── licensing/
 │       ├── manager.py       # License management
 │       ├── gates.py         # Feature gating

@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Blast Radius Analyzer** (Pro+ feature) - Impact analysis for resource changes
+  - `replimap blast RESOURCE_ID` command to analyze deletion/modification impact
+  - Dependency graph visualization showing what will be affected
+  - Impact scoring by resource type (CRITICAL/HIGH/MEDIUM/LOW)
+  - Safe deletion order recommendations
+  - Multiple output formats: console, tree, table, HTML (D3.js), JSON
+  - VPC scoping with `--vpc` option
+  - Configurable depth with `--depth` option
+- **Cost Estimator** (Pro+ feature) - Monthly AWS cost estimation
+  - `replimap cost` command to estimate infrastructure costs
+  - Resource-level cost breakdown by category (COMPUTE, DATABASE, STORAGE, NETWORK)
+  - AWS pricing data for EC2, RDS, ElastiCache, EBS, NAT Gateway, ALB/NLB, Lambda
+  - Regional price multipliers for accurate estimates
+  - Reserved instance pricing tiers (1Y/3Y/Spot/Savings Plan)
+  - Optimization recommendations with potential savings
+  - Multiple output formats: console, table, HTML (Chart.js), JSON, CSV
 - Graph-based selection engine for intelligent resource filtering
   - Selection modes: VPC_SCOPE, ENTRY_POINT, TAG_BASED
   - Boundary handling for network, identity, and global resources

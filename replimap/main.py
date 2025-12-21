@@ -2575,6 +2575,450 @@ def drift(
 
 
 # =============================================================================
+# BLAST RADIUS COMMAND
+# =============================================================================
+
+
+@app.command()
+def blast(
+    resource_id: str = typer.Argument(
+        ...,
+        help="Resource ID to analyze (e.g., vpc-12345, sg-abc123)",
+    ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to scan",
+    ),
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        "-v",
+        help="VPC ID to scope the scan (optional)",
+    ),
+    max_depth: int = typer.Option(
+        10,
+        "--depth",
+        "-d",
+        help="Maximum depth to traverse",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (HTML or JSON)",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, tree, table, html, or json",
+    ),
+    open_report: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="Open HTML report in browser after generation",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Analyze blast radius for a resource.
+
+    Shows what will be affected if you delete or modify a resource:
+    - What resources depend on this one?
+    - What will break if you delete it?
+    - What's the safe deletion order?
+
+    This is a Pro+ feature.
+
+    Output formats:
+    - console: Rich terminal output with summary (default)
+    - tree: Tree view of dependencies
+    - table: Table of affected resources
+    - html: Interactive HTML report with D3.js visualization
+    - json: Machine-readable JSON
+
+    Examples:
+        # Analyze blast radius for a security group
+        replimap blast sg-12345 -r us-east-1
+
+        # Show as tree view
+        replimap blast vpc-abc123 -r us-east-1 --format tree
+
+        # Generate HTML visualization
+        replimap blast i-xyz789 -r us-east-1 -f html -o blast.html
+
+        # Limit depth of analysis
+        replimap blast vpc-12345 -r us-east-1 --depth 3
+    """
+    import webbrowser
+
+    from replimap.blast import (
+        BlastRadiusReporter,
+        DependencyGraphBuilder,
+        ImpactCalculator,
+    )
+    from replimap.licensing import check_blast_allowed
+
+    # Check blast feature access (Pro+ feature)
+    blast_gate = check_blast_allowed()
+    if not blast_gate.allowed:
+        console.print(blast_gate.prompt)
+        raise typer.Exit(1)
+
+    # Determine region
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold magenta]Blast Radius Analyzer[/bold magenta]\n\n"
+            f"Resource: [cyan]{resource_id}[/]\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]\n"
+            + (f"VPC: [cyan]{vpc}[/]\n" if vpc else "")
+            + f"Max Depth: [cyan]{max_depth}[/]",
+            border_style="magenta",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Scan resources
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning AWS resources...", total=None)
+
+        try:
+            # Create graph and run scanners
+            graph = GraphEngine()
+            run_all_scanners(
+                session=session,
+                region=effective_region,
+                graph=graph,
+            )
+
+            # Apply VPC filter if specified
+            if vpc:
+                from replimap.core import ScanFilter, apply_filter_to_graph
+
+                filter_config = ScanFilter(
+                    vpc_ids=[vpc],
+                    include_vpc_resources=True,
+                )
+                graph = apply_filter_to_graph(graph, filter_config)
+
+            progress.update(task, description="Building dependency graph...")
+
+            # Build blast dependency graph
+            builder = DependencyGraphBuilder()
+            dep_graph = builder.build_from_graph_engine(graph, effective_region)
+
+            progress.update(task, description="Calculating blast radius...")
+
+            # Calculate blast radius
+            calculator = ImpactCalculator(
+                dep_graph,
+                builder.get_nodes(),
+                builder.get_edges(),
+            )
+
+            try:
+                result = calculator.calculate_blast_radius(resource_id, max_depth)
+            except ValueError:
+                progress.stop()
+                console.print()
+                console.print(
+                    Panel(
+                        f"[red]Resource not found:[/] {resource_id}\n\n"
+                        f"Make sure the resource ID is correct and exists in region {effective_region}.\n\n"
+                        f"[dim]Available resources: {len(builder.get_nodes())}[/]",
+                        title="Error",
+                        border_style="red",
+                    )
+                )
+                raise typer.Exit(1)
+
+            progress.update(task, completed=True)
+
+        except Exception as e:
+            progress.stop()
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Blast radius analysis failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            logger.exception("Blast radius analysis failed")
+            raise typer.Exit(1)
+
+    # Report results
+    reporter = BlastRadiusReporter()
+    console.print()
+
+    if output_format == "tree":
+        reporter.to_tree(result)
+    elif output_format == "table":
+        reporter.to_table(result)
+    elif output_format == "json":
+        output_path = output or Path("./blast-radius.json")
+        reporter.to_json(result, output_path)
+    elif output_format == "html":
+        output_path = output or Path("./blast-radius.html")
+        reporter.to_html(result, output_path)
+        if open_report:
+            console.print()
+            console.print("[dim]Opening report in browser...[/dim]")
+            webbrowser.open(f"file://{output_path.absolute()}")
+    else:
+        # Default: console output
+        reporter.to_console(result)
+
+    # Also export if output path specified but format is console
+    if output and output_format == "console":
+        if output.suffix == ".html":
+            reporter.to_html(result, output)
+            if open_report:
+                console.print()
+                console.print("[dim]Opening report in browser...[/dim]")
+                webbrowser.open(f"file://{output.absolute()}")
+        elif output.suffix == ".json":
+            reporter.to_json(result, output)
+
+    console.print()
+
+
+# =============================================================================
+# COST ESTIMATOR COMMAND
+# =============================================================================
+
+
+@app.command()
+def cost(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to scan",
+    ),
+    vpc: str | None = typer.Option(
+        None,
+        "--vpc",
+        "-v",
+        help="VPC ID to scope the scan (optional)",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (HTML, JSON, or CSV)",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, table, html, json, or csv",
+    ),
+    open_report: bool = typer.Option(
+        True,
+        "--open/--no-open",
+        help="Open HTML report in browser after generation",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Estimate monthly AWS costs for your infrastructure.
+
+    Provides cost breakdown by category, resource, and region with
+    optimization recommendations.
+
+    This is a Pro+ feature.
+
+    Output formats:
+    - console: Rich terminal output with summary (default)
+    - table: Full table of all resource costs
+    - html: Interactive HTML report with charts
+    - json: Machine-readable JSON
+    - csv: Spreadsheet-compatible CSV
+
+    Examples:
+        # Estimate costs for current region
+        replimap cost -r us-east-1
+
+        # Estimate costs for a specific VPC
+        replimap cost -r us-east-1 --vpc vpc-12345
+
+        # Export to HTML report
+        replimap cost -r us-east-1 -f html -o cost-report.html
+
+        # Export to CSV for spreadsheet analysis
+        replimap cost -r us-east-1 -f csv -o costs.csv
+    """
+    import webbrowser
+
+    from replimap.cost import CostEstimator, CostReporter
+    from replimap.licensing import check_cost_allowed
+
+    # Check cost feature access (Pro+ feature)
+    cost_gate = check_cost_allowed()
+    if not cost_gate.allowed:
+        console.print(cost_gate.prompt)
+        raise typer.Exit(1)
+
+    # Determine region
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = "us-east-1"
+            region_source = "default"
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold green]Cost Estimator[/bold green]\n\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
+            f"Profile: [cyan]{profile or 'default'}[/]\n"
+            + (f"VPC: [cyan]{vpc}[/]\n" if vpc else ""),
+            border_style="green",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(profile, effective_region, use_cache=not no_cache)
+
+    # Scan resources
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning AWS resources...", total=None)
+
+        try:
+            # Create graph and run scanners
+            graph = GraphEngine()
+            run_all_scanners(
+                session=session,
+                region=effective_region,
+                graph=graph,
+            )
+
+            # Apply VPC filter if specified
+            if vpc:
+                from replimap.core import ScanFilter, apply_filter_to_graph
+
+                filter_config = ScanFilter(
+                    vpc_ids=[vpc],
+                    include_vpc_resources=True,
+                )
+                graph = apply_filter_to_graph(graph, filter_config)
+
+            progress.update(task, description="Estimating costs...")
+
+            # Estimate costs
+            estimator = CostEstimator(effective_region)
+            estimate = estimator.estimate_from_graph_engine(graph)
+
+            progress.update(task, completed=True)
+
+        except Exception as e:
+            progress.stop()
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Cost estimation failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            logger.exception("Cost estimation failed")
+            raise typer.Exit(1)
+
+    # Report results
+    reporter = CostReporter()
+    console.print()
+
+    if output_format == "table":
+        reporter.to_table(estimate)
+    elif output_format == "json":
+        output_path = output or Path("./cost-estimate.json")
+        reporter.to_json(estimate, output_path)
+    elif output_format == "csv":
+        output_path = output or Path("./cost-estimate.csv")
+        reporter.to_csv(estimate, output_path)
+    elif output_format == "html":
+        output_path = output or Path("./cost-estimate.html")
+        reporter.to_html(estimate, output_path)
+        if open_report:
+            console.print()
+            console.print("[dim]Opening report in browser...[/dim]")
+            webbrowser.open(f"file://{output_path.absolute()}")
+    else:
+        # Default: console output
+        reporter.to_console(estimate)
+
+    # Also export if output path specified but format is console
+    if output and output_format == "console":
+        if output.suffix == ".html":
+            reporter.to_html(estimate, output)
+            if open_report:
+                console.print()
+                console.print("[dim]Opening report in browser...[/dim]")
+                webbrowser.open(f"file://{output.absolute()}")
+        elif output.suffix == ".json":
+            reporter.to_json(estimate, output)
+        elif output.suffix == ".csv":
+            reporter.to_csv(estimate, output)
+
+    console.print()
+
+
+# =============================================================================
 # UPGRADE COMMAND GROUP
 # =============================================================================
 
