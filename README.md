@@ -449,7 +449,7 @@ The cost estimator provides actionable recommendations:
 | Format | Plan Required | Status |
 |--------|---------------|--------|
 | Terraform HCL | Free+ | ✅ Available |
-| CloudFormation YAML | Solo+ | ✅ Available |
+| CloudFormation YAML | Pro+ | ✅ Available |
 | Pulumi Python | Pro+ | ✅ Available |
 
 ## Supported Resources (24 Types)
@@ -496,25 +496,28 @@ The cost estimator provides actionable recommendations:
 
 ## Pricing
 
-| Plan | Monthly | Resources/Scan | Scans/Month | AWS Accounts |
-|------|---------|----------------|-------------|--------------|
-| **Free** | $0 | 5 | 3 | 1 |
-| **Solo** | $49 | Unlimited | Unlimited | 1 |
-| **Pro** | $99 | Unlimited | Unlimited | 3 |
-| **Team** | $199 | Unlimited | Unlimited | 10 |
-| **Enterprise** | $499+ | Unlimited | Unlimited | Unlimited |
+| Plan | Monthly | Scans/Month | AWS Accounts |
+|------|---------|-------------|--------------|
+| **Free** | $0 | 3 | 1 |
+| **Solo** | $49 | Unlimited | 1 |
+| **Pro** | $99 | Unlimited | 3 |
+| **Team** | $199 | Unlimited | 10 |
+| **Enterprise** | $499+ | Unlimited | Unlimited |
+
+> **Note**: All plans have unlimited resource scanning. Gating happens at output/export time, not during scanning.
 
 ### Feature Matrix
 
 | Feature | Free | Solo | Pro | Team | Enterprise |
 |---------|------|------|-----|------|------------|
 | Terraform Output | ✅ | ✅ | ✅ | ✅ | ✅ |
-| CloudFormation Output | ❌ | ✅ | ✅ | ✅ | ✅ |
+| CloudFormation Output | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Pulumi Output | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Async Scanning | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Custom Templates | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Dependency Explorer | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Cost Estimation | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Drift Detection | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Dependency Explorer | ❌ | ❌ | ❌ | ✅ | ✅ |
 | Web Dashboard | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Team Collaboration | ❌ | ❌ | ❌ | ✅ | ✅ |
 | SSO Integration | ❌ | ❌ | ❌ | ❌ | ✅ |

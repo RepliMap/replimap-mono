@@ -170,10 +170,14 @@ class ScannerError(Exception):
     pass
 
 
-class PermissionError(ScannerError):
+class AWSPermissionError(ScannerError):
     """Raised when AWS permissions are insufficient."""
 
     pass
+
+
+# Backward compatibility alias (avoid shadowing built-in PermissionError)
+PermissionDeniedError = AWSPermissionError
 
 
 class BaseScanner(ABC):
@@ -246,7 +250,7 @@ class BaseScanner(ABC):
 
         Raises:
             ScannerError: If scanning fails
-            PermissionError: If AWS permissions are insufficient
+            AWSPermissionError: If AWS permissions are insufficient
         """
         pass
 
@@ -276,7 +280,7 @@ class BaseScanner(ABC):
             operation: Description of the operation that failed
 
         Raises:
-            PermissionError: If the error is access-related
+            AWSPermissionError: If the error is access-related
             ScannerError: For other AWS errors
         """
         error_code = error.response.get("Error", {}).get("Code", "Unknown")
@@ -288,7 +292,7 @@ class BaseScanner(ABC):
             "AccessDeniedException",
         ):
             logger.error(f"Permission denied: {operation} - {error_message}")
-            raise PermissionError(
+            raise AWSPermissionError(
                 f"Insufficient permissions for {operation}: {error_message}"
             )
 
