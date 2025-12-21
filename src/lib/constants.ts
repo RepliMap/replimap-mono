@@ -97,9 +97,9 @@ export const AWS_ACCOUNT_ID_PATTERN = /^\d{12}$/;
 // These should be updated with actual Stripe price IDs after creation
 export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
   // Development/test price IDs
-  'price_test_solo': 'solo',
-  'price_test_pro': 'pro',
-  'price_test_team': 'team',
+  'price_1Sg0KVAKLIiL9hdwiQFS1xZC': 'solo',
+  'price_1Sg0KxAKLIiL9hdw4c6KcQRI': 'pro',
+  'price_1Sg0MVAKLIiL9hdwB2DEfWus': 'team',
   // Production price IDs - update these after creating products in Stripe
   // 'price_xxx_solo': 'solo',
   // 'price_xxx_pro': 'pro',
@@ -110,9 +110,9 @@ export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
 // Update these with actual Stripe price IDs after creating products
 export const PLAN_TO_STRIPE_PRICE: Record<string, string> = {
   // Development/test price IDs
-  'solo': 'price_test_solo',
-  'pro': 'price_test_pro',
-  'team': 'price_test_team',
+  'solo': 'price_1Sg0KVAKLIiL9hdwiQFS1xZC',
+  'pro': 'price_1Sg0KxAKLIiL9hdw4c6KcQRI',
+  'team': 'price_1Sg0MVAKLIiL9hdwB2DEfWus',
   // Production - uncomment and update after creating products in Stripe:
   // 'solo': 'price_xxx_solo_monthly',
   // 'pro': 'price_xxx_pro_monthly',

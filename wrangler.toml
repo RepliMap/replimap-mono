@@ -3,7 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Environment variables
+# ============================================================================
+# Development Environment (default)
+# ============================================================================
+
 [vars]
 ENVIRONMENT = "development"
 CORS_ORIGIN = "*"
@@ -13,17 +16,20 @@ API_VERSION = "v1"
 [[d1_databases]]
 binding = "DB"
 database_name = "replimap-dev"
-database_id = "local"  # Replace with actual ID after creation
+database_id = "212335fc-ffeb-40d2-8794-c0d84a0991a1"
 
 # KV for rate limiting (development)
 [[kv_namespaces]]
 binding = "CACHE"
-id = "local"  # Replace with actual ID after creation
-preview_id = "local"
+id = "32520e34a8d54faf90e71692462e9f96"         # remote dev
+preview_id = "58ccea22fa7f4e6689adbec8270356b0" # local dev
 
-# Production environment
+# ============================================================================
+# Production Environment
+# ============================================================================
+
 [env.production]
-name = "replimap-api"
+name = "replimap-api-prod"
 
 [env.production.vars]
 ENVIRONMENT = "production"
@@ -33,12 +39,15 @@ API_VERSION = "v1"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "replimap-prod"
-database_id = ""  # Replace with actual ID after creation
+database_id = "0cda6e12-5087-4b1a-8dfe-207960c88f2d"
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = ""  # Replace with actual ID after creation
+id = "705a8c1a808a4656894a0c787787b76c" # remote prod
 
+# ============================================================================
 # Secrets (set via: wrangler secret put <NAME>)
-# - STRIPE_SECRET_KEY
-# - STRIPE_WEBHOOK_SECRET
+# ============================================================================
+# STRIPE_SECRET_KEY        - Stripe API key
+# STRIPE_WEBHOOK_SECRET    - Stripe webhook signing secret
+# ADMIN_API_KEY           - Admin API authentication key
