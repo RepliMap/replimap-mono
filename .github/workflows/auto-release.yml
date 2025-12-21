@@ -3,8 +3,6 @@ name: Auto Release
 on:
   push:
     branches: [main]
-    # Only trigger on merges (not direct pushes)
-    # This is detected by checking if there are multiple parents
   workflow_dispatch:
     inputs:
       bump_type:
@@ -17,7 +15,15 @@ on:
           - minor
           - major
 
+# Prevent concurrent releases
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  # ==========================================================================
+  # Check if we should release
+  # ==========================================================================
   check-release:
     runs-on: ubuntu-latest
     outputs:
@@ -25,26 +31,76 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: Check if this is a merge commit or manual trigger
+      - name: Check if release should proceed
         id: check
         run: |
+          # Skip if commit message contains [skip ci] or [no release]
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          if echo "$COMMIT_MSG" | grep -qiE '\[(skip ci|no release|ci skip)\]'; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "Skipping: commit message contains skip directive"
+            exit 0
+          fi
+
+          # Skip if this is a version bump commit (prevent infinite loop)
+          if echo "$COMMIT_MSG" | grep -qE '^chore(\(.+\))?: bump version'; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "Skipping: version bump commit"
+            exit 0
+          fi
+
+          # Manual trigger always releases
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "Manual trigger - will release"
-          elif git rev-parse HEAD^2 > /dev/null 2>&1; then
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "Merge commit detected - will release"
-          else
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "Direct push - skipping release"
+            exit 0
           fi
 
-  auto-release:
+          # For push events, always release on main
+          echo "should_release=true" >> $GITHUB_OUTPUT
+          echo "Push to main - will release"
+
+  # ==========================================================================
+  # Run tests before release
+  # ==========================================================================
+  test:
     needs: check-release
     if: needs.check-release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run linting
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+
+      - name: Run tests
+        run: uv run pytest tests/ -v
+
+  # ==========================================================================
+  # Bump version and create tag
+  # ==========================================================================
+  version-bump:
+    needs: [check-release, test]
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
     permissions:
       contents: write
     steps:
@@ -75,55 +131,115 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "type=${{ github.event.inputs.bump_type }}" >> $GITHUB_OUTPUT
           else
+            # Could parse conventional commits here for auto-detection
+            # For now, default to patch
             echo "type=patch" >> $GITHUB_OUTPUT
           fi
 
-      - name: Get current version
-        id: current_version
+      - name: Bump version and create tag
+        id: bump
         run: |
-          VERSION=$(uv run hatch version)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Current version: $VERSION"
+          # Get current version
+          CURRENT=$(uv run hatch version)
+          echo "Current version: $CURRENT"
 
-      - name: Bump version
-        id: new_version
-        run: |
+          # Bump version
           uv run hatch version ${{ steps.bump_type.outputs.type }}
-          VERSION=$(uv run hatch version)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $VERSION"
+          NEW_VERSION=$(uv run hatch version)
+          echo "New version: $NEW_VERSION"
 
-      - name: Commit version bump
-        run: |
+          # Commit and tag
           git add -A
-          git commit -m "chore: bump version to ${{ steps.new_version.outputs.version }}" || echo "No changes to commit"
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
 
-      - name: Create and push tag
-        run: |
-          TAG="v${{ steps.new_version.outputs.version }}"
+          TAG="v$NEW_VERSION"
           git tag -a "$TAG" -m "Release $TAG"
+
+          # Push with tags
           git push origin main --follow-tags
-          echo "Created and pushed tag: $TAG"
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+  # ==========================================================================
+  # Build package
+  # ==========================================================================
+  build:
+    needs: version-bump
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.version-bump.outputs.new_version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
 
       - name: Build package
         run: uv build
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 5
+
+  # ==========================================================================
+  # Publish to PyPI
+  # ==========================================================================
+  publish-pypi:
+    needs: [version-bump, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/replimap
+    permissions:
+      id-token: write  # For trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
       - name: Publish to PyPI
-        env:
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          if [ -n "$PYPI_TOKEN" ]; then
-            uv publish --token "$PYPI_TOKEN"
-            echo "Published to PyPI"
-          else
-            echo "PYPI_TOKEN not set - skipping PyPI publish"
-          fi
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # Uses trusted publishing (OIDC) - no token needed if configured
+        # Fallback to token if trusted publishing not set up:
+        # with:
+        #   password: ${{ secrets.PYPI_TOKEN }}
+
+  # ==========================================================================
+  # Create GitHub Release
+  # ==========================================================================
+  github-release:
+    needs: [version-bump, build, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.version-bump.outputs.new_version }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.new_version.outputs.version }}
-          name: Release v${{ steps.new_version.outputs.version }}
+          tag_name: ${{ needs.version-bump.outputs.tag }}
+          name: Release ${{ needs.version-bump.outputs.tag }}
           files: dist/*
           generate_release_notes: true
           draft: false
