@@ -3,6 +3,11 @@ Graph Builder for creating filtered and grouped visualization graphs.
 
 Combines filtering and grouping to produce simplified graph visualizations.
 Works with the GraphVisualizer to create readable infrastructure graphs.
+
+Enhanced with:
+- Environment detection (prod/stage/test/dev)
+- Intelligent naming for better readability
+- Hierarchical layout support
 """
 
 from __future__ import annotations
@@ -11,8 +16,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from replimap.graph.environment import EnvironmentDetector
 from replimap.graph.filters import GraphFilter
 from replimap.graph.grouper import GroupingConfig, ResourceGroup, ResourceGrouper
+from replimap.graph.naming import ResourceNamer
 from replimap.graph.visualizer import (
     RESOURCE_VISUALS,
     GraphEdge,
@@ -83,6 +90,8 @@ class GraphBuilder:
         """
         self.config = config or BuilderConfig()
         self._grouper = ResourceGrouper(self.config.grouping)
+        self._env_detector = EnvironmentDetector()
+        self._namer = ResourceNamer()
 
     def build(
         self,
@@ -180,7 +189,7 @@ class GraphBuilder:
         return [r for r in resources if r.id in vpc_resource_ids]
 
     def _resource_to_node(self, resource: ResourceNode) -> GraphNode:
-        """Convert a ResourceNode to a GraphNode."""
+        """Convert a ResourceNode to a GraphNode with environment and naming."""
         resource_type_str = str(resource.resource_type)
         visuals = RESOURCE_VISUALS.get(
             resource_type_str,
@@ -189,15 +198,45 @@ class GraphBuilder:
 
         properties = self._extract_key_properties(resource)
 
-        return GraphNode(
+        # Get basic name
+        raw_name = resource.original_name or resource.terraform_name or resource.id
+
+        # Build a temporary node dict for environment detection and naming
+        temp_node = {
+            "id": resource.id,
+            "name": raw_name,
+            "type": resource_type_str,
+            "properties": {
+                **properties,
+                "tags": dict(resource.tags) if resource.tags else {},
+            },
+        }
+
+        # Detect environment
+        env_info = self._env_detector.detect(temp_node)
+
+        # Get display name
+        display = self._namer.get_display_name(temp_node)
+
+        # Create the node
+        node = GraphNode(
             id=resource.id,
             resource_type=resource_type_str,
-            name=resource.original_name or resource.terraform_name or resource.id,
+            name=display.short_name,
             properties=properties,
             icon=visuals["icon"],
             color=visuals["color"],
             group=visuals["group"],
         )
+
+        # Add extended properties for the new features
+        node.properties["environment"] = env_info.name
+        node.properties["env_color"] = env_info.color
+        node.properties["full_name"] = display.full_name
+        if display.service_name:
+            node.properties["service_name"] = display.service_name
+
+        return node
 
     def _group_to_node(self, group: ResourceGroup) -> GraphNode:
         """Convert a ResourceGroup to a GraphNode."""

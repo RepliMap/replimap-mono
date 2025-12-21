@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AWS Infrastructure Dependency Graph - RepliMap</title>
+    <title>AWS Infrastructure Graph - RepliMap</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -27,12 +27,31 @@
             height: 100%;
         }
 
+        /* Container boxes (VPC/Subnet) */
+        .container-box {
+            rx: 12;
+            ry: 12;
+        }
+
+        .container-label {
+            font-size: 14px;
+            font-weight: 600;
+            fill: #94a3b8;
+            pointer-events: none;
+        }
+
+        .container-label.vpc {
+            font-size: 16px;
+            fill: #f1f5f9;
+        }
+
+        /* Nodes */
         .node {
             cursor: pointer;
         }
 
         .node circle {
-            stroke-width: 2px;
+            stroke-width: 3px;
             transition: all 0.2s ease;
         }
 
@@ -50,6 +69,14 @@
             filter: brightness(1.3) drop-shadow(0 0 8px currentColor);
         }
 
+        .node.summary circle {
+            stroke-dasharray: 6,3;
+        }
+
+        .node.summary:hover circle {
+            stroke-dasharray: none;
+        }
+
         .node text {
             font-size: 11px;
             font-weight: 600;
@@ -62,6 +89,13 @@
             opacity: 0.2;
         }
 
+        /* Environment borders */
+        .node[data-env="prod"] circle { stroke: #ef4444 !important; }
+        .node[data-env="stage"] circle { stroke: #f59e0b !important; }
+        .node[data-env="test"] circle { stroke: #22c55e !important; }
+        .node[data-env="dev"] circle { stroke: #3b82f6 !important; }
+
+        /* Links */
         .link {
             stroke: #475569;
             stroke-width: 1.5px;
@@ -79,6 +113,13 @@
             stroke-opacity: 1;
         }
 
+        .link.vpc-connection {
+            stroke: #6366f1;
+            stroke-width: 3px;
+            stroke-dasharray: 8,4;
+            stroke-opacity: 0.8;
+        }
+
         /* Control Panel */
         .control-panel {
             position: absolute;
@@ -87,7 +128,7 @@
             background: rgba(30, 41, 59, 0.95);
             border-radius: 12px;
             padding: 16px;
-            max-width: 280px;
+            max-width: 300px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
             border: 1px solid #334155;
             z-index: 100;
@@ -98,6 +139,53 @@
             font-weight: 700;
             margin-bottom: 12px;
             color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Environment Filter */
+        .env-filter {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #334155;
+        }
+
+        .env-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            width: 100%;
+            margin-bottom: 4px;
+        }
+
+        .env-btn {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: #94a3b8;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .env-btn:hover { background: #334155; color: #f1f5f9; }
+        .env-btn.active { background: #6366f1; border-color: #6366f1; color: white; }
+
+        .env-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
         }
 
         .search-box {
@@ -184,6 +272,48 @@
             text-transform: uppercase;
         }
 
+        /* View Navigation */
+        .view-nav {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 8px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid #334155;
+            z-index: 100;
+        }
+
+        .back-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid #6366f1;
+            background: transparent;
+            color: #6366f1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #6366f1;
+            color: white;
+        }
+
+        .current-view {
+            font-size: 14px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
         /* Details Panel */
         .details-panel {
             position: absolute;
@@ -210,13 +340,32 @@
             font-weight: 700;
             margin-bottom: 4px;
             color: #f1f5f9;
+            word-break: break-word;
         }
 
         .details-type {
             font-size: 12px;
             color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        .env-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
             margin-bottom: 12px;
         }
+
+        .env-badge.prod { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .env-badge.stage { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .env-badge.test { background: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .env-badge.dev { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .env-badge.unknown { background: rgba(107, 114, 128, 0.2); color: #d1d5db; border: 1px solid rgba(107, 114, 128, 0.3); }
 
         .details-section {
             margin-bottom: 12px;
@@ -251,6 +400,9 @@
         .property-value {
             color: #f1f5f9;
             font-weight: 500;
+            word-break: break-all;
+            max-width: 150px;
+            text-align: right;
         }
 
         .connections-list {
@@ -266,6 +418,12 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .connection-item:hover {
+            background: #334155;
         }
 
         .connection-icon {
@@ -278,6 +436,7 @@
             font-size: 10px;
             font-weight: 700;
             color: white;
+            flex-shrink: 0;
         }
 
         .close-btn {
@@ -385,7 +544,7 @@
             opacity: 0;
             transition: opacity 0.2s;
             z-index: 200;
-            max-width: 200px;
+            max-width: 250px;
         }
 
         .tooltip.visible {
@@ -396,11 +555,20 @@
             font-weight: 600;
             color: #f1f5f9;
             margin-bottom: 2px;
+            word-break: break-word;
         }
 
         .tooltip-type {
             color: #94a3b8;
             font-size: 11px;
+        }
+
+        .tooltip-env {
+            margin-top: 4px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
         }
 
         /* Loading overlay */
@@ -412,8 +580,10 @@
             height: 100%;
             background: rgba(15, 23, 42, 0.9);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 16px;
             z-index: 1000;
         }
 
@@ -430,6 +600,11 @@
             animation: spin 1s linear infinite;
         }
 
+        .loading-text {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -440,14 +615,44 @@
         <!-- Loading overlay -->
         <div class="loading-overlay" id="loading">
             <div class="loading-spinner"></div>
+            <div class="loading-text">Analyzing infrastructure...</div>
         </div>
 
         <!-- SVG Graph -->
         <svg id="graph"></svg>
 
+        <!-- View Navigation (shown when drilling down) -->
+        <div class="view-nav" id="viewNav" style="display: none;">
+            <button class="back-btn" id="backToOverview">
+                &#x25C0; Back to Overview
+            </button>
+            <span class="current-view" id="currentViewLabel"></span>
+        </div>
+
         <!-- Control Panel -->
         <div class="control-panel">
-            <h2>🔍 AWS Infrastructure</h2>
+            <h2>
+                <span style="font-size: 20px;">&#x1F50D;</span>
+                AWS Infrastructure
+            </h2>
+
+            <!-- Environment Filter -->
+            <div class="env-filter">
+                <span class="env-label">Environment</span>
+                <button class="env-btn active" data-env="all">All</button>
+                <button class="env-btn" data-env="prod">
+                    <span class="env-dot" style="background: #ef4444"></span>Prod
+                </button>
+                <button class="env-btn" data-env="stage">
+                    <span class="env-dot" style="background: #f59e0b"></span>Stage
+                </button>
+                <button class="env-btn" data-env="test">
+                    <span class="env-dot" style="background: #22c55e"></span>Test
+                </button>
+                <button class="env-btn" data-env="dev">
+                    <span class="env-dot" style="background: #3b82f6"></span>Dev
+                </button>
+            </div>
 
             <input type="text" class="search-box" id="search" placeholder="Search resources...">
 
@@ -463,11 +668,11 @@
 
             <div class="stats">
                 <div class="stat-item">
-                    <div class="stat-value">{{ node_count }}</div>
+                    <div class="stat-value" id="resourceCount">{{ node_count }}</div>
                     <div class="stat-label">Resources</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">{{ edge_count }}</div>
+                    <div class="stat-value" id="dependencyCount">{{ edge_count }}</div>
                     <div class="stat-label">Dependencies</div>
                 </div>
             </div>
@@ -475,9 +680,10 @@
 
         <!-- Details Panel -->
         <div class="details-panel" id="details">
-            <button class="close-btn" id="close-details">×</button>
+            <button class="close-btn" id="close-details">&times;</button>
             <h3 id="detail-name">-</h3>
             <div class="details-type" id="detail-type">-</div>
+            <div class="env-badge" id="detail-env" style="display: none;"></div>
 
             <div class="details-section">
                 <h4>Properties</h4>
@@ -535,14 +741,15 @@
         <!-- Zoom Controls -->
         <div class="controls">
             <button class="control-btn" id="zoom-in" title="Zoom In">+</button>
-            <button class="control-btn" id="zoom-out" title="Zoom Out">−</button>
-            <button class="control-btn" id="zoom-reset" title="Reset View">⟲</button>
+            <button class="control-btn" id="zoom-out" title="Zoom Out">&#x2212;</button>
+            <button class="control-btn" id="zoom-reset" title="Reset View">&#x27F2;</button>
         </div>
 
         <!-- Tooltip -->
         <div class="tooltip" id="tooltip">
             <div class="tooltip-title"></div>
             <div class="tooltip-type"></div>
+            <div class="tooltip-env"></div>
         </div>
     </div>
 
@@ -550,18 +757,25 @@
         // Graph data from server
         const graphData = {{ graph_data | safe }};
 
+        // Layout data (hierarchical containers)
+        const layoutData = {{ layout_data | safe if layout_data else '{}' }};
+
         // Configuration
         const config = {
             nodeRadius: 24,
             linkDistance: 120,
             chargeStrength: -400,
             collideRadius: 40,
+            useHierarchicalLayout: layoutData.layout_type === 'hierarchical',
         };
 
         // State
         let selectedNode = null;
         let activeGroup = 'all';
+        let activeEnvironment = 'all';
         let searchTerm = '';
+        let currentViewMode = 'full';
+        let focusVpcId = null;
 
         // DOM elements
         const svg = d3.select('#graph');
@@ -598,16 +812,70 @@
             .attr('d', 'M 0,-5 L 10,0 L 0,5')
             .attr('fill', '#475569');
 
+        // Draw container boxes if hierarchical layout
+        let containerBoxes = null;
+        if (config.useHierarchicalLayout && layoutData.boxes) {
+            containerBoxes = container.append('g')
+                .attr('class', 'containers')
+                .selectAll('g')
+                .data(layoutData.boxes)
+                .enter()
+                .append('g')
+                .attr('class', 'container');
+
+            // Draw rectangles
+            containerBoxes.append('rect')
+                .attr('class', d => `container-box level-${d.level}`)
+                .attr('x', d => d.x)
+                .attr('y', d => d.y)
+                .attr('width', d => d.width)
+                .attr('height', d => d.height)
+                .attr('fill', d => d.style?.fill || 'rgba(30, 41, 59, 0.3)')
+                .attr('stroke', d => d.style?.stroke || '#334155')
+                .attr('stroke-width', d => d.style?.strokeWidth || '2')
+                .attr('stroke-dasharray', d => d.style?.strokeDasharray || 'none');
+
+            // Draw labels
+            containerBoxes.append('text')
+                .attr('class', d => `container-label ${d.level === 0 ? 'vpc' : ''}`)
+                .attr('x', d => d.x + 16)
+                .attr('y', d => d.y + 24)
+                .text(d => d.label);
+        }
+
+        // Apply positions from layout data if available
+        if (config.useHierarchicalLayout && layoutData.nodes) {
+            const positionMap = {};
+            layoutData.nodes.forEach(n => {
+                positionMap[n.id] = { x: n.x, y: n.y, fixed: n.fixed };
+            });
+
+            graphData.nodes.forEach(node => {
+                const pos = positionMap[node.id];
+                if (pos) {
+                    node.x = pos.x;
+                    node.y = pos.y;
+                    node.fx = pos.fixed ? pos.x : null;
+                    node.fy = pos.fixed ? pos.y : null;
+                }
+            });
+        }
+
         // Create force simulation
         const simulation = d3.forceSimulation(graphData.nodes)
             .force('link', d3.forceLink(graphData.links)
                 .id(d => d.id)
                 .distance(config.linkDistance))
             .force('charge', d3.forceManyBody()
-                .strength(config.chargeStrength))
-            .force('center', d3.forceCenter(width / 2, height / 2))
+                .strength(config.useHierarchicalLayout ? -100 : config.chargeStrength))
+            .force('center', config.useHierarchicalLayout ? null : d3.forceCenter(width / 2, height / 2))
             .force('collide', d3.forceCollide()
                 .radius(config.collideRadius));
+
+        // For hierarchical layout, stop simulation immediately
+        if (config.useHierarchicalLayout) {
+            simulation.stop();
+        }
 
         // Create links
         const link = container.append('g')
@@ -616,7 +884,7 @@
             .data(graphData.links)
             .enter()
             .append('path')
-            .attr('class', 'link')
+            .attr('class', d => `link ${d.type === 'vpc_connection' ? 'vpc-connection' : ''}`)
             .attr('marker-end', 'url(#arrowhead)');
 
         // Create nodes
@@ -626,17 +894,34 @@
             .data(graphData.nodes)
             .enter()
             .append('g')
-            .attr('class', 'node')
+            .attr('class', d => {
+                let classes = 'node';
+                if (d.is_summary) classes += ' summary';
+                if (d.type === 'vpc_summary') classes += ' vpc-summary';
+                if (d.type === 'global_summary') classes += ' global-summary';
+                return classes;
+            })
+            .attr('data-env', d => d.environment || 'unknown')
+            .attr('data-node-id', d => d.id)
             .call(d3.drag()
                 .on('start', dragStarted)
                 .on('drag', dragged)
                 .on('end', dragEnded));
 
+        // Set initial positions for hierarchical layout
+        if (config.useHierarchicalLayout) {
+            node.attr('transform', d => `translate(${d.x || 0},${d.y || 0})`);
+        }
+
         // Add circles to nodes
         node.append('circle')
-            .attr('r', config.nodeRadius)
+            .attr('r', d => d.is_summary ? 32 : config.nodeRadius)
             .attr('fill', d => d.color)
-            .attr('stroke', d => d3.color(d.color).darker(0.5));
+            .attr('stroke', d => {
+                // Use environment color for border if available
+                if (d.env_color) return d.env_color;
+                return d3.color(d.color).darker(0.5);
+            });
 
         // Add icon text to nodes
         node.append('text')
@@ -647,9 +932,9 @@
         // Add name labels below nodes
         node.append('text')
             .attr('class', 'node-label')
-            .attr('dy', config.nodeRadius + 14)
+            .attr('dy', d => (d.is_summary ? 36 : config.nodeRadius) + 14)
             .attr('text-anchor', 'middle')
-            .text(d => truncateText(d.name, 16));
+            .text(d => truncateText(d.name, 18));
 
         // Event handlers
         node.on('mouseover', function(event, d) {
@@ -658,23 +943,36 @@
         .on('mouseout', hideTooltip)
         .on('click', function(event, d) {
             event.stopPropagation();
-            selectNode(d);
+            if (d.is_summary && d.expandable) {
+                handleSummaryClick(d);
+            } else {
+                selectNode(d);
+            }
         });
 
         svg.on('click', () => {
             clearSelection();
         });
 
-        // Simulation tick
+        // Simulation tick (for force layout)
         simulation.on('tick', () => {
             link.attr('d', d => {
-                const dx = d.target.x - d.source.x;
-                const dy = d.target.y - d.source.y;
                 return `M${d.source.x},${d.source.y} L${d.target.x},${d.target.y}`;
             });
 
             node.attr('transform', d => `translate(${d.x},${d.y})`);
         });
+
+        // For hierarchical layout, update positions immediately
+        if (config.useHierarchicalLayout) {
+            link.attr('d', d => {
+                const sx = typeof d.source === 'object' ? d.source.x : graphData.nodes.find(n => n.id === d.source)?.x || 0;
+                const sy = typeof d.source === 'object' ? d.source.y : graphData.nodes.find(n => n.id === d.source)?.y || 0;
+                const tx = typeof d.target === 'object' ? d.target.x : graphData.nodes.find(n => n.id === d.target)?.x || 0;
+                const ty = typeof d.target === 'object' ? d.target.y : graphData.nodes.find(n => n.id === d.target)?.y || 0;
+                return `M${sx},${sy} L${tx},${ty}`;
+            });
+        }
 
         // Hide loading after simulation settles
         simulation.on('end', () => {
@@ -700,14 +998,27 @@
 
         function dragEnded(event, d) {
             if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
+            if (!config.useHierarchicalLayout) {
+                d.fx = null;
+                d.fy = null;
+            }
         }
 
         // Tooltip functions
         function showTooltip(event, d) {
-            tooltip.select('.tooltip-title').text(d.name);
+            tooltip.select('.tooltip-title').text(d.full_name || d.name);
             tooltip.select('.tooltip-type').text(d.type);
+
+            const envEl = tooltip.select('.tooltip-env');
+            if (d.environment && d.environment !== 'unknown') {
+                envEl.text(d.environment.toUpperCase())
+                    .style('display', 'inline-block')
+                    .style('background', d.env_color ? d.env_color + '33' : 'transparent')
+                    .style('color', d.env_color || '#94a3b8');
+            } else {
+                envEl.style('display', 'none');
+            }
+
             tooltip
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 10) + 'px')
@@ -718,24 +1029,116 @@
             tooltip.classed('visible', false);
         }
 
+        // Summary node click handler for drill-down
+        function handleSummaryClick(d) {
+            if (d.type === 'vpc_summary') {
+                drillIntoVpc(d.properties.vpc_id);
+            }
+        }
+
+        // View navigation functions
+        function showOverview() {
+            currentViewMode = 'overview';
+            focusVpcId = null;
+
+            document.getElementById('viewNav').style.display = 'none';
+
+            node.style('display', d => d.is_summary ? null : 'none');
+            link.style('display', l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                const sourceNode = graphData.nodes.find(n => n.id === sourceId);
+                const targetNode = graphData.nodes.find(n => n.id === targetId);
+                return (sourceNode?.is_summary && targetNode?.is_summary) ? null : 'none';
+            });
+
+            if (containerBoxes) {
+                containerBoxes.style('display', 'none');
+            }
+
+            zoomToFit();
+        }
+
+        function drillIntoVpc(vpcId) {
+            currentViewMode = 'vpc_detail';
+            focusVpcId = vpcId;
+
+            document.getElementById('viewNav').style.display = 'flex';
+
+            const vpcNode = graphData.nodes.find(n =>
+                n.id === vpcId || n.properties?.vpc_id === vpcId
+            );
+            const vpcName = vpcNode?.name || vpcId;
+            document.getElementById('currentViewLabel').textContent = vpcName;
+
+            node.style('display', d => {
+                if (d.id === vpcId) return null;
+                if (d.properties?.vpc_id === vpcId) return null;
+                if (d.is_summary) return 'none';
+                return 'none';
+            });
+
+            link.style('display', l => {
+                const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+                const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+                const sourceNode = graphData.nodes.find(n => n.id === sourceId);
+                const targetNode = graphData.nodes.find(n => n.id === targetId);
+                const sourceVpc = sourceNode?.properties?.vpc_id;
+                const targetVpc = targetNode?.properties?.vpc_id;
+                return (sourceVpc === vpcId || targetVpc === vpcId) ? null : 'none';
+            });
+
+            if (containerBoxes) {
+                containerBoxes.style('display', d => {
+                    return (d.id === vpcId || d.parent_id === vpcId) ? null : 'none';
+                });
+            }
+
+            zoomToFit();
+        }
+
+        function zoomToFit() {
+            const visibleNodes = graphData.nodes.filter(d => {
+                const nodeEl = document.querySelector(`[data-node-id="${CSS.escape(d.id)}"]`);
+                return nodeEl && getComputedStyle(nodeEl).display !== 'none';
+            });
+
+            if (visibleNodes.length === 0) return;
+
+            const xs = visibleNodes.map(d => d.x || 0);
+            const ys = visibleNodes.map(d => d.y || 0);
+            const padding = 100;
+
+            const minX = Math.min(...xs) - padding;
+            const maxX = Math.max(...xs) + padding;
+            const minY = Math.min(...ys) - padding;
+            const maxY = Math.max(...ys) + padding;
+
+            const w = maxX - minX;
+            const h = maxY - minY;
+            const scale = Math.min(width / w, height / h, 2) * 0.9;
+            const tx = (width - w * scale) / 2 - minX * scale;
+            const ty = (height - h * scale) / 2 - minY * scale;
+
+            svg.transition()
+                .duration(500)
+                .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+        }
+
         // Node selection
         function selectNode(d) {
             selectedNode = d;
 
-            // Get connected nodes
             const connectedNodeIds = new Set();
             connectedNodeIds.add(d.id);
 
             graphData.links.forEach(link => {
-                if (link.source.id === d.id || link.source === d.id) {
-                    connectedNodeIds.add(typeof link.target === 'object' ? link.target.id : link.target);
-                }
-                if (link.target.id === d.id || link.target === d.id) {
-                    connectedNodeIds.add(typeof link.source === 'object' ? link.source.id : link.source);
-                }
+                const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                if (sourceId === d.id) connectedNodeIds.add(targetId);
+                if (targetId === d.id) connectedNodeIds.add(sourceId);
             });
 
-            // Highlight connected nodes and links
             node.classed('dimmed', n => !connectedNodeIds.has(n.id));
             node.classed('highlighted', n => n.id === d.id);
 
@@ -750,7 +1153,6 @@
                 return sourceId === d.id || targetId === d.id;
             });
 
-            // Show details panel
             showDetails(d);
         }
 
@@ -762,20 +1164,40 @@
         }
 
         function showDetails(d) {
-            document.getElementById('detail-name').textContent = d.name;
+            document.getElementById('detail-name').textContent = d.full_name || d.name;
             document.getElementById('detail-type').textContent = d.type;
+
+            // Environment badge
+            const envBadge = document.getElementById('detail-env');
+            if (d.environment && d.environment !== 'unknown') {
+                envBadge.textContent = d.environment;
+                envBadge.className = `env-badge ${d.environment}`;
+                envBadge.style.display = 'inline-flex';
+            } else {
+                envBadge.style.display = 'none';
+            }
 
             // Properties
             const propsContainer = document.getElementById('detail-properties');
             propsContainer.innerHTML = '';
 
-            if (Object.keys(d.properties).length > 0) {
-                Object.entries(d.properties).forEach(([key, value]) => {
+            const props = d.properties || {};
+            const displayProps = Object.entries(props).filter(([key, value]) =>
+                !['is_group', 'ids', 'member_ids', 'unique_tags'].includes(key) &&
+                value !== null && value !== undefined
+            );
+
+            if (displayProps.length > 0) {
+                displayProps.forEach(([key, value]) => {
                     const item = document.createElement('div');
                     item.className = 'property-item';
+                    let displayValue = value;
+                    if (typeof value === 'object') {
+                        displayValue = JSON.stringify(value);
+                    }
                     item.innerHTML = `
                         <span class="property-key">${key}</span>
-                        <span class="property-value">${value}</span>
+                        <span class="property-value">${truncateText(String(displayValue), 25)}</span>
                     `;
                     propsContainer.appendChild(item);
                 });
@@ -783,7 +1205,7 @@
                 propsContainer.innerHTML = '<div class="property-item"><span class="property-key">No properties</span></div>';
             }
 
-            // Dependencies (nodes this node depends on)
+            // Dependencies
             const depsContainer = document.getElementById('detail-dependencies');
             depsContainer.innerHTML = '';
 
@@ -799,21 +1221,27 @@
                 .filter(Boolean);
 
             if (dependencies.length > 0) {
-                dependencies.forEach(dep => {
+                dependencies.slice(0, 10).forEach(dep => {
                     const item = document.createElement('div');
                     item.className = 'connection-item';
                     item.innerHTML = `
                         <div class="connection-icon" style="background: ${dep.color}">${dep.icon}</div>
-                        <span>${truncateText(dep.name, 20)}</span>
+                        <span>${truncateText(dep.name, 25)}</span>
                     `;
                     item.onclick = () => selectNode(dep);
                     depsContainer.appendChild(item);
                 });
+                if (dependencies.length > 10) {
+                    const more = document.createElement('div');
+                    more.style.cssText = 'font-size: 12px; color: #64748b; padding: 8px;';
+                    more.textContent = `... and ${dependencies.length - 10} more`;
+                    depsContainer.appendChild(more);
+                }
             } else {
                 depsContainer.innerHTML = '<div style="font-size: 12px; color: #64748b; padding: 8px;">No dependencies</div>';
             }
 
-            // Dependents (nodes that depend on this node)
+            // Dependents
             const dependentsContainer = document.getElementById('detail-dependents');
             dependentsContainer.innerHTML = '';
 
@@ -829,16 +1257,22 @@
                 .filter(Boolean);
 
             if (dependents.length > 0) {
-                dependents.forEach(dep => {
+                dependents.slice(0, 10).forEach(dep => {
                     const item = document.createElement('div');
                     item.className = 'connection-item';
                     item.innerHTML = `
                         <div class="connection-icon" style="background: ${dep.color}">${dep.icon}</div>
-                        <span>${truncateText(dep.name, 20)}</span>
+                        <span>${truncateText(dep.name, 25)}</span>
                     `;
                     item.onclick = () => selectNode(dep);
                     dependentsContainer.appendChild(item);
                 });
+                if (dependents.length > 10) {
+                    const more = document.createElement('div');
+                    more.style.cssText = 'font-size: 12px; color: #64748b; padding: 8px;';
+                    more.textContent = `... and ${dependents.length - 10} more`;
+                    dependentsContainer.appendChild(more);
+                }
             } else {
                 dependentsContainer.innerHTML = '<div style="font-size: 12px; color: #64748b; padding: 8px;">No dependents</div>';
             }
@@ -850,6 +1284,16 @@
         document.getElementById('search').addEventListener('input', function(e) {
             searchTerm = e.target.value.toLowerCase();
             filterNodes();
+        });
+
+        // Environment filter
+        document.querySelectorAll('.env-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                activeEnvironment = this.dataset.env;
+                filterNodes();
+            });
         });
 
         // Group filter buttons
@@ -864,14 +1308,23 @@
 
         function filterNodes() {
             node.style('display', d => {
+                // In overview mode, only show summaries
+                if (currentViewMode === 'overview' && !d.is_summary) return 'none';
+                // In VPC detail mode, only show resources in that VPC
+                if (currentViewMode === 'vpc_detail') {
+                    if (d.is_summary) return 'none';
+                    if (d.id !== focusVpcId && d.properties?.vpc_id !== focusVpcId) return 'none';
+                }
+
                 const matchesSearch = d.name.toLowerCase().includes(searchTerm) ||
                                      d.id.toLowerCase().includes(searchTerm) ||
                                      d.type.toLowerCase().includes(searchTerm);
                 const matchesGroup = activeGroup === 'all' || d.group === activeGroup;
-                return matchesSearch && matchesGroup ? null : 'none';
+                const matchesEnv = activeEnvironment === 'all' || d.environment === activeEnvironment;
+
+                return matchesSearch && matchesGroup && matchesEnv ? null : 'none';
             });
 
-            // Also hide links where either node is hidden
             link.style('display', l => {
                 const sourceVisible = isNodeVisible(typeof l.source === 'object' ? l.source : graphData.nodes.find(n => n.id === l.source));
                 const targetVisible = isNodeVisible(typeof l.target === 'object' ? l.target : graphData.nodes.find(n => n.id === l.target));
@@ -881,11 +1334,17 @@
 
         function isNodeVisible(d) {
             if (!d) return false;
+            if (currentViewMode === 'overview' && !d.is_summary) return false;
+            if (currentViewMode === 'vpc_detail') {
+                if (d.is_summary) return false;
+                if (d.id !== focusVpcId && d.properties?.vpc_id !== focusVpcId) return false;
+            }
             const matchesSearch = d.name.toLowerCase().includes(searchTerm) ||
                                  d.id.toLowerCase().includes(searchTerm) ||
                                  d.type.toLowerCase().includes(searchTerm);
             const matchesGroup = activeGroup === 'all' || d.group === activeGroup;
-            return matchesSearch && matchesGroup;
+            const matchesEnv = activeEnvironment === 'all' || d.environment === activeEnvironment;
+            return matchesSearch && matchesGroup && matchesEnv;
         }
 
         // Zoom controls
@@ -898,7 +1357,7 @@
         });
 
         document.getElementById('zoom-reset').addEventListener('click', () => {
-            svg.transition().call(zoom.transform, d3.zoomIdentity);
+            zoomToFit();
         });
 
         // Close details panel
@@ -906,9 +1365,26 @@
             clearSelection();
         });
 
+        // Back to overview
+        document.getElementById('backToOverview').addEventListener('click', () => {
+            const hasSummaryNodes = graphData.nodes.some(n => n.is_summary);
+            if (hasSummaryNodes) {
+                showOverview();
+            } else {
+                // No overview mode available, just show all
+                currentViewMode = 'full';
+                document.getElementById('viewNav').style.display = 'none';
+                node.style('display', null);
+                link.style('display', null);
+                if (containerBoxes) containerBoxes.style('display', null);
+                zoomToFit();
+            }
+        });
+
         // Utility functions
         function truncateText(text, maxLength) {
-            return text.length > maxLength ? text.substring(0, maxLength - 1) + '…' : text;
+            if (!text) return '';
+            return text.length > maxLength ? text.substring(0, maxLength - 1) + '\u2026' : text;
         }
 
         // Handle window resize
@@ -916,9 +1392,25 @@
             const newWidth = window.innerWidth;
             const newHeight = window.innerHeight;
             svg.attr('width', newWidth).attr('height', newHeight);
-            simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2));
-            simulation.alpha(0.3).restart();
+            if (!config.useHierarchicalLayout) {
+                simulation.force('center', d3.forceCenter(newWidth / 2, newHeight / 2));
+                simulation.alpha(0.3).restart();
+            }
         });
+
+        // Initialize view
+        function initializeView() {
+            const hasSummaryNodes = graphData.nodes.some(n => n.is_summary);
+            if (hasSummaryNodes) {
+                showOverview();
+            } else {
+                currentViewMode = 'full';
+                zoomToFit();
+            }
+        }
+
+        // Start initialization after a brief delay
+        setTimeout(initializeView, 100);
     </script>
 </body>
 </html>
