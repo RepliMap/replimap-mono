@@ -2979,13 +2979,13 @@ def cost(
         None,
         "--output",
         "-o",
-        help="Output file path (HTML, JSON, or CSV)",
+        help="Output file path (HTML, JSON, CSV, or Markdown)",
     ),
     output_format: str = typer.Option(
         "console",
         "--format",
         "-f",
-        help="Output format: console, table, html, json, or csv",
+        help="Output format: console, table, html, json, csv, or markdown",
     ),
     open_report: bool = typer.Option(
         True,
@@ -2997,9 +2997,18 @@ def cost(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    acknowledge: bool = typer.Option(
+        False,
+        "--acknowledge",
+        "-y",
+        help="Acknowledge that this is an estimate only (skip confirmation for exports)",
+    ),
 ) -> None:
     """
     Estimate monthly AWS costs for your infrastructure.
+
+    ⚠️ IMPORTANT: These are rough estimates only. Actual AWS costs may differ
+    by 20-40% depending on usage patterns, data transfer, and pricing agreements.
 
     Provides cost breakdown by category, resource, and region with
     optimization recommendations.
@@ -3012,6 +3021,7 @@ def cost(
     - html: Interactive HTML report with charts
     - json: Machine-readable JSON
     - csv: Spreadsheet-compatible CSV
+    - markdown: Markdown report
 
     Examples:
         # Estimate costs for current region
@@ -3023,8 +3033,8 @@ def cost(
         # Export to HTML report
         replimap cost -r us-east-1 -f html -o cost-report.html
 
-        # Export to CSV for spreadsheet analysis
-        replimap cost -r us-east-1 -f csv -o costs.csv
+        # Export with acknowledgment (skip prompt)
+        replimap cost -r us-east-1 -f json -o costs.json --acknowledge
     """
     import webbrowser
 
@@ -3117,27 +3127,53 @@ def cost(
     reporter = CostReporter()
     console.print()
 
+    # Helper function to confirm export
+    def confirm_export() -> bool:
+        """Ask user to acknowledge estimate disclaimer before export."""
+        if acknowledge:
+            return True
+
+        console.print()
+        console.print("[yellow]⚠️ Before exporting, please acknowledge:[/yellow]")
+        console.print("   This estimate is for planning purposes only.")
+        console.print("   Actual costs may differ by 20-40%.")
+        console.print("   Data transfer, API calls, and other fees are NOT included.")
+        console.print()
+
+        return typer.confirm("I understand this is an estimate only. Export anyway?")
+
     if output_format == "table":
         reporter.to_table(estimate)
     elif output_format == "json":
         output_path = output or Path("./cost-estimate.json")
-        reporter.to_json(estimate, output_path)
+        if confirm_export():
+            reporter.to_json(estimate, output_path)
     elif output_format == "csv":
         output_path = output or Path("./cost-estimate.csv")
-        reporter.to_csv(estimate, output_path)
+        if confirm_export():
+            reporter.to_csv(estimate, output_path)
     elif output_format == "html":
         output_path = output or Path("./cost-estimate.html")
-        reporter.to_html(estimate, output_path)
-        if open_report:
-            console.print()
-            console.print("[dim]Opening report in browser...[/dim]")
-            webbrowser.open(f"file://{output_path.absolute()}")
+        if confirm_export():
+            reporter.to_html(estimate, output_path)
+            if open_report:
+                console.print()
+                console.print("[dim]Opening report in browser...[/dim]")
+                webbrowser.open(f"file://{output_path.absolute()}")
+    elif output_format in ("md", "markdown"):
+        output_path = output or Path("./cost-estimate.md")
+        if confirm_export():
+            reporter.to_markdown(estimate, output_path)
     else:
         # Default: console output
         reporter.to_console(estimate)
 
     # Also export if output path specified but format is console
     if output and output_format == "console":
+        if not confirm_export():
+            console.print()
+            return
+
         if output.suffix == ".html":
             reporter.to_html(estimate, output)
             if open_report:
@@ -3148,6 +3184,8 @@ def cost(
             reporter.to_json(estimate, output)
         elif output.suffix == ".csv":
             reporter.to_csv(estimate, output)
+        elif output.suffix == ".md":
+            reporter.to_markdown(estimate, output)
 
     console.print()
 

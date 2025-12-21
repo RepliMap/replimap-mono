@@ -2,6 +2,7 @@
 Cost Estimator data models.
 
 Models for representing cost analysis results for AWS infrastructure.
+Includes confidence levels, accuracy ranges, and prominent disclaimers.
 """
 
 from __future__ import annotations
@@ -9,6 +10,67 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+
+# =============================================================================
+# DISCLAIMER CONSTANTS
+# =============================================================================
+
+COST_DISCLAIMER_SHORT = (
+    "⚠️ ESTIMATE ONLY - Actual costs may vary. "
+    "Does not include data transfer, API calls, or usage-based fees."
+)
+
+COST_DISCLAIMER_FULL = """
+⚠️ COST ESTIMATE DISCLAIMER
+
+This estimate is for planning purposes only and may differ significantly
+from your actual AWS bill.
+
+INCLUDED in this estimate:
+✓ EC2 instance hours (on-demand pricing)
+✓ RDS instance hours (on-demand pricing)
+✓ EBS storage (provisioned capacity)
+✓ NAT Gateway hourly charges
+✓ Load Balancer hourly charges
+
+NOT INCLUDED in this estimate:
+✗ Data transfer costs (can be 10-30% of total bill)
+✗ API request charges (S3, Lambda, API Gateway)
+✗ Reserved Instance / Savings Plan discounts
+✗ Spot Instance pricing
+✗ Free tier benefits
+✗ Cross-region/AZ transfer fees
+✗ CloudWatch, CloudTrail, other service fees
+✗ Support plan costs
+
+For accurate billing predictions, use:
+• AWS Cost Explorer: https://console.aws.amazon.com/cost-management/
+• AWS Pricing Calculator: https://calculator.aws/
+
+This estimate assumes standard on-demand pricing in the specified region.
+Actual costs depend on your specific usage patterns and pricing agreements.
+"""
+
+# Factors NOT included in estimates
+EXCLUDED_FACTORS = [
+    "Data transfer (inbound/outbound/cross-AZ)",
+    "API request charges",
+    "Reserved Instance discounts",
+    "Savings Plan discounts",
+    "Spot Instance pricing",
+    "Free tier benefits",
+    "CloudWatch metrics and logs",
+    "CloudTrail events",
+    "S3 request charges",
+    "Lambda invocation costs",
+    "Support plan costs",
+]
+
+
+# =============================================================================
+# ENUMS
+# =============================================================================
 
 
 class PricingTier(str, Enum):
@@ -50,6 +112,39 @@ class CostConfidence(str, Enum):
     def __str__(self) -> str:
         return self.value
 
+    @property
+    def accuracy_range(self) -> str:
+        """Get accuracy range string for this confidence level."""
+        ranges = {
+            "HIGH": "±10%",
+            "MEDIUM": "±20%",
+            "LOW": "±40%",
+            "UNKNOWN": "N/A",
+        }
+        return ranges.get(self.value, "±30%")
+
+    @property
+    def multiplier(self) -> float:
+        """Get the multiplier for range calculation."""
+        multipliers = {
+            "HIGH": 0.10,
+            "MEDIUM": 0.20,
+            "LOW": 0.40,
+            "UNKNOWN": 0.50,
+        }
+        return multipliers.get(self.value, 0.30)
+
+    @property
+    def description(self) -> str:
+        """Get human-readable description of confidence level."""
+        descriptions = {
+            "HIGH": "Based on standard on-demand pricing",
+            "MEDIUM": "Some usage assumptions made",
+            "LOW": "Rough estimate - many factors unknown",
+            "UNKNOWN": "Cannot estimate - insufficient data",
+        }
+        return descriptions.get(self.value, "Estimate only")
+
 
 @dataclass
 class ResourceCost:
@@ -84,6 +179,11 @@ class ResourceCost:
     optimization_potential: float = 0.0  # Potential savings %
     optimization_tips: list[str] = field(default_factory=list)
 
+    @property
+    def accuracy_range(self) -> str:
+        """Get accuracy range string based on confidence."""
+        return self.confidence.accuracy_range
+
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
@@ -104,6 +204,7 @@ class ResourceCost:
             "instance_type": self.instance_type,
             "region": self.region,
             "confidence": self.confidence.value,
+            "accuracy_range": self.accuracy_range,
             "assumptions": self.assumptions,
             "optimization_potential": round(self.optimization_potential, 1),
             "optimization_tips": self.optimization_tips,
@@ -185,18 +286,44 @@ class CostEstimate:
     assumptions: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
+    # Excluded factors (for display)
+    excluded_factors: list[str] = field(default_factory=lambda: EXCLUDED_FACTORS.copy())
+
+    @property
+    def estimated_range_low(self) -> float:
+        """Calculate low end of estimate range."""
+        return self.monthly_total * (1 - self.confidence.multiplier)
+
+    @property
+    def estimated_range_high(self) -> float:
+        """Calculate high end of estimate range."""
+        return self.monthly_total * (1 + self.confidence.multiplier)
+
+    @property
+    def accuracy_range(self) -> str:
+        """Get accuracy range string."""
+        return self.confidence.accuracy_range
+
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for JSON output."""
+        """Convert to dictionary for JSON output with disclaimer."""
         return {
+            "disclaimer": COST_DISCLAIMER_SHORT,
             "summary": {
-                "monthly_total": round(self.monthly_total, 2),
-                "annual_total": round(self.annual_total, 2),
+                "monthly_estimate": round(self.monthly_total, 2),
+                "range_low": round(self.estimated_range_low, 2),
+                "range_high": round(self.estimated_range_high, 2),
+                "annual_estimate": round(self.annual_total, 2),
                 "daily_average": round(self.daily_average, 2),
-                "resource_count": self.resource_count,
-                "estimated_resources": self.estimated_resources,
-                "unestimated_resources": self.unestimated_resources,
                 "confidence": self.confidence.value,
+                "accuracy": self.accuracy_range,
+                "currency": "USD",
             },
+            "resources": {
+                "total": self.resource_count,
+                "priced": self.estimated_resources,
+                "unpriced": self.unestimated_resources,
+            },
+            "not_included": self.excluded_factors,
             "by_category": [b.to_dict() for b in self.by_category],
             "by_region": {k: round(v, 2) for k, v in self.by_region.items()},
             "top_resources": [r.to_dict() for r in self.top_resources],
@@ -208,4 +335,5 @@ class CostEstimate:
             },
             "assumptions": self.assumptions,
             "warnings": self.warnings,
+            "_note": "This is an estimate only. Use AWS Cost Explorer for accurate billing.",
         }

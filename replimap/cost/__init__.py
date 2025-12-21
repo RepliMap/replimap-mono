@@ -6,12 +6,16 @@ Provides monthly cost estimation for AWS infrastructure:
 - Category-based analysis
 - Optimization recommendations
 - Multiple output formats
+- Prominent disclaimers and accuracy ranges
 
 This is a Pro+ feature ($99/mo).
 """
 
 from replimap.cost.estimator import CostEstimator
 from replimap.cost.models import (
+    COST_DISCLAIMER_FULL,
+    COST_DISCLAIMER_SHORT,
+    EXCLUDED_FACTORS,
     CostBreakdown,
     CostCategory,
     CostConfidence,
@@ -30,6 +34,10 @@ from replimap.cost.pricing import (
 from replimap.cost.reporter import CostReporter
 
 __all__ = [
+    # Disclaimer constants
+    "COST_DISCLAIMER_SHORT",
+    "COST_DISCLAIMER_FULL",
+    "EXCLUDED_FACTORS",
     # Models
     "CostBreakdown",
     "CostCategory",
