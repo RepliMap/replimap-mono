@@ -18,3 +18,16 @@ def disable_dev_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch to enable it, which will override this fixture.
     """
     monkeypatch.delenv("REPLIMAP_DEV_MODE", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def disable_colors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Disable Rich/Typer colors for all tests.
+
+    ANSI color codes in CLI output can cause string assertions to fail
+    because the escape codes split the text. Setting NO_COLOR and TERM=dumb
+    ensures plain text output for reliable test assertions.
+    """
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.setenv("TERM", "dumb")

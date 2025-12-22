@@ -53,6 +53,8 @@ from replimap.licensing import (
     Feature,
     LicenseStatus,
     LicenseValidationError,
+    check_audit_ci_mode_allowed,
+    check_audit_fix_allowed,
     check_drift_allowed,
     check_scan_allowed,
     get_scans_remaining,
@@ -2173,12 +2175,23 @@ def audit(
             console.print("[dim]Opening report in browser...[/dim]")
             webbrowser.open(f"file://{report_path.absolute()}")
 
-    # Generate remediation if requested
-    if fix and results.findings:
-        _generate_remediation(results, fix_output)
+    # Generate remediation if requested (SOLO+ feature)
+    if fix:
+        fix_gate = check_audit_fix_allowed()
+        if not fix_gate.allowed:
+            console.print(fix_gate.prompt)
+            raise typer.Exit(1)
+        if results.findings:
+            _generate_remediation(results, fix_output)
 
-    # CI/CD checks
+    # CI/CD checks (PRO+ feature)
     exit_code = 0
+
+    if fail_on_high or fail_on_score is not None:
+        ci_gate = check_audit_ci_mode_allowed()
+        if not ci_gate.allowed:
+            console.print(ci_gate.prompt)
+            raise typer.Exit(1)
 
     if fail_on_high and results.high_severity:
         console.print()

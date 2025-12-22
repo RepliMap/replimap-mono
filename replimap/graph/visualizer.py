@@ -438,5 +438,9 @@ class GraphVisualizer:
     def _to_html(self, graph: VisualizationGraph) -> str:
         """Convert to interactive HTML with D3.js."""
         from replimap.graph.formatters.d3 import D3Formatter
+        from replimap.licensing import check_graph_export_watermark
 
-        return D3Formatter().format(graph)
+        # Check if watermark should be shown (FREE tier only)
+        show_watermark = check_graph_export_watermark()
+
+        return D3Formatter(show_watermark=show_watermark).format(graph)
