@@ -19,7 +19,7 @@ warnings.warn(
 )
 
 # Re-export everything from dependencies module for backward compatibility
-from replimap.dependencies import (
+from replimap.dependencies import (  # noqa: E402
     DISCLAIMER_FULL,
     DISCLAIMER_SHORT,
     RESOURCE_IMPACT_SCORES,

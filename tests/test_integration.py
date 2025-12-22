@@ -11,7 +11,6 @@ Uses moto for AWS mocking and tests:
 import tempfile
 import warnings
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -56,7 +55,6 @@ class TestFeatureGating:
         with tempfile.TemporaryDirectory() as tmpdir:
             from replimap.licensing import check_drift_allowed
             from replimap.licensing.manager import LicenseManager, set_license_manager
-            from replimap.licensing.models import Plan
 
             # Simulate SOLO license (mock validation)
             manager = LicenseManager(cache_dir=Path(tmpdir))
@@ -186,7 +184,6 @@ class TestGraphWatermark:
     def test_d3_formatter_accepts_watermark(self) -> None:
         """D3Formatter should accept show_watermark parameter."""
         from replimap.graph.formatters.d3 import D3Formatter
-        from replimap.graph.visualizer import VisualizationGraph
 
         # Create formatter with watermark enabled
         formatter = D3Formatter(show_watermark=True)
@@ -207,8 +204,8 @@ class TestEdgeCases:
 
         graph = GraphEngine()
         # Empty graph should have 0 resources
-        assert len(graph.nodes) == 0
-        assert len(graph.edges) == 0
+        assert graph.node_count == 0
+        assert graph.edge_count == 0
 
     def test_invalid_terraform_state_format(self) -> None:
         """Handle malformed tfstate gracefully."""
