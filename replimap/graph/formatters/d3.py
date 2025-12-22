@@ -41,10 +41,16 @@ class D3Formatter:
     - Click to highlight connections
     - Filter by resource type and environment
     - Search functionality
+    - Watermark for FREE tier exports
     """
 
-    def __init__(self) -> None:
-        """Initialize the formatter with Jinja2 environment and processors."""
+    def __init__(self, show_watermark: bool = False) -> None:
+        """Initialize the formatter with Jinja2 environment and processors.
+
+        Args:
+            show_watermark: Whether to show watermark on export (FREE tier).
+        """
+        self._show_watermark = show_watermark
         self.env = Environment(
             loader=PackageLoader("replimap.graph", "templates"),
             autoescape=select_autoescape(["html", "xml"]),
@@ -115,6 +121,7 @@ class D3Formatter:
             resource_types=resource_types,
             node_count=len(aggregated_nodes),
             edge_count=len(aggregated_links),
+            show_watermark=self._show_watermark,
         )
 
     def _prepare_graph_data(self, graph: VisualizationGraph) -> dict[str, Any]:

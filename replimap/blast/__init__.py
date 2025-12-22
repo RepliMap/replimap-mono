@@ -7,6 +7,17 @@ All imports are re-exported from the new location for backward compatibility.
 See replimap.dependencies for the new API.
 """
 
+import warnings
+
+# Issue deprecation warning when this module is imported
+warnings.warn(
+    "The 'replimap.blast' module is deprecated. "
+    "Use 'replimap.dependencies' instead. "
+    "This module will be removed in a future version.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 # Re-export everything from dependencies module for backward compatibility
 from replimap.dependencies import (
     DISCLAIMER_FULL,

@@ -477,6 +477,27 @@ def check_audit_ci_mode_allowed() -> GateResult:
     return GateResult(allowed=False, prompt=prompt)
 
 
+def check_audit_fix_allowed() -> GateResult:
+    """
+    Check if user can use --fix to generate remediation code.
+
+    Remediation code generation requires SOLO+ plan since it requires
+    seeing all audit findings to generate proper fixes.
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    # --fix requires being able to see all findings (SOLO+)
+    if features.audit_visible_findings is None and features.audit_report_export:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("audit_fix_blocked")
+    return GateResult(allowed=False, prompt=prompt)
+
+
 def get_audit_visible_findings() -> int | None:
     """Get number of findings to show (None for all)."""
     from replimap.licensing.manager import get_license_manager
