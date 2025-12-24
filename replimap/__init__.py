@@ -5,5 +5,5 @@ Point at your Production AWS environment and generate a cost-optimized,
 safe Staging environment in minutes.
 """
 
-__version__ = "0.1.9"
+__version__ = "0.1.10"
 __author__ = "RepliMap Team"
