@@ -27,10 +27,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-
 from replimap.core.config import ConfigLoader, RepliMapConfig
-from replimap.core.models import ResourceType
 from replimap.core.scope import DataSourceRenderer, ScopeEngine
 
 # Import new components
@@ -39,7 +36,7 @@ from replimap.renderers.file_router import SemanticFileRouter
 from replimap.renderers.import_generator import ImportBlockGenerator, ImportMapping
 from replimap.renderers.name_generator import NameRegistry, SmartNameGenerator
 from replimap.renderers.refactoring import RefactoringEngine
-from replimap.renderers.terraform import TEMPLATE_DIR, TerraformRenderer
+from replimap.renderers.terraform import TerraformRenderer
 from replimap.renderers.variable_extractor import VariableExtractor
 
 if TYPE_CHECKING:
@@ -95,10 +92,10 @@ class EnhancedTerraformRenderer(TerraformRenderer):
         self.working_dir = working_dir or Path.cwd()
 
         # Initialize new components
-        self.name_generator = SmartNameGenerator(config=config)
+        self.name_generator = SmartNameGenerator(user_config=config)
         self.name_registry = NameRegistry()
         self.scope_engine = ScopeEngine(config=config)
-        self.file_router = SemanticFileRouter(config=config)
+        self.file_router = SemanticFileRouter()
         self.variable_extractor = VariableExtractor()
         self.security_runner = SecurityCheckRunner()
         self.import_generator = ImportBlockGenerator(config=config)
@@ -109,11 +106,11 @@ class EnhancedTerraformRenderer(TerraformRenderer):
         self.data_source_renderer = DataSourceRenderer()
 
         # Track resources by scope
-        self._managed_resources: list["ResourceNode"] = []
-        self._readonly_resources: list["ResourceNode"] = []
-        self._skipped_resources: list["ResourceNode"] = []
+        self._managed_resources: list[ResourceNode] = []
+        self._readonly_resources: list[ResourceNode] = []
+        self._skipped_resources: list[ResourceNode] = []
 
-    def render(self, graph: "GraphEngine", output_dir: Path) -> dict[str, Path]:
+    def render(self, graph: GraphEngine, output_dir: Path) -> dict[str, Path]:
         """
         Render the graph to Terraform files with all enhancements.
 
@@ -138,9 +135,7 @@ class EnhancedTerraformRenderer(TerraformRenderer):
         annotator = AuditAnnotator(findings, config=self.config)
 
         # Phase 4: Extract variables
-        variables = self.variable_extractor.extract_from_resources(
-            list(graph.iter_resources())
-        )
+        variables = self.variable_extractor.analyze(list(graph.iter_resources()))
 
         # Phase 5: Route resources to files
         file_contents: dict[str, list[str]] = {}
@@ -200,36 +195,28 @@ class EnhancedTerraformRenderer(TerraformRenderer):
 
         return written_files
 
-    def _apply_smart_naming(self, graph: "GraphEngine") -> None:
+    def _apply_smart_naming(self, graph: GraphEngine) -> None:
         """
         Apply deterministic naming to all resources.
 
         This replaces the old _ensure_unique_names with SmartNameGenerator.
+        Uses NameRegistry to ensure uniqueness and determinism.
         """
         for resource in graph.iter_resources():
             resource_type = str(resource.resource_type)
 
-            # Generate deterministic name
-            new_name = self.name_generator.generate(
+            # Register the resource and get deterministic name
+            new_name = self.name_registry.register(
                 resource_id=resource.id,
                 original_name=resource.original_name or "",
                 resource_type=resource_type,
             )
 
-            # Register the name
-            self.name_registry.register(
-                resource_type=resource_type,
-                resource_id=resource.id,
-                terraform_name=new_name,
-            )
-
             # Update the resource
             resource.terraform_name = new_name
-            logger.debug(
-                f"Named {resource.id} as {resource_type}.{new_name}"
-            )
+            logger.debug(f"Named {resource.id} as {resource_type}.{new_name}")
 
-    def _classify_resources(self, graph: "GraphEngine") -> None:
+    def _classify_resources(self, graph: GraphEngine) -> None:
         """
         Classify resources into MANAGED, READ_ONLY, or SKIP.
 
@@ -259,8 +246,8 @@ class EnhancedTerraformRenderer(TerraformRenderer):
 
     def _render_resource(
         self,
-        resource: "ResourceNode",
-        graph: "GraphEngine",
+        resource: ResourceNode,
+        graph: GraphEngine,
         annotator: AuditAnnotator,
         file_contents: dict[str, list[str]],
     ) -> None:
@@ -277,7 +264,9 @@ class EnhancedTerraformRenderer(TerraformRenderer):
 
         # Use semantic file router if enabled
         if self.config.should_use_semantic_files():
-            output_file = self.file_router.route_resource(resource)
+            output_file = self.file_router.get_file_for_resource(
+                str(resource.resource_type)
+            )
         else:
             output_file = self.FILE_MAPPING.get(
                 resource.resource_type,
@@ -285,9 +274,7 @@ class EnhancedTerraformRenderer(TerraformRenderer):
             )
 
         if not template_name:
-            logger.warning(
-                f"No template for resource type: {resource.resource_type}"
-            )
+            logger.warning(f"No template for resource type: {resource.resource_type}")
             return
 
         try:
@@ -340,7 +327,7 @@ class EnhancedTerraformRenderer(TerraformRenderer):
 
     def _generate_enhanced_variables(
         self,
-        graph: "GraphEngine",
+        graph: GraphEngine,
         extracted_vars: list[Any],
         output_dir: Path,
         written_files: dict[str, Path],
@@ -418,7 +405,7 @@ class EnhancedTerraformRenderer(TerraformRenderer):
             generated = self.refactoring_engine.generate_files(result, output_dir)
             written_files.update(generated)
 
-    def render_preview(self, graph: "GraphEngine") -> dict[str, Any]:
+    def render_preview(self, graph: GraphEngine) -> dict[str, Any]:
         """
         Preview what would be generated without writing files.
 
@@ -440,9 +427,7 @@ class EnhancedTerraformRenderer(TerraformRenderer):
         findings = self.security_runner.run_checks(list(graph.iter_resources()))
 
         # Extract variables
-        variables = self.variable_extractor.extract_from_resources(
-            list(graph.iter_resources())
-        )
+        variables = self.variable_extractor.analyze(list(graph.iter_resources()))
 
         # Build preview
         preview: dict[str, Any] = {
@@ -475,7 +460,7 @@ class EnhancedTerraformRenderer(TerraformRenderer):
         # Preview file routing
         for resource in self._managed_resources:
             output_file = (
-                self.file_router.route_resource(resource)
+                self.file_router.get_file_for_resource(str(resource.resource_type))
                 if self.config.should_use_semantic_files()
                 else self.FILE_MAPPING.get(resource.resource_type, "main.tf")
             )

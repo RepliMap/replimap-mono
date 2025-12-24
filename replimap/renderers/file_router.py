@@ -25,10 +25,10 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from replimap.core.models import ResourceNode, ResourceType
+    from replimap.core.models import ResourceNode
 
 logger = logging.getLogger(__name__)
 
@@ -223,8 +223,8 @@ class SemanticFileRouter:
 
     def route_resources(
         self,
-        resources: list["ResourceNode"],
-    ) -> dict[str, list["ResourceNode"]]:
+        resources: list[ResourceNode],
+    ) -> dict[str, list[ResourceNode]]:
         """
         Route resources to their appropriate files.
 
@@ -234,7 +234,7 @@ class SemanticFileRouter:
         Returns:
             Dictionary mapping filename to list of resources
         """
-        file_groups: dict[str, list["ResourceNode"]] = {}
+        file_groups: dict[str, list[ResourceNode]] = {}
 
         for resource in resources:
             resource_type = str(resource.resource_type)
@@ -245,9 +245,7 @@ class SemanticFileRouter:
             file_groups[filename].append(resource)
 
         # Log summary
-        logger.info(
-            f"Routed {len(resources)} resources to {len(file_groups)} files"
-        )
+        logger.info(f"Routed {len(resources)} resources to {len(file_groups)} files")
         for filename, group in sorted(file_groups.items()):
             logger.debug(f"  {filename}: {len(group)} resources")
 
@@ -316,7 +314,7 @@ class FileStructure:
 
     def add_resource(
         self,
-        resource: "ResourceNode",
+        resource: ResourceNode,
         rendered_hcl: str,
     ) -> None:
         """
@@ -356,7 +354,4 @@ class FileStructure:
 
     def get_summary(self) -> dict[str, int]:
         """Get summary of resources per file."""
-        return {
-            filename: len(resources)
-            for filename, resources in self.files.items()
-        }
+        return {filename: len(resources) for filename, resources in self.files.items()}

@@ -107,7 +107,10 @@ MODULE_PATTERNS: dict[str, dict[str, Any]] = {
     },
     "elasticache": {
         "description": "ElastiCache infrastructure",
-        "anchor_types": ["aws_elasticache_cluster", "aws_elasticache_replication_group"],
+        "anchor_types": [
+            "aws_elasticache_cluster",
+            "aws_elasticache_replication_group",
+        ],
         "related_types": [
             "aws_elasticache_subnet_group",
             "aws_elasticache_parameter_group",
@@ -165,7 +168,9 @@ class ModuleSuggestion:
     description: str
     anchor_resource: str  # The primary resource ID
     member_resources: list[str] = field(default_factory=list)
-    resource_addresses: dict[str, str] = field(default_factory=dict)  # aws_id -> address
+    resource_addresses: dict[str, str] = field(
+        default_factory=dict
+    )  # aws_id -> address
 
     @property
     def resource_count(self) -> int:
@@ -233,7 +238,7 @@ class LocalModuleExtractor:
                 print(f"Suggested: {suggestion}")
     """
 
-    def __init__(self, config: "RepliMapConfig | None" = None) -> None:
+    def __init__(self, config: RepliMapConfig | None = None) -> None:
         """
         Initialize the module extractor.
 
@@ -251,7 +256,7 @@ class LocalModuleExtractor:
             self.enabled = True
             self.min_resources = 3
 
-    def analyze(self, resources: list["ResourceNode"]) -> ExtractionPlan:
+    def analyze(self, resources: list[ResourceNode]) -> ExtractionPlan:
         """
         Analyze resources and suggest module extractions.
 
@@ -267,8 +272,8 @@ class LocalModuleExtractor:
         plan = ExtractionPlan()
 
         # Build lookup maps
-        by_type: dict[str, list["ResourceNode"]] = defaultdict(list)
-        by_id: dict[str, "ResourceNode"] = {}
+        by_type: dict[str, list[ResourceNode]] = defaultdict(list)
+        by_id: dict[str, ResourceNode] = {}
 
         for resource in resources:
             resource_type = str(resource.resource_type)
@@ -306,8 +311,8 @@ class LocalModuleExtractor:
         self,
         pattern_name: str,
         pattern: dict[str, Any],
-        by_type: dict[str, list["ResourceNode"]],
-        by_id: dict[str, "ResourceNode"],
+        by_type: dict[str, list[ResourceNode]],
+        by_id: dict[str, ResourceNode],
         assigned: set[str],
     ) -> list[ModuleSuggestion]:
         """
@@ -371,12 +376,12 @@ class LocalModuleExtractor:
 
     def _find_related_resources(
         self,
-        anchor: "ResourceNode",
+        anchor: ResourceNode,
         related_types: list[str],
-        by_type: dict[str, list["ResourceNode"]],
-        by_id: dict[str, "ResourceNode"],
+        by_type: dict[str, list[ResourceNode]],
+        by_id: dict[str, ResourceNode],
         assigned: set[str],
-    ) -> dict[str, "ResourceNode"]:
+    ) -> dict[str, ResourceNode]:
         """
         Find resources related to an anchor resource.
 
@@ -395,7 +400,7 @@ class LocalModuleExtractor:
         Returns:
             Dict of resource_id -> ResourceNode for related resources
         """
-        related: dict[str, "ResourceNode"] = {}
+        related: dict[str, ResourceNode] = {}
 
         for resource_type in related_types:
             for resource in by_type.get(resource_type, []):
@@ -409,8 +414,8 @@ class LocalModuleExtractor:
 
     def _is_related(
         self,
-        anchor: "ResourceNode",
-        candidate: "ResourceNode",
+        anchor: ResourceNode,
+        candidate: ResourceNode,
     ) -> bool:
         """
         Check if a candidate resource is related to an anchor.
@@ -440,7 +445,6 @@ class LocalModuleExtractor:
 
             # Check for NAT gateway (via subnet relationship)
             if candidate_type == "aws_nat_gateway":
-                subnet_id = candidate.config.get("subnet_id")
                 # NAT gateways are related if in a subnet of this VPC
                 # (Would need to trace through subnets - simplified here)
                 return vpc_id == anchor.id if vpc_id else False
@@ -508,7 +512,10 @@ class LocalModuleExtractor:
         if anchor_type == "aws_iam_role":
             role_name = anchor.config.get("name", "")
             # Role policies reference their role
-            if candidate_type in ["aws_iam_role_policy", "aws_iam_role_policy_attachment"]:
+            if candidate_type in [
+                "aws_iam_role_policy",
+                "aws_iam_role_policy_attachment",
+            ]:
                 policy_role = candidate.config.get("role")
                 if policy_role == role_name:
                     return True
@@ -540,7 +547,7 @@ class LocalModuleExtractor:
         self,
         pattern_name: str,
         template: str,
-        anchor: "ResourceNode",
+        anchor: ResourceNode,
     ) -> str:
         """
         Generate a module name from the pattern and anchor.
@@ -621,7 +628,7 @@ class ModuleGenerator:
     - Moved blocks for migration
     """
 
-    def __init__(self, config: "RepliMapConfig | None" = None) -> None:
+    def __init__(self, config: RepliMapConfig | None = None) -> None:
         """
         Initialize the module generator.
 
@@ -633,7 +640,7 @@ class ModuleGenerator:
     def generate_module_structure(
         self,
         suggestion: ModuleSuggestion,
-        resources: dict[str, "ResourceNode"],
+        resources: dict[str, ResourceNode],
         output_dir: Path,
     ) -> dict[str, Path]:
         """
@@ -676,7 +683,7 @@ class ModuleGenerator:
     def _generate_main_tf(
         self,
         suggestion: ModuleSuggestion,
-        resources: dict[str, "ResourceNode"],
+        resources: dict[str, ResourceNode],
     ) -> str:
         """Generate main.tf content for module."""
         lines = [
@@ -698,21 +705,23 @@ class ModuleGenerator:
         for resource_id in all_ids:
             if resource_id in resources:
                 resource = resources[resource_id]
-                lines.extend([
-                    f"# Resource: {resource_id}",
-                    f"resource \"{resource.resource_type}\" \"{resource.terraform_name}\" {{",
-                    "  # Configuration extracted from AWS",
-                    "  # See full resource definition in terraform plan",
-                    "}",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        f"# Resource: {resource_id}",
+                        f'resource "{resource.resource_type}" "{resource.terraform_name}" {{',
+                        "  # Configuration extracted from AWS",
+                        "  # See full resource definition in terraform plan",
+                        "}",
+                        "",
+                    ]
+                )
 
         return "\n".join(lines)
 
     def _generate_variables_tf(
         self,
         suggestion: ModuleSuggestion,
-        resources: dict[str, "ResourceNode"],
+        resources: dict[str, ResourceNode],
     ) -> str:
         """Generate variables.tf content for module."""
         lines = [
@@ -724,34 +733,38 @@ class ModuleGenerator:
 
         # Common variables based on module type
         if suggestion.module_type == "vpc":
-            lines.extend([
-                'variable "vpc_cidr" {',
-                '  description = "CIDR block for the VPC"',
-                "  type        = string",
-                "}",
-                "",
-                'variable "environment" {',
-                '  description = "Environment name"',
-                "  type        = string",
-                '  default     = "production"',
-                "}",
-                "",
-            ])
+            lines.extend(
+                [
+                    'variable "vpc_cidr" {',
+                    '  description = "CIDR block for the VPC"',
+                    "  type        = string",
+                    "}",
+                    "",
+                    'variable "environment" {',
+                    '  description = "Environment name"',
+                    "  type        = string",
+                    '  default     = "production"',
+                    "}",
+                    "",
+                ]
+            )
         elif suggestion.module_type == "security":
-            lines.extend([
-                'variable "vpc_id" {',
-                '  description = "VPC ID for security groups"',
-                "  type        = string",
-                "}",
-                "",
-            ])
+            lines.extend(
+                [
+                    'variable "vpc_id" {',
+                    '  description = "VPC ID for security groups"',
+                    "  type        = string",
+                    "}",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 
     def _generate_outputs_tf(
         self,
         suggestion: ModuleSuggestion,
-        resources: dict[str, "ResourceNode"],
+        resources: dict[str, ResourceNode],
     ) -> str:
         """Generate outputs.tf content for module."""
         lines = [
@@ -763,31 +776,35 @@ class ModuleGenerator:
 
         # Add outputs based on module type
         if suggestion.module_type == "vpc":
-            lines.extend([
-                'output "vpc_id" {',
-                '  description = "The VPC ID"',
-                "  value       = aws_vpc.this.id",
-                "}",
-                "",
-                'output "subnet_ids" {',
-                '  description = "List of subnet IDs"',
-                "  value       = aws_subnet.this[*].id",
-                "}",
-                "",
-            ])
+            lines.extend(
+                [
+                    'output "vpc_id" {',
+                    '  description = "The VPC ID"',
+                    "  value       = aws_vpc.this.id",
+                    "}",
+                    "",
+                    'output "subnet_ids" {',
+                    '  description = "List of subnet IDs"',
+                    "  value       = aws_subnet.this[*].id",
+                    "}",
+                    "",
+                ]
+            )
         elif suggestion.module_type == "alb":
-            lines.extend([
-                'output "lb_arn" {',
-                '  description = "The ALB ARN"',
-                "  value       = aws_lb.this.arn",
-                "}",
-                "",
-                'output "lb_dns_name" {',
-                '  description = "The ALB DNS name"',
-                "  value       = aws_lb.this.dns_name",
-                "}",
-                "",
-            ])
+            lines.extend(
+                [
+                    'output "lb_arn" {',
+                    '  description = "The ALB ARN"',
+                    "  value       = aws_lb.this.arn",
+                    "}",
+                    "",
+                    'output "lb_dns_name" {',
+                    '  description = "The ALB DNS name"',
+                    "  value       = aws_lb.this.dns_name",
+                    "}",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 
@@ -813,12 +830,14 @@ class ModuleGenerator:
 
         # Add variable assignments based on module type
         if suggestion.module_type == "vpc":
-            lines.extend([
-                '  vpc_cidr    = "10.0.0.0/16"  # TODO: Replace with actual CIDR',
-                '  environment = "production"',
-            ])
+            lines.extend(
+                [
+                    '  vpc_cidr    = "10.0.0.0/16"  # TODO: Replace with actual CIDR',
+                    '  environment = "production"',
+                ]
+            )
         elif suggestion.module_type == "security":
-            lines.append('  vpc_id = module.vpc.vpc_id  # TODO: Adjust reference')
+            lines.append("  vpc_id = module.vpc.vpc_id  # TODO: Adjust reference")
 
         lines.append("}")
 
@@ -839,7 +858,7 @@ class ModuleGenerator:
         """
         blocks: list[str] = []
 
-        for aws_id, address in suggestion.resource_addresses.items():
+        for _aws_id, address in suggestion.resource_addresses.items():
             # Parse resource type and name from address
             parts = address.split(".")
             if len(parts) >= 2:
@@ -847,7 +866,9 @@ class ModuleGenerator:
                 old_name = parts[1]
 
                 # Determine new name in module (simplified)
-                new_name = "this" if old_name == suggestion.anchor_resource else old_name
+                new_name = (
+                    "this" if old_name == suggestion.anchor_resource else old_name
+                )
 
                 block = f"""moved {{
   from = {address}

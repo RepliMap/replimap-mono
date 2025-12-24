@@ -101,7 +101,7 @@ class ImportBlockGenerator:
         generator.generate_import_file(mappings, Path("./terraform/imports.tf"))
     """
 
-    def __init__(self, config: "RepliMapConfig | None" = None) -> None:
+    def __init__(self, config: RepliMapConfig | None = None) -> None:
         """
         Initialize the import block generator.
 
@@ -115,9 +115,7 @@ class ImportBlockGenerator:
             user_formats = config.get_import_formats()
             if user_formats:
                 self.import_formats.update(user_formats)
-                logger.info(
-                    f"Applied user import formats: {list(user_formats.keys())}"
-                )
+                logger.info(f"Applied user import formats: {list(user_formats.keys())}")
 
     def format_import_id(self, mapping: ImportMapping) -> str:
         """
@@ -264,41 +262,49 @@ class ImportBlockGenerator:
             if import_id.startswith("TODO_COMPLEX_FORMAT:"):
                 complex_imports.append(mapping)
                 # Still generate the block but commented out
-                lines.extend([
-                    f"# WARNING: Complex import format for {mapping.resource_type}",
-                    f"# You may need to manually determine the correct import ID",
-                    f"# See Terraform docs for this resource type",
-                    f"# import {{",
-                    f'#   to = {mapping.terraform_address}',
-                    f'#   id = "TODO: Determine correct import ID for {mapping.aws_id}"',
-                    f"# }}",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        f"# WARNING: Complex import format for {mapping.resource_type}",
+                        "# You may need to manually determine the correct import ID",
+                        "# See Terraform docs for this resource type",
+                        "# import {",
+                        f"#   to = {mapping.terraform_address}",
+                        f'#   id = "TODO: Determine correct import ID for {mapping.aws_id}"',
+                        "# }",
+                        "",
+                    ]
+                )
             else:
-                lines.extend([
-                    "import {",
-                    f"  to = {mapping.terraform_address}",
-                    f'  id = "{import_id}"',
-                    "}",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        "import {",
+                        f"  to = {mapping.terraform_address}",
+                        f'  id = "{import_id}"',
+                        "}",
+                        "",
+                    ]
+                )
 
         # Add summary of complex imports
         if complex_imports:
-            lines.extend([
-                "# ═══════════════════════════════════════════════════════════════════════════════",
-                "# ATTENTION: The following resources need manual import configuration",
-                "# ═══════════════════════════════════════════════════════════════════════════════",
-                "#",
-            ])
+            lines.extend(
+                [
+                    "# ═══════════════════════════════════════════════════════════════════════════════",
+                    "# ATTENTION: The following resources need manual import configuration",
+                    "# ═══════════════════════════════════════════════════════════════════════════════",
+                    "#",
+                ]
+            )
             for mapping in complex_imports:
                 lines.append(f"# - {mapping.terraform_address} ({mapping.aws_id})")
-            lines.extend([
-                "#",
-                "# Consult the Terraform AWS provider documentation for correct import IDs:",
-                "# https://registry.terraform.io/providers/hashicorp/aws/latest/docs",
-                "",
-            ])
+            lines.extend(
+                [
+                    "#",
+                    "# Consult the Terraform AWS provider documentation for correct import IDs:",
+                    "# https://registry.terraform.io/providers/hashicorp/aws/latest/docs",
+                    "",
+                ]
+            )
 
         output_path.write_text("\n".join(lines))
         logger.info(
@@ -345,25 +351,31 @@ class ImportBlockGenerator:
             import_id = self.format_import_id(mapping)
 
             if import_id.startswith("TODO_COMPLEX_FORMAT:"):
-                commands.extend([
-                    f"# WARNING: Complex import for {mapping.resource_type}",
-                    f"# terraform import {mapping.terraform_address} 'TODO: Determine ID'",
-                    "",
-                ])
+                commands.extend(
+                    [
+                        f"# WARNING: Complex import for {mapping.resource_type}",
+                        f"# terraform import {mapping.terraform_address} 'TODO: Determine ID'",
+                        "",
+                    ]
+                )
             else:
                 # Escape special characters in import ID
                 escaped_id = import_id.replace("'", "'\\''")
-                commands.extend([
-                    f"echo '[{i + 1}/{len(mappings)}] Importing {mapping.terraform_address}'",
-                    f"terraform import {mapping.terraform_address} '{escaped_id}'",
-                    "",
-                ])
+                commands.extend(
+                    [
+                        f"echo '[{i + 1}/{len(mappings)}] Importing {mapping.terraform_address}'",
+                        f"terraform import {mapping.terraform_address} '{escaped_id}'",
+                        "",
+                    ]
+                )
 
-        commands.extend([
-            "echo ''",
-            "echo 'All imports completed successfully!'",
-            "echo 'Run terraform plan to verify state.'",
-        ])
+        commands.extend(
+            [
+                "echo ''",
+                "echo 'All imports completed successfully!'",
+                "echo 'Run terraform plan to verify state.'",
+            ]
+        )
 
         return commands
 

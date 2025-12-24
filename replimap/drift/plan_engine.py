@@ -251,7 +251,7 @@ class PlanBasedDriftEngine:
     def __init__(
         self,
         working_dir: str | Path = ".",
-        config: "RepliMapConfig | None" = None,
+        config: RepliMapConfig | None = None,
     ) -> None:
         """
         Initialize the drift engine.
@@ -266,12 +266,8 @@ class PlanBasedDriftEngine:
 
         # Get config options
         if config:
-            self.ignore_attributes = set(
-                config.get("drift.ignore_attributes", [])
-            )
-            self.ignore_resources = set(
-                config.get("drift.ignore_resources", [])
-            )
+            self.ignore_attributes = set(config.get("drift.ignore_attributes", []))
+            self.ignore_resources = set(config.get("drift.ignore_resources", []))
         else:
             self.ignore_attributes = set()
             self.ignore_resources = set()
@@ -304,9 +300,7 @@ class PlanBasedDriftEngine:
 
         # Add metadata
         report.scanned_at = start_time
-        report.scan_duration_seconds = (
-            datetime.now(UTC) - start_time
-        ).total_seconds()
+        report.scan_duration_seconds = (datetime.now(UTC) - start_time).total_seconds()
 
         return report
 
@@ -336,7 +330,7 @@ class PlanBasedDriftEngine:
         logger.info(f"Running: {' '.join(cmd)}")
 
         try:
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603 - terraform called with controlled args
                 cmd,
                 cwd=self.working_dir,
                 capture_output=True,
@@ -459,11 +453,7 @@ class PlanBasedDriftEngine:
         severity = self._calculate_severity(change, diffs)
 
         # Extract resource ID
-        resource_id = (
-            change.before.get("id")
-            or change.after.get("id")
-            or ""
-        )
+        resource_id = change.before.get("id") or change.after.get("id") or ""
 
         return ResourceDrift(
             resource_type=change.resource_type,
@@ -553,11 +543,15 @@ class PlanBasedDriftEngine:
         # Check for critical attributes in diffs
         max_diff_severity = DriftSeverity.INFO
         for diff in diffs:
-            if self._severity_rank(diff.severity) > self._severity_rank(max_diff_severity):
+            if self._severity_rank(diff.severity) > self._severity_rank(
+                max_diff_severity
+            ):
                 max_diff_severity = diff.severity
 
         # Return the higher severity
-        if self._severity_rank(max_diff_severity) > self._severity_rank(action_severity):
+        if self._severity_rank(max_diff_severity) > self._severity_rank(
+            action_severity
+        ):
             return max_diff_severity
 
         return action_severity
@@ -581,7 +575,7 @@ class DriftReporter:
     Generates human-readable reports, JSON, and CI-friendly output.
     """
 
-    def __init__(self, config: "RepliMapConfig | None" = None) -> None:
+    def __init__(self, config: RepliMapConfig | None = None) -> None:
         """Initialize the reporter."""
         self.config = config
 
@@ -606,30 +600,36 @@ class DriftReporter:
         ]
 
         if report.has_drift:
-            lines.extend([
-                "BREAKDOWN:",
-                f"  - Added (in AWS, not in TF): {report.added_resources}",
-                f"  - Removed (in TF, not in AWS): {report.removed_resources}",
-                f"  - Modified (different attributes): {report.modified_resources}",
-                "",
-            ])
+            lines.extend(
+                [
+                    "BREAKDOWN:",
+                    f"  - Added (in AWS, not in TF): {report.added_resources}",
+                    f"  - Removed (in TF, not in AWS): {report.removed_resources}",
+                    f"  - Modified (different attributes): {report.modified_resources}",
+                    "",
+                ]
+            )
 
             # Show critical/high drifts
             critical = report.critical_drifts
             high = report.high_drifts
 
             if critical:
-                lines.extend([
-                    "🔴 CRITICAL DRIFT:",
-                ])
+                lines.extend(
+                    [
+                        "🔴 CRITICAL DRIFT:",
+                    ]
+                )
                 for drift in critical:
                     lines.append(f"  - {drift.tf_address or drift.resource_id}")
                 lines.append("")
 
             if high:
-                lines.extend([
-                    "🟠 HIGH SEVERITY DRIFT:",
-                ])
+                lines.extend(
+                    [
+                        "🟠 HIGH SEVERITY DRIFT:",
+                    ]
+                )
                 for drift in high:
                     lines.append(f"  - {drift.tf_address or drift.resource_id}")
                 lines.append("")
@@ -637,12 +637,14 @@ class DriftReporter:
         else:
             lines.append("✅ No drift detected!")
 
-        lines.extend([
-            "",
-            f"Scan Duration: {report.scan_duration_seconds:.2f}s",
-            f"Scanned At: {report.scanned_at.isoformat()}",
-            "═" * 79,
-        ])
+        lines.extend(
+            [
+                "",
+                f"Scan Duration: {report.scan_duration_seconds:.2f}s",
+                f"Scanned At: {report.scanned_at.isoformat()}",
+                "═" * 79,
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -665,14 +667,16 @@ class DriftReporter:
             if not drift.is_drifted:
                 continue
 
-            lines.extend([
-                "",
-                f"{'─' * 79}",
-                f"Resource: {drift.tf_address or drift.resource_type}",
-                f"Type: {drift.drift_type.value.upper()}",
-                f"Severity: {drift.severity.value.upper()}",
-                f"ID: {drift.resource_id}",
-            ])
+            lines.extend(
+                [
+                    "",
+                    f"{'─' * 79}",
+                    f"Resource: {drift.tf_address or drift.resource_type}",
+                    f"Type: {drift.drift_type.value.upper()}",
+                    f"Severity: {drift.severity.value.upper()}",
+                    f"ID: {drift.resource_id}",
+                ]
+            )
 
             if drift.diffs:
                 lines.append("")

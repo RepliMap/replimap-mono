@@ -18,8 +18,7 @@ import hashlib
 import logging
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from replimap.core.config import RepliMapConfig
@@ -92,7 +91,7 @@ class SmartNameGenerator:
     def __init__(
         self,
         config: NameGeneratorConfig | None = None,
-        user_config: "RepliMapConfig | None" = None,
+        user_config: RepliMapConfig | None = None,
     ) -> None:
         """
         Initialize the name generator.
@@ -107,7 +106,7 @@ class SmartNameGenerator:
         if user_config:
             self._apply_user_config(user_config)
 
-    def _apply_user_config(self, user_config: "RepliMapConfig") -> None:
+    def _apply_user_config(self, user_config: RepliMapConfig) -> None:
         """Apply user-defined name limits from configuration."""
         user_limits = user_config.get("naming", {}).get("limits", {})
         if user_limits:
@@ -153,7 +152,7 @@ class SmartNameGenerator:
         # Handle edge case where limit is too small
         if available_for_name < 1:
             # Just use the hash
-            return id_hash[: max_length]
+            return id_hash[:max_length]
 
         # Truncate name if needed, preserving start for readability
         if len(clean_name) > available_for_name:
@@ -173,7 +172,7 @@ class SmartNameGenerator:
         # Final validation
         if len(final_name) > max_length:
             # Fallback: just use hash with prefix
-            final_name = f"r_{id_hash}"[: max_length]
+            final_name = f"r_{id_hash}"[:max_length]
 
         return final_name
 

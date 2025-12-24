@@ -318,9 +318,7 @@ class ConfigLoader:
                 data = yaml.safe_load(f)
                 return data if isinstance(data, dict) else {}
         except ImportError:
-            logger.warning(
-                "PyYAML not installed. Install with: pip install pyyaml"
-            )
+            logger.warning("PyYAML not installed. Install with: pip install pyyaml")
             return {}
         except Exception as e:
             logger.warning(f"Failed to load config from {path}: {e}")
@@ -351,11 +349,7 @@ def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]
     result = base.copy()
 
     for key, value in override.items():
-        if (
-            key in result
-            and isinstance(result[key], dict)
-            and isinstance(value, dict)
-        ):
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = deep_merge(result[key], value)
         else:
             result[key] = value
@@ -370,7 +364,7 @@ def generate_example_config() -> str:
     Returns:
         Example configuration as YAML string
     """
-    return '''# RepliMap Configuration File
+    return """# RepliMap Configuration File
 # Place this file as .replimap.yaml in your project root or home directory
 
 version: "1.0"
@@ -489,4 +483,4 @@ output:
 
   # Generate import blocks for Terraform 1.5+
   generate_import_blocks: true
-'''
+"""

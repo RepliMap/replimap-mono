@@ -52,7 +52,9 @@ class ResourceMapping:
     @property
     def needs_move(self) -> bool:
         """True if resource exists in state with different name."""
-        return self.legacy_address is not None and self.legacy_address != self.new_address
+        return (
+            self.legacy_address is not None and self.legacy_address != self.new_address
+        )
 
     @property
     def needs_import(self) -> bool:
@@ -80,7 +82,7 @@ class RefactoringResult:
     """Result of refactoring analysis."""
 
     moves: list[MovedBlock] = field(default_factory=list)
-    imports: list["ImportMapping"] = field(default_factory=list)
+    imports: list[ImportMapping] = field(default_factory=list)
     unchanged: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
@@ -141,17 +143,13 @@ class StateManifest:
 
             if result.returncode != 0:
                 # No state or can't read - greenfield deployment
-                logger.info(
-                    "No existing Terraform state found (greenfield deployment)"
-                )
+                logger.info("No existing Terraform state found (greenfield deployment)")
                 return False
 
             state = json.loads(result.stdout)
             self._parse_state(state)
             self._loaded = True
-            logger.info(
-                f"Loaded state manifest: {len(self._id_to_address)} resources"
-            )
+            logger.info(f"Loaded state manifest: {len(self._id_to_address)} resources")
             return True
 
         except subprocess.TimeoutExpired:
@@ -255,7 +253,7 @@ class RefactoringEngine:
     def __init__(
         self,
         working_dir: str | Path = ".",
-        config: "RepliMapConfig | None" = None,
+        config: RepliMapConfig | None = None,
     ) -> None:
         """
         Initialize the refactoring engine.
@@ -322,9 +320,7 @@ class RefactoringEngine:
                         to_address=new_address,
                     )
                 )
-                logger.debug(
-                    f"Move: {legacy_address} -> {new_address}"
-                )
+                logger.debug(f"Move: {legacy_address} -> {new_address}")
             elif mapping.needs_import:
                 # Resource not in state - generate import block
                 result.imports.append(

@@ -32,13 +32,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from replimap.core.config import RepliMapConfig
+    pass
 
 logger = logging.getLogger(__name__)
 
 
 # Minimal provider configuration for bootstrapping
-DEFAULT_BOOTSTRAP_PROVIDER_TF = '''
+DEFAULT_BOOTSTRAP_PROVIDER_TF = """
 terraform {
   required_version = ">= 1.1.0"
 
@@ -59,7 +59,7 @@ provider "aws" {
   # Use a dummy region
   region = "us-east-1"
 }
-'''
+"""
 
 
 @dataclass
@@ -90,9 +90,7 @@ class ResourceSchema:
     def get_computed_attributes(self) -> set[str]:
         """Get all strictly computed attributes (not configurable)."""
         return {
-            name
-            for name, attr in self.attributes.items()
-            if attr.is_strictly_computed
+            name for name, attr in self.attributes.items() if attr.is_strictly_computed
         }
 
     def get_optional_attributes(self) -> set[str]:
@@ -126,9 +124,7 @@ class EnvironmentDetector:
     """
 
     # Regex patterns for HCL parsing
-    PROVIDER_BLOCK_PATTERN = re.compile(
-        r"required_providers\s*\{([^}]+)\}", re.DOTALL
-    )
+    PROVIDER_BLOCK_PATTERN = re.compile(r"required_providers\s*\{([^}]+)\}", re.DOTALL)
 
     PROVIDER_ENTRY_PATTERN = re.compile(r"(\w+)\s*=\s*\{([^}]+)\}", re.DOTALL)
 
@@ -207,7 +203,8 @@ class EnvironmentDetector:
                         "type": match.group(1),
                         "config": match.group(2),
                     }
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Failed to parse backend from {tf_file}: {e}")
                 continue
 
         return None
@@ -285,9 +282,7 @@ class SchemaBootstrapper:
 
         The key changes when provider versions change.
         """
-        return hashlib.md5(
-            DEFAULT_BOOTSTRAP_PROVIDER_TF.encode()
-        ).hexdigest()[:12]
+        return hashlib.sha256(DEFAULT_BOOTSTRAP_PROVIDER_TF.encode()).hexdigest()[:12]
 
     def _bootstrap_and_fetch(self) -> dict[str, Any]:
         """
@@ -312,9 +307,7 @@ class SchemaBootstrapper:
             )
 
             if init_result.returncode != 0:
-                raise BootstrapError(
-                    f"terraform init failed: {init_result.stderr}"
-                )
+                raise BootstrapError(f"terraform init failed: {init_result.stderr}")
 
             # Fetch schema
             schema_result = subprocess.run(
@@ -416,7 +409,7 @@ class VersionAwareBootstrapper(SchemaBootstrapper):
             key_parts.append("default")
 
         key_string = "|".join(key_parts)
-        return hashlib.md5(key_string.encode()).hexdigest()[:12]
+        return hashlib.sha256(key_string.encode()).hexdigest()[:12]
 
     def _generate_providers_tf(self) -> str:
         """
@@ -444,7 +437,7 @@ class VersionAwareBootstrapper(SchemaBootstrapper):
             entry += "\n    }"
             provider_entries.append(entry)
 
-        return f'''
+        return f"""
 terraform {{
   required_version = ">= 1.1.0"
 
@@ -460,7 +453,7 @@ provider "aws" {{
   skip_requesting_account_id  = true
   region = "us-east-1"
 }}
-'''
+"""
 
     def _bootstrap_and_fetch(self) -> dict[str, Any]:
         """
@@ -486,9 +479,7 @@ provider "aws" {{
             )
 
             if init_result.returncode != 0:
-                raise BootstrapError(
-                    f"terraform init failed: {init_result.stderr}"
-                )
+                raise BootstrapError(f"terraform init failed: {init_result.stderr}")
 
             # Fetch schema
             schema_result = subprocess.run(
@@ -535,7 +526,7 @@ class ProviderSchemaLoader:
         self.schemas: dict[str, ResourceSchema] = {}
         self._loaded = False
 
-    def load(self, force_refresh: bool = False) -> "ProviderSchemaLoader":
+    def load(self, force_refresh: bool = False) -> ProviderSchemaLoader:
         """
         Load provider schema.
 

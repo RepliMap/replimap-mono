@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -76,7 +76,7 @@ class AuditAnnotator:
     def __init__(
         self,
         findings: list[AuditFinding],
-        config: "RepliMapConfig | None" = None,
+        config: RepliMapConfig | None = None,
     ) -> None:
         """
         Initialize the audit annotator.
@@ -115,9 +115,7 @@ class AuditAnnotator:
         findings = self.findings_by_resource.get(resource_id, [])
 
         # Filter to only inline severities
-        inline_findings = [
-            f for f in findings if f.severity in self.inline_severities
-        ]
+        inline_findings = [f for f in findings if f.severity in self.inline_severities]
 
         if not inline_findings:
             return None
@@ -138,10 +136,12 @@ class AuditAnnotator:
             for f in inline_findings:
                 severity_counts[f.severity] += 1
 
-            lines.extend([
-                "# ⚠️ SECURITY REVIEW REQUIRED",
-                f"# This resource has {len(inline_findings)} high-priority findings:",
-            ])
+            lines.extend(
+                [
+                    "# ⚠️ SECURITY REVIEW REQUIRED",
+                    f"# This resource has {len(inline_findings)} high-priority findings:",
+                ]
+            )
 
             for severity in self.SEVERITY_ORDER:
                 if severity in severity_counts:
@@ -154,20 +154,24 @@ class AuditAnnotator:
             # Show only the most critical one
             most_critical = inline_findings[0]
             icon = self.SEVERITY_ICONS.get(most_critical.severity, "⚪")
-            lines.extend([
-                f"# {icon} Top Issue: {most_critical.title} [{most_critical.rule_id}]",
-                f"# 💡 {most_critical.remediation}",
-            ])
+            lines.extend(
+                [
+                    f"# {icon} Top Issue: {most_critical.title} [{most_critical.rule_id}]",
+                    f"# 💡 {most_critical.remediation}",
+                ]
+            )
         else:
             # Show all findings
             for finding in inline_findings:
                 icon = self.SEVERITY_ICONS.get(finding.severity, "⚪")
-                lines.extend([
-                    f"# {icon} {finding.severity}: {finding.title} [{finding.rule_id}]",
-                    f"# {finding.description}",
-                    f"# 💡 Remediation: {finding.remediation}",
-                    "#",
-                ])
+                lines.extend(
+                    [
+                        f"# {icon} {finding.severity}: {finding.title} [{finding.rule_id}]",
+                        f"# {finding.description}",
+                        f"# 💡 Remediation: {finding.remediation}",
+                        "#",
+                    ]
+                )
 
         return "\n".join(filter(None, lines))
 
@@ -199,14 +203,16 @@ class AuditAnnotator:
                 icon = self.SEVERITY_ICONS.get(severity, "")
                 lines.append(f"#   {icon} {severity}: {count}")
 
-        lines.extend([
-            "#",
-            "# CRITICAL/HIGH issues are annotated inline above each resource.",
-            "# Run 'replimap audit --full' for complete report.",
-            "#",
-            "# ═══════════════════════════════════════════════════════════════════════════════",
-            "",
-        ])
+        lines.extend(
+            [
+                "#",
+                "# CRITICAL/HIGH issues are annotated inline above each resource.",
+                "# Run 'replimap audit --full' for complete report.",
+                "#",
+                "# ═══════════════════════════════════════════════════════════════════════════════",
+                "",
+            ]
+        )
 
         return "\n".join(lines)
 
@@ -236,11 +242,13 @@ class AuditAnnotator:
                 icon = self.SEVERITY_ICONS.get(severity, "")
                 lines.append(f"| {icon} {severity} | {count} |")
 
-        lines.extend([
-            "",
-            "## Findings by Resource",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Findings by Resource",
+                "",
+            ]
+        )
 
         for resource_id, findings in sorted(self.findings_by_resource.items()):
             lines.append(f"### {resource_id}")
@@ -255,12 +263,14 @@ class AuditAnnotator:
 
             for finding in sorted_findings:
                 icon = self.SEVERITY_ICONS.get(finding.severity, "")
-                lines.extend([
-                    f"- **{icon} {finding.severity}**: {finding.title} (`{finding.rule_id}`)",
-                    f"  - {finding.description}",
-                    f"  - 💡 *Remediation*: {finding.remediation}",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        f"- **{icon} {finding.severity}**: {finding.title} (`{finding.rule_id}`)",
+                        f"  - {finding.description}",
+                        f"  - 💡 *Remediation*: {finding.remediation}",
+                        "",
+                    ]
+                )
 
         return "\n".join(lines)
 

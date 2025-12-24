@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import re
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -102,7 +102,7 @@ class VariableExtractor:
 
     def analyze(
         self,
-        resources: list["ResourceNode"],
+        resources: list[ResourceNode],
     ) -> dict[str, ExtractedVariable]:
         """
         Analyze resources and find extractable values.
@@ -192,15 +192,13 @@ class VariableExtractor:
 
         logger.info(f"Extracted {len(variables)} common variables")
         for var in variables.values():
-            logger.debug(
-                f"  {var.name} = {var.value} ({var.occurrences} occurrences)"
-            )
+            logger.debug(f"  {var.name} = {var.value} ({var.occurrences} occurrences)")
 
         return variables
 
     def _scan_resource(
         self,
-        resource: "ResourceNode",
+        resource: ResourceNode,
         value_counter: Counter,
         region_counter: Counter,
         environment_counter: Counter,
@@ -344,7 +342,7 @@ class VariableExtractor:
             lines.append(f"# {var.description} (found {var.occurrences} times)")
 
             if var.sensitive:
-                lines.append(f"# {var.name} = \"REDACTED\"  # Sensitive value")
+                lines.append(f'# {var.name} = "REDACTED"  # Sensitive value')
             elif isinstance(var.value, bool):
                 lines.append(f"{var.name} = {str(var.value).lower()}")
             elif isinstance(var.value, (int, float)):

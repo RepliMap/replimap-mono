@@ -30,12 +30,14 @@ The "Pragmatic Sovereign" Principle:
 from __future__ import annotations
 
 import logging
-import re
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from replimap.core.config import RepliMapConfig
     from replimap.core.models import ResourceNode
 
@@ -51,12 +53,36 @@ class ResourceScope(Enum):
 
 
 @dataclass
+class ScopeResult:
+    """Result of scope determination for a resource."""
+
+    scope: ResourceScope
+    reason: str
+    rule_name: str | None = None
+
+    @property
+    def is_managed(self) -> bool:
+        """Check if resource should be managed."""
+        return self.scope == ResourceScope.MANAGED
+
+    @property
+    def is_read_only(self) -> bool:
+        """Check if resource is read-only."""
+        return self.scope == ResourceScope.READ_ONLY
+
+    @property
+    def is_skip(self) -> bool:
+        """Check if resource should be skipped."""
+        return self.scope == ResourceScope.SKIP
+
+
+@dataclass
 class ScopeRule:
     """A rule for determining resource scope."""
 
     name: str
     description: str
-    matcher: Callable[["ResourceNode"], bool]
+    matcher: Callable[[ResourceNode], bool]
     scope: ResourceScope
     overridable: bool = True  # Can user override this rule?
     priority: int = 0  # Higher priority rules are checked first
@@ -82,7 +108,7 @@ class ScopeEngine:
             # Skip this resource
     """
 
-    def __init__(self, config: "RepliMapConfig | None" = None) -> None:
+    def __init__(self, config: RepliMapConfig | None = None) -> None:
         """
         Initialize the scope engine.
 
@@ -313,7 +339,7 @@ class ScopeEngine:
             logger.warning(f"Failed to parse scope pattern '{pattern}': {e}")
             return None
 
-    def determine_scope(self, resource: "ResourceNode") -> ResourceScope:
+    def determine_scope(self, resource: ResourceNode) -> ScopeResult:
         """
         Determine the scope for a resource.
 
@@ -323,7 +349,7 @@ class ScopeEngine:
             resource: ResourceNode to check
 
         Returns:
-            ResourceScope for this resource
+            ScopeResult with scope, reason, and rule name
         """
         for rule in self.rules:
             try:
@@ -331,18 +357,26 @@ class ScopeEngine:
                     logger.debug(
                         f"Resource {resource.id} matched rule '{rule.name}' -> {rule.scope}"
                     )
-                    return rule.scope
+                    return ScopeResult(
+                        scope=rule.scope,
+                        reason=rule.description,
+                        rule_name=rule.name,
+                    )
             except Exception as e:
                 logger.warning(f"Error checking rule {rule.name}: {e}")
                 continue
 
         # Default: MANAGED
-        return ResourceScope.MANAGED
+        return ScopeResult(
+            scope=ResourceScope.MANAGED,
+            reason="Default: user-created resource",
+            rule_name=None,
+        )
 
     def classify_resources(
         self,
-        resources: list["ResourceNode"],
-    ) -> dict[str, list["ResourceNode"]]:
+        resources: list[ResourceNode],
+    ) -> dict[str, list[ResourceNode]]:
         """
         Classify all resources by scope.
 
@@ -352,15 +386,15 @@ class ScopeEngine:
         Returns:
             Dictionary mapping scope to list of resources
         """
-        classified: dict[str, list["ResourceNode"]] = {
+        classified: dict[str, list[ResourceNode]] = {
             "managed": [],
             "read_only": [],
             "skip": [],
         }
 
         for resource in resources:
-            scope = self.determine_scope(resource)
-            classified[scope.value].append(resource)
+            result = self.determine_scope(resource)
+            classified[result.scope.value].append(resource)
 
         # Log summary
         logger.info(
@@ -372,7 +406,7 @@ class ScopeEngine:
 
         return classified
 
-    def get_scope_reason(self, resource: "ResourceNode") -> str:
+    def get_scope_reason(self, resource: ResourceNode) -> str:
         """
         Get human-readable reason why resource has its scope.
 
@@ -382,14 +416,8 @@ class ScopeEngine:
         Returns:
             Reason string
         """
-        for rule in self.rules:
-            try:
-                if rule.matcher(resource):
-                    return rule.description
-            except Exception:
-                continue
-
-        return "Default: user-created resource"
+        result = self.determine_scope(resource)
+        return result.reason
 
 
 class DataSourceRenderer:
@@ -424,7 +452,7 @@ class DataSourceRenderer:
 
     def render_data_sources(
         self,
-        resources: list["ResourceNode"],
+        resources: list[ResourceNode],
     ) -> str:
         """
         Render resources as data sources.
@@ -463,11 +491,13 @@ class DataSourceRenderer:
             resource_type = str(resource.resource_type)
             filter_name = self.FILTER_ATTRIBUTES.get(resource_type, "id")
 
-            lines.extend([
-                f"# {resource_type}: {resource.id}",
-                f"# Reason: {reason}",
-                f'data "{resource_type}" "{resource.terraform_name}" {{',
-            ])
+            lines.extend(
+                [
+                    f"# {resource_type}: {resource.id}",
+                    f"# Reason: {reason}",
+                    f'data "{resource_type}" "{resource.terraform_name}" {{',
+                ]
+            )
 
             # Add filter block
             lines.append("  filter {")
@@ -485,17 +515,19 @@ class DataSourceRenderer:
                     lines.append(f'    values = ["{name_tag}"]')
                     lines.append("  }")
 
-            lines.extend([
-                "}",
-                "",
-            ])
+            lines.extend(
+                [
+                    "}",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 
     def render_data_sources_file(
         self,
-        resources: list["ResourceNode"],
-        output_path: "Path",
+        resources: list[ResourceNode],
+        output_path: Path,
     ) -> None:
         """
         Write data sources to file.
