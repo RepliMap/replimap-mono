@@ -568,11 +568,12 @@ class PlanBasedDriftEngine:
         return ranks.get(severity, 0)
 
 
-class DriftReporter:
+class PlanDriftReporter:
     """
-    Format drift reports for various outputs.
+    Format drift reports for various outputs (plan-based engine).
 
     Generates human-readable reports, JSON, and CI-friendly output.
+    Different from DriftReporter in reporter.py which uses to_console/to_json/to_html.
     """
 
     def __init__(self, config: RepliMapConfig | None = None) -> None:

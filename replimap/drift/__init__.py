@@ -9,12 +9,13 @@ from replimap.drift.models import (
     ResourceDrift,
 )
 from replimap.drift.plan_engine import (
-    DriftReporter,
     PlanBasedDriftEngine,
     PlanChange,
+    PlanDriftReporter,
     PlanParser,
     PlanResult,
 )
+from replimap.drift.reporter import DriftReporter
 from replimap.drift.state_parser import TerraformStateParser, TFResource, TFState
 
 __all__ = [
@@ -25,6 +26,8 @@ __all__ = [
     "PlanParser",
     "PlanChange",
     "PlanResult",
+    "PlanDriftReporter",
+    # Original reporter (with to_console, to_json, to_html)
     "DriftReporter",
     # Models
     "DriftType",
