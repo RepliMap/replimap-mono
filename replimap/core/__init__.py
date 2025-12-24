@@ -1,6 +1,12 @@
 """Core engine components for RepliMap."""
 
 from .aws_config import BOTO_CONFIG, get_boto_config
+from .bootstrap import (
+    EnvironmentDetector,
+    ProviderSchemaLoader,
+    SchemaBootstrapper,
+    VersionAwareBootstrapper,
+)
 from .cache import (
     ScanCache,
     populate_graph_from_cache,
@@ -13,6 +19,7 @@ from .circuit_breaker import (
     CircuitState,
     get_circuit_breaker_registry,
 )
+from .config import ConfigLoader, RepliMapConfig, deep_merge, generate_example_config
 from .filters import ScanFilter, apply_filter_to_graph
 from .graph_engine import GraphEngine, SCCResult, TarjanSCC
 from .models import ResourceNode
@@ -22,6 +29,13 @@ from .sanitizer import (
     Sanitizer,
     sanitize_resource_config,
     sanitize_scan_response,
+)
+from .scope import (
+    DataSourceRenderer,
+    ResourceScope,
+    ScopeEngine,
+    ScopeResult,
+    ScopeRule,
 )
 from .selection import (
     BoundaryAction,
@@ -49,6 +63,22 @@ __all__ = [
     # AWS Config
     "BOTO_CONFIG",
     "get_boto_config",
+    # Configuration (Level 2-5)
+    "ConfigLoader",
+    "RepliMapConfig",
+    "deep_merge",
+    "generate_example_config",
+    # Scope Engine (Level 2-5)
+    "ScopeEngine",
+    "ScopeResult",
+    "ScopeRule",
+    "ResourceScope",
+    "DataSourceRenderer",
+    # Bootstrap (Level 2-5)
+    "SchemaBootstrapper",
+    "VersionAwareBootstrapper",
+    "EnvironmentDetector",
+    "ProviderSchemaLoader",
     # Retry
     "with_retry",
     "async_retry",

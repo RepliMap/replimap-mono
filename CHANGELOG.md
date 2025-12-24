@@ -8,6 +8,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Sovereign Engineer Protocol (Level 2-5)** - Complete Terraform renderer refactoring
+  - **SmartNameGenerator** (`replimap/renderers/name_generator.py`)
+    - Deterministic Base62 hash-based naming (same input = same output, always)
+    - AWS length limit enforcement per resource type (32 char default)
+    - NameRegistry for collision tracking and lookup
+    - Replaces non-deterministic numeric suffix approach
+  - **ScopeEngine** (`replimap/core/scope.py`)
+    - Boundary recognition: MANAGED, READ_ONLY, SKIP scopes
+    - Default VPC/SG/NACL automatically rendered as data sources (safety)
+    - Escape hatches via .replimap.yaml for advanced users
+    - Pattern-based skip/force-manage rules (tag:, id:, id_prefix:)
+  - **ImportBlockGenerator** (`replimap/renderers/import_generator.py`)
+    - Terraform 1.5+ import block generation
+    - Resource-specific import ID format handling
+    - Legacy import.sh script for Terraform < 1.5
+    - Complex import warnings for manual intervention
+  - **RefactoringEngine** (`replimap/renderers/refactoring.py`)
+    - Terraform `moved` block generation for Brownfield adoption
+    - StateManifest for parsing existing Terraform state
+    - ResourceMapping to identify moves vs imports
+    - Prevents "destroy and recreate" disasters
+  - **SemanticFileRouter** (`replimap/renderers/file_router.py`)
+    - Organized output: vpc.tf, security.tf, compute.tf, etc.
+    - FileRoute pattern matching per resource type
+    - FileStructure tracking for multi-file output
+  - **VariableExtractor** (`replimap/renderers/variable_extractor.py`)
+    - DRY variable extraction from resources
+    - Auto-detects region, environment, VPC ID patterns
+    - Generates variables.tf and terraform.tfvars
+  - **AuditAnnotator** (`replimap/renderers/audit_annotator.py`)
+    - Inline security annotations in generated code
+    - Noise control: only CRITICAL/HIGH inline, rest in header/report
+    - SecurityCheckRunner for built-in checks (SSH open to world, etc.)
+    - Full audit report generation (audit-report.md)
+  - **PlanBasedDriftEngine** (`replimap/drift/plan_engine.py`)
+    - Replaces COMPARABLE_ATTRIBUTES with terraform plan
+    - Complete and accurate drift detection
+    - DriftReporter with multiple output formats (summary, details, JSON, CI)
+  - **LocalModuleExtractor** (`replimap/patterns/local_module.py`)
+    - Pattern detection for VPC, ALB, RDS, Lambda, etc.
+    - ModuleSuggestion with resource groupings
+    - ModuleGenerator for local module structure
+    - Moved block generation for module migration
+  - **SchemaBootstrapper** (`replimap/core/bootstrap.py`)
+    - Solves the Bootstrap Paradox (need schema to generate, need init for schema)
+    - VersionAwareBootstrapper respects user's provider constraints
+    - EnvironmentDetector finds existing Terraform config
+    - ProviderSchemaLoader for schema-driven intelligence
+  - **ConfigLoader** (`replimap/core/config.py`)
+    - .replimap.yaml configuration file support
+    - Hierarchical config search (cwd → parent → home)
+    - Deep merge with sensible defaults
+    - Escape hatches for all safety defaults
+  - **EnhancedTerraformRenderer** (`replimap/renderers/terraform_v2.py`)
+    - Integrates all Level 2-5 components
+    - Backwards compatible with original TerraformRenderer
+    - Preview mode for dry-run analysis
+    - 40+ tests for new functionality
+
 - **Core Engine Deep Dive** - Security, resilience, and performance improvements
   - **Security-Critical Sanitization Middleware** (`replimap/core/sanitizer.py`)
     - Sanitizes sensitive data BEFORE cache/graph storage (SEC-001 fix)
