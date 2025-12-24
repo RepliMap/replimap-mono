@@ -646,6 +646,86 @@ replimap profiles
 
 ## Configuration
 
+### Project Configuration (.replimap.yaml)
+
+RepliMap supports a YAML configuration file for advanced customization. Create `.replimap.yaml` in your project root:
+
+```yaml
+# .replimap.yaml - RepliMap Configuration
+version: "1.0"
+
+# Naming conventions for generated resources
+naming:
+  style: snake_case  # snake_case, kebab-case, camelCase
+  prefix: ""
+  suffix: ""
+  max_length: 64
+
+# Scope and boundary rules
+scope:
+  # Default scope for resources
+  default: managed
+
+  # Rules for determining resource scope
+  rules:
+    # Ignore resources matching these patterns
+    - pattern: ".*-backup-.*"
+      scope: ignored
+      reason: "Backup resources excluded"
+
+    # Treat shared resources as data sources
+    - pattern: "shared-.*"
+      scope: data_source
+      reason: "Shared infrastructure"
+
+    # Resources tagged with Environment=Production are managed
+    - tag: "Environment=Production"
+      scope: managed
+
+# File organization for generated Terraform
+file_routing:
+  strategy: semantic  # semantic, single, by_type
+  # Semantic routing places resources in logical files:
+  # - network.tf: VPC, subnets, route tables, gateways
+  # - compute.tf: EC2, ASG, launch templates
+  # - database.tf: RDS, ElastiCache
+  # - storage.tf: S3, EBS
+  # - security.tf: Security groups, IAM
+  # - loadbalancing.tf: ALB, NLB, target groups
+
+# Variable extraction settings
+variables:
+  # Extract these as variables automatically
+  extract:
+    - ami_ids
+    - instance_types
+    - key_names
+    - certificate_arns
+
+  # Environment-specific variable files
+  environments:
+    - dev
+    - staging
+    - prod
+
+# Import block generation (Terraform 1.5+)
+imports:
+  enabled: true
+  generate_import_blocks: true
+
+# Audit annotations in generated code
+audit:
+  enabled: true
+  include_source_metadata: true
+  include_scan_timestamp: true
+
+# Module extraction for repeated patterns
+modules:
+  enabled: true
+  min_occurrences: 2  # Extract pattern if it appears 2+ times
+  output_dir: modules/
+```
+
 ### Environment Variables
 
 | Variable | Default | Description |
@@ -713,19 +793,51 @@ RepliMap is designed with security as a priority:
 
 ## Architecture
 
-RepliMap uses a **graph-based engine**:
+RepliMap uses a **graph-based engine** with an enhanced rendering pipeline:
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌───────────────┐    ┌────────────┐
-│   Scanners  │───▶│ Graph Engine│───▶│ Transformers  │───▶│  Renderers │
-│  (AWS API)  │    │ (NetworkX)  │    │  (Pipeline)   │    │(Terraform) │
-└─────────────┘    └─────────────┘    └───────────────┘    └────────────┘
+┌─────────────┐    ┌─────────────┐    ┌───────────────┐    ┌────────────────────┐
+│   Scanners  │───▶│ Graph Engine│───▶│ Transformers  │───▶│ Enhanced Renderer  │
+│  (AWS API)  │    │ (NetworkX)  │    │  (Pipeline)   │    │   (Terraform v2)   │
+└─────────────┘    └─────────────┘    └───────────────┘    └────────────────────┘
+                                                                     │
+                   ┌─────────────────────────────────────────────────┼─────────────────────────────────────────────────┐
+                   │                                                 │                                                 │
+                   ▼                                                 ▼                                                 ▼
+          ┌───────────────┐                                 ┌───────────────┐                                 ┌───────────────┐
+          │ SmartNaming   │                                 │ ScopeEngine   │                                 │ FileRouter    │
+          │ Generator     │                                 │ (Boundaries)  │                                 │ (Semantic)    │
+          └───────────────┘                                 └───────────────┘                                 └───────────────┘
+                   │                                                 │                                                 │
+                   ▼                                                 ▼                                                 ▼
+          ┌───────────────┐                                 ┌───────────────┐                                 ┌───────────────┐
+          │ ImportBlock   │                                 │ Variable      │                                 │ Audit         │
+          │ Generator     │                                 │ Extractor     │                                 │ Annotator     │
+          └───────────────┘                                 └───────────────┘                                 └───────────────┘
 ```
+
+### Core Pipeline
 
 1. **Scanners**: Query AWS APIs for VPC, EC2, RDS, S3 resources
 2. **Graph Engine**: Build dependency graph with NetworkX
 3. **Transformers**: Apply sanitization, downsizing, renaming
-4. **Renderers**: Generate Terraform/CloudFormation/Pulumi code
+4. **Enhanced Renderer**: Generate production-ready Terraform with intelligent features
+
+### Enhanced Renderer Components (Level 2-5)
+
+| Component | Description |
+|-----------|-------------|
+| **SmartNameGenerator** | Context-aware naming with collision detection and configurable styles |
+| **ScopeEngine** | Boundary recognition (managed/data_source/ignored) with rule-based classification |
+| **ImportBlockGenerator** | Terraform 1.5+ import blocks for seamless state adoption |
+| **RefactoringEngine** | Safe refactoring with `moved` blocks for resource renames |
+| **SemanticFileRouter** | Organize resources into logical files (network.tf, compute.tf, etc.) |
+| **VariableExtractor** | Auto-extract AMIs, instance types, certificates as variables |
+| **AuditAnnotator** | Add source metadata and compliance annotations to generated code |
+| **LocalModuleExtractor** | Detect repeated patterns and extract reusable modules |
+| **PlanBasedDriftEngine** | Detect drift using `terraform plan` output parsing |
+| **SchemaBootstrapper** | Auto-discover provider schemas for validation |
+| **ConfigLoader** | Load and validate `.replimap.yaml` configuration |
 
 ## Development
 
@@ -759,7 +871,16 @@ replimap/
 │   ├── main.py              # Typer CLI entry point
 │   ├── core/
 │   │   ├── graph_engine.py  # NetworkX graph wrapper
-│   │   └── models.py        # ResourceNode dataclass
+│   │   ├── models.py        # ResourceNode dataclass
+│   │   ├── config.py        # ConfigLoader - .replimap.yaml support
+│   │   ├── scope.py         # ScopeEngine - boundary recognition
+│   │   ├── bootstrap.py     # SchemaBootstrapper - provider schema discovery
+│   │   ├── sanitizer.py     # Security-critical sanitization middleware
+│   │   ├── retry.py         # Coordinated retry logic with backoff
+│   │   ├── circuit_breaker.py # Circuit breaker for API resilience
+│   │   ├── cache.py         # Credential and result caching
+│   │   ├── filters.py       # Resource filtering utilities
+│   │   └── selection.py     # Graph-based selection engine
 │   ├── scanners/
 │   │   ├── base.py              # Scanner base class
 │   │   ├── async_base.py        # Async scanner support
@@ -779,19 +900,36 @@ replimap/
 │   │   ├── renamer.py       # Environment renaming
 │   │   └── network_remapper.py  # Reference updates
 │   ├── renderers/
-│   │   ├── terraform.py     # Terraform HCL (Free+)
-│   │   ├── cloudformation.py # CloudFormation (Solo+)
-│   │   └── pulumi.py        # Pulumi Python (Pro+)
+│   │   ├── terraform.py         # Terraform HCL renderer (base)
+│   │   ├── terraform_v2.py      # EnhancedTerraformRenderer (recommended)
+│   │   ├── name_generator.py    # SmartNameGenerator - context-aware naming
+│   │   ├── import_generator.py  # ImportBlockGenerator - TF 1.5+ imports
+│   │   ├── refactoring.py       # RefactoringEngine - moved blocks
+│   │   ├── file_router.py       # SemanticFileRouter - logical file organization
+│   │   ├── variable_extractor.py # VariableExtractor - auto-extract variables
+│   │   ├── audit_annotator.py   # AuditAnnotator - source metadata
+│   │   ├── cloudformation.py    # CloudFormation YAML (Solo+)
+│   │   └── pulumi.py            # Pulumi Python (Pro+)
+│   ├── patterns/
+│   │   └── local_module.py  # LocalModuleExtractor - pattern detection
 │   ├── audit/               # Security auditing
-│   │   ├── auditor.py       # Checkov integration
+│   │   ├── engine.py        # Audit orchestration
+│   │   ├── checkov_runner.py # Checkov integration
 │   │   ├── renderer.py      # Console/HTML/JSON output
+│   │   ├── soc2_mapping.py  # SOC2 compliance mapping
+│   │   ├── fix_suggestions.py # Remediation suggestions
+│   │   ├── remediation/     # Auto-remediation templates
 │   │   └── templates/       # Jinja2 HTML templates
 │   ├── graph/               # Infrastructure visualization
 │   │   ├── visualizer.py    # Graph building
+│   │   ├── builder.py       # Graph construction
 │   │   ├── layout.py        # Hierarchical container layout
 │   │   ├── aggregation.py   # Smart VPC-based aggregation
+│   │   ├── grouper.py       # Resource grouping
+│   │   ├── naming.py        # Graph node naming
 │   │   ├── environment.py   # Environment detection (prod/staging/dev)
 │   │   ├── views.py         # View management (overview/detail)
+│   │   ├── filters.py       # Graph filtering
 │   │   ├── link_classification.py  # Traffic vs dependency links
 │   │   ├── summary_links.py # Cross-VPC connection summaries
 │   │   ├── tool_modes.py    # Select/Trace/Blast tool palette
@@ -802,16 +940,28 @@ replimap/
 │   │   ├── formatters/      # Mermaid, JSON, D3.js formatters
 │   │   └── templates/       # D3.js HTML template
 │   ├── drift/               # Drift detection
-│   │   ├── engine.py        # Detection orchestration
+│   │   ├── engine.py        # Legacy detection engine
+│   │   ├── plan_engine.py   # PlanBasedDriftEngine (recommended)
 │   │   ├── state_parser.py  # Terraform state parsing
 │   │   ├── comparator.py    # Resource comparison
-│   │   ├── reporter.py      # Report generation
+│   │   ├── models.py        # DriftReport, ResourceDrift models
+│   │   ├── reporter.py      # Report generation (console/HTML/JSON)
 │   │   └── templates/       # HTML report template
-│   ├── dependencies/        # Dependency exploration (formerly blast/)
+│   ├── dependencies/        # Dependency exploration
 │   │   ├── models.py        # ResourceNode, DependencyZone, etc.
 │   │   ├── graph_builder.py # Dependency graph building
 │   │   ├── impact_calculator.py # Impact score estimation
-│   │   └── reporter.py      # Console/HTML/JSON output (with disclaimers)
+│   │   └── reporter.py      # Console/HTML/JSON output
+│   ├── blast/               # Blast radius analysis
+│   │   ├── models.py        # Impact models
+│   │   ├── graph_builder.py # Blast graph construction
+│   │   ├── impact_calculator.py # Impact scoring
+│   │   └── reporter.py      # Blast radius reporting
+│   ├── snapshot/            # Infrastructure snapshots
+│   │   ├── models.py        # Snapshot models
+│   │   ├── store.py         # Snapshot storage
+│   │   ├── differ.py        # Snapshot comparison
+│   │   └── reporter.py      # Snapshot reporting
 │   ├── cost/                # Cost estimation
 │   │   ├── models.py        # ResourceCost, CostEstimate
 │   │   ├── pricing.py       # AWS pricing data
@@ -819,12 +969,16 @@ replimap/
 │   │   └── reporter.py      # Console/HTML/CSV output
 │   └── licensing/
 │       ├── manager.py       # License management
+│       ├── models.py        # License models
 │       ├── gates.py         # Feature gating
+│       ├── prompts.py       # License prompts
 │       └── tracker.py       # Usage tracking
 ├── templates/               # Jinja2 templates
-├── tests/                   # pytest test suite
+├── tests/                   # pytest test suite (825+ tests)
 ├── .github/workflows/       # CI/CD
+├── .replimap.yaml           # Project configuration (optional)
 ├── pyproject.toml
+├── CHANGELOG.md             # Version history
 └── README.md
 ```
 
