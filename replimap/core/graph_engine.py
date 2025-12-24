@@ -71,7 +71,7 @@ class TarjanSCC:
         This creates a cycle that Tarjan's algorithm detects.
     """
 
-    def __init__(self, graph: "GraphEngine") -> None:
+    def __init__(self, graph: GraphEngine) -> None:
         """
         Initialize Tarjan's algorithm.
 
@@ -496,7 +496,7 @@ class GraphEngine:
         # Build condensation graph (DAG of SCCs)
         # Each SCC becomes a single node
         condensed = nx.DiGraph()
-        for i, scc in enumerate(scc_result.components):
+        for i, _scc in enumerate(scc_result.components):
             condensed.add_node(i)
 
         # Add edges between SCCs
@@ -620,7 +620,9 @@ class GraphEngine:
                         self._graph.nodes[node_id]["resource_type"] = str(
                             node.resource_type
                         )
-                        self._graph.nodes[node_id]["terraform_name"] = node.terraform_name
+                        self._graph.nodes[node_id]["terraform_name"] = (
+                            node.terraform_name
+                        )
                         self._graph.nodes[node_id]["is_phantom"] = False
                         self._phantom_nodes.discard(node_id)
                         logger.debug(

@@ -12,31 +12,26 @@ Tests cover:
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, patch
 from botocore.exceptions import ClientError
 
 from replimap.core import (
-    GraphEngine,
-    ResourceNode,
-    SCCResult,
-    TarjanSCC,
-    Sanitizer,
-    SanitizationResult,
-    sanitize_resource_config,
+    BOTO_CONFIG,
     CircuitBreaker,
     CircuitBreakerRegistry,
     CircuitOpenError,
     CircuitState,
+    GraphEngine,
+    ResourceNode,
+    Sanitizer,
+    sanitize_resource_config,
     with_retry,
-    async_retry,
-    BOTO_CONFIG,
 )
-from replimap.core.models import ResourceType, DependencyType
-
+from replimap.core.models import ResourceType
 
 # =============================================================================
 # Sanitization Tests (Security Critical - P0)
 # =============================================================================
+
 
 class TestSanitizer:
     """Tests for the sanitization middleware."""
@@ -59,7 +54,7 @@ class TestSanitizer:
             "Environment": {
                 "Variables": {
                     "LOG_LEVEL": "INFO",
-                    "DATABASE_PASSWORD": "hunter2",
+                    "DATABASE_PASSWORD": "hunter2",  # noqa: S105
                     "API_KEY": "sk_live_xxxxx",
                 }
             },
@@ -67,7 +62,7 @@ class TestSanitizer:
         result = Sanitizer().get_result(data)
         env = result.data["Environment"]["Variables"]
         assert env["LOG_LEVEL"] == "[REDACTED]"  # All values redacted in high-risk
-        assert env["DATABASE_PASSWORD"] == "[REDACTED]"
+        assert env["DATABASE_PASSWORD"] == "[REDACTED]"  # noqa: S105
         assert env["API_KEY"] == "[REDACTED]"
         assert result.data["FunctionName"] == "my-function"
 
@@ -96,7 +91,7 @@ class TestSanitizer:
     def test_connection_string_detected(self):
         """Database connection strings should be detected."""
         data = {
-            "Script": "postgres://user:password@host:5432/db",
+            "Script": "postgres://user:password@host:5432/db",  # noqa: S105
         }
         result = Sanitizer().get_result(data)
         assert result.data["Script"] == "[REDACTED]"
@@ -109,8 +104,8 @@ class TestSanitizer:
             "normal_field": "safe-value",
         }
         result = Sanitizer().get_result(data)
-        assert result.data["my_secret_value"] == "[REDACTED]"
-        assert result.data["api_token"] == "[REDACTED]"
+        assert result.data["my_secret_value"] == "[REDACTED]"  # noqa: S105
+        assert result.data["api_token"] == "[REDACTED]"  # noqa: S105
         assert result.data["normal_field"] == "safe-value"
 
     def test_nested_sanitization(self):
@@ -147,6 +142,7 @@ class TestSanitizeResourceConfig:
 # =============================================================================
 # Circuit Breaker Tests
 # =============================================================================
+
 
 class TestCircuitBreaker:
     """Tests for the circuit breaker pattern."""
@@ -215,6 +211,7 @@ class TestCircuitBreaker:
         assert cb.state == CircuitState.OPEN
 
         import time
+
         time.sleep(0.15)  # Wait for recovery timeout
 
         assert cb.state == CircuitState.HALF_OPEN
@@ -261,6 +258,7 @@ class TestCircuitBreakerRegistry:
 # =============================================================================
 # GraphEngine Phantom Node Tests
 # =============================================================================
+
 
 class TestGraphEnginePhantomNodes:
     """Tests for phantom node support in GraphEngine."""
@@ -374,6 +372,7 @@ class TestGraphEnginePhantomNodes:
 # GraphEngine SCC Tests
 # =============================================================================
 
+
 class TestGraphEngineSCC:
     """Tests for Tarjan's SCC algorithm and cycle detection."""
 
@@ -468,6 +467,7 @@ class TestGraphEngineSCC:
 # GraphEngine Merge Tests
 # =============================================================================
 
+
 class TestGraphEngineMerge:
     """Tests for graph merge (Map-Reduce pattern)."""
 
@@ -555,6 +555,7 @@ class TestGraphEngineMerge:
 # ResourceNode Tests
 # =============================================================================
 
+
 class TestResourceNode:
     """Tests for ResourceNode memory optimization."""
 
@@ -574,8 +575,11 @@ class TestResourceNode:
         )
 
         # Interned strings should be the same object
-        # (This is implementation-dependent but worth testing)
+        # Both nodes use the same region, so after interning they should share the string
         assert sys.intern("us-east-1") is sys.intern("us-east-1")
+        # Verify both nodes have the expected region value
+        assert node1.region == "us-east-1"
+        assert node2.region == "us-east-1"
 
     def test_phantom_fields_serialization(self):
         """Phantom fields should be serialized correctly."""
@@ -612,6 +616,7 @@ class TestResourceNode:
 # Retry Logic Tests
 # =============================================================================
 
+
 class TestWithRetry:
     """Tests for the retry decorator."""
 
@@ -625,7 +630,12 @@ class TestWithRetry:
             call_count += 1
             if call_count < 3:
                 error = ClientError(
-                    {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}},
+                    {
+                        "Error": {
+                            "Code": "ThrottlingException",
+                            "Message": "Rate exceeded",
+                        }
+                    },
                     "DescribeInstances",
                 )
                 raise error
@@ -644,7 +654,12 @@ class TestWithRetry:
             nonlocal call_count
             call_count += 1
             error = ClientError(
-                {"Error": {"Code": "AccessDeniedException", "Message": "Not authorized"}},
+                {
+                    "Error": {
+                        "Code": "AccessDeniedException",
+                        "Message": "Not authorized",
+                    }
+                },
                 "DescribeInstances",
             )
             raise error
@@ -658,6 +673,7 @@ class TestWithRetry:
 # =============================================================================
 # BOTO_CONFIG Tests
 # =============================================================================
+
 
 class TestBotoConfig:
     """Tests for BOTO_CONFIG settings."""

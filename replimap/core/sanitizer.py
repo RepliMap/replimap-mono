@@ -29,116 +29,126 @@ logger = logging.getLogger(__name__)
 REDACTED = "[REDACTED]"
 
 # Fields that ALWAYS contain secrets - redact entire value
-HIGH_RISK_FIELDS: frozenset[str] = frozenset([
-    # EC2
-    "userdata",
-    "user_data",
-    "userData",
-    "UserData",
-    # Lambda/ECS
-    "environment",
-    "Environment",
-    "secrets",
-    "Secrets",
-    # Database
-    "password",
-    "Password",
-    "master_password",
-    "MasterPassword",
-    "MasterUserPassword",
-    "connectionstring",
-    "connectionString",
-    "ConnectionString",
-    # Generic secrets
-    "privatekey",
-    "private_key",
-    "PrivateKey",
-    "credentials",
-    "Credentials",
-])
+HIGH_RISK_FIELDS: frozenset[str] = frozenset(
+    [
+        # EC2
+        "userdata",
+        "user_data",
+        "userData",
+        "UserData",
+        # Lambda/ECS
+        "environment",
+        "Environment",
+        "secrets",
+        "Secrets",
+        # Database
+        "password",
+        "Password",
+        "master_password",
+        "MasterPassword",
+        "MasterUserPassword",
+        "connectionstring",
+        "connectionString",
+        "ConnectionString",
+        # Generic secrets
+        "privatekey",
+        "private_key",
+        "PrivateKey",
+        "credentials",
+        "Credentials",
+    ]
+)
 
 # Fields that MIGHT contain secrets - scan content
-MEDIUM_RISK_FIELDS: frozenset[str] = frozenset([
-    "policy",
-    "Policy",
-    "PolicyDocument",
-    "template",
-    "Template",
-    "TemplateBody",
-    "script",
-    "Script",
-    "command",
-    "Command",
-    "commands",
-    "Commands",
-    "bootstrap",
-    "Bootstrap",
-])
+MEDIUM_RISK_FIELDS: frozenset[str] = frozenset(
+    [
+        "policy",
+        "Policy",
+        "PolicyDocument",
+        "template",
+        "Template",
+        "TemplateBody",
+        "script",
+        "Script",
+        "command",
+        "Command",
+        "commands",
+        "Commands",
+        "bootstrap",
+        "Bootstrap",
+    ]
+)
 
 # Fields that are SAFE - never scan (performance optimization)
-SAFE_FIELDS: frozenset[str] = frozenset([
-    # IDs
-    "arn",
-    "Arn",
-    "ARN",
-    "id",
-    "Id",
-    "ID",
-    "instanceId",
-    "InstanceId",
-    "vpcId",
-    "VpcId",
-    "subnetId",
-    "SubnetId",
-    "securityGroupId",
-    "SecurityGroupId",
-    "GroupId",
-    "groupId",
-    # Status/State
-    "status",
-    "Status",
-    "State",
-    "state",
-    # Types
-    "type",
-    "Type",
-    "InstanceType",
-    "instanceType",
-    "ResourceType",
-    # Location
-    "region",
-    "Region",
-    "availabilityZone",
-    "AvailabilityZone",
-    "az",
-    "AZ",
-    # Timestamps
-    "createTime",
-    "CreateTime",
-    "LaunchTime",
-    "launchTime",
-    "modifyTime",
-    "ModifyTime",
-    # Tags (user-controlled but typically safe)
-    "tags",
-    "Tags",
-    # Network basics
-    "cidrBlock",
-    "CidrBlock",
-    "cidr_block",
-    "ipAddress",
-    "IpAddress",
-    "PrivateIpAddress",
-    "PublicIpAddress",
-])
+SAFE_FIELDS: frozenset[str] = frozenset(
+    [
+        # IDs
+        "arn",
+        "Arn",
+        "ARN",
+        "id",
+        "Id",
+        "ID",
+        "instanceId",
+        "InstanceId",
+        "vpcId",
+        "VpcId",
+        "subnetId",
+        "SubnetId",
+        "securityGroupId",
+        "SecurityGroupId",
+        "GroupId",
+        "groupId",
+        # Status/State
+        "status",
+        "Status",
+        "State",
+        "state",
+        # Types
+        "type",
+        "Type",
+        "InstanceType",
+        "instanceType",
+        "ResourceType",
+        # Location
+        "region",
+        "Region",
+        "availabilityZone",
+        "AvailabilityZone",
+        "az",
+        "AZ",
+        # Timestamps
+        "createTime",
+        "CreateTime",
+        "LaunchTime",
+        "launchTime",
+        "modifyTime",
+        "ModifyTime",
+        # Tags (user-controlled but typically safe)
+        "tags",
+        "Tags",
+        # Network basics
+        "cidrBlock",
+        "CidrBlock",
+        "cidr_block",
+        "ipAddress",
+        "IpAddress",
+        "PrivateIpAddress",
+        "PublicIpAddress",
+    ]
+)
 
 # Patterns for content scanning (only used on medium-risk fields)
 SECRET_PATTERNS = [
     re.compile(r"AKIA[0-9A-Z]{16}"),  # AWS Access Key ID
     re.compile(r"ASIA[0-9A-Z]{16}"),  # AWS Temporary Access Key
     re.compile(r"(?i)(password|passwd|pwd)\s*[=:]\s*\S+"),  # Password assignments
-    re.compile(r"(?i)(secret|api_key|apikey|api-key)\s*[=:]\s*\S+"),  # Secret assignments
-    re.compile(r"(?i)(postgres|mysql|mongodb|redis)://[^@\s]+@"),  # DB connection strings
+    re.compile(
+        r"(?i)(secret|api_key|apikey|api-key)\s*[=:]\s*\S+"
+    ),  # Secret assignments
+    re.compile(
+        r"(?i)(postgres|mysql|mongodb|redis)://[^@\s]+@"
+    ),  # DB connection strings
     re.compile(r"(?i)sk[-_]live[-_][a-zA-Z0-9]+"),  # Stripe live keys
     re.compile(r"(?i)sk[-_]test[-_][a-zA-Z0-9]+"),  # Stripe test keys
     re.compile(r"(?i)ghp_[a-zA-Z0-9]+"),  # GitHub personal tokens
@@ -208,9 +218,7 @@ class Sanitizer:
         if isinstance(data, dict):
             return self._sanitize_dict(data, path)
         elif isinstance(data, list):
-            return [
-                self.sanitize(item, f"{path}[{i}]") for i, item in enumerate(data)
-            ]
+            return [self.sanitize(item, f"{path}[{i}]") for i, item in enumerate(data)]
         else:
             return data
 
@@ -222,14 +230,18 @@ class Sanitizer:
             current_path = f"{path}.{key}" if path else key
 
             # HIGH RISK: Always redact entire value
-            if key in HIGH_RISK_FIELDS or key.lower() in {f.lower() for f in HIGH_RISK_FIELDS}:
+            if key in HIGH_RISK_FIELDS or key.lower() in {
+                f.lower() for f in HIGH_RISK_FIELDS
+            }:
                 if value:  # Don't redact empty values
                     result[key] = self._redact_high_risk(value, current_path)
                 else:
                     result[key] = value
 
             # MEDIUM RISK: Scan content for secrets
-            elif key in MEDIUM_RISK_FIELDS or key.lower() in {f.lower() for f in MEDIUM_RISK_FIELDS}:
+            elif key in MEDIUM_RISK_FIELDS or key.lower() in {
+                f.lower() for f in MEDIUM_RISK_FIELDS
+            }:
                 result[key] = self._scan_and_redact(value, current_path)
 
             # SAFE: Skip entirely (performance optimization)
@@ -263,7 +275,7 @@ class Sanitizer:
             # This preserves the structure for debugging
             if any(k in value for k in ["Variables", "variables"]):
                 vars_key = "Variables" if "Variables" in value else "variables"
-                return {vars_key: {k: REDACTED for k in value.get(vars_key, {})}}
+                return {vars_key: dict.fromkeys(value.get(vars_key, {}), REDACTED)}
             # For other dicts, just replace entirely
             return REDACTED
         elif isinstance(value, str):
@@ -348,7 +360,9 @@ def sanitize_resource_config(config: dict[str, Any]) -> dict[str, Any]:
     return result.data
 
 
-def sanitize_scan_response(response: dict[str, Any], service: str = "unknown") -> dict[str, Any]:
+def sanitize_scan_response(
+    response: dict[str, Any], service: str = "unknown"
+) -> dict[str, Any]:
     """
     Sanitize an AWS API response before caching.
 

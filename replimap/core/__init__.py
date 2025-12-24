@@ -18,8 +18,8 @@ from .graph_engine import GraphEngine, SCCResult, TarjanSCC
 from .models import ResourceNode
 from .retry import async_retry, with_retry
 from .sanitizer import (
-    Sanitizer,
     SanitizationResult,
+    Sanitizer,
     sanitize_resource_config,
     sanitize_scan_response,
 )

@@ -32,33 +32,37 @@ BASE_DELAY = float(os.environ.get("REPLIMAP_RETRY_DELAY", "1.0"))
 MAX_DELAY = float(os.environ.get("REPLIMAP_MAX_DELAY", "30.0"))
 
 # Errors that should trigger a retry (transient/throttling)
-RETRYABLE_ERRORS = frozenset([
-    "Throttling",
-    "ThrottlingException",
-    "RequestLimitExceeded",
-    "TooManyRequestsException",
-    "ProvisionedThroughputExceededException",
-    "ServiceUnavailable",
-    "InternalError",
-    "RequestTimeout",
-    "RequestTimeoutException",
-])
+RETRYABLE_ERRORS = frozenset(
+    [
+        "Throttling",
+        "ThrottlingException",
+        "RequestLimitExceeded",
+        "TooManyRequestsException",
+        "ProvisionedThroughputExceededException",
+        "ServiceUnavailable",
+        "InternalError",
+        "RequestTimeout",
+        "RequestTimeoutException",
+    ]
+)
 
 # Errors that should NOT be retried (permanent failures)
-FATAL_ERRORS = frozenset([
-    "AccessDenied",
-    "AccessDeniedException",
-    "UnauthorizedAccess",
-    "InvalidClientTokenId",
-    "ExpiredToken",
-    "ExpiredTokenException",
-    "ValidationException",
-    "InvalidParameterValue",
-    "InvalidParameterException",
-    "MalformedQueryString",
-    "MissingParameter",
-    "UnrecognizedClientException",
-])
+FATAL_ERRORS = frozenset(
+    [
+        "AccessDenied",
+        "AccessDeniedException",
+        "UnauthorizedAccess",
+        "InvalidClientTokenId",
+        "ExpiredToken",
+        "ExpiredTokenException",
+        "ValidationException",
+        "InvalidParameterValue",
+        "InvalidParameterException",
+        "MalformedQueryString",
+        "MissingParameter",
+        "UnrecognizedClientException",
+    ]
+)
 
 
 def with_retry(

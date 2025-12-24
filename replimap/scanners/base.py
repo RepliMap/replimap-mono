@@ -15,21 +15,17 @@ from __future__ import annotations
 
 import logging
 import os
-import random
-import signal
-import sys
-import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import wraps
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import boto3
 from botocore.exceptions import ClientError
 
 from replimap.core.aws_config import BOTO_CONFIG
-from replimap.core.circuit_breaker import CircuitBreakerRegistry, CircuitOpenError
-from replimap.core.retry import FATAL_ERRORS, RETRYABLE_ERRORS, with_retry
+from replimap.core.retry import (
+    with_retry,  # noqa: F401 - Re-export for backward compatibility
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -43,7 +39,7 @@ logger = logging.getLogger(__name__)
 MAX_SCANNER_WORKERS = int(os.environ.get("REPLIMAP_MAX_WORKERS", "4"))
 
 # NOTE: Retry configuration is now in replimap.core.retry
-# The with_retry decorator is imported from there
+# The with_retry decorator is re-exported above for backward compatibility
 
 
 # Intra-scanner parallelization config
