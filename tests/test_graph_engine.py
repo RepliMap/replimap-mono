@@ -59,8 +59,9 @@ class TestGraphEngine:
         assert deps[0].id == "vpc-12345"
 
     def test_add_dependency_missing_source(self) -> None:
-        """Test adding dependency with missing source."""
-        graph = GraphEngine()
+        """Test adding dependency with missing source creates phantom when enabled."""
+        # With phantom nodes disabled (legacy behavior), it should raise
+        graph = GraphEngine(create_phantom_nodes=False)
         vpc = ResourceNode(
             id="vpc-12345",
             resource_type=ResourceType.VPC,
@@ -72,8 +73,9 @@ class TestGraphEngine:
             graph.add_dependency("subnet-missing", "vpc-12345")
 
     def test_add_dependency_missing_target(self) -> None:
-        """Test adding dependency with missing target."""
-        graph = GraphEngine()
+        """Test adding dependency with missing target creates phantom when enabled."""
+        # With phantom nodes disabled (legacy behavior), it should raise
+        graph = GraphEngine(create_phantom_nodes=False)
         subnet = ResourceNode(
             id="subnet-12345",
             resource_type=ResourceType.SUBNET,

@@ -3,6 +3,12 @@ Base Scanner for RepliMap.
 
 All resource scanners inherit from BaseScanner and implement the scan() method
 to extract resources from AWS and add them to the graph.
+
+Key Improvements:
+- Uses BOTO_CONFIG to disable boto3 internal retries (prevents retry storm)
+- Uses with_retry decorator for coordinated retry logic
+- Supports circuit breaker pattern for resilient scanning
+- Sanitizes sensitive data before adding to graph
 """
 
 from __future__ import annotations
@@ -10,6 +16,8 @@ from __future__ import annotations
 import logging
 import os
 import random
+import signal
+import sys
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -18,6 +26,10 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import boto3
 from botocore.exceptions import ClientError
+
+from replimap.core.aws_config import BOTO_CONFIG
+from replimap.core.circuit_breaker import CircuitBreakerRegistry, CircuitOpenError
+from replimap.core.retry import FATAL_ERRORS, RETRYABLE_ERRORS, with_retry
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -30,73 +42,8 @@ logger = logging.getLogger(__name__)
 # Configuration for parallel scanning
 MAX_SCANNER_WORKERS = int(os.environ.get("REPLIMAP_MAX_WORKERS", "4"))
 
-# Retry configuration for AWS rate limiting
-MAX_RETRIES = int(os.environ.get("REPLIMAP_MAX_RETRIES", "5"))
-BASE_DELAY = float(os.environ.get("REPLIMAP_RETRY_DELAY", "1.0"))
-MAX_DELAY = float(os.environ.get("REPLIMAP_MAX_DELAY", "30.0"))
-
-
-def with_retry(
-    max_retries: int = MAX_RETRIES,
-    base_delay: float = BASE_DELAY,
-    max_delay: float = MAX_DELAY,
-    retryable_errors: tuple[str, ...] = (
-        "Throttling",
-        "ThrottlingException",
-        "RequestLimitExceeded",
-        "TooManyRequestsException",
-        "ProvisionedThroughputExceededException",
-        "ServiceUnavailable",
-        "InternalError",
-    ),
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """
-    Decorator for retrying AWS API calls with exponential backoff.
-
-    Handles AWS rate limiting and transient errors automatically.
-
-    Args:
-        max_retries: Maximum number of retry attempts
-        base_delay: Initial delay in seconds
-        max_delay: Maximum delay between retries
-        retryable_errors: AWS error codes that should trigger a retry
-    """
-
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            last_exception = None
-            for attempt in range(max_retries + 1):
-                try:
-                    return func(*args, **kwargs)
-                except ClientError as e:
-                    error_code = e.response.get("Error", {}).get("Code", "")
-                    if error_code not in retryable_errors:
-                        raise
-
-                    last_exception = e
-                    if attempt == max_retries:
-                        logger.error(
-                            f"Max retries ({max_retries}) exceeded for {func.__name__}"
-                        )
-                        raise
-
-                    # Exponential backoff with jitter
-                    delay = min(base_delay * (2**attempt), max_delay)
-                    jitter = random.uniform(0, delay * 0.1)  # noqa: S311 - not crypto
-                    sleep_time = delay + jitter
-
-                    logger.warning(
-                        f"Rate limited ({error_code}), retrying {func.__name__} "
-                        f"in {sleep_time:.1f}s (attempt {attempt + 1}/{max_retries})"
-                    )
-                    time.sleep(sleep_time)
-
-            raise last_exception  # type: ignore[misc]
-
-        return wrapper
-
-    return decorator
+# NOTE: Retry configuration is now in replimap.core.retry
+# The with_retry decorator is imported from there
 
 
 # Intra-scanner parallelization config
@@ -221,6 +168,10 @@ class BaseScanner(ABC):
         Get or create a boto3 client for the specified service.
 
         Clients are cached for reuse within the scanner.
+        All clients are created with BOTO_CONFIG which:
+        - Disables boto3 internal retries (we handle retries ourselves)
+        - Sets connection and read timeouts
+        - Uses signature v4
 
         Args:
             service_name: AWS service name (e.g., 'ec2', 's3')
@@ -230,7 +181,9 @@ class BaseScanner(ABC):
         """
         if service_name not in self._clients:
             self._clients[service_name] = self.session.client(
-                service_name, region_name=self.region
+                service_name,
+                region_name=self.region,
+                config=BOTO_CONFIG,  # CRITICAL: Prevents retry storm
             )
         return self._clients[service_name]
 
