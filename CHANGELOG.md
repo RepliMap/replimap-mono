@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Core Engine Deep Dive** - Security, resilience, and performance improvements
+  - **Security-Critical Sanitization Middleware** (`replimap/core/sanitizer.py`)
+    - Sanitizes sensitive data BEFORE cache/graph storage (SEC-001 fix)
+    - HIGH_RISK_FIELDS: EC2 UserData, Lambda Environment.Variables always redacted
+    - MEDIUM_RISK_FIELDS: PolicyDocument, Scripts scanned for secrets
+    - SAFE_FIELDS: IDs, status, timestamps skipped for performance
+    - Pattern detection: AWS access keys, connection strings, bearer tokens
+  - **Coordinated Retry Logic** (`replimap/core/retry.py`)
+    - `with_retry` decorator for sync functions with exponential backoff
+    - `async_retry` decorator for async functions
+    - FATAL_ERRORS set for immediate failure (no retry on AccessDenied, etc.)
+    - Configurable via environment: REPLIMAP_MAX_RETRIES, REPLIMAP_RETRY_DELAY
+  - **AWS Client Configuration** (`replimap/core/aws_config.py`)
+    - BOTO_CONFIG with `max_attempts=1` to prevent retry storms (BUG-001 fix)
+    - Connect/read timeouts to prevent hanging on network issues
+  - **Circuit Breaker Pattern** (`replimap/core/circuit_breaker.py`)
+    - CLOSED/OPEN/HALF_OPEN states for resilient AWS service calls
+    - CircuitBreakerRegistry for per-region/service isolation
+    - Automatic recovery after configurable timeout
+  - **Phantom Nodes for Partial Scans** (`replimap/core/graph_engine.py`)
+    - Creates placeholder nodes for missing dependencies (ARCH-004 fix)
+    - `is_phantom` and `phantom_reason` fields on ResourceNode
+    - Replaced during graph merge when real resource discovered
+  - **Tarjan's SCC Algorithm** for cycle detection
+    - `find_strongly_connected_components()` for dependency analysis
+    - `get_safe_dependency_order()` handles cycles gracefully
+    - Useful for security group circular dependencies
+  - **Graph Merge for Map-Reduce** pattern
+    - `GraphEngine.merge()` combines worker results lock-free
+    - Phantom nodes replaced by real nodes during merge
+  - **Memory Optimization**
+    - `@dataclass(slots=True)` on ResourceNode (~40% memory reduction)
+    - `sys.intern()` for region strings
+  - **40 new tests** covering all core engine improvements
 - **Graph Visualization Optimization** - Major improvements to infrastructure visualization
   - **Link Classification**: Toggle between traffic flow and dependency views
   - **Summary Links**: Cross-VPC connection summaries for overview mode

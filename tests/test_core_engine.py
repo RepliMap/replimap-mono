@@ -690,3 +690,84 @@ class TestBotoConfig:
         assert BOTO_CONFIG.read_timeout is not None
         assert BOTO_CONFIG.connect_timeout > 0
         assert BOTO_CONFIG.read_timeout > 0
+
+
+# =============================================================================
+# Async Retry Logic Tests
+# =============================================================================
+
+
+class TestAsyncRetry:
+    """Tests for the async retry decorator."""
+
+    @pytest.mark.asyncio
+    async def test_async_retry_on_throttling(self):
+        """Should retry on ThrottlingException."""
+        from replimap.core import async_retry
+
+        call_count = 0
+
+        @async_retry(max_retries=3, base_delay=0.01)
+        async def flaky_async_function():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                error = ClientError(
+                    {
+                        "Error": {
+                            "Code": "ThrottlingException",
+                            "Message": "Rate exceeded",
+                        }
+                    },
+                    "DescribeInstances",
+                )
+                raise error
+            return "success"
+
+        result = await flaky_async_function()
+        assert result == "success"
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_async_no_retry_on_access_denied(self):
+        """Should not retry on AccessDeniedException."""
+        from replimap.core import async_retry
+
+        call_count = 0
+
+        @async_retry(max_retries=3, base_delay=0.01)
+        async def access_denied_async():
+            nonlocal call_count
+            call_count += 1
+            error = ClientError(
+                {
+                    "Error": {
+                        "Code": "AccessDeniedException",
+                        "Message": "Not authorized",
+                    }
+                },
+                "DescribeInstances",
+            )
+            raise error
+
+        with pytest.raises(ClientError):
+            await access_denied_async()
+
+        assert call_count == 1  # No retries
+
+    @pytest.mark.asyncio
+    async def test_async_success_no_retry(self):
+        """Successful async calls should not retry."""
+        from replimap.core import async_retry
+
+        call_count = 0
+
+        @async_retry(max_retries=3, base_delay=0.01)
+        async def successful_async():
+            nonlocal call_count
+            call_count += 1
+            return "success"
+
+        result = await successful_async()
+        assert result == "success"
+        assert call_count == 1
