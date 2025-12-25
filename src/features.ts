@@ -85,7 +85,7 @@ export enum Plan {
  * - GRAPH_FULL/SECURITY: SOLO+ (premium graph modes)
  */
 export const PLAN_FEATURES: Record<Plan, Feature[]> = {
-  // FREE ($0) - Experience value, limit output
+  // FREE ($0/mo) - Experience value, limit output
   [Plan.FREE]: [
     Feature.SCAN,
     Feature.GRAPH,
@@ -96,7 +96,7 @@ export const PLAN_FEATURES: Record<Plan, Feature[]> = {
     Feature.SNAPSHOT_DIFF,
   ],
 
-  // SOLO ($49/mo) - Full individual access
+  // SOLO ($29/mo, $199/year) - Full individual access
   [Plan.SOLO]: [
     Feature.SCAN,
     Feature.SCAN_UNLIMITED_FREQUENCY,
@@ -119,7 +119,7 @@ export const PLAN_FEATURES: Record<Plan, Feature[]> = {
     Feature.EXPORT_TERRAFORM,
   ],
 
-  // PRO ($99/mo) - CI/CD and advanced analysis
+  // PRO ($79/mo, $599/year) - CI/CD and advanced analysis
   [Plan.PRO]: [
     Feature.SCAN,
     Feature.SCAN_UNLIMITED_FREQUENCY,
@@ -146,7 +146,7 @@ export const PLAN_FEATURES: Record<Plan, Feature[]> = {
     Feature.EXPORT_TERRAFORM,
   ],
 
-  // TEAM ($199/mo) - Full platform
+  // TEAM ($149/mo, $1,199/year) - Full platform
   [Plan.TEAM]: [
     Feature.SCAN,
     Feature.SCAN_UNLIMITED_FREQUENCY,
@@ -180,7 +180,7 @@ export const PLAN_FEATURES: Record<Plan, Feature[]> = {
     Feature.EXPORT_TERRAFORM,
   ],
 
-  // ENTERPRISE ($499+/mo) - Everything
+  // ENTERPRISE ($399/mo, $3,999/year) - Everything
   [Plan.ENTERPRISE]: Object.values(Feature) as Feature[],
 };
 
@@ -201,7 +201,7 @@ export const PLAN_FEATURES: Record<Plan, Feature[]> = {
  * - DEPS/BLAST: TEAM+ feature
  */
 export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
-  // FREE TIER ($0)
+  // FREE TIER ($0/mo)
   [Plan.FREE]: {
     scan_count: 3,
     resources_per_scan: -1,
@@ -221,7 +221,7 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     machines: 1,
   },
 
-  // SOLO TIER ($49/mo)
+  // SOLO TIER ($29/mo, $199/year)
   [Plan.SOLO]: {
     scan_count: -1,
     resources_per_scan: -1,
@@ -241,7 +241,7 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     machines: 2,
   },
 
-  // PRO TIER ($99/mo)
+  // PRO TIER ($79/mo, $599/year)
   [Plan.PRO]: {
     scan_count: -1,
     resources_per_scan: -1,
@@ -261,7 +261,7 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     machines: 3,
   },
 
-  // TEAM TIER ($199/mo)
+  // TEAM TIER ($149/mo, $1,199/year)
   [Plan.TEAM]: {
     scan_count: -1,
     resources_per_scan: -1,
@@ -282,7 +282,7 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     team_members: 5,
   },
 
-  // ENTERPRISE TIER ($499+/mo)
+  // ENTERPRISE TIER ($399/mo, $3,999/year)
   [Plan.ENTERPRISE]: {
     scan_count: -1,
     resources_per_scan: -1,
