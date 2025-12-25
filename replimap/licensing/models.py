@@ -92,6 +92,7 @@ class Feature(str, Enum):
 
     # Advanced features
     COST_ESTIMATE = "cost_estimate"
+    RIGHT_SIZER = "right_sizer"  # Auto-downsize for dev/staging
     DEPENDENCY_EXPLORER = "dependency_explorer"
     BLAST_RADIUS = "dependency_explorer"  # Backward compatibility alias
 
@@ -158,6 +159,7 @@ class PlanFeatures:
     drift_watch_enabled: bool
     drift_alerts_enabled: bool
     cost_enabled: bool
+    rightsizer_enabled: bool  # Right-Sizer for dev/staging optimization
     deps_enabled: bool  # Dependency explorer (formerly blast_enabled)
 
     # Team features
@@ -200,6 +202,7 @@ class PlanFeatures:
             "drift_watch_enabled": self.drift_watch_enabled,
             "drift_alerts_enabled": self.drift_alerts_enabled,
             "cost_enabled": self.cost_enabled,
+            "rightsizer_enabled": self.rightsizer_enabled,
             "deps_enabled": self.deps_enabled,
             "blast_enabled": self.deps_enabled,  # Backward compatibility alias
             "max_team_members": self.max_team_members,
@@ -245,6 +248,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=False,
         drift_alerts_enabled=False,
         cost_enabled=False,
+        rightsizer_enabled=False,  # Right-Sizer is Solo+
         deps_enabled=False,
         # Team: Solo only
         max_team_members=1,
@@ -279,6 +283,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=False,
         drift_alerts_enabled=False,
         cost_enabled=False,
+        rightsizer_enabled=True,  # Right-Sizer enabled!
         deps_enabled=False,
         max_team_members=1,
         features={
@@ -292,6 +297,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
             Feature.AUDIT_SCAN,
             Feature.AUDIT_FULL_FINDINGS,
             Feature.AUDIT_REPORT_EXPORT,
+            Feature.RIGHT_SIZER,  # Right-Sizer!
             Feature.SINGLE_ACCOUNT,
             Feature.BASIC_TRANSFORM,
             Feature.ADVANCED_TRANSFORM,
@@ -321,6 +327,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=False,  # Watch is Team
         drift_alerts_enabled=False,
         cost_enabled=True,  # Cost enabled!
+        rightsizer_enabled=True,  # Right-Sizer enabled!
         deps_enabled=False,
         max_team_members=1,
         features={
@@ -337,6 +344,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
             Feature.AUDIT_CI_MODE,
             Feature.DRIFT_DETECT,
             Feature.COST_ESTIMATE,
+            Feature.RIGHT_SIZER,  # Right-Sizer!
             Feature.MULTI_ACCOUNT,
             Feature.BASIC_TRANSFORM,
             Feature.ADVANCED_TRANSFORM,
@@ -370,6 +378,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=True,  # Watch mode!
         drift_alerts_enabled=True,  # Alerts!
         cost_enabled=True,
+        rightsizer_enabled=True,  # Right-Sizer enabled!
         deps_enabled=True,  # Dependency explorer!
         max_team_members=5,  # 5 members included
         features={
@@ -388,6 +397,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
             Feature.DRIFT_WATCH,
             Feature.DRIFT_ALERTS,
             Feature.COST_ESTIMATE,
+            Feature.RIGHT_SIZER,  # Right-Sizer!
             Feature.DEPENDENCY_EXPLORER,
             Feature.MULTI_ACCOUNT,
             Feature.BASIC_TRANSFORM,
@@ -425,6 +435,7 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         drift_watch_enabled=True,
         drift_alerts_enabled=True,
         cost_enabled=True,
+        rightsizer_enabled=True,  # Right-Sizer enabled!
         deps_enabled=True,
         max_team_members=None,  # Unlimited
         features=set(Feature),  # All features

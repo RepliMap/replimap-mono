@@ -237,6 +237,32 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
+    "right_sizer_not_available": """
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                               │
+│  ⚡ Right-Sizer is a Solo+ Feature                                           │
+│                                                                               │
+│  Right-Sizer automatically optimizes production resources for dev/staging:   │
+│                                                                               │
+│  • EC2: m5.2xlarge → t3.large (80%+ savings)                                 │
+│  • RDS: db.r5.xlarge → db.t3.large, Multi-AZ → Single-AZ                     │
+│  • ElastiCache: cache.r6g.xlarge → cache.t3.medium                           │
+│  • Storage: io1/gp2 → gp3 (cost-effective)                                   │
+│                                                                               │
+│  Architecture-safe recommendations (no x86↔ARM issues)                       │
+│  Generates right-sizer.auto.tfvars for easy overrides                        │
+│                                                                               │
+│  Solo plan ($29/mo) includes:                                                │
+│  ✓ Right-Sizer optimization                                                  │
+│  ✓ Unlimited scans                                                           │
+│  ✓ Full code downloads                                                       │
+│  ✓ Complete audit reports                                                    │
+│                                                                               │
+│  → replimap upgrade solo                                                     │
+│  → https://replimap.dev/pricing                                              │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+""",
     "deps_not_available": """
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                                                               │

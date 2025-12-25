@@ -620,6 +620,26 @@ def check_cost_allowed() -> GateResult:
     return GateResult(allowed=False, prompt=prompt)
 
 
+def check_right_sizer_allowed() -> GateResult:
+    """
+    Check if user can use Right-Sizer (Solo+ feature).
+
+    Right-Sizer automatically downgrades production resources
+    to cost-effective sizes for dev/staging environments.
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.rightsizer_enabled:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("right_sizer_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
 def check_deps_allowed() -> GateResult:
     """Check if user can use dependency exploration (Pro+ feature)."""
     from replimap.licensing.manager import get_license_manager

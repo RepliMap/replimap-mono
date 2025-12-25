@@ -853,6 +853,17 @@ def clone(
         "--no-cache",
         help="Don't use cached credentials (re-authenticate)",
     ),
+    dev_mode: bool = typer.Option(
+        False,
+        "--dev-mode",
+        "--dev",
+        help="[SOLO+] Optimize resources for dev/staging (generates right-sizer.auto.tfvars)",
+    ),
+    dev_strategy: str = typer.Option(
+        "conservative",
+        "--dev-strategy",
+        help="Right-Sizer strategy: 'conservative' (default) or 'aggressive'",
+    ),
 ) -> None:
     """
     Clone AWS environment to Infrastructure-as-Code.
@@ -1052,6 +1063,95 @@ def clone(
                     border_style="green",
                 )
             )
+
+            # ═══════════════════════════════════════════════════════════════════
+            # RIGHT-SIZER INTEGRATION (After Terraform generation)
+            # ═══════════════════════════════════════════════════════════════════
+            if dev_mode and output_format == "terraform":
+                from replimap.cost.rightsizer import (
+                    DowngradeStrategy,
+                    RightSizerClient,
+                    check_and_prompt_upgrade,
+                    right_sizer_success_panel,
+                )
+
+                # Check license first
+                if not check_and_prompt_upgrade():
+                    # User doesn't have Solo+ license, prompt shown
+                    console.print(
+                        "\n[yellow]Right-Sizer skipped. Continuing with production defaults.[/yellow]"
+                    )
+                else:
+                    console.print(
+                        "\n[cyan]🔄 Analyzing resources for Right-Sizer optimization...[/cyan]\n"
+                    )
+
+                    try:
+                        # Initialize client
+                        rightsizer = RightSizerClient()
+
+                        # Extract resource metadata from graph
+                        all_resources = list(graph.resources.values())
+                        summaries = rightsizer.extract_resources(
+                            all_resources, effective_region
+                        )
+
+                        if not summaries:
+                            console.print(
+                                "[yellow]No rightsizable resources found (EC2, RDS, ElastiCache).[/yellow]"
+                            )
+                        else:
+                            console.print(
+                                f"[dim]Analyzing {len(summaries)} resources...[/dim]\n"
+                            )
+
+                            # Get suggestions from API
+                            strategy = DowngradeStrategy(dev_strategy.lower())
+                            result = rightsizer.get_suggestions(summaries, strategy)
+
+                            if result.success and result.suggestions:
+                                # 1. Display recommendations table
+                                rightsizer.display_suggestions_table(result)
+
+                                # 2. Generate and write tfvars file
+                                tfvars_content = rightsizer.generate_tfvars_content(
+                                    result.suggestions
+                                )
+                                tfvars_path = rightsizer.write_tfvars_file(
+                                    str(output_dir), tfvars_content
+                                )
+
+                                # 3. Display success panel
+                                console.print(
+                                    right_sizer_success_panel(
+                                        original_monthly=result.total_current_monthly,
+                                        recommended_monthly=result.total_recommended_monthly,
+                                        suggestions_count=result.resources_with_suggestions,
+                                        skipped_count=result.resources_skipped,
+                                        tfvars_filename=os.path.basename(tfvars_path),
+                                    )
+                                )
+
+                            elif result.error_message:
+                                console.print(
+                                    f"\n[red]⚠️  Right-Sizer error: {result.error_message}[/red]"
+                                )
+                                console.print(
+                                    "[yellow]Continuing with production defaults.[/yellow]"
+                                )
+
+                            else:
+                                console.print(
+                                    "[green]✓ All resources are already optimally sized![/green]"
+                                )
+
+                    except Exception as e:
+                        # Graceful degradation - don't crash the whole clone
+                        console.print(f"\n[red]⚠️  Right-Sizer error: {e}[/red]")
+                        console.print(
+                            "[yellow]Continuing with production defaults.[/yellow]"
+                        )
+
         except FeatureNotAvailableError as e:
             console.print()
             console.print(
