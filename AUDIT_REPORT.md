@@ -337,9 +337,9 @@ CREATE TABLE remediations (
 - `customer.deleted` - Expire all licenses
 
 **Stripe Price IDs (configured in `constants.ts`):**
-- Solo: `price_1Sg0KVAKLIiL9hdwiQFS1xZC`
-- Pro: `price_1Sg0KxAKLIiL9hdw4c6KcQRI`
-- Team: `price_1Sg0MVAKLIiL9hdwB2DEfWus`
+- Solo: `price_1SiMWsAKLIiL9hdweoTnH17A`
+- Pro: `price_1SiMYgAKLIiL9hdwZLjLUOPm`
+- Team: `price_1SiMZvAKLIiL9hdw8LAIvjrS`
 
 ### AWS Pricing API
 

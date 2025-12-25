@@ -127,13 +127,13 @@ export const PLAN_ANNUAL_PRICES: Record<string, number> = {
 // Current IDs are for OLD pricing ($49/$99/$199) and need to be replaced
 export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
   // Development/test price IDs - Monthly (OLD PRICING - needs update)
-  'price_1Sg0KVAKLIiL9hdwiQFS1xZC': 'solo',  // TODO: Replace with $29/mo price
-  'price_1Sg0KxAKLIiL9hdw4c6KcQRI': 'pro',   // TODO: Replace with $79/mo price
-  'price_1Sg0MVAKLIiL9hdwB2DEfWus': 'team',  // TODO: Replace with $149/mo price
+  'price_1SiMWsAKLIiL9hdweoTnH17A': 'solo',  // DONE: Replace with $29/mo price
+  'price_1SiMYgAKLIiL9hdwZLjLUOPm': 'pro',   // DONE: Replace with $79/mo price
+  'price_1SiMZvAKLIiL9hdw8LAIvjrS': 'team',  // DONE: Replace with $149/mo price
   // Development/test price IDs - Annual (TODO: Create in Stripe)
-  // 'price_xxx_solo_annual_dev': 'solo',    // TODO: Create $199/year dev price
-  // 'price_xxx_pro_annual_dev': 'pro',      // TODO: Create $599/year dev price
-  // 'price_xxx_team_annual_dev': 'team',    // TODO: Create $1,199/year dev price
+  'price_1SiMpmAKLIiL9hdwhhn1dAVG': 'solo',    // DONE: Create $199/year dev price
+  'price_1SiMqMAKLIiL9hdwj1EgfQMs': 'pro',      // DONE: Create $599/year dev price
+  'price_1SiMrJAKLIiL9hdwF8xq4poz': 'team',    // DONE: Create $1,199/year dev price
   // Test price IDs (for unit testing) - Monthly
   'price_test_solo': 'solo',
   'price_test_pro': 'pro',
@@ -159,9 +159,13 @@ export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
  */
 export const PLAN_TO_STRIPE_PRICE: Record<string, string> = {
   // Monthly prices (OLD PRICING - needs update)
-  'solo': 'price_1Sg0KVAKLIiL9hdwiQFS1xZC',  // TODO: Create new $29/mo price
-  'pro': 'price_1Sg0KxAKLIiL9hdw4c6KcQRI',   // TODO: Create new $79/mo price
-  'team': 'price_1Sg0MVAKLIiL9hdwB2DEfWus',  // TODO: Create new $149/mo price
+  'solo': 'price_1SiMWsAKLIiL9hdweoTnH17A',  // DONE: Create new $29/mo price
+  'pro': 'price_1SiMYgAKLIiL9hdwZLjLUOPm',   // DONE: Create new $79/mo price
+  'team': 'price_1SiMZvAKLIiL9hdw8LAIvjrS',  // DONE: Create new $149/mo price
+  // Production - uncomment and update after creating products in Stripe:
+  // 'solo': 'price_xxx_solo_monthly',
+  // 'pro': 'price_xxx_pro_monthly',
+  // 'team': 'price_xxx_team_monthly',
 };
 
 /**
@@ -169,9 +173,9 @@ export const PLAN_TO_STRIPE_PRICE: Record<string, string> = {
  * TODO: Create annual price IDs in Stripe Dashboard
  */
 export const PLAN_TO_STRIPE_ANNUAL_PRICE: Record<string, string> = {
-  'solo': '',  // TODO: Create $199/year price
-  'pro': '',   // TODO: Create $599/year price
-  'team': '',  // TODO: Create $1,199/year price
+  'solo': 'price_1SiMpmAKLIiL9hdwhhn1dAVG',  // DONE: Create $199/year price
+  'pro': 'price_1SiMqMAKLIiL9hdwj1EgfQMs',   // DONE: Create $599/year price
+  'team': 'price_1SiMrJAKLIiL9hdwF8xq4poz',  // DONE: Create $1,199/year price
 };
 
 /**
