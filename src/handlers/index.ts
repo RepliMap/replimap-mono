@@ -57,3 +57,6 @@ export {
   handleGetSnapshotUsage,
   handleGetDepsUsage,
 } from './metrics';
+
+// Right-Sizer handler
+export { handleRightSizerSuggestions } from './rightsizer';

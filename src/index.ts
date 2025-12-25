@@ -38,6 +38,9 @@
  * - GET /v1/metrics/snapshot-usage - Snapshot usage metrics
  * - GET /v1/metrics/deps-usage - Dependency explorer metrics
  *
+ * Right-Sizer Endpoints (Solo+ feature):
+ * - POST /v1/rightsizer/suggestions - Analyze resources and get downgrade suggestions
+ *
  * Admin Endpoints (require X-API-Key):
  * - POST /v1/admin/licenses - Create a new license
  * - GET /v1/admin/licenses/{key} - Get license details
@@ -73,6 +76,7 @@ import {
   handleGetRemediationImpact,
   handleGetSnapshotUsage,
   handleGetDepsUsage,
+  handleRightSizerSuggestions,
 } from './handlers';
 import { AppError, Errors } from './lib/errors';
 
@@ -271,6 +275,13 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = await handleGetSnapshotUsage(request, env, clientIP);
     } else if (!response && path === '/v1/metrics/deps-usage' && method === 'GET') {
       response = await handleGetDepsUsage(request, env, clientIP);
+    }
+
+    // ========================================================================
+    // Right-Sizer Endpoints (Solo+ feature)
+    // ========================================================================
+    if (!response && path === '/v1/rightsizer/suggestions' && method === 'POST') {
+      response = await handleRightSizerSuggestions(request, env, clientIP);
     }
 
     // ========================================================================
