@@ -18,7 +18,7 @@ Application-level dependencies CANNOT be detected, including:
 ALWAYS review application logs, code, and configuration
 before making any infrastructure changes.
 
-This is a Pro+ feature ($99/mo).
+This is a Pro+ feature ($79/mo).
 """
 
 from replimap.dependencies.graph_builder import DependencyGraphBuilder

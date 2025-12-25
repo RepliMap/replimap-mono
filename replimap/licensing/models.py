@@ -261,12 +261,12 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         },
     ),
     # =========================================================================
-    # SOLO TIER ($49/mo) - For individual developers
+    # SOLO TIER ($29/mo) - For individual developers
     # =========================================================================
     Plan.SOLO: PlanFeatures(
         plan=Plan.SOLO,
-        price_monthly=49,
-        price_annual_monthly=39,
+        price_monthly=29,
+        price_annual_monthly=17,
         max_scans_per_month=None,  # Unlimited
         max_aws_accounts=1,
         clone_preview_lines=None,  # Full preview
@@ -303,12 +303,12 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         },
     ),
     # =========================================================================
-    # PRO TIER ($99/mo) - For teams managing multiple environments
+    # PRO TIER ($79/mo) - For teams managing multiple environments
     # =========================================================================
     Plan.PRO: PlanFeatures(
         plan=Plan.PRO,
-        price_monthly=99,
-        price_annual_monthly=79,
+        price_monthly=79,
+        price_annual_monthly=50,
         max_scans_per_month=None,
         max_aws_accounts=3,  # dev/staging/prod
         clone_preview_lines=None,
@@ -352,12 +352,12 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         },
     ),
     # =========================================================================
-    # TEAM TIER ($199/mo) - For DevOps teams with advanced needs
+    # TEAM TIER ($149/mo) - For DevOps teams with advanced needs
     # =========================================================================
     Plan.TEAM: PlanFeatures(
         plan=Plan.TEAM,
-        price_monthly=199,
-        price_annual_monthly=149,
+        price_monthly=149,
+        price_annual_monthly=100,
         max_scans_per_month=None,
         max_aws_accounts=10,
         clone_preview_lines=None,
@@ -407,12 +407,12 @@ PLAN_FEATURES: dict[Plan, PlanFeatures] = {
         },
     ),
     # =========================================================================
-    # ENTERPRISE TIER ($499+/mo) - For organizations with compliance needs
+    # ENTERPRISE TIER ($399+/mo) - For organizations with compliance needs
     # =========================================================================
     Plan.ENTERPRISE: PlanFeatures(
         plan=Plan.ENTERPRISE,
-        price_monthly=499,  # Starting price
-        price_annual_monthly=399,
+        price_monthly=399,  # Starting price
+        price_annual_monthly=333,
         max_scans_per_month=None,
         max_aws_accounts=None,  # Unlimited
         clone_preview_lines=None,

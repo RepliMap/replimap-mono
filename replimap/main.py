@@ -3370,19 +3370,19 @@ def _show_upgrade_info(plan_name: str) -> None:
 
 @upgrade_app.command("solo")
 def upgrade_solo() -> None:
-    """Upgrade to Solo plan ($49/mo)."""
+    """Upgrade to Solo plan ($29/mo)."""
     _show_upgrade_info("solo")
 
 
 @upgrade_app.command("pro")
 def upgrade_pro() -> None:
-    """Upgrade to Pro plan ($99/mo)."""
+    """Upgrade to Pro plan ($79/mo)."""
     _show_upgrade_info("pro")
 
 
 @upgrade_app.command("team")
 def upgrade_team() -> None:
-    """Upgrade to Team plan ($199/mo)."""
+    """Upgrade to Team plan ($149/mo)."""
     _show_upgrade_info("team")
 
 
@@ -3402,9 +3402,9 @@ def upgrade_default(ctx: typer.Context) -> None:
         console.print(
             Panel(
                 "[bold blue]RepliMap Plans[/bold blue]\n\n"
-                "[dim]Solo[/]     $49/mo  - Download code, full reports\n"
-                "[dim]Pro[/]      $99/mo  - Drift detection, CI/CD mode\n"
-                "[dim]Team[/]    $199/mo  - Watch mode, alerts, dependency explorer\n"
+                "[dim]Solo[/]     $29/mo  - Download code, full reports\n"
+                "[dim]Pro[/]      $79/mo  - Drift detection, CI/CD mode\n"
+                "[dim]Team[/]    $149/mo  - Watch mode, alerts, dependency explorer\n"
                 "[dim]Enterprise[/] Custom - SSO, audit logs, SLA",
                 border_style="blue",
             )

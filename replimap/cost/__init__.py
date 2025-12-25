@@ -8,7 +8,7 @@ Provides monthly cost estimation for AWS infrastructure:
 - Multiple output formats
 - Prominent disclaimers and accuracy ranges
 
-This is a Pro+ feature ($99/mo).
+This is a Pro+ feature ($79/mo).
 """
 
 from replimap.cost.estimator import CostEstimator
