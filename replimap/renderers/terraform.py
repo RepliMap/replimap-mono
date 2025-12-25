@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from replimap.core.models import ResourceType
-from replimap.core.naming import get_variable_name, sanitize_name
+from replimap.core.naming import sanitize_name
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
