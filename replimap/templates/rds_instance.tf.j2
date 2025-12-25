@@ -21,10 +21,10 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   engine         = "{{ resource.config.engine }}"
   engine_version = "{{ resource.config.engine_version }}"
 
-  # Instance configuration
-  instance_class        = "{{ resource.config.instance_class }}"
-  allocated_storage     = {{ resource.config.allocated_storage | d(20) }}
-  storage_type          = "{{ resource.config.storage_type | d('gp2') }}"
+  # Instance configuration - uses variables for Right-Sizer compatibility
+  instance_class        = var.aws_db_instance_{{ resource.terraform_name }}_instance_class
+  allocated_storage     = var.aws_db_instance_{{ resource.terraform_name }}_allocated_storage
+  storage_type          = var.aws_db_instance_{{ resource.terraform_name }}_storage_type
   storage_encrypted     = {{ resource.config.storage_encrypted | d(false) | lower }}
 {% if resource.config.kms_key_id %}
   # NOTE: KMS key must be accessible in target account/region
@@ -71,8 +71,8 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% endif %}
   publicly_accessible = {{ resource.config.publicly_accessible | d(false) | lower }}
 
-  # High availability
-  multi_az = {{ resource.config.multi_az | d(false) | lower }}
+  # High availability - uses variable for Right-Sizer compatibility
+  multi_az = var.aws_db_instance_{{ resource.terraform_name }}_multi_az
 {% if resource.config.availability_zone and not resource.config.multi_az %}
   availability_zone = "{{ resource.config.availability_zone }}"
 {% endif %}

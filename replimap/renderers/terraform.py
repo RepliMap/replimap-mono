@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from replimap.core.models import ResourceType
+from replimap.core.naming import get_variable_name, sanitize_name
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -429,6 +430,32 @@ locals {
                 ]
             )
 
+            # Add per-instance instance_type variables for Right-Sizer compatibility
+            lines.extend(
+                [
+                    "",
+                    "# ─────────────────────────────────────────────────────────────────────────────",
+                    "# EC2 Instance Type Variables (for Right-Sizer compatibility)",
+                    "# Override these in terraform.tfvars or right-sizer.auto.tfvars",
+                    "# ─────────────────────────────────────────────────────────────────────────────",
+                ]
+            )
+            for ec2 in ec2_instances:
+                tf_name = sanitize_name(ec2.terraform_name)
+                var_name = f"aws_instance_{tf_name}_instance_type"
+                original_type = ec2.config.get("instance_type", "t3.micro")
+                ec2_name = ec2.original_name or ec2.terraform_name
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Instance type for EC2 {ec2_name}"',
+                        "  type        = string",
+                        f'  default     = "{original_type}"',
+                        "}",
+                    ]
+                )
+
         # Add AMI variables for Launch Templates
         launch_templates = graph.get_resources_by_type(ResourceType.LAUNCH_TEMPLATE)
         if launch_templates:
@@ -452,6 +479,33 @@ locals {
                         "}",
                     ]
                 )
+
+            # Add per-template instance_type variables for Right-Sizer compatibility
+            lines.extend(
+                [
+                    "",
+                    "# ─────────────────────────────────────────────────────────────────────────────",
+                    "# Launch Template Instance Type Variables (for Right-Sizer compatibility)",
+                    "# Override these in terraform.tfvars or right-sizer.auto.tfvars",
+                    "# ─────────────────────────────────────────────────────────────────────────────",
+                ]
+            )
+            for lt in launch_templates:
+                if lt.config.get("instance_type"):
+                    tf_name = sanitize_name(lt.terraform_name)
+                    var_name = f"aws_launch_template_{tf_name}_instance_type"
+                    original_type = lt.config.get("instance_type", "t3.micro")
+                    lt_name = lt.original_name or lt.terraform_name
+                    lines.extend(
+                        [
+                            "",
+                            f'variable "{var_name}" {{',
+                            f'  description = "Instance type for Launch Template {lt_name}"',
+                            "  type        = string",
+                            f'  default     = "{original_type}"',
+                            "}",
+                        ]
+                    )
 
         # Add key_name variable if any EC2/Launch Templates use keys
         has_key_name = any(ec2.config.get("key_name") for ec2 in ec2_instances) or any(
@@ -518,6 +572,76 @@ locals {
                     ]
                 )
 
+            # Add per-RDS instance configuration variables for Right-Sizer compatibility
+            lines.extend(
+                [
+                    "",
+                    "# ─────────────────────────────────────────────────────────────────────────────",
+                    "# RDS Instance Configuration Variables (for Right-Sizer compatibility)",
+                    "# Override these in terraform.tfvars or right-sizer.auto.tfvars",
+                    "# ─────────────────────────────────────────────────────────────────────────────",
+                ]
+            )
+            for rds in rds_instances:
+                tf_name = sanitize_name(rds.terraform_name)
+                rds_name = rds.original_name or rds.terraform_name
+
+                # instance_class variable
+                var_name = f"aws_db_instance_{tf_name}_instance_class"
+                original_class = rds.config.get("instance_class", "db.t3.micro")
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Instance class for RDS {rds_name}"',
+                        "  type        = string",
+                        f'  default     = "{original_class}"',
+                        "}",
+                    ]
+                )
+
+                # storage_type variable
+                var_name = f"aws_db_instance_{tf_name}_storage_type"
+                original_storage = rds.config.get("storage_type", "gp2")
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Storage type for RDS {rds_name}"',
+                        "  type        = string",
+                        f'  default     = "{original_storage}"',
+                        "}",
+                    ]
+                )
+
+                # allocated_storage variable
+                var_name = f"aws_db_instance_{tf_name}_allocated_storage"
+                original_size = rds.config.get("allocated_storage", 20)
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Allocated storage (GB) for RDS {rds_name}"',
+                        "  type        = number",
+                        f"  default     = {original_size}",
+                        "}",
+                    ]
+                )
+
+                # multi_az variable
+                var_name = f"aws_db_instance_{tf_name}_multi_az"
+                original_multi_az = rds.config.get("multi_az", False)
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Enable Multi-AZ for RDS {rds_name}"',
+                        "  type        = bool",
+                        f"  default     = {str(original_multi_az).lower()}",
+                        "}",
+                    ]
+                )
+
         # Add RDS snapshot variables for instances that have snapshots
         rds_with_snapshots = [
             rds for rds in rds_instances if rds.config.get("snapshot_identifier")
@@ -540,6 +664,50 @@ locals {
                         "  type        = string",
                         '  default     = ""',
                         f"  # Original snapshot: {original_snapshot}",
+                        "}",
+                    ]
+                )
+
+        # Add ElastiCache variables for Right-Sizer compatibility
+        elasticache_clusters = graph.get_resources_by_type(ResourceType.ELASTICACHE_CLUSTER)
+        if elasticache_clusters:
+            lines.extend(
+                [
+                    "",
+                    "# ─────────────────────────────────────────────────────────────────────────────",
+                    "# ElastiCache Configuration Variables (for Right-Sizer compatibility)",
+                    "# Override these in terraform.tfvars or right-sizer.auto.tfvars",
+                    "# ─────────────────────────────────────────────────────────────────────────────",
+                ]
+            )
+            for cache in elasticache_clusters:
+                tf_name = sanitize_name(cache.terraform_name)
+                cache_name = cache.original_name or cache.terraform_name
+
+                # node_type variable
+                var_name = f"aws_elasticache_cluster_{tf_name}_node_type"
+                original_type = cache.config.get("node_type", "cache.t3.micro")
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Node type for ElastiCache {cache_name}"',
+                        "  type        = string",
+                        f'  default     = "{original_type}"',
+                        "}",
+                    ]
+                )
+
+                # num_cache_nodes variable
+                var_name = f"aws_elasticache_cluster_{tf_name}_num_cache_nodes"
+                original_nodes = cache.config.get("num_cache_nodes", 1)
+                lines.extend(
+                    [
+                        "",
+                        f'variable "{var_name}" {{',
+                        f'  description = "Number of cache nodes for ElastiCache {cache_name}"',
+                        "  type        = number",
+                        f"  default     = {original_nodes}",
                         "}",
                     ]
                 )
