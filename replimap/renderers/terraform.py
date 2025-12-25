@@ -669,7 +669,9 @@ locals {
                 )
 
         # Add ElastiCache variables for Right-Sizer compatibility
-        elasticache_clusters = graph.get_resources_by_type(ResourceType.ELASTICACHE_CLUSTER)
+        elasticache_clusters = graph.get_resources_by_type(
+            ResourceType.ELASTICACHE_CLUSTER
+        )
         if elasticache_clusters:
             lines.extend(
                 [
