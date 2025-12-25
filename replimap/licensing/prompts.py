@@ -32,7 +32,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  │  You can still view graphs, preview code, and see audit summaries.      │ │
 │  └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                               │
-│  Upgrade to Solo ($49/mo) for unlimited scans:                               │
+│  Upgrade to Solo ($29/mo) for unlimited scans:                               │
 │  → replimap upgrade solo                                                     │
 │  → https://replimap.dev/pricing                                              │
 │                                                                               │
@@ -58,7 +58,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  To download the complete Terraform code:                                    │
 │                                                                               │
 │  ┌─────────────────────────────────────────────────────────────────────────┐ │
-│  │  Solo Plan: $49/month                                                    │ │
+│  │  Solo Plan: $29/month                                                    │ │
 │  │                                                                          │ │
 │  │  ✓ Download unlimited Terraform code                                     │ │
 │  │  ✓ Full audit reports with remediation steps                             │ │
@@ -69,7 +69,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  → replimap upgrade solo                                                     │
 │  → https://replimap.dev/pricing                                              │
 │                                                                               │
-│  💡 At $49/mo, that's less than 30 minutes of your hourly rate.              │
+│  💡 At $29/mo, that's less than 20 minutes of your hourly rate.              │
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
@@ -117,7 +117,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  • Security groups open to 0.0.0.0/0                                         │
 │  • IAM policies with excessive permissions                                   │
 │                                                                               │
-│  Upgrade to Solo ($49/mo) to see all {total_count} issues:                   │
+│  Upgrade to Solo ($29/mo) to see all {total_count} issues:                   │
 │  → replimap upgrade solo                                                     │
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -132,7 +132,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  ✓ Summary scores and counts                                                 │
 │  ✓ Preview of top 3 issues                                                   │
 │                                                                               │
-│  Solo plan ($49/mo) adds:                                                    │
+│  Solo plan ($29/mo) adds:                                                    │
 │  ✓ Export to HTML report                                                     │
 │  ✓ View all findings with details                                            │
 │  ✓ Terraform fix suggestions                                                 │
@@ -148,7 +148,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 │  The --fail-on-high flag is a Pro feature.                                   │
 │                                                                               │
-│  Pro plan ($99/mo) includes:                                                 │
+│  Pro plan ($79/mo) includes:                                                 │
 │  ✓ CI/CD integration (--fail-on-high, --fail-on-score)                       │
 │  ✓ Drift detection                                                           │
 │  ✓ Cost estimation                                                           │
@@ -165,7 +165,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 │  The --fix flag generates Terraform code to fix security issues.             │
 │                                                                               │
-│  Solo plan ($49/mo) includes:                                                │
+│  Solo plan ($29/mo) includes:                                                │
 │  ✓ Auto-remediation code generation (--fix)                                  │
 │  ✓ View all audit findings                                                   │
 │  ✓ Export HTML/PDF reports                                                   │
@@ -189,7 +189,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  • Meet SOC2 CC8.1 Change Management requirements                            │
 │  • Catch "console cowboys" who bypass IaC                                    │
 │                                                                               │
-│  Pro plan ($99/mo) includes:                                                 │
+│  Pro plan ($79/mo) includes:                                                 │
 │  ✓ Drift detection                                                           │
 │  ✓ Cost estimation                                                           │
 │  ✓ CI/CD mode for audit                                                      │
@@ -209,7 +209,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  • Slack/Teams alerts when drift detected                                    │
 │  • Scheduled scans                                                           │
 │                                                                               │
-│  Team plan ($199/mo) includes:                                               │
+│  Team plan ($149/mo) includes:                                               │
 │  ✓ Drift watch mode                                                          │
 │  ✓ Alert notifications                                                       │
 │  ✓ Dependency exploration                                                    │
@@ -233,7 +233,33 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  • Find cost optimization opportunities                                      │
 │  • Plan infrastructure budgets                                               │
 │                                                                               │
-│  → replimap upgrade pro ($99/mo)                                             │
+│  → replimap upgrade pro ($79/mo)                                             │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+""",
+    "right_sizer_not_available": """
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                               │
+│  ⚡ Right-Sizer is a Solo+ Feature                                           │
+│                                                                               │
+│  Right-Sizer automatically optimizes production resources for dev/staging:   │
+│                                                                               │
+│  • EC2: m5.2xlarge → t3.large (80%+ savings)                                 │
+│  • RDS: db.r5.xlarge → db.t3.large, Multi-AZ → Single-AZ                     │
+│  • ElastiCache: cache.r6g.xlarge → cache.t3.medium                           │
+│  • Storage: io1/gp2 → gp3 (cost-effective)                                   │
+│                                                                               │
+│  Architecture-safe recommendations (no x86↔ARM issues)                       │
+│  Generates right-sizer.auto.tfvars for easy overrides                        │
+│                                                                               │
+│  Solo plan ($29/mo) includes:                                                │
+│  ✓ Right-Sizer optimization                                                  │
+│  ✓ Unlimited scans                                                           │
+│  ✓ Full code downloads                                                       │
+│  ✓ Complete audit reports                                                    │
+│                                                                               │
+│  → replimap upgrade solo                                                     │
+│  → https://replimap.dev/pricing                                              │
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
@@ -250,7 +276,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  Note: Only AWS API-visible dependencies are detected.                       │
 │  Application-level dependencies are not detected.                            │
 │                                                                               │
-│  → replimap upgrade team ($199/mo)                                           │
+│  → replimap upgrade team ($149/mo)                                           │
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
@@ -268,7 +294,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  Note: Only AWS API-visible dependencies are detected.                       │
 │  Application-level dependencies are not detected.                            │
 │                                                                               │
-│  → replimap upgrade team ($199/mo)                                           │
+│  → replimap upgrade team ($149/mo)                                           │
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
@@ -297,7 +323,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │  Your architecture graph has been exported.                                  │
 │  FREE plan exports include a RepliMap watermark.                             │
 │                                                                               │
-│  Upgrade to Solo ($49/mo) for watermark-free exports.                        │
+│  Upgrade to Solo ($29/mo) for watermark-free exports.                        │
 │  → replimap upgrade solo                                                     │
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -312,7 +338,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 │  FREE/Solo plans include Terraform output.                                   │
 │                                                                               │
-│  Pro plan ($99/mo) adds:                                                     │
+│  Pro plan ($79/mo) adds:                                                     │
 │  ✓ CloudFormation YAML output                                                │
 │  ✓ Pulumi Python output                                                      │
 │  ✓ Drift detection                                                           │
@@ -329,7 +355,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 │  FREE/Solo plans include Terraform output.                                   │
 │                                                                               │
-│  Pro plan ($99/mo) adds:                                                     │
+│  Pro plan ($79/mo) adds:                                                     │
 │  ✓ Pulumi Python output                                                      │
 │  ✓ CloudFormation YAML output                                                │
 │  ✓ Drift detection                                                           │
@@ -344,7 +370,7 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 │  🔧 CDK Output Requires Team Plan                                            │
 │                                                                               │
-│  Team plan ($199/mo) includes:                                               │
+│  Team plan ($149/mo) includes:                                               │
 │  ✓ AWS CDK output                                                            │
 │  ✓ All IaC formats (Terraform, CloudFormation, Pulumi)                       │
 │  ✓ Drift watch mode with alerts                                              │

@@ -79,7 +79,7 @@ class TestPlanFeatures:
         assert features.max_resources_per_scan is None
         assert features.max_scans_per_month is None
         assert features.max_aws_accounts == 1
-        assert features.price_monthly == 49
+        assert features.price_monthly == 29  # Updated indie-friendly pricing
 
     def test_pro_plan_multi_account(self) -> None:
         """Test pro plan has multi-account support."""
@@ -409,7 +409,7 @@ class TestFeatureGates:
         """Test upgrade prompt generation."""
         prompt = get_upgrade_prompt(Feature.ASYNC_SCANNING, Plan.FREE)
         assert "solo" in prompt.lower()
-        assert "$49" in prompt
+        assert "$29" in prompt  # Updated indie-friendly pricing
         assert "upgrade" in prompt.lower()
 
 

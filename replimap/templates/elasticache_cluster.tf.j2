@@ -21,8 +21,9 @@ resource "aws_elasticache_cluster" "{{ resource.terraform_name }}" {
 {% if engine_version %}
   engine_version       = "{{ engine_version }}"
 {% endif %}
-  node_type            = "{{ resource.config.node_type }}"
-  num_cache_nodes      = {{ resource.config.num_cache_nodes | d(1) }}
+  # Uses variables for Right-Sizer compatibility
+  node_type            = var.aws_elasticache_cluster_{{ resource.terraform_name }}_node_type
+  num_cache_nodes      = var.aws_elasticache_cluster_{{ resource.terraform_name }}_num_cache_nodes
 {% if resource.config.port %}
   port                 = {{ resource.config.port | d(default_port) }}
 {% endif %}

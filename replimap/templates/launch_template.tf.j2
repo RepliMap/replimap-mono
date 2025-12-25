@@ -4,7 +4,8 @@ resource "aws_launch_template" "{{ resource.terraform_name }}" {
   name = "{{ resource.config.name }}"
 
 {% if resource.config.instance_type %}
-  instance_type = "{{ resource.config.instance_type }}"
+  # Uses variable for Right-Sizer compatibility
+  instance_type = var.aws_launch_template_{{ resource.terraform_name }}_instance_type
 {% endif %}
 {% if resource.config.image_id %}
   # NOTE: AMI IDs are region-specific. Set via variable or use data source.
