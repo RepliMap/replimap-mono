@@ -91,40 +91,79 @@ export const MACHINE_ID_PATTERN = /^[a-f0-9]{32}$/;
 export const AWS_ACCOUNT_ID_PATTERN = /^\d{12}$/;
 
 // ============================================================================
+// Plan Pricing
+// Updated: 2025-12-25
+// New pricing: Solo $29, Pro $79, Team $149, Enterprise $399
+// ============================================================================
+
+/**
+ * Plan prices in cents (monthly)
+ */
+export const PLAN_PRICES: Record<string, number> = {
+  'free': 0,
+  'solo': 2900,       // $29/month
+  'pro': 7900,        // $79/month
+  'team': 14900,      // $149/month
+  'enterprise': 39900, // $399/month
+} as const;
+
+/**
+ * Annual plan prices in cents (total per year)
+ * Significant discount compared to monthly billing
+ */
+export const PLAN_ANNUAL_PRICES: Record<string, number> = {
+  'free': 0,
+  'solo': 19900,       // $199/year (~$17/month, save $149)
+  'pro': 59900,        // $599/year (~$50/month, save $349)
+  'team': 119900,      // $1,199/year (~$100/month, save $589)
+  'enterprise': 399900, // $3,999/year (~$333/month, save $789)
+} as const;
+
+// ============================================================================
 // Stripe Price ID to Plan Mapping
 // ============================================================================
 
-// These should be updated with actual Stripe price IDs after creation
+// TODO: Update these Stripe Price IDs after creating new prices in Stripe Dashboard
+// Current IDs are for OLD pricing ($49/$99/$199) and need to be replaced
 export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
-  // Development/test price IDs
-  'price_1Sg0KVAKLIiL9hdwiQFS1xZC': 'solo',
-  'price_1Sg0KxAKLIiL9hdw4c6KcQRI': 'pro',
-  'price_1Sg0MVAKLIiL9hdwB2DEfWus': 'team',
-  // Production price IDs - update these after creating products in Stripe
-  // 'price_xxx_solo': 'solo',
-  // 'price_xxx_pro': 'pro',
-  // 'price_xxx_team': 'team',
+  // Development/test price IDs (OLD PRICING - needs update)
+  'price_1Sg0KVAKLIiL9hdwiQFS1xZC': 'solo',  // TODO: Replace with $29/mo price
+  'price_1Sg0KxAKLIiL9hdw4c6KcQRI': 'pro',   // TODO: Replace with $79/mo price
+  'price_1Sg0MVAKLIiL9hdwB2DEfWus': 'team',  // TODO: Replace with $149/mo price
+  // Test price IDs (for unit testing)
+  'price_test_solo': 'solo',
+  'price_test_pro': 'pro',
+  'price_test_team': 'team',
+  // Production price IDs - add after creating products in Stripe:
+  // Monthly
+  // 'price_xxx_solo_monthly': 'solo',     // $29/mo
+  // 'price_xxx_pro_monthly': 'pro',       // $79/mo
+  // 'price_xxx_team_monthly': 'team',     // $149/mo
+  // Annual
+  // 'price_xxx_solo_annual': 'solo',      // $199/year
+  // 'price_xxx_pro_annual': 'pro',        // $599/year
+  // 'price_xxx_team_annual': 'team',      // $1,199/year
 };
 
-// Plan to Stripe Price ID (for creating checkout sessions)
-// Update these with actual Stripe price IDs after creating products
+/**
+ * Plan to Stripe Price ID (for creating checkout sessions)
+ * TODO: Update these after creating new prices in Stripe Dashboard
+ */
 export const PLAN_TO_STRIPE_PRICE: Record<string, string> = {
-  // Development/test price IDs
-  'solo': 'price_1Sg0KVAKLIiL9hdwiQFS1xZC',
-  'pro': 'price_1Sg0KxAKLIiL9hdw4c6KcQRI',
-  'team': 'price_1Sg0MVAKLIiL9hdwB2DEfWus',
-  // Production - uncomment and update after creating products in Stripe:
-  // 'solo': 'price_xxx_solo_monthly',
-  // 'pro': 'price_xxx_pro_monthly',
-  // 'team': 'price_xxx_team_monthly',
+  // Monthly prices (OLD PRICING - needs update)
+  'solo': 'price_1Sg0KVAKLIiL9hdwiQFS1xZC',  // TODO: Create new $29/mo price
+  'pro': 'price_1Sg0KxAKLIiL9hdw4c6KcQRI',   // TODO: Create new $79/mo price
+  'team': 'price_1Sg0MVAKLIiL9hdwB2DEfWus',  // TODO: Create new $149/mo price
 };
 
-// Plan prices in cents (for display purposes)
-export const PLAN_PRICES: Record<string, number> = {
-  'free': 0,
-  'solo': 4900,  // $49/month
-  'pro': 9900,   // $99/month
-  'team': 19900, // $199/month
+/**
+ * Plan to Stripe Annual Price ID (for annual checkout sessions)
+ * TODO: Create annual price IDs in Stripe Dashboard
+ */
+export const PLAN_TO_STRIPE_ANNUAL_PRICE: Record<string, string> = {
+  'solo': '',  // TODO: Create $199/year price
+  'pro': '',   // TODO: Create $599/year price
+  'team': '',  // TODO: Create $1,199/year price
 };
 
 /**

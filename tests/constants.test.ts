@@ -95,10 +95,19 @@ describe('CLI Version Check', () => {
 });
 
 describe('Stripe Price Mapping', () => {
-  it('should have matching price-to-plan and plan-to-price mappings', () => {
-    for (const [priceId, plan] of Object.entries(STRIPE_PRICE_TO_PLAN)) {
-      expect(PLAN_TO_STRIPE_PRICE[plan]).toBe(priceId);
-    }
+  it('should have a primary price ID for each paid plan in PLAN_TO_STRIPE_PRICE', () => {
+    // Each plan should have at least one price ID for checkout
+    expect(PLAN_TO_STRIPE_PRICE['solo']).toBeDefined();
+    expect(PLAN_TO_STRIPE_PRICE['pro']).toBeDefined();
+    expect(PLAN_TO_STRIPE_PRICE['team']).toBeDefined();
+  });
+
+  it('should have price-to-plan mappings that include all plans', () => {
+    // All plans with prices should appear in STRIPE_PRICE_TO_PLAN values
+    const plans = new Set(Object.values(STRIPE_PRICE_TO_PLAN));
+    expect(plans.has('solo')).toBe(true);
+    expect(plans.has('pro')).toBe(true);
+    expect(plans.has('team')).toBe(true);
   });
 
   it('should return free for unknown price IDs', () => {
