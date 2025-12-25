@@ -14,7 +14,6 @@ The Seven Laws of Sovereign Code:
 from __future__ import annotations
 
 import re
-from typing import Dict, List
 
 
 def sanitize_name(name: str) -> str:
@@ -76,7 +75,7 @@ def get_variable_name(resource_type: str, resource_name: str, attribute: str) ->
 def get_variable_name_for_resource(
     resource_type: str,
     resource_name: str,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Get all relevant variable names for a resource type.
 
@@ -99,7 +98,7 @@ def get_variable_name_for_resource(
         }
     """
     # Define attributes per resource type
-    RESOURCE_ATTRIBUTES: Dict[str, List[str]] = {
+    RESOURCE_ATTRIBUTES: dict[str, list[str]] = {
         "aws_instance": [
             "instance_type",
         ],
@@ -131,7 +130,7 @@ def get_variable_name_for_resource(
 
 
 # Mapping of resource types to their primary "size" attribute
-INSTANCE_SIZE_ATTRIBUTE: Dict[str, str] = {
+INSTANCE_SIZE_ATTRIBUTE: dict[str, str] = {
     "aws_instance": "instance_type",
     "aws_db_instance": "instance_class",
     "aws_elasticache_cluster": "node_type",
@@ -142,7 +141,7 @@ INSTANCE_SIZE_ATTRIBUTE: Dict[str, str] = {
 }
 
 # Mapping of Terraform resource types to their description prefix
-RESOURCE_DESCRIPTIONS: Dict[str, str] = {
+RESOURCE_DESCRIPTIONS: dict[str, str] = {
     "aws_instance": "EC2 instance",
     "aws_db_instance": "RDS instance",
     "aws_elasticache_cluster": "ElastiCache cluster",

@@ -17,7 +17,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import httpx
 from rich.console import Console
@@ -26,9 +26,6 @@ from rich.table import Table
 
 # CRITICAL: Use the SAME naming module as Generator
 from replimap.core.naming import get_variable_name
-
-if TYPE_CHECKING:
-    from replimap.core.models import Resource
 
 # API Configuration
 REPLIMAP_API_BASE = os.environ.get(

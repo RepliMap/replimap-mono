@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Right-Sizer CLI Integration** - Automatic resource optimization for dev/staging
+  - `replimap clone --dev-mode` flag for cost-optimized cloning
+  - Generates `right-sizer.auto.tfvars` with instance size overrides
+  - Calls backend API for optimization suggestions (Solo+ feature)
+  - Supports EC2, RDS, ElastiCache resource types
+  - Architecture-safe recommendations (no x86↔ARM issues)
+  - Strategy options: `--dev-strategy conservative` (default) or `aggressive`
+- **Generator Variable Refactoring** - Terraform variables for Right-Sizer compatibility
+  - `replimap/core/naming.py` - Standardized variable naming utility
+  - Per-resource instance_type/instance_class/node_type variables
+  - Templates updated: ec2_instance.tf.j2, rds_instance.tf.j2, elasticache_cluster.tf.j2, launch_template.tf.j2
+  - TerraformRenderer generates variables.tf with Right-Sizer compatible variables
+
+### Changed
+- **Indie-Friendly Pricing** - Updated pricing structure
+  - SOLO: $49 → $29/mo ($17/mo annual)
+  - PRO: $99 → $79/mo ($50/mo annual)
+  - TEAM: $199 → $149/mo ($100/mo annual)
+  - ENTERPRISE: $499 → $399/mo ($333/mo annual)
+
+### Added (previous)
 - **Sovereign Engineer Protocol (Level 2-5)** - Complete Terraform renderer refactoring
   - **SmartNameGenerator** (`replimap/renderers/name_generator.py`)
     - Deterministic Base62 hash-based naming (same input = same output, always)

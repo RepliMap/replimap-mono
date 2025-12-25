@@ -458,6 +458,59 @@ The cost estimator provides actionable recommendations:
 - **NAT Gateway Optimization**: Consolidation opportunities
 - **Right-sizing**: Instance type recommendations
 
+## Right-Sizer (Dev Mode)
+
+Automatically optimize instance sizes for dev/staging environments using the Right-Sizer API.
+
+```bash
+# Generate Terraform with dev-optimized instance sizes
+replimap clone --profile prod --output-dir ./staging-tf \
+  --dev-mode --mode generate
+
+# Use aggressive optimization (smaller instances, lower costs)
+replimap clone --profile prod --output-dir ./staging-tf \
+  --dev-mode --dev-strategy aggressive --mode generate
+
+# Conservative (default) - balanced performance and cost
+replimap clone --profile prod --output-dir ./staging-tf \
+  --dev-mode --dev-strategy conservative --mode generate
+```
+
+### How It Works
+
+1. RepliMap scans your production infrastructure
+2. Generates Terraform with resource-specific variables (e.g., `aws_instance_web_instance_type`)
+3. When `--dev-mode` is enabled, calls the Right-Sizer API with your resource inventory
+4. Receives optimized instance size recommendations
+5. Generates `right-sizer.auto.tfvars` with the recommendations
+
+### Generated Files
+
+| File | Description |
+|------|-------------|
+| `variables.tf` | Resource-specific variables with production defaults |
+| `right-sizer.auto.tfvars` | Optimized values for dev/staging (auto-loaded by Terraform) |
+
+### Strategies
+
+| Strategy | Description | Use Case |
+|----------|-------------|----------|
+| `conservative` | Moderate downsizing, maintains headroom | Staging, QA |
+| `aggressive` | Maximum downsizing, lowest cost | Dev, CI/CD |
+
+### Supported Resources
+
+- EC2 Instances (`instance_type`)
+- RDS Instances (`instance_class`)
+- ElastiCache Clusters (`node_type`)
+- ElastiCache Replication Groups (`node_type`)
+- Launch Templates (`instance_type`)
+
+### Requirements
+
+- Solo plan or higher (Free tier does not include Right-Sizer)
+- Network access to RepliMap API for recommendations
+
 ## Output Formats
 
 | Format | Plan Required | Status |
@@ -513,10 +566,10 @@ The cost estimator provides actionable recommendations:
 | Plan | Monthly | Scans/Month | AWS Accounts |
 |------|---------|-------------|--------------|
 | **Free** | $0 | 3 | 1 |
-| **Solo** | $49 | Unlimited | 1 |
-| **Pro** | $99 | Unlimited | 3 |
-| **Team** | $199 | Unlimited | 10 |
-| **Enterprise** | $499+ | Unlimited | Unlimited |
+| **Solo** | $29 | Unlimited | 1 |
+| **Pro** | $79 | Unlimited | 3 |
+| **Team** | $149 | Unlimited | 10 |
+| **Enterprise** | $399+ | Unlimited | Unlimited |
 
 > **Note**: All plans have unlimited resource scanning. Gating happens at output/export time, not during scanning.
 
@@ -528,6 +581,7 @@ The cost estimator provides actionable recommendations:
 | CloudFormation Output | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Pulumi Output | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Async Scanning | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Right-Sizer (Dev Mode) | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Custom Templates | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Cost Estimation | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Drift Detection | ❌ | ❌ | ✅ | ✅ | ✅ |
@@ -576,6 +630,8 @@ replimap clone [OPTIONS]
   --mode, -m TEXT          Mode: 'dry-run' or 'generate' [default: dry-run]
   --downsize/--no-downsize Enable instance downsizing [default: downsize]
   --rename-pattern TEXT    Renaming pattern, e.g., 'prod:stage'
+  --dev-mode, --dev        [SOLO+] Optimize resources for dev/staging via Right-Sizer
+  --dev-strategy TEXT      Right-Sizer strategy: 'conservative' or 'aggressive' [default: conservative]
 
 # Load command
 replimap load GRAPH_FILE
