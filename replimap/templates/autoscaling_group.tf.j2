@@ -70,14 +70,14 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
 {% if found_tg.resource and found_tg.resource.terraform_name %}
     aws_lb_target_group.{{ found_tg.resource.terraform_name }}.arn,
 {% else %}
-    # ⚠️ WARNING: Target Group not found in graph - DO NOT use production ARN!
+    # CROSS-ACCOUNT: Target Group not in graph - define variable for ARN mapping
     # Original ARN: {{ tg_arn }}
-    # TODO: Create this Target Group in staging or update the reference
-    # aws_lb_target_group.STAGING_TG_NAME.arn,
+    var.unmapped_tg_{{ tg_name | replace("-", "_") }},
 {% endif %}
 {% else %}
-    # ⚠️ WARNING: Could not parse Target Group ARN
+    # CROSS-ACCOUNT: Could not parse Target Group ARN - define variable
     # Original ARN: {{ tg_arn }}
+    var.unmapped_tg_arn_{{ loop.index }},
 {% endif %}
 {% endif %}
 {% endif %}
