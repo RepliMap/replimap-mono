@@ -37,6 +37,7 @@ REPLIMAP_API_BASE = os.environ.get(
 )
 RIGHTSIZER_ENDPOINT = f"{REPLIMAP_API_BASE}/v1/rightsizer/suggestions"
 API_TIMEOUT = 30.0
+MAX_RESOURCES_PER_REQUEST = 100  # Backend limit
 
 console = Console()
 
@@ -274,6 +275,94 @@ class RightSizerClient:
         if not license_key:
             return self._error_result("No active license key")
 
+        # Batch resources if exceeding API limit
+        if len(resources) > MAX_RESOURCES_PER_REQUEST:
+            return await self._get_suggestions_batched(resources, strategy, license_key)
+
+        return await self._get_suggestions_single(resources, strategy, license_key)
+
+    async def _get_suggestions_batched(
+        self,
+        resources: list[ResourceSummary],
+        strategy: DowngradeStrategy,
+        license_key: str,
+    ) -> RightSizerResult:
+        """Get suggestions for resources in batches (when > 100 resources)."""
+        # Split into batches
+        batches = [
+            resources[i : i + MAX_RESOURCES_PER_REQUEST]
+            for i in range(0, len(resources), MAX_RESOURCES_PER_REQUEST)
+        ]
+
+        logger.info(
+            f"Batching {len(resources)} resources into {len(batches)} API requests "
+            f"(max {MAX_RESOURCES_PER_REQUEST} per request)"
+        )
+
+        # Process all batches
+        results: list[RightSizerResult] = []
+        for i, batch in enumerate(batches):
+            logger.debug(f"Processing batch {i + 1}/{len(batches)} ({len(batch)} resources)")
+            result = await self._get_suggestions_single(batch, strategy, license_key)
+
+            if not result.success:
+                # If any batch fails, return the error
+                return result
+
+            results.append(result)
+
+        # Merge all results
+        return self._merge_results(results, strategy)
+
+    def _merge_results(
+        self, results: list[RightSizerResult], strategy: DowngradeStrategy
+    ) -> RightSizerResult:
+        """Merge multiple RightSizerResult objects into one."""
+        all_suggestions: list[ResourceSuggestion] = []
+        all_skipped: list[SkippedResource] = []
+        total_current = 0.0
+        total_recommended = 0.0
+        breakdown = SavingsBreakdown(instance=0, storage=0, multi_az=0)
+
+        for result in results:
+            all_suggestions.extend(result.suggestions)
+            all_skipped.extend(result.skipped)
+            total_current += result.total_current_monthly
+            total_recommended += result.total_recommended_monthly
+            breakdown.instance += result.savings_breakdown.instance
+            breakdown.storage += result.savings_breakdown.storage
+            breakdown.multi_az += result.savings_breakdown.multi_az
+
+        total_savings = total_current - total_recommended
+        savings_pct = (total_savings / total_current * 100) if total_current > 0 else 0
+
+        return RightSizerResult(
+            success=True,
+            suggestions=all_suggestions,
+            skipped=all_skipped,
+            total_resources=len(all_suggestions) + len(all_skipped),
+            resources_with_suggestions=len(all_suggestions),
+            resources_skipped=len(all_skipped),
+            total_current_monthly=round(total_current, 2),
+            total_recommended_monthly=round(total_recommended, 2),
+            total_monthly_savings=round(total_savings, 2),
+            total_annual_savings=round(total_savings * 12, 2),
+            savings_percentage=round(savings_pct, 1),
+            savings_breakdown=SavingsBreakdown(
+                instance=round(breakdown.instance, 2),
+                storage=round(breakdown.storage, 2),
+                multi_az=round(breakdown.multi_az, 2),
+            ),
+            strategy_used=strategy.value,
+        )
+
+    async def _get_suggestions_single(
+        self,
+        resources: list[ResourceSummary],
+        strategy: DowngradeStrategy,
+        license_key: str,
+    ) -> RightSizerResult:
+        """Get suggestions for a single batch of resources."""
         # Prepare request (only metadata, no secrets)
         request_body = {
             "resources": [r.to_api_dict() for r in resources],
