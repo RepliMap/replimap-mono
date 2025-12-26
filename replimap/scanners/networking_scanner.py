@@ -191,6 +191,11 @@ class NetworkingScanner(BaseScanner):
                     # Remove None values
                     routes.append({k: v for k, v in route_config.items() if v})
 
+                # Detect if this is the VPC's main route table
+                is_main_route_table = any(
+                    assoc.get("Main", False) for assoc in rt.get("Associations", [])
+                )
+
                 # Process associations
                 associations = []
                 for assoc in rt.get("Associations", []):
@@ -211,6 +216,7 @@ class NetworkingScanner(BaseScanner):
                         "vpc_id": vpc_id,
                         "routes": routes,
                         "associations": associations,
+                        "is_main": is_main_route_table,
                         "propagating_vgws": [
                             vgw["GatewayId"] for vgw in rt.get("PropagatingVgws", [])
                         ],
