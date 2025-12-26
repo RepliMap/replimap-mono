@@ -59,12 +59,35 @@ replimap-backend/
 │   ├── 001_initial.sql
 │   ├── 002_usage_tracking.sql
 │   ├── 003_new_features.sql
-│   └── 004_blast_to_deps_rename.sql
+│   ├── 004_blast_to_deps_rename.sql
+│   └── 005_add_usage_daily.sql     # Telemetry aggregation table
 ├── schema.sql                # Full database schema
 └── wrangler.toml             # Cloudflare config
 ```
 
 ## API Endpoints
+
+### Admin Endpoints (require X-API-Key)
+
+```bash
+# Get system stats ("God Mode" for operational visibility)
+GET /v1/admin/stats
+
+# Response:
+{
+  "timestamp": "2025-01-15T12:00:00Z",
+  "environment": "development",
+  "version": "v1",
+  "users": { "total": 150 },
+  "licenses": { "total": 200, "active": 180 },
+  "devices": { "active_7d": 95, "active_30d": 150 },
+  "events": {
+    "today": 500,
+    "this_month": 12000,
+    "top_types": [{"event_type": "scan", "total": 5000}, ...]
+  }
+}
+```
 
 ### License Validation
 
@@ -296,10 +319,25 @@ wrangler d1 execute replimap-prod --remote --file=migrations/001_initial.sql
 wrangler d1 execute replimap-prod --remote --file=migrations/002_usage_tracking.sql
 wrangler d1 execute replimap-prod --remote --file=migrations/003_new_features.sql
 wrangler d1 execute replimap-prod --remote --file=migrations/004_blast_to_deps_rename.sql
+wrangler d1 execute replimap-prod --remote --file=migrations/005_add_usage_daily.sql
 
 # Deploy
 wrangler deploy
 ```
+
+### Security Hardening (v2.1)
+
+The backend includes comprehensive security hardening:
+
+- **Rate Limiting** - Per-endpoint rate limits with Retry-After headers
+- **HMAC Machine Verification** - Verify CLI-generated machine IDs
+- **Constant-Time Comparisons** - Prevent timing attacks on API keys
+- **Zod Schema Validation** - Strict input validation on all endpoints
+- **CI/CD Detection** - Separate device limits for CI/CD runners
+- **Abuse Detection** - Detect license sharing via device patterns
+- **JWT Lease Tokens** - Offline CLI operation (3-day validity)
+- **Plan Downgrade Handling** - Deactivate devices on tier downgrade
+- **Telemetry Aggregation** - Efficient usage counting (upsert pattern)
 
 ### Environment Variables
 
@@ -315,11 +353,15 @@ Set via `wrangler secret put <NAME>`:
 
 ### Core Tables
 
+- `users` - User accounts linked to Stripe customers
 - `licenses` - License records with plan, features, expiry
-- `activations` - Machine activations per license
-- `usage_events` - All tracked events with metadata
+- `license_machines` - Machine activations per license
+- `machine_changes` - Monthly machine change tracking
+- `usage_events` - Detailed event log with metadata
+- `usage_daily` - Aggregated daily usage counts (efficient counting)
 - `snapshots` - Infrastructure snapshot records
 - `remediations` - Audit fix generation records
+- `processed_events` - Webhook idempotency tracking
 
 See `schema.sql` for complete schema.
 
@@ -356,6 +398,31 @@ curl -X POST https://your-api.workers.dev/v1/usage/track \
 ```
 
 ## Changelog
+
+### v2.1.0 (2025-12)
+
+**Security Hardening:**
+- Zod schema validation on all endpoints
+- HMAC machine signature verification
+- Constant-time API key comparisons
+- Rate limiting with Retry-After headers
+- CI/CD device detection and separate limits
+- Abuse detection via device patterns
+
+**Architecture Improvements:**
+- Telemetry aggregation (`usage_daily` table) - reduces DB bloat by 97%
+- Hybrid quota reads for safe mid-month deployments
+- Throttled `last_seen_at` updates (prevent write amplification)
+- Scheduled cleanup for orphaned devices
+- JWT lease tokens for offline CLI operation
+
+**Admin Features:**
+- `GET /v1/admin/stats` - Operational visibility endpoint
+- Plan downgrade handling (auto-deactivate devices)
+- Robust date handling (edge case fixes)
+
+**Migrations:**
+- `005_add_usage_daily.sql` - Telemetry aggregation table
 
 ### v2.0.0 (2025-01)
 
