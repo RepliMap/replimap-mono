@@ -54,6 +54,7 @@ class ResourceType(str, Enum):
     INTERNET_GATEWAY = "aws_internet_gateway"
     NAT_GATEWAY = "aws_nat_gateway"
     VPC_ENDPOINT = "aws_vpc_endpoint"
+    NETWORK_ACL = "aws_network_acl"
 
     # Phase 2 - Compute
     LAUNCH_TEMPLATE = "aws_launch_template"
