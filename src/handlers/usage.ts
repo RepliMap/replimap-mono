@@ -637,6 +637,24 @@ export async function handleTrackEvent(
 // NEW: Feature-Specific Tracking Helpers
 // =============================================================================
 
+// ─────────────────────────────────────────────────────────────────────────
+// UNLIMITED OPERATIONS - These should NEVER consume quota
+// Read-only operations and cleanup operations are always free
+// ─────────────────────────────────────────────────────────────────────────
+const UNLIMITED_OPERATIONS = new Set([
+  // Read-only operations
+  'snapshot_list',
+  'snapshot_get',
+  'license_check',
+  'license_status',
+  'quota_check',
+  'help',
+  'version',
+
+  // Cleanup operations (user doing the right thing)
+  'snapshot_delete',
+]);
+
 async function checkEventLimit(
   db: D1Database,
   licenseId: string,
@@ -649,15 +667,28 @@ async function checkEventLimit(
   remaining: number | null;
   reset_at: string;
 }> {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Check if this is an unlimited operation (read-only or cleanup)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (UNLIMITED_OPERATIONS.has(eventType)) {
+    return {
+      allowed: true,
+      limit: -1,
+      used: 0,
+      remaining: null,
+      reset_at: '',
+    };
+  }
+
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS[Plan.FREE];
 
-  // Map event type to limit key
+  // ─────────────────────────────────────────────────────────────────────────
+  // METERED OPERATIONS - These consume quota
+  // ─────────────────────────────────────────────────────────────────────────
   const limitKeyMap: Record<string, string> = {
     audit_fix: 'audit_fix_count',
     snapshot_save: 'snapshot_count',
     snapshot_diff: 'snapshot_diff_count',
-    snapshot_list: 'snapshot_count',
-    snapshot_delete: 'snapshot_count',
     deps: 'deps_count',
     deps_explore: 'deps_count',
     deps_export: 'deps_count',
@@ -666,6 +697,7 @@ async function checkEventLimit(
     drift: 'drift_count',
     cost: 'cost_count',
     scan: 'scan_count',
+    rightsizer_analyze: 'rightsizer_count',
   };
 
   const limitKey = limitKeyMap[eventType] || `${eventType}_count`;

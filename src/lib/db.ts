@@ -118,6 +118,106 @@ export async function getTotalMachineCount(
   return result?.count ?? 0;
 }
 
+/**
+ * Get count of ACTIVE devices (seen in last N days)
+ * Used for improved abuse detection - only count recent activity
+ */
+export async function getActiveDeviceCount(
+  db: D1Database,
+  licenseId: string,
+  daysBack: number = 7,
+  excludeCI: boolean = true
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+
+  // Note: is_ci column may not exist yet, so we check machine_id patterns
+  const query = excludeCI
+    ? `
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ?
+        AND last_seen_at >= ?
+        AND machine_id NOT LIKE 'ci-%'
+        AND machine_id NOT LIKE 'github-%'
+        AND machine_id NOT LIKE 'gitlab-%'
+        AND machine_id NOT LIKE '%-ci-%'
+        AND machine_id NOT LIKE '%-runner-%'
+    `
+    : `
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ? AND last_seen_at >= ?
+    `;
+
+  const result = await db.prepare(query)
+    .bind(licenseId, cutoffDate.toISOString())
+    .first<{ count: number }>();
+
+  return result?.count ?? 0;
+}
+
+/**
+ * Get count of NEW devices registered in last N hours
+ * Used for detecting rapid churn (key sharing)
+ */
+export async function getNewDeviceCount(
+  db: D1Database,
+  licenseId: string,
+  hoursBack: number = 24,
+  excludeCI: boolean = true
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setHours(cutoffDate.getHours() - hoursBack);
+
+  const query = excludeCI
+    ? `
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ?
+        AND first_seen_at >= ?
+        AND machine_id NOT LIKE 'ci-%'
+        AND machine_id NOT LIKE 'github-%'
+        AND machine_id NOT LIKE 'gitlab-%'
+        AND machine_id NOT LIKE '%-ci-%'
+        AND machine_id NOT LIKE '%-runner-%'
+    `
+    : `
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ? AND first_seen_at >= ?
+    `;
+
+  const result = await db.prepare(query)
+    .bind(licenseId, cutoffDate.toISOString())
+    .first<{ count: number }>();
+
+  return result?.count ?? 0;
+}
+
+/**
+ * Get count of active CI devices for a license
+ */
+export async function getActiveCIDeviceCount(
+  db: D1Database,
+  licenseId: string,
+  daysBack: number = 30
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+
+  const result = await db.prepare(`
+    SELECT COUNT(*) as count FROM license_machines
+    WHERE license_id = ?
+      AND last_seen_at >= ?
+      AND (
+        machine_id LIKE 'ci-%'
+        OR machine_id LIKE 'github-%'
+        OR machine_id LIKE 'gitlab-%'
+        OR machine_id LIKE '%-ci-%'
+        OR machine_id LIKE '%-runner-%'
+      )
+  `).bind(licenseId, cutoffDate.toISOString()).first<{ count: number }>();
+
+  return result?.count ?? 0;
+}
+
 // ============================================================================
 // License Mutations
 // ============================================================================

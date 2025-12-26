@@ -254,34 +254,128 @@ export function checkVersionHeader(version: string | null): VersionWarning | nul
 }
 
 // ============================================================================
+// CI/CD Environment Detection
+// ============================================================================
+
+/**
+ * Detect if a machine ID indicates a CI/CD environment.
+ * CI environments get special handling - ephemeral machine IDs with higher limits.
+ */
+export function isCIEnvironment(machineId: string, isCIFlag?: boolean): boolean {
+  // Explicit flag from CLI takes precedence
+  if (isCIFlag === true) return true;
+
+  // Detect based on machine_id naming patterns
+  const ciPatterns = [
+    /^ci-/i,
+    /^github-/i,
+    /^gitlab-/i,
+    /^jenkins-/i,
+    /^circleci-/i,
+    /^travis-/i,
+    /^buildkite-/i,
+    /^azure-pipelines-/i,
+    /-ci-/i,
+    /-runner-/i,
+    /-agent-/i,
+  ];
+
+  return ciPatterns.some((pattern) => pattern.test(machineId));
+}
+
+/**
+ * CI device limits per plan (more generous than regular devices)
+ */
+export const CI_DEVICE_LIMITS: Record<string, number> = {
+  free: 3,
+  solo: 10,
+  pro: 25,
+  team: 50,
+  enterprise: -1, // Unlimited
+};
+
+// ============================================================================
 // Abuse Detection
 // ============================================================================
 
 /**
- * Maximum number of unique devices before flagging as potential abuse.
+ * Maximum number of ACTIVE devices (last 7 days) before flagging as potential abuse.
  * This is a soft limit - we warn but don't hard-block until extreme cases.
+ *
+ * IMPORTANT: We check ACTIVE devices, not lifetime total.
+ * A user upgrading laptops over 5 years shouldn't be flagged.
  */
-export const MAX_DEVICES_BEFORE_WARNING = 25;
-export const MAX_DEVICES_BEFORE_ABUSE = 50;
+export const MAX_ACTIVE_DEVICES_BEFORE_WARNING = 10;
+export const MAX_ACTIVE_DEVICES_BEFORE_ABUSE = 15;
+export const MAX_NEW_DEVICES_PER_DAY = 5;
 
 /**
- * Check device count for potential abuse.
- * Returns warning message if suspicious, null if OK.
+ * Abuse detection result
+ */
+export interface AbuseCheckResult {
+  isAbuse: boolean;
+  warning: string | null;
+  reason?: string;
+}
+
+/**
+ * Check for device abuse based on ACTIVE devices (last 7 days).
+ *
+ * @param activeDeviceCount - Number of non-CI devices active in last 7 days
+ * @param newDevicesToday - Number of new non-CI devices registered today
  */
 export function checkDeviceAbuse(
-  deviceCount: number
-): { isAbuse: boolean; warning: string | null } {
-  if (deviceCount >= MAX_DEVICES_BEFORE_ABUSE) {
+  activeDeviceCount: number,
+  newDevicesToday: number = 0
+): AbuseCheckResult {
+  // Rapid churn = key being passed around
+  if (newDevicesToday >= MAX_NEW_DEVICES_PER_DAY) {
     return {
       isAbuse: true,
-      warning: `License used on ${deviceCount} devices. This appears to be shared. Contact support.`,
+      warning: 'Too many new devices in short period.',
+      reason: `${newDevicesToday} new devices in 24h indicates sharing`,
     };
   }
 
-  if (deviceCount >= MAX_DEVICES_BEFORE_WARNING) {
+  // Too many active devices = sharing
+  if (activeDeviceCount >= MAX_ACTIVE_DEVICES_BEFORE_ABUSE) {
+    return {
+      isAbuse: true,
+      warning: `License used on ${activeDeviceCount} active devices. This appears to be shared.`,
+      reason: `${activeDeviceCount} active devices in 7 days`,
+    };
+  }
+
+  // Warning threshold
+  if (activeDeviceCount >= MAX_ACTIVE_DEVICES_BEFORE_WARNING) {
     return {
       isAbuse: false,
-      warning: `License used on ${deviceCount} devices. Consider upgrading to a team plan.`,
+      warning: `License used on ${activeDeviceCount} active devices. Consider upgrading to a team plan.`,
+    };
+  }
+
+  return { isAbuse: false, warning: null };
+}
+
+/**
+ * Legacy function for backward compatibility - checks total device count
+ * @deprecated Use checkDeviceAbuse with active device count instead
+ */
+export function checkDeviceAbuseTotal(
+  totalDeviceCount: number
+): { isAbuse: boolean; warning: string | null } {
+  // Higher thresholds for total count (lifetime)
+  if (totalDeviceCount >= 50) {
+    return {
+      isAbuse: true,
+      warning: `License used on ${totalDeviceCount} devices total. Contact support.`,
+    };
+  }
+
+  if (totalDeviceCount >= 25) {
+    return {
+      isAbuse: false,
+      warning: `License used on ${totalDeviceCount} devices. Consider upgrading to a team plan.`,
     };
   }
 

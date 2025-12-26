@@ -41,13 +41,17 @@ import {
   logUsage,
   getMonthlyUsageCount,
   getActiveMachines,
-  getTotalMachineCount,
+  getActiveDeviceCount,
+  getNewDeviceCount,
+  getActiveCIDeviceCount,
 } from '../lib/db';
 import { validateLicenseRequestSchema, parseRequest } from '../lib/schemas';
 import {
   verifyHmacSignature,
   checkVersionHeader,
   checkDeviceAbuse,
+  isCIEnvironment,
+  CI_DEVICE_LIMITS,
 } from '../lib/security';
 
 /**
@@ -107,6 +111,9 @@ export async function handleValidateLicense(
     const cliVersionHeader = request.headers.get('X-Replimap-Version');
     const versionWarning = checkVersionHeader(cliVersionHeader);
 
+    // Detect if this is a CI/CD environment
+    const isCI = isCIEnvironment(machineId, body.is_ci);
+
     // Get license with all related data in a single query
     const license = await getLicenseForValidation(env.DB, licenseKey, machineId);
 
@@ -119,18 +126,52 @@ export async function handleValidateLicense(
     const plan = license.plan as PlanType;
     const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
 
-    // Check for device abuse (soft tracking - 50+ devices is suspicious)
-    const totalDeviceCount = await getTotalMachineCount(env.DB, license.license_id);
-    const abuseCheck = checkDeviceAbuse(totalDeviceCount);
+    // ─────────────────────────────────────────────────────────────────────────
+    // Device Abuse Detection (check ACTIVE devices, not lifetime total)
+    // ─────────────────────────────────────────────────────────────────────────
+    const [activeDeviceCount, newDevicesToday] = await Promise.all([
+      getActiveDeviceCount(env.DB, license.license_id, 7, true),  // Last 7 days, exclude CI
+      getNewDeviceCount(env.DB, license.license_id, 24, true),    // Last 24 hours, exclude CI
+    ]);
+
+    const abuseCheck = checkDeviceAbuse(activeDeviceCount, newDevicesToday);
 
     if (abuseCheck.isAbuse) {
-      console.warn(`[ABUSE] License ${licenseKey.slice(0, 12)}... used on ${totalDeviceCount} devices`);
+      console.warn(`[ABUSE] License ${licenseKey.slice(0, 12)}... - ${abuseCheck.reason}`);
       throw new AppError(
         'LICENSE_ABUSE_DETECTED',
         abuseCheck.warning || 'This license appears to be shared across too many devices.',
         403,
-        { action: 'Contact support at https://replimap.io/support' }
+        {
+          action: 'If this is a mistake, contact support@replimap.dev',
+          guidance: 'For CI/CD: Set REPLIMAP_MACHINE_ID env var to persist identity across runs',
+        }
       );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CI/CD Device Limit Check
+    // ─────────────────────────────────────────────────────────────────────────
+    let ciWarning: string | undefined;
+    if (isCI) {
+      const activeCIDevices = await getActiveCIDeviceCount(env.DB, license.license_id, 30);
+      const ciLimit = CI_DEVICE_LIMITS[plan] ?? CI_DEVICE_LIMITS.free;
+
+      if (ciLimit !== -1 && activeCIDevices >= ciLimit) {
+        throw new AppError(
+          'CI_DEVICE_LIMIT',
+          `CI machine limit reached (${activeCIDevices}/${ciLimit}).`,
+          403,
+          {
+            action: 'Set REPLIMAP_MACHINE_ID env var to reuse identity across runs.',
+            limit: ciLimit,
+            guidance: 'Tip: Use a stable REPLIMAP_MACHINE_ID to avoid consuming new device slots.',
+          }
+        );
+      }
+
+      // Add warning about CI environment
+      ciWarning = 'CI environment detected. Set REPLIMAP_MACHINE_ID for consistent identity.';
     }
 
     // Check license status and expiry
@@ -170,6 +211,7 @@ export async function handleValidateLicense(
     const response: ValidateLicenseResponse & {
       _warning?: { message: string; upgrade_command: string };
       _device_warning?: string;
+      _ci_warning?: string;
     } = {
       valid: true,
       plan: license.plan,
@@ -219,6 +261,11 @@ export async function handleValidateLicense(
     // Add device warning (non-abuse but suspicious)
     if (abuseCheck.warning && !abuseCheck.isAbuse) {
       response._device_warning = abuseCheck.warning;
+    }
+
+    // Add CI environment warning
+    if (ciWarning) {
+      response._ci_warning = ciWarning;
     }
 
     return new Response(JSON.stringify(response), {

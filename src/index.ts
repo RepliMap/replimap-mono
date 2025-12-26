@@ -330,6 +330,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = new Response(JSON.stringify({
         status: 'ok',
         timestamp: new Date().toISOString(),
+        version: env.API_VERSION || '2.1.0',
+        // Date when AWS pricing data was last refreshed
+        // Update this when refreshing pricing data in the right-sizer
+        pricing_data_date: '2025-12-26',
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

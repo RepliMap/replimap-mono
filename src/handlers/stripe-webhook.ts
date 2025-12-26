@@ -158,25 +158,35 @@ async function handleCheckoutCompleted(
 /**
  * Handle customer.subscription.created
  * Creates a new license for the subscription
+ *
+ * RACE CONDITION HANDLING:
+ * If user doesn't exist yet (checkout.session.completed hasn't fired),
+ * we return a 500 error to trigger Stripe's exponential backoff retry.
+ * This is the expected behavior - Stripe will retry until user exists.
  */
 async function handleSubscriptionCreated(
   db: D1Database,
   subscription: StripeSubscription
-): Promise<void> {
-  // Check if license already exists for this subscription
+): Promise<{ success: boolean; retry?: boolean }> {
+  // Check if license already exists for this subscription (idempotency)
   const existingLicense = await getLicenseBySubscriptionId(db, subscription.id);
   if (existingLicense) {
-    return; // Already processed
+    console.log(`[Stripe] License already exists for subscription ${subscription.id}`);
+    return { success: true }; // Already processed
   }
 
   // Get user by Stripe customer ID
   // Note: User should have been created by checkout.session.completed event
-  // If user doesn't exist, checkout.session.completed may have failed - Stripe will retry
   const user = await getUserByStripeCustomerId(db, subscription.customer);
   if (!user) {
-    // This could happen if checkout.session.completed wasn't processed yet
-    // Throwing error will cause Stripe to retry the webhook
-    throw new Error(`No user found for Stripe customer ${subscription.customer}. Checkout may not have been processed yet.`);
+    // Race condition: checkout.session.completed hasn't fired yet
+    // Return 500 to trigger Stripe retry with exponential backoff
+    console.warn(
+      `[Stripe] User not found for customer ${subscription.customer}. ` +
+      `This is expected if checkout.session.completed hasn't fired yet. ` +
+      `Triggering retry...`
+    );
+    return { success: false, retry: true };
   }
 
   // Get plan from price ID
@@ -193,6 +203,9 @@ async function handleSubscriptionCreated(
     currentPeriodStart: timestampToISO(subscription.current_period_start),
     currentPeriodEnd: timestampToISO(subscription.current_period_end),
   });
+
+  console.log(`[Stripe] Created license for subscription ${subscription.id}`);
+  return { success: true };
 }
 
 /**
@@ -409,12 +422,23 @@ export async function handleStripeWebhook(
         );
         break;
 
-      case 'customer.subscription.created':
-        await handleSubscriptionCreated(
+      case 'customer.subscription.created': {
+        const result = await handleSubscriptionCreated(
           env.DB,
           event.data.object as unknown as StripeSubscription
         );
+        if (!result.success && result.retry) {
+          // Return 500 to trigger Stripe retry
+          return new Response(JSON.stringify({
+            error: 'User not found yet, retry needed',
+            retry: true,
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
         break;
+      }
 
       case 'customer.subscription.updated':
         await handleSubscriptionUpdated(

@@ -81,6 +81,8 @@ export const validateLicenseRequestSchema = z.object({
   machine_name: machineNameSchema,
   // NEW: HMAC signature for machine verification
   machine_signature: machineSignatureSchema.optional(),
+  // NEW: CI/CD environment flag - enables ephemeral machine handling
+  is_ci: z.boolean().optional(),
   // Timestamp for replay protection (optional for backward compatibility)
   timestamp: z.number()
     .int()
@@ -300,6 +302,22 @@ export const checkFeatureRequestSchema = z.object({
 }).strict();
 
 export type CheckFeatureRequest = z.infer<typeof checkFeatureRequestSchema>;
+
+// ============================================================================
+// Telemetry Schema (Strict to prevent DoS)
+// ============================================================================
+
+export const telemetrySchema = z.object({
+  scan_id: z.string().uuid(),
+  duration_ms: z.number().nonnegative().max(3600000), // Max 1 hour
+  resource_count: z.number().nonnegative().max(10000),
+  region: z.string().max(30),
+  status: z.enum(['success', 'failed']),
+  error_code: z.string().max(100).optional(),
+  cli_version: z.string().max(20).optional(),
+}).strict();
+
+export type TelemetryInput = z.infer<typeof telemetrySchema>;
 
 // ============================================================================
 // Validation Helper

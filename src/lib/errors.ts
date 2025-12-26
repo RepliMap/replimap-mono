@@ -12,6 +12,7 @@ export class AppError extends Error {
   readonly errorCode: ErrorCode;
   readonly statusCode: number;
   readonly action?: string;
+  readonly guidance?: string;
   readonly machines?: string[];
   readonly limit?: number;
   readonly resetsAt?: string;
@@ -23,6 +24,7 @@ export class AppError extends Error {
     statusCode: number = 400,
     options?: {
       action?: string;
+      guidance?: string;
       machines?: string[];
       limit?: number;
       resetsAt?: string;
@@ -34,6 +36,7 @@ export class AppError extends Error {
     this.errorCode = errorCode;
     this.statusCode = statusCode;
     this.action = options?.action;
+    this.guidance = options?.guidance;
     this.machines = options?.machines;
     this.limit = options?.limit;
     this.resetsAt = options?.resetsAt;
@@ -49,6 +52,7 @@ export class AppError extends Error {
     };
 
     if (this.action) response.action = this.action;
+    if (this.guidance) response.guidance = this.guidance;
     if (this.machines) response.machines = this.machines;
     if (this.limit !== undefined) response.limit = this.limit;
     if (this.resetsAt) response.resets_at = this.resetsAt;
@@ -67,7 +71,11 @@ export const Errors = {
     return new AppError(
       'LICENSE_NOT_FOUND',
       'License key not found',
-      404
+      404,
+      {
+        action: 'Check your license key at https://replimap.dev/dashboard',
+        guidance: 'Verify the key is entered correctly. If you need a new license, visit https://replimap.dev/pricing',
+      }
     );
   },
 
@@ -76,7 +84,10 @@ export const Errors = {
       'LICENSE_EXPIRED',
       `Your subscription expired on ${expiredAt}`,
       403,
-      { action: 'Renew at https://replimap.io/renew' }
+      {
+        action: 'Renew at https://replimap.dev/renew',
+        guidance: 'Your license has expired but can be reactivated. Renew to restore full access.',
+      }
     );
   },
 
@@ -85,7 +96,10 @@ export const Errors = {
       'LICENSE_CANCELED',
       `Your subscription is canceled but valid until ${validUntil}`,
       403,
-      { action: 'Resubscribe at https://replimap.io/renew' }
+      {
+        action: 'Resubscribe at https://replimap.dev/renew',
+        guidance: 'You can continue using RepliMap until the end of your billing period.',
+      }
     );
   },
 
@@ -94,7 +108,10 @@ export const Errors = {
       'LICENSE_PAST_DUE',
       'Payment failed. Please update your payment method.',
       403,
-      { action: 'Update payment at https://replimap.io/dashboard/billing' }
+      {
+        action: 'Update payment at https://replimap.dev/dashboard/billing',
+        guidance: 'Your subscription is active but payment failed. Update your card to avoid interruption.',
+      }
     );
   },
 
@@ -103,17 +120,29 @@ export const Errors = {
       'LICENSE_REVOKED',
       'This license has been revoked. Please contact support.',
       403,
-      { action: 'Contact support at https://replimap.io/support' }
+      {
+        action: 'Contact support at support@replimap.dev',
+        guidance: 'This license has been permanently revoked. If this is unexpected, please contact support.',
+      }
     );
   },
 
   machineLimitExceeded(machines: string[], limit: number): AppError {
     return new AppError(
       'MACHINE_LIMIT_EXCEEDED',
-      `This license is already active on ${limit} machines`,
+      `Device limit reached (${machines.length}/${limit}).`,
       403,
       {
-        action: 'Deactivate a machine at https://replimap.io/dashboard or upgrade',
+        action: 'Deactivate a device at https://replimap.dev/dashboard or upgrade',
+        guidance: [
+          `Your plan allows ${limit} active devices.`,
+          'Options:',
+          '• Deactivate unused devices from dashboard',
+          '• Wait 30 days for inactive devices to expire',
+          '• Upgrade for more device slots',
+          '',
+          'For CI/CD: Set REPLIMAP_MACHINE_ID env var',
+        ].join('\n'),
         machines,
         limit,
       }
@@ -123,10 +152,19 @@ export const Errors = {
   machineChangeLimitExceeded(resetsAt: string): AppError {
     return new AppError(
       'MACHINE_CHANGE_LIMIT',
-      'Monthly machine change limit (3) reached',
+      'Monthly device activation limit reached.',
       403,
       {
-        action: 'Wait until next month or contact support',
+        action: 'Wait until limit resets or contact support',
+        guidance: [
+          'You can activate up to 3 new devices per month.',
+          '',
+          'Are you running in CI/CD?',
+          '→ Set REPLIMAP_MACHINE_ID env var to persist identity',
+          '',
+          'Need more devices?',
+          '→ Upgrade to Pro/Team for more device slots',
+        ].join('\n'),
         resetsAt,
       }
     );
