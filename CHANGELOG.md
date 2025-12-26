@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports EC2, RDS, ElastiCache resource types
   - Architecture-safe recommendations (no x86↔ARM issues)
   - Strategy options: `--dev-strategy conservative` (default) or `aggressive`
+  - Resource batching for large infrastructures (>100 resources per API request)
 - **Generator Variable Refactoring** - Terraform variables for Right-Sizer compatibility
   - `replimap/core/naming.py` - Standardized variable naming utility
   - Per-resource instance_type/instance_class/node_type variables
@@ -183,6 +184,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RDS password variables now have default placeholder for `terraform plan` to succeed
 
 ### Fixed
+- **Terraform variable naming consistency**: Variable names now consistently use underscores (e.g., `lt_083_abc` not `lt-083-abc`) across templates and variables.tf - fixes "Reference to undeclared input variable" errors during `terraform plan`
+- **Right-Sizer API error handling**: Improved error messages with actual API response content for debugging
+- **Right-Sizer resource extraction**: Fixed `resource_type` attribute access (was incorrectly using `type`)
+- **LicenseManager API**: Fixed `current_license` property access (was incorrectly called as method)
+- **Right-Sizer unsupported resource types**: Removed `aws_launch_template` from client's supported types (backend API limitation)
 - **Boundary resource handling**: VPC Peering and Transit Gateway routes are now commented out with clear instructions (prevents staging→production routing)
 - **ASG Target Group ARNs**: Now searches graph by ARN and name, comments out if not found (prevents hardcoded production ARN leakage)
 - **EBS Snapshot IDs**: Commented out by default for staging (creates empty volumes)

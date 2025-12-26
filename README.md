@@ -504,7 +504,6 @@ replimap clone --profile prod --output-dir ./staging-tf \
 - RDS Instances (`instance_class`)
 - ElastiCache Clusters (`node_type`)
 - ElastiCache Replication Groups (`node_type`)
-- Launch Templates (`instance_type`)
 
 ### Requirements
 
