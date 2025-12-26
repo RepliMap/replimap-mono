@@ -79,6 +79,8 @@ import {
   handleRightSizerSuggestions,
 } from './handlers';
 import { AppError, Errors } from './lib/errors';
+import { validateContentLength, MAX_CONTENT_LENGTH } from './lib/security';
+import { rateLimit } from './lib/rate-limiter';
 
 // ============================================================================
 // CORS Configuration
@@ -183,6 +185,15 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   const clientIP = getClientIP(request);
 
   try {
+    // ========================================================================
+    // Content-Length Validation (DoS Protection)
+    // ========================================================================
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+      // Stripe webhook needs larger payload (up to 1MB for large events)
+      const maxLength = path === '/v1/webhooks/stripe' ? 1024 * 1024 : MAX_CONTENT_LENGTH;
+      validateContentLength(request, maxLength);
+    }
+
     let response: Response | undefined;
 
     // ========================================================================
@@ -285,18 +296,21 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
 
     // ========================================================================
-    // Admin Endpoints
+    // Admin Endpoints (rate limited to prevent brute-force attacks)
     // ========================================================================
     if (!response && path === '/v1/admin/licenses' && method === 'POST') {
+      await rateLimit(env.CACHE, 'admin', clientIP);
       response = await handleCreateLicense(request, env);
     } else if (!response && method === 'GET') {
       const adminLicenseKey = matchPathParam(path, '/v1/admin/licenses/{key}');
       if (adminLicenseKey) {
+        await rateLimit(env.CACHE, 'admin', clientIP);
         response = await handleGetLicense(request, env, adminLicenseKey);
       }
     } else if (!response && method === 'POST') {
       const revokeKey = matchPathParam(path, '/v1/admin/licenses/{key}/revoke');
       if (revokeKey) {
+        await rateLimit(env.CACHE, 'admin', clientIP);
         response = await handleRevokeLicense(request, env, revokeKey);
       }
     }

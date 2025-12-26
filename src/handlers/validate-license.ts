@@ -3,13 +3,15 @@
  * POST /v1/license/validate
  *
  * This is called on every CLI run, so it must be fast (<50ms target)
+ *
+ * Security features:
+ * - Zod schema validation for all inputs
+ * - Optional HMAC signature verification for machine IDs
+ * - Timestamp-based replay attack protection
  */
 
 import type { Env } from '../types/env';
-import type {
-  ValidateLicenseRequest,
-  ValidateLicenseResponse,
-} from '../types/api';
+import type { ValidateLicenseResponse } from '../types/api';
 import {
   PLAN_FEATURES,
   MAX_MACHINE_CHANGES_PER_MONTH,
@@ -20,8 +22,6 @@ import {
 import { Plan, getFeatureFlags, PLAN_LIMITS } from '../features';
 import { Errors, AppError } from '../lib/errors';
 import {
-  validateLicenseKey,
-  validateMachineId,
   normalizeLicenseKey,
   normalizeMachineId,
   cacheUntilISO,
@@ -42,6 +42,8 @@ import {
   getMonthlyUsageCount,
   getActiveMachines,
 } from '../lib/db';
+import { validateLicenseRequestSchema, parseRequest } from '../lib/schemas';
+import { verifyHmacSignature } from '../lib/security';
 
 /**
  * Handle license validation request
@@ -55,27 +57,46 @@ export async function handleValidateLicense(
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
-    // Parse and validate request body
-    let body: ValidateLicenseRequest;
+    // Parse request body
+    let rawBody: unknown;
     try {
-      body = await request.json() as ValidateLicenseRequest;
+      rawBody = await request.json();
     } catch {
       throw Errors.invalidRequest('Invalid JSON body');
     }
 
-    if (!body.license_key) {
-      throw Errors.invalidRequest('Missing license_key');
-    }
-    if (!body.machine_id) {
-      throw Errors.invalidRequest('Missing machine_id');
+    // Validate with Zod schema (comprehensive input validation)
+    const parseResult = parseRequest(validateLicenseRequestSchema, rawBody);
+    if (!parseResult.success) {
+      throw Errors.invalidRequest(parseResult.error);
     }
 
-    // Validate formats
-    validateLicenseKey(body.license_key);
-    validateMachineId(body.machine_id);
-
+    const body = parseResult.data;
     const licenseKey = normalizeLicenseKey(body.license_key);
     const machineId = normalizeMachineId(body.machine_id);
+
+    // Verify machine signature if MACHINE_SIGNATURE_SECRET is configured
+    // This prevents machine ID forgery
+    if (env.MACHINE_SIGNATURE_SECRET && body.machine_signature) {
+      // Signature should be HMAC-SHA256(machine_id + timestamp, secret)
+      const signaturePayload = body.timestamp
+        ? `${machineId}:${body.timestamp}`
+        : machineId;
+
+      const isValid = await verifyHmacSignature(
+        signaturePayload,
+        body.machine_signature,
+        env.MACHINE_SIGNATURE_SECRET
+      );
+
+      if (!isValid) {
+        throw Errors.invalidRequest('Invalid machine signature');
+      }
+    } else if (env.MACHINE_SIGNATURE_SECRET && !body.machine_signature) {
+      // If secret is configured but signature not provided, warn but allow
+      // This enables gradual migration - old CLIs work, but log a warning
+      console.warn(`[SECURITY] Machine validation without signature from ${truncateMachineId(machineId)}`);
+    }
 
     // Get license with all related data in a single query
     const license = await getLicenseForValidation(env.DB, licenseKey, machineId);

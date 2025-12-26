@@ -38,7 +38,7 @@ describe('Admin Endpoints', () => {
       const data = await parseResponse<ErrorResponse>(response);
 
       expect(response.status).toBe(401);
-      expect(data.error_code).toBe('INVALID_REQUEST');
+      expect(data.error_code).toBe('UNAUTHORIZED');
     });
 
     it('should reject request with invalid API key', async () => {
@@ -53,7 +53,7 @@ describe('Admin Endpoints', () => {
       const data = await parseResponse<ErrorResponse>(response);
 
       expect(response.status).toBe(403);
-      expect(data.error_code).toBe('INVALID_REQUEST');
+      expect(data.error_code).toBe('UNAUTHORIZED');
     });
 
     it('should reject invalid JSON body', async () => {

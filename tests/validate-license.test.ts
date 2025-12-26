@@ -74,7 +74,9 @@ describe('POST /v1/license/validate', () => {
       const data = await parseResponse<ErrorResponse>(response);
 
       expect(response.status).toBe(400);
-      expect(data.error_code).toBe('INVALID_LICENSE_FORMAT');
+      // Zod validation returns INVALID_REQUEST with descriptive message
+      expect(data.error_code).toBe('INVALID_REQUEST');
+      expect(data.message).toContain('license');
     });
 
     it('should reject invalid machine ID format', async () => {
@@ -87,7 +89,9 @@ describe('POST /v1/license/validate', () => {
       const data = await parseResponse<ErrorResponse>(response);
 
       expect(response.status).toBe(400);
-      expect(data.error_code).toBe('INVALID_MACHINE_FORMAT');
+      // Zod validation returns INVALID_REQUEST with descriptive message
+      expect(data.error_code).toBe('INVALID_REQUEST');
+      expect(data.message).toContain('machine');
     });
   });
 

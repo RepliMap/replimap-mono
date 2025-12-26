@@ -7,6 +7,7 @@ import type { Env } from '../types/env';
 import { Errors, AppError } from '../lib/errors';
 import { generateLicenseKey, validateLicenseKey, normalizeLicenseKey } from '../lib/license';
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
+import { verifyAdminApiKey as verifyApiKey } from '../lib/security';
 import {
   findOrCreateUser,
   createLicense,
@@ -19,43 +20,11 @@ import {
 // ============================================================================
 
 /**
- * Verify admin API key from X-API-Key header
- * Uses constant-time comparison to prevent timing attacks
+ * Verify admin API key from X-API-Key header.
+ * Uses shared security utility with constant-time comparison.
  */
 export function verifyAdminApiKey(request: Request, env: Env): void {
-  const adminKey = env.ADMIN_API_KEY;
-
-  if (!adminKey) {
-    throw new AppError(
-      'INTERNAL_ERROR',
-      'Admin API is not configured. Set ADMIN_API_KEY secret.',
-      503
-    );
-  }
-
-  const providedKey = request.headers.get('X-API-Key');
-
-  if (!providedKey) {
-    throw new AppError(
-      'INVALID_REQUEST',
-      'Missing X-API-Key header',
-      401
-    );
-  }
-
-  // Constant-time comparison
-  if (providedKey.length !== adminKey.length) {
-    throw new AppError('INVALID_REQUEST', 'Invalid API key', 403);
-  }
-
-  let result = 0;
-  for (let i = 0; i < providedKey.length; i++) {
-    result |= providedKey.charCodeAt(i) ^ adminKey.charCodeAt(i);
-  }
-
-  if (result !== 0) {
-    throw new AppError('INVALID_REQUEST', 'Invalid API key', 403);
-  }
+  verifyApiKey(request, env.ADMIN_API_KEY);
 }
 
 // ============================================================================

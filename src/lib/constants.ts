@@ -75,6 +75,16 @@ export const RATE_LIMITS = {
     requests: 10,
     window: 60,
   },
+  // Admin endpoints: stricter limits to prevent brute-force attacks
+  admin: {
+    requests: 10,
+    window: 60,
+  },
+  // Metrics endpoints: moderate limits for analytics access
+  metrics: {
+    requests: 30,
+    window: 60,
+  },
 } as const;
 
 // ============================================================================
