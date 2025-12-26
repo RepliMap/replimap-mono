@@ -1224,7 +1224,8 @@ def load(
     table.add_column("ID")
     table.add_column("Dependencies", justify="right")
 
-    for resource in graph.topological_sort()[:20]:
+    # Use safe dependency order to handle cycles (e.g., mutual SG references)
+    for resource in graph.get_safe_dependency_order()[:20]:
         deps = graph.get_dependencies(resource.id)
         table.add_row(
             str(resource.resource_type),

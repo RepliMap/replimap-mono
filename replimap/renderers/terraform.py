@@ -156,7 +156,8 @@ class TerraformRenderer:
         # Group resources by output file
         file_contents: dict[str, list[str]] = {}
 
-        for resource in graph.topological_sort():
+        # Use safe dependency order to handle cycles (e.g., mutual SG references)
+        for resource in graph.get_safe_dependency_order():
             template_name = self.TEMPLATE_MAPPING.get(resource.resource_type)
             output_file = self.FILE_MAPPING.get(resource.resource_type)
 
