@@ -108,7 +108,8 @@ resource "aws_security_group_rule" "{{ resource.terraform_name }}_ingress_{{ rul
 {% if sg_resource and sg_resource.terraform_name %}
   source_security_group_id = aws_security_group.{{ sg_resource.terraform_name }}.id
 {% else %}
-  source_security_group_id = "{{ sg.security_group_id }}"
+  # CROSS-ACCOUNT: Define var.unmapped_sg_{{ sg.security_group_id | replace("-", "_") }}
+  source_security_group_id = var.unmapped_sg_{{ sg.security_group_id | replace("-", "_") }}
 {% endif %}
 {% endif %}
   description              = "Ingress from {{ sg.security_group_id }}"
@@ -135,7 +136,8 @@ resource "aws_security_group_rule" "{{ resource.terraform_name }}_egress_{{ rule
 {% if sg_resource and sg_resource.terraform_name %}
   source_security_group_id = aws_security_group.{{ sg_resource.terraform_name }}.id
 {% else %}
-  source_security_group_id = "{{ sg.security_group_id }}"
+  # CROSS-ACCOUNT: Define var.unmapped_sg_{{ sg.security_group_id | replace("-", "_") }}
+  source_security_group_id = var.unmapped_sg_{{ sg.security_group_id | replace("-", "_") }}
 {% endif %}
 {% endif %}
   description              = "Egress to {{ sg.security_group_id }}"

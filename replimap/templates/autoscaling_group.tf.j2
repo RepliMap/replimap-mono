@@ -15,7 +15,8 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
 {% if lt_resource and lt_resource.terraform_name %}
     id      = aws_launch_template.{{ lt_resource.terraform_name }}.id
 {% else %}
-    id      = "{{ resource.config.launch_template.id }}"
+    # CROSS-ACCOUNT: Define var.unmapped_lt_{{ resource.config.launch_template.id | replace("-", "_") }}
+    id      = var.unmapped_lt_{{ resource.config.launch_template.id | replace("-", "_") }}
 {% endif %}
 {% endif %}
     version = "$Latest"
@@ -33,7 +34,8 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
 {% if subnet_resource and subnet_resource.terraform_name %}
     aws_subnet.{{ subnet_resource.terraform_name }}.id,
 {% else %}
-    "{{ subnet_id }}",
+    # CROSS-ACCOUNT: Define var.unmapped_subnet_{{ subnet_id | replace("-", "_") }}
+    var.unmapped_subnet_{{ subnet_id | replace("-", "_") }},
 {% endif %}
 {% endif %}
 {% endif %}

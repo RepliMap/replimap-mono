@@ -90,8 +90,8 @@ resource "aws_network_acl" "{{ resource.terraform_name }}" {
 {% if vpc_resource and vpc_resource.terraform_name %}
   vpc_id = aws_vpc.{{ vpc_resource.terraform_name }}.id
 {% else %}
-  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph - using original ID
-  vpc_id = "{{ resource.config.vpc_id }}"
+  # CROSS-ACCOUNT: VPC not in graph - define var.unmapped_vpc_{{ resource.config.vpc_id | replace("-", "_") }}
+  vpc_id = var.unmapped_vpc_{{ resource.config.vpc_id | replace("-", "_") }}
 {% endif %}
 {% endif %}
 
@@ -102,7 +102,8 @@ resource "aws_network_acl" "{{ resource.terraform_name }}" {
 {% if subnet_resource and subnet_resource.terraform_name %}
     aws_subnet.{{ subnet_resource.terraform_name }}.id,
 {% else %}
-    "{{ subnet_id }}",
+    # CROSS-ACCOUNT: Define var.unmapped_subnet_{{ subnet_id | replace("-", "_") }}
+    var.unmapped_subnet_{{ subnet_id | replace("-", "_") }},
 {% endif %}
 {% endfor %}
   ]

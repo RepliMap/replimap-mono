@@ -7,8 +7,8 @@ resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
 {% if vpc_resource and vpc_resource.terraform_name %}
   vpc_id            = aws_vpc.{{ vpc_resource.terraform_name }}.id
 {% else %}
-  # WARNING: VPC {{ resource.config.vpc_id }} not found in graph - using original ID
-  vpc_id            = "{{ resource.config.vpc_id }}"
+  # CROSS-ACCOUNT: VPC not in graph - define var.unmapped_vpc_{{ resource.config.vpc_id | replace("-", "_") }}
+  vpc_id            = var.unmapped_vpc_{{ resource.config.vpc_id | replace("-", "_") }}
 {% endif %}
 {% endif %}
   service_name      = "{{ resource.config.service_name }}"
@@ -24,7 +24,8 @@ resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
 {% if subnet_resource and subnet_resource.terraform_name %}
     aws_subnet.{{ subnet_resource.terraform_name }}.id,
 {% else %}
-    "{{ subnet_id }}",
+    # CROSS-ACCOUNT: Define var.unmapped_subnet_{{ subnet_id | replace("-", "_") }}
+    var.unmapped_subnet_{{ subnet_id | replace("-", "_") }},
 {% endif %}
 {% endif %}
 {% endfor %}
@@ -39,7 +40,8 @@ resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
 {% if sg_resource and sg_resource.terraform_name %}
     aws_security_group.{{ sg_resource.terraform_name }}.id,
 {% else %}
-    "{{ sg_id }}",
+    # CROSS-ACCOUNT: Define var.unmapped_sg_{{ sg_id | replace("-", "_") }}
+    var.unmapped_sg_{{ sg_id | replace("-", "_") }},
 {% endif %}
 {% endif %}
 {% endfor %}
@@ -56,7 +58,8 @@ resource "aws_vpc_endpoint" "{{ resource.terraform_name }}" {
 {% if rt_resource and rt_resource.terraform_name %}
     aws_route_table.{{ rt_resource.terraform_name }}.id,
 {% else %}
-    "{{ rt_id }}",
+    # CROSS-ACCOUNT: Define var.unmapped_rt_{{ rt_id | replace("-", "_") }}
+    var.unmapped_rt_{{ rt_id | replace("-", "_") }},
 {% endif %}
 {% endif %}
 {% endfor %}

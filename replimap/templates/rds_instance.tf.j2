@@ -63,7 +63,8 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% if sg_resource and sg_resource.terraform_name %}
     aws_security_group.{{ sg_resource.terraform_name }}.id,
 {% else %}
-    "{{ sg_id }}",
+    # CROSS-ACCOUNT: Define var.unmapped_sg_{{ sg_id | replace("-", "_") }}
+    var.unmapped_sg_{{ sg_id | replace("-", "_") }},
 {% endif %}
 {% endif %}
 {% endfor %}

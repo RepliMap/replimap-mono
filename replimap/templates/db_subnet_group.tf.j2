@@ -12,7 +12,8 @@ resource "aws_db_subnet_group" "{{ resource.terraform_name }}" {
 {% if subnet_resource and subnet_resource.terraform_name %}
     aws_subnet.{{ subnet_resource.terraform_name }}.id,
 {% else %}
-    "{{ subnet_id }}",
+    # CROSS-ACCOUNT: Define var.unmapped_subnet_{{ subnet_id | replace("-", "_") }}
+    var.unmapped_subnet_{{ subnet_id | replace("-", "_") }},
 {% endif %}
 {% endif %}
 {% endfor %}
