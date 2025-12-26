@@ -22,9 +22,9 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   engine_version = "{{ resource.config.engine_version }}"
 
   # Instance configuration - uses variables for Right-Sizer compatibility
-  instance_class        = var.aws_db_instance_{{ resource.terraform_name }}_instance_class
-  allocated_storage     = var.aws_db_instance_{{ resource.terraform_name }}_allocated_storage
-  storage_type          = var.aws_db_instance_{{ resource.terraform_name }}_storage_type
+  instance_class        = var.{{ variable_names.instance_class }}
+  allocated_storage     = var.{{ variable_names.allocated_storage }}
+  storage_type          = var.{{ variable_names.storage_type }}
   storage_encrypted     = {{ resource.config.storage_encrypted | d(false) | lower }}
 {% if resource.config.kms_key_id %}
   # NOTE: KMS key must be accessible in target account/region
@@ -37,7 +37,7 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% endif %}
   username = "{{ resource.config.master_username | d('admin') }}"
   # IMPORTANT: Set password via variable or secrets manager
-  password = var.db_password_{{ resource.terraform_name }}
+  password = var.db_password_{{ resource.terraform_name | sanitize }}
   port     = {{ resource.config.port | d(default_port) }}
 
   # Network configuration
@@ -72,7 +72,7 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
   publicly_accessible = {{ resource.config.publicly_accessible | d(false) | lower }}
 
   # High availability - uses variable for Right-Sizer compatibility
-  multi_az = var.aws_db_instance_{{ resource.terraform_name }}_multi_az
+  multi_az = var.{{ variable_names.multi_az }}
 {% if resource.config.availability_zone and not resource.config.multi_az %}
   availability_zone = "{{ resource.config.availability_zone }}"
 {% endif %}
@@ -89,7 +89,7 @@ resource "aws_db_instance" "{{ resource.terraform_name }}" {
 {% if resource.config.snapshot_identifier %}
   # NOTE: Optionally restore from a snapshot. Leave empty to create fresh DB.
   # Original snapshot: {{ resource.config.snapshot_identifier }}
-  snapshot_identifier = var.db_snapshot_{{ resource.terraform_name }} != "" ? var.db_snapshot_{{ resource.terraform_name }} : null
+  snapshot_identifier = var.db_snapshot_{{ resource.terraform_name | sanitize }} != "" ? var.db_snapshot_{{ resource.terraform_name | sanitize }} : null
 {% endif %}
 
   # Other settings
