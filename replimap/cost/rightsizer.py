@@ -166,7 +166,7 @@ class RightSizerClient:
 
     def _get_license_key(self) -> str | None:
         """Get the current license key."""
-        license_info = self.manager.get_current_license()
+        license_info = self.manager.current_license  # Property, not method
         return license_info.license_key if license_info else None
 
     def extract_resources(
