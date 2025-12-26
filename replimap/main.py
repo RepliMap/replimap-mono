@@ -1091,7 +1091,7 @@ def clone(
                         rightsizer = RightSizerClient()
 
                         # Extract resource metadata from graph
-                        all_resources = list(graph.resources.values())
+                        all_resources = graph.get_all_resources()
                         summaries = rightsizer.extract_resources(
                             all_resources, effective_region
                         )
