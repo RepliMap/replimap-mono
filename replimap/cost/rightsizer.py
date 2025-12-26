@@ -159,7 +159,7 @@ class RightSizerClient:
         "aws_db_instance",
         "aws_elasticache_cluster",
         "aws_elasticache_replication_group",
-        "aws_launch_template",
+        # Note: aws_launch_template is NOT supported by the backend API
     }
 
     def __init__(self) -> None:
