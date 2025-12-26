@@ -996,6 +996,23 @@ def clone(
 
     # Apply transformations
     console.print()
+
+    # Determine if Right-Sizer will handle optimization
+    # If Right-Sizer is active, skip legacy DownsizeTransformer to prevent conflict
+    # (DownsizeTransformer would downsize resources, then Right-Sizer would see
+    # already-downsized resources and have nothing to optimize)
+    effective_downsize = downsize
+    if dev_mode and output_format == "terraform":
+        from replimap.licensing.gates import check_right_sizer_allowed
+
+        rightsizer_result = check_right_sizer_allowed()
+        if rightsizer_result.allowed:
+            # Right-Sizer will handle optimization - skip DownsizeTransformer
+            effective_downsize = False
+            console.print(
+                "[dim]ℹ️  DownsizeTransformer skipped (Right-Sizer will handle optimization)[/dim]"
+            )
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -1003,7 +1020,7 @@ def clone(
     ) as progress:
         task = progress.add_task("Applying transformations...", total=None)
         pipeline = create_default_pipeline(
-            downsize=downsize,
+            downsize=effective_downsize,
             rename_pattern=rename_pattern,
             sanitize=True,
         )
