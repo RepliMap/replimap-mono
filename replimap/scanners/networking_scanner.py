@@ -51,20 +51,31 @@ class NetworkingScanner(BaseScanner):
     ]
 
     def scan(self, graph: GraphEngine) -> None:
-        """Scan all networking resources and add to graph."""
+        """Scan all networking resources and add to graph.
+
+        Each resource type is scanned independently with its own error handling.
+        This ensures partial success - if one resource type fails (e.g., due to
+        IAM permissions), others will still be scanned.
+        """
         logger.info(f"Scanning networking resources in {self.region}...")
 
-        try:
-            ec2 = self.get_client("ec2")
+        ec2 = self.get_client("ec2")
 
-            # Scan in dependency order
-            self._scan_internet_gateways(ec2, graph)
-            self._scan_nat_gateways(ec2, graph)
-            self._scan_route_tables(ec2, graph)
-            self._scan_vpc_endpoints(ec2, graph)
+        # Define scan steps - each wrapped independently for resilience
+        scan_steps = [
+            (self._scan_internet_gateways, "Internet Gateways"),
+            (self._scan_nat_gateways, "NAT Gateways"),
+            (self._scan_route_tables, "Route Tables"),
+            (self._scan_vpc_endpoints, "VPC Endpoints"),
+        ]
 
-        except ClientError as e:
-            self._handle_aws_error(e, "Networking scanning")
+        for scan_func, resource_name in scan_steps:
+            try:
+                scan_func(ec2, graph)
+            except ClientError as e:
+                # Log error but continue to next resource type
+                self._handle_aws_error(e, resource_name)
+                logger.warning(f"Continuing scan despite {resource_name} failure")
 
     def _scan_internet_gateways(self, ec2: Any, graph: GraphEngine) -> None:
         """Scan all Internet Gateways in the region."""
