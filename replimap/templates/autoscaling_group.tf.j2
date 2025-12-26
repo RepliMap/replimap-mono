@@ -110,7 +110,7 @@ resource "aws_autoscaling_group" "{{ resource.terraform_name }}" {
     value               = "{{ resource.id }}"
     propagate_at_launch = true
   }
-{% for key, value in resource.tags.items() if key != 'Name' %}
+{% for key, value in resource.tags.items() if key != 'Name' and not key.startswith('aws:') %}
 
   tag {
     key                 = {{ key | quote }}

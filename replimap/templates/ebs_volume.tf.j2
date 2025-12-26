@@ -42,7 +42,7 @@ resource "aws_ebs_volume" "{{ resource.terraform_name }}" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "{{ resource.id }}"
-{% for key, value in resource.tags.items() if key != 'Name' %}
+{% for key, value in resource.tags.items() if key != 'Name' and not key.startswith('aws:') %}
     {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
   }
