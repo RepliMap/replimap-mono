@@ -217,7 +217,7 @@ class CircuitBreakerRegistry:
     Registry for circuit breakers by region/service.
 
     Allows shared circuit breaker state across scanners for the same
-    region or service.
+    region or service. Thread-safe for concurrent scanner access.
     """
 
     def __init__(
@@ -232,13 +232,17 @@ class CircuitBreakerRegistry:
             failure_threshold: Default failure threshold for new circuits
             recovery_timeout: Default recovery timeout for new circuits
         """
+        self._lock = threading.Lock()
         self._circuits: dict[str, CircuitBreaker] = {}
         self._failure_threshold = failure_threshold
         self._recovery_timeout = recovery_timeout
 
     def get(self, key: str) -> CircuitBreaker:
         """
-        Get or create a circuit breaker for a key.
+        Get or create a circuit breaker for a key. Thread-safe.
+
+        Uses double-checked locking for performance: fast path without
+        lock when circuit already exists.
 
         Args:
             key: Identifier like "us-east-1" or "us-east-1/ec2"
@@ -246,13 +250,20 @@ class CircuitBreakerRegistry:
         Returns:
             CircuitBreaker instance for this key
         """
-        if key not in self._circuits:
-            self._circuits[key] = CircuitBreaker(
-                failure_threshold=self._failure_threshold,
-                recovery_timeout=self._recovery_timeout,
-                key=key,
-            )
-        return self._circuits[key]
+        # Fast path: circuit already exists (no lock needed for read)
+        if key in self._circuits:
+            return self._circuits[key]
+
+        # Slow path: need to create circuit (requires lock)
+        with self._lock:
+            # Double-check after acquiring lock
+            if key not in self._circuits:
+                self._circuits[key] = CircuitBreaker(
+                    failure_threshold=self._failure_threshold,
+                    recovery_timeout=self._recovery_timeout,
+                    key=key,
+                )
+            return self._circuits[key]
 
     def get_for_region_service(self, region: str, service: str) -> CircuitBreaker:
         """

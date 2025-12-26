@@ -6,8 +6,8 @@ resource "aws_db_parameter_group" "{{ resource.terraform_name }}" {
 
 {% for param in resource.config.parameters %}
   parameter {
-    name         = "{{ param.name }}"
-    value        = "{{ param.value }}"
+    name         = {{ param.name | quote }}
+    value        = {{ param.value | quote }}
 {# Map AWS API apply_type to Terraform apply_method: dynamic->immediate, static->pending-reboot #}
 {% set apply_type = param.apply_type | default('static') | lower %}
 {% if apply_type == 'dynamic' %}

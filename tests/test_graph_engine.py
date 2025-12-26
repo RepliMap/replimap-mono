@@ -328,9 +328,12 @@ class TestGraphEngine:
 
         # Sensitive fields should be redacted
         assert stored_node.config["UserData"] == "[REDACTED]"
-        assert stored_node.config["password"] == "[REDACTED]"
+        assert stored_node.config["password"] == "[REDACTED]"  # noqa: S105
         # Environment.Variables should have keys preserved but values redacted
-        assert stored_node.config["environment"]["Variables"]["DB_PASSWORD"] == "[REDACTED]"
+        assert (
+            stored_node.config["environment"]["Variables"]["DB_PASSWORD"]
+            == "[REDACTED]"  # noqa: S105
+        )
         assert stored_node.config["environment"]["Variables"]["API_KEY"] == "[REDACTED]"
 
     def test_add_resource_empty_config_no_sanitization(self) -> None:
@@ -349,3 +352,47 @@ class TestGraphEngine:
         stored_node = graph.get_resource("vpc-12345")
         assert stored_node is not None
         assert stored_node.config == {}
+
+    def test_save_handles_datetime_in_config(self) -> None:
+        """Test that save() handles datetime objects without crashing.
+
+        Boto3 responses can contain datetime objects (e.g., CreateTime).
+        The custom JSON encoder should convert these to ISO format strings.
+        """
+        import tempfile
+        from datetime import datetime
+        from pathlib import Path
+
+        graph = GraphEngine()
+
+        # Config with datetime (simulating Boto3 response)
+        node = ResourceNode(
+            id="lt-12345",
+            resource_type=ResourceType.LAUNCH_TEMPLATE,
+            region="us-east-1",
+            config={
+                "name": "test-template",
+                "created_at": datetime(2024, 1, 15, 10, 30, 0),
+                "nested": {"timestamp": datetime.now()},
+            },
+        )
+
+        graph.add_resource(node)
+
+        # Should not raise TypeError
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            path = Path(f.name)
+
+        try:
+            graph.save(path)
+
+            # Verify file is valid JSON
+            import json
+
+            with open(path) as f:
+                data = json.load(f)
+
+            assert "nodes" in data
+            assert len(data["nodes"]) == 1
+        finally:
+            path.unlink()
