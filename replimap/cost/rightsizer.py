@@ -302,7 +302,9 @@ class RightSizerClient:
         # Process all batches
         results: list[RightSizerResult] = []
         for i, batch in enumerate(batches):
-            logger.debug(f"Processing batch {i + 1}/{len(batches)} ({len(batch)} resources)")
+            logger.debug(
+                f"Processing batch {i + 1}/{len(batches)} ({len(batch)} resources)"
+            )
             result = await self._get_suggestions_single(batch, strategy, license_key)
 
             if not result.success:
@@ -404,7 +406,9 @@ class RightSizerClient:
                     # Bad request - try to extract error details
                     try:
                         data = response.json()
-                        error_msg = data.get("error", data.get("message", "Invalid request"))
+                        error_msg = data.get(
+                            "error", data.get("message", "Invalid request")
+                        )
                         return self._error_result(f"API validation error: {error_msg}")
                     except (json.JSONDecodeError, KeyError):
                         return self._error_result("API error: Invalid request format")
@@ -413,10 +417,14 @@ class RightSizerClient:
                     # Try to extract error message from response
                     try:
                         data = response.json()
-                        error_msg = data.get("error", data.get("message", f"HTTP {response.status_code}"))
+                        error_msg = data.get(
+                            "error", data.get("message", f"HTTP {response.status_code}")
+                        )
                         return self._error_result(f"API error: {error_msg}")
                     except (json.JSONDecodeError, KeyError):
-                        return self._error_result(f"API error: HTTP {response.status_code}")
+                        return self._error_result(
+                            f"API error: HTTP {response.status_code}"
+                        )
 
                 data = response.json()
                 return self._parse_response(data)
