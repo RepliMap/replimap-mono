@@ -182,8 +182,8 @@ class RightSizerClient:
         summaries = []
 
         for resource in scanned_resources:
-            # Get resource type
-            resource_type = getattr(resource, "type", None)
+            # Get resource type (ResourceNode uses 'resource_type', not 'type')
+            resource_type = getattr(resource, "resource_type", None)
             if resource_type:
                 resource_type = (
                     resource_type.value
