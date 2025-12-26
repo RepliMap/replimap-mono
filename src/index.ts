@@ -300,23 +300,51 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // ========================================================================
     // Admin Endpoints (rate limited to prevent brute-force attacks)
     // ========================================================================
+    // DEFENSE IN DEPTH: Router-level admin protection
+    // Even if a developer forgets to add auth in a new admin handler,
+    // this guard ensures all /v1/admin/* routes require authentication.
+    // ========================================================================
+    if (!response && path.startsWith('/v1/admin')) {
+      // Apply rate limiting first (before auth check to prevent timing attacks)
+      await rateLimit(env.CACHE, 'admin', clientIP);
+
+      // Verify admin API key at router level
+      const adminKey = request.headers.get('X-API-Key');
+      if (!env.ADMIN_API_KEY || env.ADMIN_API_KEY.length < 16) {
+        console.error('[ADMIN] ADMIN_API_KEY not configured or too short');
+        response = new Response(JSON.stringify({
+          error: 'SERVER_CONFIG_ERROR',
+          message: 'Admin API is not properly configured',
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      } else if (!adminKey) {
+        console.warn(`[ADMIN] Missing API key from ${clientIP}`);
+        response = new Response(JSON.stringify({
+          error: 'UNAUTHORIZED',
+          message: 'X-API-Key header required for admin endpoints',
+        }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+      // Note: Individual handlers still verify the key value for defense in depth
+    }
+
     if (!response && path === '/v1/admin/stats' && method === 'GET') {
       // "God Mode" endpoint - operational visibility
-      await rateLimit(env.CACHE, 'admin', clientIP);
       response = await handleGetStats(request, env);
     } else if (!response && path === '/v1/admin/licenses' && method === 'POST') {
-      await rateLimit(env.CACHE, 'admin', clientIP);
       response = await handleCreateLicense(request, env);
     } else if (!response && method === 'GET') {
       const adminLicenseKey = matchPathParam(path, '/v1/admin/licenses/{key}');
       if (adminLicenseKey) {
-        await rateLimit(env.CACHE, 'admin', clientIP);
         response = await handleGetLicense(request, env, adminLicenseKey);
       }
     } else if (!response && method === 'POST') {
       const revokeKey = matchPathParam(path, '/v1/admin/licenses/{key}/revoke');
       if (revokeKey) {
-        await rateLimit(env.CACHE, 'admin', clientIP);
         response = await handleRevokeLicense(request, env, revokeKey);
       }
     }
