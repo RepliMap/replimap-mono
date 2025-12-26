@@ -14,6 +14,7 @@ The Seven Laws of Sovereign Code:
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from enum import Enum
@@ -26,6 +27,8 @@ from rich.table import Table
 
 # CRITICAL: Use the SAME naming module as Generator
 from replimap.core.naming import get_variable_name
+
+logger = logging.getLogger(__name__)
 
 # API Configuration
 REPLIMAP_API_BASE = os.environ.get(
@@ -277,6 +280,12 @@ class RightSizerClient:
             "strategy": strategy.value,
         }
 
+        # Debug: Log sample of resources being sent
+        logger.debug(
+            f"Sending {len(resources)} resources to Right-Sizer API. "
+            f"Sample: {request_body['resources'][:2] if request_body['resources'] else 'empty'}"
+        )
+
         try:
             async with httpx.AsyncClient(timeout=API_TIMEOUT) as client:
                 response = await client.post(
@@ -302,8 +311,23 @@ class RightSizerClient:
                         "Rate limit exceeded. Please try again later."
                     )
 
+                if response.status_code == 400:
+                    # Bad request - try to extract error details
+                    try:
+                        data = response.json()
+                        error_msg = data.get("error", data.get("message", "Invalid request"))
+                        return self._error_result(f"API validation error: {error_msg}")
+                    except (json.JSONDecodeError, KeyError):
+                        return self._error_result("API error: Invalid request format")
+
                 if response.status_code != 200:
-                    return self._error_result(f"API error: HTTP {response.status_code}")
+                    # Try to extract error message from response
+                    try:
+                        data = response.json()
+                        error_msg = data.get("error", data.get("message", f"HTTP {response.status_code}"))
+                        return self._error_result(f"API error: {error_msg}")
+                    except (json.JSONDecodeError, KeyError):
+                        return self._error_result(f"API error: HTTP {response.status_code}")
 
                 data = response.json()
                 return self._parse_response(data)
