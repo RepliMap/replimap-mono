@@ -8,10 +8,11 @@
 resource "aws_s3_bucket" "{{ resource.terraform_name }}" {
   bucket = "{{ bucket_name }}-${var.environment}"
 {% else %}
-# WARNING: Original bucket name too long to append environment suffix (would exceed 63 chars)
-# Using original name. Ensure this doesn't conflict with production bucket.
+# CROSS-ACCOUNT: Bucket name too long for auto-suffix - define var.bucket_name_{{ resource.terraform_name }}
+# Original bucket: {{ bucket_name }} ({{ bucket_name | length }} chars, max 63)
+# Suggested: Truncate or use a shorter unique name for the target environment
 resource "aws_s3_bucket" "{{ resource.terraform_name }}" {
-  bucket = "{{ bucket_name }}"
+  bucket = var.bucket_name_{{ resource.terraform_name }}
 {% endif %}
 
   tags = {
@@ -19,7 +20,7 @@ resource "aws_s3_bucket" "{{ resource.terraform_name }}" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "{{ resource.id }}"
-{% for key, value in resource.tags.items() if key != 'Name' %}
+{% for key, value in resource.tags.items() if key != 'Name' and not key.startswith('aws:') %}
     {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
   }

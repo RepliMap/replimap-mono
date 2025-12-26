@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Network ACL (NACL) Support** - Complete scanning and template generation
+  - `NETWORK_ACL` added to ResourceType enum
+  - `NetworkingScanner._scan_network_acls()` method with ingress/egress rule processing
+  - `network_acl.tf.j2` template supporting both default and custom NACLs
+  - Uses `aws_default_network_acl` for VPC defaults, `aws_network_acl` for custom
+
 - **Right-Sizer CLI Integration** - Automatic resource optimization for dev/staging
   - `replimap clone --dev-mode` flag for cost-optimized cloning
   - Generates `right-sizer.auto.tfvars` with instance size overrides
@@ -184,6 +190,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RDS password variables now have default placeholder for `terraform plan` to succeed
 
 ### Fixed
+- **Cross-Account Variable Fallback Pattern** - Templates now use variables instead of hardcoded IDs for missing dependencies
+  - 14 templates updated to use `var.unmapped_*` pattern instead of source account IDs
+  - Affected templates: ec2_instance, autoscaling_group, db_subnet_group, elasticache_cluster, elasticache_subnet_group, launch_template, lb, nat_gateway, network_acl, rds_instance, security_group, vpc_endpoint
+  - Turns "ResourceNotFound" runtime errors into "Undeclared variable" config errors (fail-fast)
+- **ASG Target Group Ghost Configuration** - Missing target groups now use variable fallback instead of being commented out
+  - Prevents silent failures where ASG launches but receives no traffic
+  - Uses `var.unmapped_tg_*` for user mapping
+- **S3 Long Bucket Name Collision** - Buckets > 53 chars now use `var.bucket_name_*` instead of original name
+  - Prevents global namespace collision when environment suffix can't be appended
+- **AWS System Tag Poisoning** - All 21 templates now filter `aws:*` prefix tags
+  - Prevents `terraform apply` rejection by AWS API for reserved tag prefixes
+- **UserData Base64 Sanitization** - Redacted UserData now returns valid Base64 instead of `[REDACTED]` string
+  - Prevents EC2 cloud-init encoding errors on launch
+- **Main Route Table Handling** - Uses `aws_default_route_table` for VPC main route tables
+  - Prevents "route table already exists" errors
+- **Secondary VPC CIDR Support** - Generates `aws_vpc_ipv4_cidr_block_association` for secondary CIDRs
+  - Clones complete VPC network configuration
+- **Terraform 1.5+ Import Blocks** - Generates `imports.tf` with native import blocks
+  - Modern alternative to legacy bash import scripts
+  - Remediation generator now outputs proper Terraform 1.5+ format
 - **Terraform variable naming consistency**: Variable names now consistently use underscores (e.g., `lt_083_abc` not `lt-083-abc`) across templates and variables.tf - fixes "Reference to undeclared input variable" errors during `terraform plan`
 - **Right-Sizer API error handling**: Improved error messages with actual API response content for debugging
 - **Right-Sizer resource extraction**: Fixed `resource_type` attribute access (was incorrectly using `type`)

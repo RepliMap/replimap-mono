@@ -41,6 +41,7 @@ class NetworkingScanner(BaseScanner):
         "aws_internet_gateway",
         "aws_nat_gateway",
         "aws_vpc_endpoint",
+        "aws_network_acl",
     ]
 
     # These resources reference VPCs and subnets for dependency edges
@@ -67,6 +68,7 @@ class NetworkingScanner(BaseScanner):
             (self._scan_nat_gateways, "NAT Gateways"),
             (self._scan_route_tables, "Route Tables"),
             (self._scan_vpc_endpoints, "VPC Endpoints"),
+            (self._scan_network_acls, "Network ACLs"),
         ]
 
         for scan_func, resource_name in scan_steps:
@@ -191,6 +193,11 @@ class NetworkingScanner(BaseScanner):
                     # Remove None values
                     routes.append({k: v for k, v in route_config.items() if v})
 
+                # Detect if this is the VPC's main route table
+                is_main_route_table = any(
+                    assoc.get("Main", False) for assoc in rt.get("Associations", [])
+                )
+
                 # Process associations
                 associations = []
                 for assoc in rt.get("Associations", []):
@@ -211,6 +218,7 @@ class NetworkingScanner(BaseScanner):
                         "vpc_id": vpc_id,
                         "routes": routes,
                         "associations": associations,
+                        "is_main": is_main_route_table,
                         "propagating_vgws": [
                             vgw["GatewayId"] for vgw in rt.get("PropagatingVgws", [])
                         ],
@@ -288,3 +296,78 @@ class NetworkingScanner(BaseScanner):
                         graph.add_dependency(endpoint_id, sg_id, DependencyType.USES)
 
                 logger.debug(f"Added VPC Endpoint: {endpoint_id}")
+
+    def _scan_network_acls(self, ec2: Any, graph: GraphEngine) -> None:
+        """Scan all Network ACLs in the region."""
+        logger.debug("Scanning Network ACLs...")
+
+        paginator = ec2.get_paginator("describe_network_acls")
+        for page in paginator.paginate():
+            for nacl in page.get("NetworkAcls", []):
+                nacl_id = nacl["NetworkAclId"]
+                vpc_id = nacl.get("VpcId")
+                tags = self._extract_tags(nacl.get("Tags"))
+                is_default = nacl.get("IsDefault", False)
+
+                # Process ingress rules (Egress=False)
+                ingress_rules = []
+                egress_rules = []
+                for entry in nacl.get("Entries", []):
+                    rule = {
+                        "rule_number": entry.get("RuleNumber"),
+                        "protocol": entry.get("Protocol"),
+                        "rule_action": entry.get("RuleAction"),
+                        "cidr_block": entry.get("CidrBlock"),
+                        "ipv6_cidr_block": entry.get("Ipv6CidrBlock"),
+                        "from_port": entry.get("PortRange", {}).get("From"),
+                        "to_port": entry.get("PortRange", {}).get("To"),
+                        "icmp_type": entry.get("IcmpTypeCode", {}).get("Type"),
+                        "icmp_code": entry.get("IcmpTypeCode", {}).get("Code"),
+                    }
+                    # Remove None values
+                    rule = {k: v for k, v in rule.items() if v is not None}
+
+                    if entry.get("Egress"):
+                        egress_rules.append(rule)
+                    else:
+                        ingress_rules.append(rule)
+
+                # Get subnet associations
+                subnet_ids = [
+                    assoc["SubnetId"]
+                    for assoc in nacl.get("Associations", [])
+                    if assoc.get("SubnetId")
+                ]
+
+                node = ResourceNode(
+                    id=nacl_id,
+                    resource_type=ResourceType.NETWORK_ACL,
+                    region=self.region,
+                    config={
+                        "vpc_id": vpc_id,
+                        "is_default": is_default,
+                        "ingress": ingress_rules,
+                        "egress": egress_rules,
+                        "subnet_ids": subnet_ids,
+                    },
+                    arn=f"arn:aws:ec2:{self.region}:{nacl.get('OwnerId', '')}:network-acl/{nacl_id}",
+                    tags=tags,
+                )
+
+                graph.add_resource(node)
+
+                # Establish dependency: NACL -> VPC
+                if vpc_id and graph.get_resource(vpc_id):
+                    graph.add_dependency(nacl_id, vpc_id, DependencyType.BELONGS_TO)
+
+                # Add dependencies on subnets
+                for subnet_id in subnet_ids:
+                    if graph.get_resource(subnet_id):
+                        graph.add_dependency(
+                            nacl_id, subnet_id, DependencyType.REFERENCES
+                        )
+
+                logger.debug(
+                    f"Added Network ACL: {nacl_id} "
+                    f"({'default' if is_default else 'custom'})"
+                )

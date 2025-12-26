@@ -27,7 +27,8 @@ resource "aws_launch_template" "{{ resource.terraform_name }}" {
 {% if sg_resource and sg_resource.terraform_name %}
     aws_security_group.{{ sg_resource.terraform_name }}.id,
 {% else %}
-    "{{ sg_id }}",
+    # CROSS-ACCOUNT: Define var.unmapped_sg_{{ sg_id | replace("-", "_") }}
+    var.unmapped_sg_{{ sg_id | replace("-", "_") }},
 {% endif %}
 {% endif %}
 {% endfor %}
@@ -52,7 +53,8 @@ resource "aws_launch_template" "{{ resource.terraform_name }}" {
 {% if subnet_resource and subnet_resource.terraform_name %}
     subnet_id = aws_subnet.{{ subnet_resource.terraform_name }}.id
 {% else %}
-    subnet_id = "{{ ni.subnet_id }}"
+    # CROSS-ACCOUNT: Define var.unmapped_subnet_{{ ni.subnet_id | replace("-", "_") }}
+    subnet_id = var.unmapped_subnet_{{ ni.subnet_id | replace("-", "_") }}
 {% endif %}
 {% endif %}
 {% endif %}
@@ -66,7 +68,8 @@ resource "aws_launch_template" "{{ resource.terraform_name }}" {
 {% if sg_resource and sg_resource.terraform_name %}
       aws_security_group.{{ sg_resource.terraform_name }}.id,
 {% else %}
-      "{{ sg_id }}",
+      # CROSS-ACCOUNT: Define var.unmapped_sg_{{ sg_id | replace("-", "_") }}
+      var.unmapped_sg_{{ sg_id | replace("-", "_") }},
 {% endif %}
 {% endif %}
 {% endfor %}
@@ -138,7 +141,7 @@ resource "aws_launch_template" "{{ resource.terraform_name }}" {
     Environment = var.environment
     ManagedBy   = "replimap"
     SourceId    = "{{ resource.id }}"
-{% for key, value in resource.tags.items() if key != 'Name' %}
+{% for key, value in resource.tags.items() if key != 'Name' and not key.startswith('aws:') %}
     {{ key | quote_key }} = {{ value | quote }}
 {% endfor %}
   }

@@ -406,8 +406,11 @@ class TestRemediationGenerator:
         plan = generator.generate()
 
         assert plan.remediable_findings == 1
-        assert len(plan.files) == 1
-        assert plan.files[0].remediation_type == RemediationType.S3_ENCRYPTION
+        # 1 remediation file + 1 imports.tf (Terraform 1.5+ import blocks)
+        assert len(plan.files) == 2
+        remediation_files = [f for f in plan.files if f.path.name != "imports.tf"]
+        assert len(remediation_files) == 1
+        assert remediation_files[0].remediation_type == RemediationType.S3_ENCRYPTION
 
     def test_generate_multiple_findings(self):
         """Test generating remediation for multiple findings."""
@@ -421,7 +424,10 @@ class TestRemediationGenerator:
         plan = generator.generate()
 
         assert plan.remediable_findings == 3
-        assert len(plan.files) == 3
+        # 3 remediation files + 1 imports.tf (Terraform 1.5+ import blocks)
+        assert len(plan.files) == 4
+        remediation_files = [f for f in plan.files if f.path.name != "imports.tf"]
+        assert len(remediation_files) == 3
 
     def test_skip_unsupported_check(self):
         """Test that unsupported checks are skipped."""
@@ -447,7 +453,10 @@ class TestRemediationGenerator:
         plan = generator.generate()
 
         assert plan.remediable_findings == 1
-        assert len(plan.files) == 1
+        # 1 remediation file + 1 imports.tf (Terraform 1.5+ import blocks)
+        assert len(plan.files) == 2
+        remediation_files = [f for f in plan.files if f.path.name != "imports.tf"]
+        assert len(remediation_files) == 1
 
     def test_generate_import_script(self):
         """Test import script generation."""
@@ -486,8 +495,11 @@ class TestRemediationGenerator:
         plan = generator.generate()
 
         assert plan.remediable_findings == 2
+        # Filter out the imports.tf file added for Terraform 1.5+ import blocks
+        remediation_files = [f for f in plan.files if f.path.name != "imports.tf"]
         assert all(
-            f.remediation_type == RemediationType.SECURITY_GROUP for f in plan.files
+            f.remediation_type == RemediationType.SECURITY_GROUP
+            for f in remediation_files
         )
 
     def test_kms_findings(self):
@@ -523,9 +535,9 @@ class TestRemediationGeneratorOutput:
             # Check that files were written
             assert len(paths) >= 2
 
-            # Check that TF files exist
+            # Check that TF files exist (2 remediation + 1 imports.tf)
             tf_files = list(output_dir.glob("**/*.tf"))
-            assert len(tf_files) == 2
+            assert len(tf_files) == 3
 
             # Check README exists
             assert (output_dir / "README.md").exists()
