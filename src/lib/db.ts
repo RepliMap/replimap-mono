@@ -632,7 +632,13 @@ export async function recordDailyUsage(
 
 /**
  * Get daily usage count for a specific event type this month.
- * Uses the aggregated usage_daily table for efficient counting.
+ *
+ * HYBRID READ: During the transition from usage_events (log-based) to
+ * usage_daily (aggregation-based), we must read from BOTH tables to avoid
+ * "Billing Amnesia" - losing track of usage recorded before the transition.
+ *
+ * Example: If deployed mid-month, usage_events has pre-deployment usage,
+ * and usage_daily has post-deployment usage. Both must be summed.
  */
 export async function getDailyUsageCount(
   db: D1Database,
@@ -641,15 +647,35 @@ export async function getDailyUsageCount(
 ): Promise<number> {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
   const startDate = startOfMonth.toISOString().split('T')[0];
+  const startDateTime = startOfMonth.toISOString();
 
-  const result = await db.prepare(`
-    SELECT COALESCE(SUM(count), 0) as total
-    FROM usage_daily
-    WHERE license_id = ? AND event_type = ? AND date >= ?
-  `).bind(licenseId, eventType, startDate).first<{ total: number }>();
+  // ─────────────────────────────────────────────────────────────────────────
+  // HYBRID READ: Sum from both legacy (usage_events) and new (usage_daily)
+  // This ensures no usage is lost during the transition period.
+  // ─────────────────────────────────────────────────────────────────────────
+  const [legacyResult, newResult] = await Promise.all([
+    // Legacy: Count individual events from usage_events
+    db.prepare(`
+      SELECT COUNT(*) as count
+      FROM usage_events
+      WHERE license_id = ? AND event_type = ? AND created_at >= ?
+    `).bind(licenseId, eventType, startDateTime).first<{ count: number }>(),
 
-  return result?.total ?? 0;
+    // New: Sum aggregated counts from usage_daily
+    db.prepare(`
+      SELECT COALESCE(SUM(count), 0) as total
+      FROM usage_daily
+      WHERE license_id = ? AND event_type = ? AND date >= ?
+    `).bind(licenseId, eventType, startDate).first<{ total: number }>(),
+  ]);
+
+  const legacyCount = legacyResult?.count ?? 0;
+  const newCount = newResult?.total ?? 0;
+
+  // Return combined usage from both systems
+  return legacyCount + newCount;
 }
 
 // ============================================================================
