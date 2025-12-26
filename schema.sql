@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS license_machines (
 
 CREATE INDEX IF NOT EXISTS idx_machines_license ON license_machines(license_id);
 CREATE INDEX IF NOT EXISTS idx_machines_active ON license_machines(license_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_machines_last_seen ON license_machines(license_id, last_seen_at);
 
 -- Machine change tracking (for monthly limit of 3 changes)
 CREATE TABLE IF NOT EXISTS machine_changes (
