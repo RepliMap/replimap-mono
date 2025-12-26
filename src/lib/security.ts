@@ -419,3 +419,167 @@ export function logError(context: string, error: unknown): void {
 
   console.error(`[ERROR] ${context}:`, JSON.stringify(errorInfo));
 }
+
+// ============================================================================
+// Offline Lease Token (JWT)
+// ============================================================================
+
+/**
+ * Lease token payload for offline validation.
+ * CLI can cache this and verify locally when backend is unreachable.
+ */
+export interface LeasePayload {
+  // License key (truncated for security)
+  key: string;
+  // Plan type
+  plan: string;
+  // Machine ID this lease is valid for
+  mid: string;
+  // Issued at (Unix timestamp)
+  iat: number;
+  // Expiration (Unix timestamp)
+  exp: number;
+}
+
+/**
+ * Default lease duration: 3 days (in seconds)
+ */
+export const LEASE_DURATION_SECONDS = 3 * 24 * 60 * 60;
+
+/**
+ * Create a signed lease token (JWT) for offline validation.
+ *
+ * Format: header.payload.signature (base64url encoded)
+ * Algorithm: HS256 (HMAC-SHA256)
+ */
+export async function createLeaseToken(
+  payload: Omit<LeasePayload, 'iat' | 'exp'>,
+  secret: string,
+  durationSeconds: number = LEASE_DURATION_SECONDS
+): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+
+  const fullPayload: LeasePayload = {
+    ...payload,
+    iat: now,
+    exp: now + durationSeconds,
+  };
+
+  // Header (always HS256)
+  const header = { alg: 'HS256', typ: 'JWT' };
+
+  // Encode header and payload
+  const encodedHeader = base64urlEncode(JSON.stringify(header));
+  const encodedPayload = base64urlEncode(JSON.stringify(fullPayload));
+
+  // Create signature
+  const signatureInput = `${encodedHeader}.${encodedPayload}`;
+  const signature = await hmacSign(signatureInput, secret);
+  const encodedSignature = base64urlEncode(signature);
+
+  return `${encodedHeader}.${encodedPayload}.${encodedSignature}`;
+}
+
+/**
+ * Verify a lease token and return the payload if valid.
+ * Returns null if invalid or expired.
+ */
+export async function verifyLeaseToken(
+  token: string,
+  secret: string
+): Promise<LeasePayload | null> {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const [encodedHeader, encodedPayload, encodedSignature] = parts;
+
+    // Verify signature
+    const signatureInput = `${encodedHeader}.${encodedPayload}`;
+    const expectedSignature = await hmacSign(signatureInput, secret);
+    const expectedEncodedSignature = base64urlEncode(expectedSignature);
+
+    if (!constantTimeEquals(encodedSignature, expectedEncodedSignature)) {
+      return null;
+    }
+
+    // Decode and parse payload
+    const payload: LeasePayload = JSON.parse(base64urlDecode(encodedPayload));
+
+    // Check expiration
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp < now) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================================
+// JWT Helper Functions
+// ============================================================================
+
+/**
+ * Base64URL encode a string (for JWT)
+ */
+function base64urlEncode(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/**
+ * Base64URL decode a string (for JWT)
+ */
+function base64urlDecode(str: string): string {
+  // Add padding if needed
+  let padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (padded.length % 4) {
+    padded += '=';
+  }
+
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+/**
+ * HMAC-SHA256 sign a message, returning raw bytes as string
+ */
+async function hmacSign(message: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    encoder.encode(message)
+  );
+
+  // Convert to string of bytes
+  const bytes = new Uint8Array(signature);
+  let result = '';
+  for (const byte of bytes) {
+    result += String.fromCharCode(byte);
+  }
+  return result;
+}

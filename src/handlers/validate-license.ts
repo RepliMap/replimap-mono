@@ -52,6 +52,7 @@ import {
   checkDeviceAbuse,
   isCIEnvironment,
   CI_DEVICE_LIMITS,
+  createLeaseToken,
 } from '../lib/security';
 
 /**
@@ -177,12 +178,13 @@ export async function handleValidateLicense(
     // Check license status and expiry
     await checkLicenseStatus(env.DB, license);
 
-    // Handle machine binding
+    // Handle machine binding (with throttled last_seen updates)
     await handleMachineBinding(
       env.DB,
       license.license_id,
       machineId,
       license.machine_is_active,
+      license.machine_last_seen,  // Used for throttled updates
       license.active_machines,
       license.monthly_changes,
       features.machines
@@ -212,6 +214,7 @@ export async function handleValidateLicense(
       _warning?: { message: string; upgrade_command: string };
       _device_warning?: string;
       _ci_warning?: string;
+      lease_token?: string;  // Offline validation token
     } = {
       valid: true,
       plan: license.plan,
@@ -266,6 +269,25 @@ export async function handleValidateLicense(
     // Add CI environment warning
     if (ciWarning) {
       response._ci_warning = ciWarning;
+    }
+
+    // Generate offline lease token if LEASE_TOKEN_SECRET is configured
+    // This allows CLI to cache license validity for offline operation
+    if (env.LEASE_TOKEN_SECRET) {
+      try {
+        const leaseToken = await createLeaseToken(
+          {
+            key: licenseKey.slice(0, 15) + '...', // Truncate for security
+            plan: license.plan,
+            mid: machineId.slice(0, 8), // Truncate machine ID
+          },
+          env.LEASE_TOKEN_SECRET
+        );
+        response.lease_token = leaseToken;
+      } catch (err) {
+        // Non-fatal: log and continue without lease token
+        console.error('[LEASE] Failed to create lease token:', err);
+      }
     }
 
     return new Response(JSON.stringify(response), {
@@ -343,21 +365,55 @@ async function checkLicenseStatus(
 }
 
 /**
+ * Throttle interval for last_seen updates (1 hour in milliseconds)
+ * This prevents write amplification on every validation request.
+ */
+const LAST_SEEN_UPDATE_THROTTLE_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Check if we should update last_seen_at based on throttle interval.
+ * Returns true if last_seen is null or older than LAST_SEEN_UPDATE_THROTTLE_MS.
+ */
+function shouldUpdateLastSeen(lastSeen: string | null): boolean {
+  if (!lastSeen) return true;
+
+  try {
+    const lastSeenTime = new Date(lastSeen).getTime();
+    const now = Date.now();
+    return (now - lastSeenTime) > LAST_SEEN_UPDATE_THROTTLE_MS;
+  } catch {
+    // If we can't parse the date, update it
+    return true;
+  }
+}
+
+/**
  * Handle machine binding logic
+ *
+ * Performance Optimization: Uses throttled writes for last_seen_at to prevent
+ * write amplification. Only updates if > 1 hour has passed since last update.
  */
 async function handleMachineBinding(
   db: D1Database,
   licenseId: string,
   machineId: string,
   machineIsActive: number | null,
+  machineLastSeen: string | null,  // Used for throttled updates
   activeMachines: number,
   monthlyChanges: number,
   machineLimit: number
 ): Promise<void> {
   // Case 1: Machine already registered and active
   if (machineIsActive === 1) {
-    // Just update last_seen
-    await updateMachineLastSeen(db, licenseId, machineId);
+    // THROTTLED UPDATE: Only update last_seen if > 1 hour has passed
+    // This prevents write amplification (SQLite single-writer bottleneck)
+    const shouldUpdate = shouldUpdateLastSeen(machineLastSeen);
+    if (shouldUpdate) {
+      // Fire-and-forget update to avoid blocking the response
+      updateMachineLastSeen(db, licenseId, machineId).catch((err) => {
+        console.error('[DB] Failed to update last_seen:', err);
+      });
+    }
     return;
   }
 

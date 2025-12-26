@@ -406,11 +406,86 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 }
 
 // ============================================================================
+// Scheduled Handler (Cron Cleanup)
+// ============================================================================
+
+/**
+ * Scheduled handler for database maintenance.
+ * Runs weekly (configure in wrangler.toml: crons = ["0 0 * * 0"])
+ *
+ * Tasks:
+ * - Prune old usage_events (> 90 days)
+ * - Prune orphaned devices (not seen in 90 days)
+ * - Clean up expired idempotency keys
+ */
+async function handleScheduled(
+  _controller: ScheduledController,
+  env: Env
+): Promise<void> {
+  const startTime = Date.now();
+  console.log(`[Cron] Starting scheduled cleanup at ${new Date().toISOString()}`);
+
+  try {
+    // 1. Prune old usage_events (> 90 days)
+    const usageEventsResult = await env.DB.prepare(`
+      DELETE FROM usage_events
+      WHERE created_at < datetime('now', '-90 days')
+    `).run();
+    console.log(`[Cron] Deleted ${usageEventsResult.meta.changes} old usage_events`);
+
+    // 2. Prune orphaned devices (not seen in 90 days)
+    const devicesResult = await env.DB.prepare(`
+      DELETE FROM license_machines
+      WHERE last_seen_at < datetime('now', '-90 days')
+        AND is_active = 0
+    `).run();
+    console.log(`[Cron] Deleted ${devicesResult.meta.changes} orphaned devices`);
+
+    // 3. Mark stale devices as inactive (not seen in 30 days)
+    const staleResult = await env.DB.prepare(`
+      UPDATE license_machines
+      SET is_active = 0
+      WHERE last_seen_at < datetime('now', '-30 days')
+        AND is_active = 1
+    `).run();
+    console.log(`[Cron] Marked ${staleResult.meta.changes} stale devices as inactive`);
+
+    // 4. Clean up old idempotency keys (> 7 days)
+    const idempotencyResult = await env.DB.prepare(`
+      DELETE FROM usage_idempotency
+      WHERE created_at < datetime('now', '-7 days')
+    `).run();
+    console.log(`[Cron] Deleted ${idempotencyResult.meta.changes} old idempotency keys`);
+
+    // 5. Clean up old processed events (> 30 days)
+    const processedResult = await env.DB.prepare(`
+      DELETE FROM processed_events
+      WHERE processed_at < datetime('now', '-30 days')
+    `).run();
+    console.log(`[Cron] Deleted ${processedResult.meta.changes} old processed_events`);
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[Cron] Cleanup completed in ${elapsed}ms`);
+  } catch (error) {
+    console.error('[Cron] Cleanup failed:', error);
+    throw error;
+  }
+}
+
+// ============================================================================
 // Worker Export
 // ============================================================================
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     return handleRequest(request, env);
+  },
+
+  async scheduled(
+    controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    ctx.waitUntil(handleScheduled(controller, env));
   },
 };

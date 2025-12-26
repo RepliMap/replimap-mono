@@ -194,18 +194,31 @@ async function handleSubscriptionCreated(
   const plan = getPlanFromPriceId(priceId);
 
   // Create license
-  await createLicense(db, {
-    userId: user.id,
-    licenseKey: generateLicenseKey(),
-    plan,
-    stripeSubscriptionId: subscription.id,
-    stripePriceId: priceId,
-    currentPeriodStart: timestampToISO(subscription.current_period_start),
-    currentPeriodEnd: timestampToISO(subscription.current_period_end),
-  });
+  // Note: Schema has UNIQUE constraint on stripe_subscription_id for extra safety.
+  // If a race condition causes duplicate INSERT, SQLite will reject it and
+  // Stripe's retry will find the existing license via the check above.
+  try {
+    await createLicense(db, {
+      userId: user.id,
+      licenseKey: generateLicenseKey(),
+      plan,
+      stripeSubscriptionId: subscription.id,
+      stripePriceId: priceId,
+      currentPeriodStart: timestampToISO(subscription.current_period_start),
+      currentPeriodEnd: timestampToISO(subscription.current_period_end),
+    });
 
-  console.log(`[Stripe] Created license for subscription ${subscription.id}`);
-  return { success: true };
+    console.log(`[Stripe] Created license for subscription ${subscription.id}`);
+    return { success: true };
+  } catch (error) {
+    // Handle race condition: if UNIQUE constraint fails, check if license exists
+    const existingAfterRace = await getLicenseBySubscriptionId(db, subscription.id);
+    if (existingAfterRace) {
+      console.log(`[Stripe] License created by concurrent request for ${subscription.id}`);
+      return { success: true };
+    }
+    throw error; // Re-throw if it's a different error
+  }
 }
 
 /**
