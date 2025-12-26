@@ -60,7 +60,9 @@ replimap-backend/
 │   ├── 002_usage_tracking.sql
 │   ├── 003_new_features.sql
 │   ├── 004_blast_to_deps_rename.sql
-│   └── 005_add_usage_daily.sql     # Telemetry aggregation table
+│   ├── 005_add_usage_daily.sql     # Telemetry aggregation table
+│   ├── 006_add_last_seen_index.sql # Device activity queries
+│   └── 007_add_billing_index.sql   # Quota/billing queries
 ├── schema.sql                # Full database schema
 └── wrangler.toml             # Cloudflare config
 ```
@@ -320,6 +322,8 @@ wrangler d1 execute replimap-prod --remote --file=migrations/002_usage_tracking.
 wrangler d1 execute replimap-prod --remote --file=migrations/003_new_features.sql
 wrangler d1 execute replimap-prod --remote --file=migrations/004_blast_to_deps_rename.sql
 wrangler d1 execute replimap-prod --remote --file=migrations/005_add_usage_daily.sql
+wrangler d1 execute replimap-prod --remote --file=migrations/006_add_last_seen_index.sql
+wrangler d1 execute replimap-prod --remote --file=migrations/007_add_billing_index.sql
 
 # Deploy
 wrangler deploy
@@ -338,6 +342,8 @@ The backend includes comprehensive security hardening:
 - **JWT Lease Tokens** - Offline CLI operation (3-day validity)
 - **Plan Downgrade Handling** - Deactivate devices on tier downgrade
 - **Telemetry Aggregation** - Efficient usage counting (upsert pattern)
+- **Router-Level Admin Protection** - Defense in depth for `/v1/admin/*` endpoints
+- **Hybrid Quota Reads** - Safe mid-month deployments (sum from legacy + new tables)
 
 ### Environment Variables
 
@@ -415,6 +421,8 @@ curl -X POST https://your-api.workers.dev/v1/usage/track \
 - Throttled `last_seen_at` updates (prevent write amplification)
 - Scheduled cleanup for orphaned devices
 - JWT lease tokens for offline CLI operation
+- Router-level admin protection (defense in depth)
+- Composite indexes for device and billing queries
 
 **Admin Features:**
 - `GET /v1/admin/stats` - Operational visibility endpoint
@@ -423,6 +431,8 @@ curl -X POST https://your-api.workers.dev/v1/usage/track \
 
 **Migrations:**
 - `005_add_usage_daily.sql` - Telemetry aggregation table
+- `006_add_last_seen_index.sql` - Index for device activity queries
+- `007_add_billing_index.sql` - Composite index for quota/billing queries
 
 ### v2.0.0 (2025-01)
 
