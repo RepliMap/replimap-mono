@@ -78,8 +78,8 @@ import {
   handleGetDepsUsage,
   handleRightSizerSuggestions,
 } from './handlers';
-import { AppError, Errors } from './lib/errors';
-import { validateContentLength, MAX_CONTENT_LENGTH } from './lib/security';
+import { AppError, Errors, generateSupportId } from './lib/errors';
+import { validateContentLength, MAX_CONTENT_LENGTH, logError } from './lib/security';
 import { rateLimit } from './lib/rate-limiter';
 
 // ============================================================================
@@ -379,12 +379,19 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       });
     }
 
-    // Log unknown errors
-    console.error('Unhandled error:', error);
+    // Generate support ID for tracking
+    const supportId = generateSupportId();
 
-    // Return generic error
-    const internalError = Errors.internal('An unexpected error occurred');
-    return new Response(JSON.stringify(internalError.toResponse()), {
+    // Log full error internally (with support ID for correlation)
+    logError(`Unhandled error [${supportId}]`, error);
+
+    // Return sanitized error - NEVER expose stack traces or internal details
+    return new Response(JSON.stringify({
+      valid: false,
+      error_code: 'INTERNAL_ERROR',
+      message: 'An unexpected error occurred. Please try again.',
+      support_id: supportId,
+    }), {
       status: 500,
       headers: {
         'Content-Type': 'application/json',

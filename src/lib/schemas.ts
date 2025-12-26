@@ -253,20 +253,41 @@ export const createLicenseRequestSchema = z.object({
 export type CreateLicenseRequest = z.infer<typeof createLicenseRequestSchema>;
 
 // ============================================================================
-// Right-Sizer Suggestions Schema
+// Right-Sizer Suggestions Schema (Production)
 // ============================================================================
 
+/** Supported resource types for right-sizer */
+const RIGHTSIZER_RESOURCE_TYPES = [
+  'aws_instance',
+  'aws_db_instance',
+  'aws_elasticache_cluster',
+  'aws_elasticache_replication_group',
+  'aws_launch_template',
+] as const;
+
+/** Downgrade strategy options */
+const DOWNGRADE_STRATEGIES = ['conservative', 'aggressive'] as const;
+
+export const rightSizerResourceSchema = z.object({
+  resource_id: z.string().min(1).max(256),
+  resource_type: z.enum(RIGHTSIZER_RESOURCE_TYPES),
+  instance_type: z.string().min(1).max(50),
+  region: z.string().min(1).max(30),
+  multi_az: z.boolean().optional(),
+  storage_type: z.string().max(20).optional(),
+  storage_size_gb: z.number().nonnegative().max(65536).optional(),
+  iops: z.number().nonnegative().max(256000).optional(),
+});
+
 export const rightSizerRequestSchema = z.object({
-  license_key: licenseKeySchema,
-  resources: z.array(z.object({
-    type: z.string().max(64),
-    id: z.string().max(256),
-    current_size: z.string().max(64),
-    region: z.string().max(64).optional(),
-    metrics: z.record(z.string(), z.number()).optional(),
-  })).max(1000, 'Maximum 1000 resources per request'),
+  resources: z.array(rightSizerResourceSchema)
+    .min(1, 'At least one resource is required')
+    .max(500, 'Maximum 500 resources per request'),
+  strategy: z.enum(DOWNGRADE_STRATEGIES).default('conservative'),
+  target_env: z.enum(['dev', 'staging', 'test']).optional(),
 }).strict();
 
+export type RightSizerResourceInput = z.infer<typeof rightSizerResourceSchema>;
 export type RightSizerRequest = z.infer<typeof rightSizerRequestSchema>;
 
 // ============================================================================

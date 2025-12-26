@@ -41,9 +41,14 @@ import {
   logUsage,
   getMonthlyUsageCount,
   getActiveMachines,
+  getTotalMachineCount,
 } from '../lib/db';
 import { validateLicenseRequestSchema, parseRequest } from '../lib/schemas';
-import { verifyHmacSignature } from '../lib/security';
+import {
+  verifyHmacSignature,
+  checkVersionHeader,
+  checkDeviceAbuse,
+} from '../lib/security';
 
 /**
  * Handle license validation request
@@ -98,15 +103,35 @@ export async function handleValidateLicense(
       console.warn(`[SECURITY] Machine validation without signature from ${truncateMachineId(machineId)}`);
     }
 
+    // Check version header for warnings (soft - doesn't reject)
+    const cliVersionHeader = request.headers.get('X-Replimap-Version');
+    const versionWarning = checkVersionHeader(cliVersionHeader);
+
     // Get license with all related data in a single query
     const license = await getLicenseForValidation(env.DB, licenseKey, machineId);
 
     if (!license) {
+      // Random delay to prevent timing attacks on license discovery
+      await new Promise((r) => setTimeout(r, 50 + Math.random() * 100));
       throw Errors.licenseNotFound();
     }
 
     const plan = license.plan as PlanType;
     const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+
+    // Check for device abuse (soft tracking - 50+ devices is suspicious)
+    const totalDeviceCount = await getTotalMachineCount(env.DB, license.license_id);
+    const abuseCheck = checkDeviceAbuse(totalDeviceCount);
+
+    if (abuseCheck.isAbuse) {
+      console.warn(`[ABUSE] License ${licenseKey.slice(0, 12)}... used on ${totalDeviceCount} devices`);
+      throw new AppError(
+        'LICENSE_ABUSE_DETECTED',
+        abuseCheck.warning || 'This license appears to be shared across too many devices.',
+        403,
+        { action: 'Contact support at https://replimap.io/support' }
+      );
+    }
 
     // Check license status and expiry
     await checkLicenseStatus(env.DB, license);
@@ -142,7 +167,10 @@ export async function handleValidateLicense(
     const newLimits = PLAN_LIMITS[planEnum] || PLAN_LIMITS[Plan.FREE];
 
     // Build success response
-    const response: ValidateLicenseResponse = {
+    const response: ValidateLicenseResponse & {
+      _warning?: { message: string; upgrade_command: string };
+      _device_warning?: string;
+    } = {
       valid: true,
       plan: license.plan,
       status: license.status,
@@ -179,6 +207,19 @@ export async function handleValidateLicense(
         audit_visible_findings: newLimits.audit_visible_findings,
       },
     };
+
+    // Add version warning if outdated CLI
+    if (versionWarning) {
+      response._warning = {
+        message: versionWarning.message,
+        upgrade_command: versionWarning.upgrade_command,
+      };
+    }
+
+    // Add device warning (non-abuse but suspicious)
+    if (abuseCheck.warning && !abuseCheck.isAbuse) {
+      response._device_warning = abuseCheck.warning;
+    }
 
     return new Response(JSON.stringify(response), {
       status: 200,

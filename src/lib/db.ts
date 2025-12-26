@@ -101,6 +101,23 @@ export async function getActiveMachines(
   return result.results;
 }
 
+/**
+ * Get total count of ALL machines ever registered (active + inactive)
+ * Used for abuse detection - if a license has been used on 50+ devices,
+ * it's likely being shared.
+ */
+export async function getTotalMachineCount(
+  db: D1Database,
+  licenseId: string
+): Promise<number> {
+  const result = await db.prepare(`
+    SELECT COUNT(*) as count FROM license_machines
+    WHERE license_id = ?
+  `).bind(licenseId).first<{ count: number }>();
+
+  return result?.count ?? 0;
+}
+
 // ============================================================================
 // License Mutations
 // ============================================================================

@@ -181,3 +181,147 @@ export function validateRequestTimestamp(
 
   return timestamp >= minTime && timestamp <= maxTime;
 }
+
+// ============================================================================
+// CLI Version Checking
+// ============================================================================
+
+/** Minimum supported CLI version */
+const MIN_SUPPORTED_VERSION = '0.1.0';
+
+/** Versions that should show deprecation warning */
+const DEPRECATED_VERSIONS = ['0.9.0', '0.9.1', '0.9.2', '0.1.0', '0.1.1', '0.1.2'];
+
+/** Version warning to include in response */
+export interface VersionWarning {
+  message: string;
+  upgrade_command: string;
+  severity: 'warning' | 'deprecated' | 'unsupported';
+}
+
+/**
+ * Parse semver version string into comparable number.
+ * Example: "1.2.3" -> 10203
+ */
+function parseVersion(version: string): number | null {
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (!match) return null;
+
+  const [, major, minor, patch] = match;
+  return parseInt(major) * 10000 + parseInt(minor) * 100 + parseInt(patch);
+}
+
+/**
+ * Check CLI version and return warning if outdated.
+ * Does NOT reject requests - only warns for backward compatibility.
+ */
+export function checkVersionHeader(version: string | null): VersionWarning | null {
+  if (!version) {
+    // No version header - old CLI, warn but allow
+    return {
+      message: 'No CLI version header detected. Consider upgrading for best experience.',
+      upgrade_command: 'pip install --upgrade replimap',
+      severity: 'warning',
+    };
+  }
+
+  const versionNum = parseVersion(version);
+  const minVersionNum = parseVersion(MIN_SUPPORTED_VERSION);
+
+  if (versionNum === null || minVersionNum === null) {
+    return null; // Can't parse, allow
+  }
+
+  // Check if deprecated version
+  if (DEPRECATED_VERSIONS.includes(version)) {
+    return {
+      message: `CLI version ${version} is deprecated. Please upgrade for security fixes and new features.`,
+      upgrade_command: 'pip install --upgrade replimap',
+      severity: 'deprecated',
+    };
+  }
+
+  // Check if below minimum
+  if (versionNum < minVersionNum) {
+    return {
+      message: `CLI version ${version} is outdated. Minimum supported: ${MIN_SUPPORTED_VERSION}`,
+      upgrade_command: 'pip install --upgrade replimap',
+      severity: 'unsupported',
+    };
+  }
+
+  return null;
+}
+
+// ============================================================================
+// Abuse Detection
+// ============================================================================
+
+/**
+ * Maximum number of unique devices before flagging as potential abuse.
+ * This is a soft limit - we warn but don't hard-block until extreme cases.
+ */
+export const MAX_DEVICES_BEFORE_WARNING = 25;
+export const MAX_DEVICES_BEFORE_ABUSE = 50;
+
+/**
+ * Check device count for potential abuse.
+ * Returns warning message if suspicious, null if OK.
+ */
+export function checkDeviceAbuse(
+  deviceCount: number
+): { isAbuse: boolean; warning: string | null } {
+  if (deviceCount >= MAX_DEVICES_BEFORE_ABUSE) {
+    return {
+      isAbuse: true,
+      warning: `License used on ${deviceCount} devices. This appears to be shared. Contact support.`,
+    };
+  }
+
+  if (deviceCount >= MAX_DEVICES_BEFORE_WARNING) {
+    return {
+      isAbuse: false,
+      warning: `License used on ${deviceCount} devices. Consider upgrading to a team plan.`,
+    };
+  }
+
+  return { isAbuse: false, warning: null };
+}
+
+// ============================================================================
+// Error Sanitization (Hide Stack Traces)
+// ============================================================================
+
+/**
+ * Sanitize error for external response.
+ * Never expose stack traces or internal details to clients.
+ */
+export function sanitizeError(error: unknown, requestId?: string): {
+  error: string;
+  message: string;
+  request_id?: string;
+} {
+  // Generate request ID if not provided
+  const id = requestId || `REQ-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`.toUpperCase();
+
+  // Log full error internally
+  console.error(`[ERROR ${id}]`, error);
+
+  // Return sanitized response
+  return {
+    error: 'INTERNAL_ERROR',
+    message: 'An unexpected error occurred. Please try again.',
+    request_id: id,
+  };
+}
+
+/**
+ * Log error with context for debugging, without exposing details.
+ */
+export function logError(context: string, error: unknown): void {
+  const errorInfo = error instanceof Error
+    ? { message: error.message, stack: error.stack, name: error.name }
+    : { value: String(error) };
+
+  console.error(`[ERROR] ${context}:`, JSON.stringify(errorInfo));
+}
