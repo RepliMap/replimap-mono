@@ -286,3 +286,66 @@ class TestGraphEngine:
         assert subgraph.node_count == 2
         assert subgraph.edge_count == 1
         assert subgraph.get_resource("vpc-2") is None
+
+    def test_add_resource_sanitizes_sensitive_data(self) -> None:
+        """Test that add_resource sanitizes sensitive data in config.
+
+        Security: GraphEngine must sanitize configs before storage to prevent
+        sensitive data (passwords, API keys, UserData) from being persisted.
+        """
+        graph = GraphEngine()
+
+        # Config containing sensitive fields that should be redacted
+        sensitive_config = {
+            "instance_type": "t3.micro",  # Safe field - should NOT be redacted
+            "subnet_id": "subnet-12345",  # Safe field - should NOT be redacted
+            "UserData": "#!/bin/bash\necho 'SECRET_KEY=abc123'",  # HIGH RISK - must be redacted
+            "password": "super_secret_password",  # HIGH RISK - must be redacted
+            "environment": {  # HIGH RISK - must be redacted
+                "Variables": {
+                    "DB_PASSWORD": "hunter2",
+                    "API_KEY": "sk-live-12345",
+                }
+            },
+        }
+
+        node = ResourceNode(
+            id="i-12345",
+            resource_type=ResourceType.EC2_INSTANCE,
+            region="us-east-1",
+            config=sensitive_config,
+        )
+
+        graph.add_resource(node)
+
+        # Retrieve the stored node
+        stored_node = graph.get_resource("i-12345")
+        assert stored_node is not None
+
+        # Safe fields should be preserved
+        assert stored_node.config["instance_type"] == "t3.micro"
+        assert stored_node.config["subnet_id"] == "subnet-12345"
+
+        # Sensitive fields should be redacted
+        assert stored_node.config["UserData"] == "[REDACTED]"
+        assert stored_node.config["password"] == "[REDACTED]"
+        # Environment.Variables should have keys preserved but values redacted
+        assert stored_node.config["environment"]["Variables"]["DB_PASSWORD"] == "[REDACTED]"
+        assert stored_node.config["environment"]["Variables"]["API_KEY"] == "[REDACTED]"
+
+    def test_add_resource_empty_config_no_sanitization(self) -> None:
+        """Test that empty config doesn't cause issues with sanitization."""
+        graph = GraphEngine()
+
+        node = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={},  # Empty config
+        )
+
+        graph.add_resource(node)
+
+        stored_node = graph.get_resource("vpc-12345")
+        assert stored_node is not None
+        assert stored_node.config == {}

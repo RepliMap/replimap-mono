@@ -31,6 +31,7 @@ from typing import Any
 import networkx as nx
 
 from .models import DependencyType, ResourceNode, ResourceType
+from .sanitizer import sanitize_resource_config
 
 logger = logging.getLogger(__name__)
 
@@ -222,9 +223,20 @@ class GraphEngine:
         If a resource with the same ID already exists, it will be updated.
         Thread-safe: uses internal lock for concurrent access.
 
+        Security: Config is sanitized BEFORE storage to prevent sensitive
+        data (passwords, API keys, UserData) from being persisted to cache.
+
         Args:
             node: The ResourceNode to add
         """
+        # SECURITY: Sanitize config BEFORE locking and storage
+        # This runs outside the lock to minimize contention (regex is expensive)
+        if node.config:
+            sanitized_config = sanitize_resource_config(node.config)
+            # Update config in-place (dict is mutable)
+            node.config.clear()
+            node.config.update(sanitized_config)
+
         with self._lock:
             self._resources[node.id] = node
             self._graph.add_node(
