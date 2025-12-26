@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from replimap.core.models import ResourceType
-from replimap.core.naming import sanitize_name
+from replimap.core.naming import get_variable_name_for_resource, sanitize_name
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -128,6 +128,7 @@ class TerraformRenderer:
         self.env.filters["quote_key"] = self._quote_key_filter
         self.env.filters["tf_ref"] = self._tf_ref_filter
         self.env.filters["d"] = self._default_if_none_filter  # Short alias
+        self.env.filters["sanitize"] = sanitize_name  # For variable name sanitization
 
         # Add custom tests
         self.env.tests["tf_ref"] = self._is_tf_ref_test
@@ -167,7 +168,23 @@ class TerraformRenderer:
 
             try:
                 template = self.env.get_template(template_name)
-                rendered = template.render(resource=resource, graph=graph)
+
+                # Pre-calculate variable names for Right-Sizer compatibility
+                # This ensures templates use sanitized names (underscores) matching variables.tf
+                resource_type_str = (
+                    resource.resource_type.value
+                    if hasattr(resource.resource_type, "value")
+                    else str(resource.resource_type)
+                )
+                variable_names = get_variable_name_for_resource(
+                    resource_type_str, resource.terraform_name
+                )
+
+                rendered = template.render(
+                    resource=resource,
+                    graph=graph,
+                    variable_names=variable_names,
+                )
 
                 if output_file not in file_contents:
                     file_contents[output_file] = []
@@ -467,7 +484,8 @@ locals {
                 ]
             )
             for lt in launch_templates:
-                var_name = f"ami_id_{lt.terraform_name}"
+                tf_name = sanitize_name(lt.terraform_name)
+                var_name = f"ami_id_{tf_name}"
                 original_ami = lt.config.get("image_id", "unknown")
                 lines.extend(
                     [
@@ -559,7 +577,8 @@ locals {
                 ]
             )
             for rds in rds_instances:
-                var_name = f"db_password_{rds.terraform_name}"
+                tf_name = sanitize_name(rds.terraform_name)
+                var_name = f"db_password_{tf_name}"
                 lines.extend(
                     [
                         "",
@@ -654,7 +673,8 @@ locals {
                 ]
             )
             for rds in rds_with_snapshots:
-                var_name = f"db_snapshot_{rds.terraform_name}"
+                tf_name = sanitize_name(rds.terraform_name)
+                var_name = f"db_snapshot_{tf_name}"
                 original_snapshot = rds.config.get("snapshot_identifier", "")
                 lines.extend(
                     [
@@ -862,7 +882,8 @@ locals {
                 ]
             )
             for lt in launch_templates:
-                var_name = f"ami_id_{lt.terraform_name}"
+                tf_name = sanitize_name(lt.terraform_name)
+                var_name = f"ami_id_{tf_name}"
                 original_ami = lt.config.get("image_id", "unknown")
                 lt_name = lt.original_name or lt.terraform_name
                 lines.append(
@@ -950,7 +971,8 @@ locals {
                 ]
             )
             for rds in rds_instances:
-                var_name = f"db_password_{rds.terraform_name}"
+                tf_name = sanitize_name(rds.terraform_name)
+                var_name = f"db_password_{tf_name}"
                 rds_name = rds.original_name or rds.terraform_name
                 engine = rds.config.get("engine", "unknown")
                 lines.append(f"# RDS: {rds_name} ({engine})")
@@ -978,7 +1000,8 @@ locals {
                 ]
             )
             for rds in rds_with_snapshots:
-                var_name = f"db_snapshot_{rds.terraform_name}"
+                tf_name = sanitize_name(rds.terraform_name)
+                var_name = f"db_snapshot_{tf_name}"
                 original_snapshot = rds.config.get("snapshot_identifier", "")
                 lines.append(f"# Original snapshot: {original_snapshot}")
                 lines.append(f'{var_name} = ""')
