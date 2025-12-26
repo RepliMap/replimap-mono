@@ -7,7 +7,7 @@
 
 import type { Env } from '../types/env';
 import { generateLicenseKey, timestampToISO } from '../lib/license';
-import { getPlanFromPriceId } from '../lib/constants';
+import { getPlanFromPriceId, isPlanDowngrade } from '../lib/constants';
 import {
   findOrCreateUser,
   getUserByStripeCustomerId,
@@ -17,6 +17,7 @@ import {
   updateLicenseStatus,
   isEventProcessed,
   markEventProcessed,
+  deactivateAllDevices,
 } from '../lib/db';
 
 // Stripe event types we handle
@@ -224,6 +225,10 @@ async function handleSubscriptionCreated(
 /**
  * Handle customer.subscription.updated
  * Updates plan and/or status
+ *
+ * IMPORTANT: On plan downgrade, we deactivate all devices to force re-activation
+ * under the new (lower) device limits. This prevents users from keeping more
+ * devices than their new plan allows.
  */
 async function handleSubscriptionUpdated(
   db: D1Database,
@@ -237,7 +242,8 @@ async function handleSubscriptionUpdated(
 
   // Get updated plan from price ID
   const priceId = subscription.items.data[0]?.price.id ?? '';
-  const plan = getPlanFromPriceId(priceId);
+  const newPlan = getPlanFromPriceId(priceId);
+  const oldPlan = license.plan;
 
   // Map Stripe status to our status
   let status: string;
@@ -261,8 +267,24 @@ async function handleSubscriptionUpdated(
       status = license.status; // Keep current status
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // PLAN DOWNGRADE HANDLING
+  // ─────────────────────────────────────────────────────────────────────────
+  // If user is downgrading (e.g., team → solo), deactivate all devices.
+  // This forces re-activation under new limits and prevents users from
+  // keeping more devices than their new plan allows.
+  if (isPlanDowngrade(oldPlan, newPlan)) {
+    console.log(
+      `[Stripe] Plan downgrade detected: ${oldPlan} → ${newPlan} for license ${license.id}. ` +
+      `Deactivating all devices to enforce new limits.`
+    );
+
+    const devicesDeactivated = await deactivateAllDevices(db, license.id);
+    console.log(`[Stripe] Deactivated ${devicesDeactivated} devices for license ${license.id}`);
+  }
+
   await updateLicensePlan(db, license.id, {
-    plan,
+    plan: newPlan,
     status,
     stripePriceId: priceId,
     currentPeriodStart: timestampToISO(subscription.current_period_start),

@@ -590,3 +590,41 @@ export async function getActiveAwsAccountCount(
 
   return result?.count ?? 0;
 }
+
+// ============================================================================
+// Device Cleanup (for plan downgrades)
+// ============================================================================
+
+/**
+ * Wipe all devices for a license (force re-activation).
+ * Used when downgrading plans to enforce new device limits.
+ *
+ * @returns Number of devices deleted
+ */
+export async function wipeAllDevices(
+  db: D1Database,
+  licenseId: string
+): Promise<number> {
+  const result = await db.prepare(`
+    DELETE FROM license_machines WHERE license_id = ?
+  `).bind(licenseId).run();
+
+  return result.meta.changes ?? 0;
+}
+
+/**
+ * Deactivate all devices for a license (soft wipe).
+ * Marks devices as inactive rather than deleting them.
+ *
+ * @returns Number of devices deactivated
+ */
+export async function deactivateAllDevices(
+  db: D1Database,
+  licenseId: string
+): Promise<number> {
+  const result = await db.prepare(`
+    UPDATE license_machines SET is_active = 0 WHERE license_id = ? AND is_active = 1
+  `).bind(licenseId).run();
+
+  return result.meta.changes ?? 0;
+}

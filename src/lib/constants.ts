@@ -49,6 +49,41 @@ export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
 export const MAX_MACHINE_CHANGES_PER_MONTH = 3;
 
 // ============================================================================
+// Plan Hierarchy (for upgrade/downgrade detection)
+// ============================================================================
+
+/**
+ * Plan rank - higher number = higher tier plan
+ * Used to detect upgrades vs downgrades
+ */
+export const PLAN_RANK: Record<string, number> = {
+  free: 0,
+  solo: 1,
+  pro: 2,
+  team: 3,
+  enterprise: 4,
+};
+
+/**
+ * Check if changing from oldPlan to newPlan is a downgrade.
+ * A downgrade means moving to a lower tier plan (fewer features/limits).
+ */
+export function isPlanDowngrade(oldPlan: string, newPlan: string): boolean {
+  const oldRank = PLAN_RANK[oldPlan] ?? 0;
+  const newRank = PLAN_RANK[newPlan] ?? 0;
+  return newRank < oldRank;
+}
+
+/**
+ * Check if changing from oldPlan to newPlan is an upgrade.
+ */
+export function isPlanUpgrade(oldPlan: string, newPlan: string): boolean {
+  const oldRank = PLAN_RANK[oldPlan] ?? 0;
+  const newRank = PLAN_RANK[newPlan] ?? 0;
+  return newRank > oldRank;
+}
+
+// ============================================================================
 // Cache Configuration
 // ============================================================================
 
