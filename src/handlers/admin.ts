@@ -235,6 +235,116 @@ export async function handleGetLicense(
   }
 }
 
+/**
+ * Get system stats (admin only) - "God Mode" endpoint
+ * GET /v1/admin/stats
+ *
+ * Provides operational visibility:
+ * - User and license counts
+ * - Active devices (7d/30d)
+ * - Event counts and trends
+ * - Database health indicators
+ */
+export async function handleGetStats(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  try {
+    // Verify admin API key
+    verifyAdminApiKey(request, env);
+
+    // Execute all queries in parallel for efficiency
+    const [
+      userCount,
+      licenseCount,
+      activeLicenses,
+      activeDevices7d,
+      activeDevices30d,
+      eventsToday,
+      eventsThisMonth,
+      topEventTypes,
+    ] = await Promise.all([
+      // Total users
+      env.DB.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>(),
+
+      // Total licenses
+      env.DB.prepare('SELECT COUNT(*) as count FROM licenses').first<{ count: number }>(),
+
+      // Active licenses (status = 'active')
+      env.DB.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'active'").first<{ count: number }>(),
+
+      // Active devices in last 7 days
+      env.DB.prepare(`
+        SELECT COUNT(*) as count FROM license_machines
+        WHERE last_seen_at > datetime('now', '-7 days')
+      `).first<{ count: number }>(),
+
+      // Active devices in last 30 days
+      env.DB.prepare(`
+        SELECT COUNT(*) as count FROM license_machines
+        WHERE last_seen_at > datetime('now', '-30 days')
+      `).first<{ count: number }>(),
+
+      // Events today (from usage_daily)
+      env.DB.prepare(`
+        SELECT COALESCE(SUM(count), 0) as count FROM usage_daily
+        WHERE date = date('now')
+      `).first<{ count: number }>(),
+
+      // Events this month (from usage_daily)
+      env.DB.prepare(`
+        SELECT COALESCE(SUM(count), 0) as count FROM usage_daily
+        WHERE date >= date('now', 'start of month')
+      `).first<{ count: number }>(),
+
+      // Top event types this month
+      env.DB.prepare(`
+        SELECT event_type, SUM(count) as total
+        FROM usage_daily
+        WHERE date >= date('now', 'start of month')
+        GROUP BY event_type
+        ORDER BY total DESC
+        LIMIT 10
+      `).all<{ event_type: string; total: number }>(),
+    ]);
+
+    const stats = {
+      timestamp: new Date().toISOString(),
+      environment: env.ENVIRONMENT,
+      version: env.API_VERSION || 'unknown',
+      users: {
+        total: userCount?.count ?? 0,
+      },
+      licenses: {
+        total: licenseCount?.count ?? 0,
+        active: activeLicenses?.count ?? 0,
+      },
+      devices: {
+        active_7d: activeDevices7d?.count ?? 0,
+        active_30d: activeDevices30d?.count ?? 0,
+      },
+      events: {
+        today: eventsToday?.count ?? 0,
+        this_month: eventsThisMonth?.count ?? 0,
+        top_types: topEventTypes?.results ?? [],
+      },
+    };
+
+    return new Response(JSON.stringify(stats), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return new Response(JSON.stringify(error.toResponse()), {
+        status: error.statusCode,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    throw error;
+  }
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================

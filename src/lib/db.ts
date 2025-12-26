@@ -592,6 +592,67 @@ export async function getActiveAwsAccountCount(
 }
 
 // ============================================================================
+// Daily Usage Aggregation (for efficient telemetry)
+// ============================================================================
+
+/**
+ * Record a usage event using daily aggregation (upsert pattern).
+ * Instead of inserting every event, we increment a daily counter.
+ * This reduces 1.8M rows/year to ~50k rows.
+ *
+ * @param licenseId - The license ID
+ * @param eventType - The event type (e.g., 'scan', 'audit_fix')
+ * @param resourceCount - Optional resource count to add
+ */
+export async function recordDailyUsage(
+  db: D1Database,
+  licenseId: string,
+  eventType: string,
+  resourceCount: number = 0
+): Promise<void> {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+  // SQLite UPSERT: Insert or increment on conflict
+  await db.prepare(`
+    INSERT INTO usage_daily (id, license_id, date, event_type, count, resource_count, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 1, ?, datetime('now'), datetime('now'))
+    ON CONFLICT(license_id, date, event_type)
+    DO UPDATE SET
+      count = count + 1,
+      resource_count = resource_count + excluded.resource_count,
+      updated_at = datetime('now')
+  `).bind(
+    generateId(),
+    licenseId,
+    today,
+    eventType,
+    resourceCount
+  ).run();
+}
+
+/**
+ * Get daily usage count for a specific event type this month.
+ * Uses the aggregated usage_daily table for efficient counting.
+ */
+export async function getDailyUsageCount(
+  db: D1Database,
+  licenseId: string,
+  eventType: string
+): Promise<number> {
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  const startDate = startOfMonth.toISOString().split('T')[0];
+
+  const result = await db.prepare(`
+    SELECT COALESCE(SUM(count), 0) as total
+    FROM usage_daily
+    WHERE license_id = ? AND event_type = ? AND date >= ?
+  `).bind(licenseId, eventType, startDate).first<{ total: number }>();
+
+  return result?.total ?? 0;
+}
+
+// ============================================================================
 // Device Cleanup (for plan downgrades)
 // ============================================================================
 

@@ -12,6 +12,7 @@ export {
   handleCreateLicense,
   handleRevokeLicense,
   handleGetLicense,
+  handleGetStats,
 } from './admin';
 
 // AWS account handlers

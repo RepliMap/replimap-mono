@@ -42,6 +42,7 @@
  * - POST /v1/rightsizer/suggestions - Analyze resources and get downgrade suggestions
  *
  * Admin Endpoints (require X-API-Key):
+ * - GET /v1/admin/stats - Get system stats ("God Mode" for operational visibility)
  * - POST /v1/admin/licenses - Create a new license
  * - GET /v1/admin/licenses/{key} - Get license details
  * - POST /v1/admin/licenses/{key}/revoke - Revoke a license
@@ -56,6 +57,7 @@ import {
   handleCreateLicense,
   handleRevokeLicense,
   handleGetLicense,
+  handleGetStats,
   handleTrackAwsAccount,
   handleGetAwsAccounts,
   handleSyncUsage,
@@ -298,7 +300,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // ========================================================================
     // Admin Endpoints (rate limited to prevent brute-force attacks)
     // ========================================================================
-    if (!response && path === '/v1/admin/licenses' && method === 'POST') {
+    if (!response && path === '/v1/admin/stats' && method === 'GET') {
+      // "God Mode" endpoint - operational visibility
+      await rateLimit(env.CACHE, 'admin', clientIP);
+      response = await handleGetStats(request, env);
+    } else if (!response && path === '/v1/admin/licenses' && method === 'POST') {
       await rateLimit(env.CACHE, 'admin', clientIP);
       response = await handleCreateLicense(request, env);
     } else if (!response && method === 'GET') {

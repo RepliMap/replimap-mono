@@ -13,7 +13,7 @@ import { validateLicenseKey, normalizeLicenseKey, nowISO, generateId } from '../
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
 import { Plan, PLAN_LIMITS } from '../features';
 import { rateLimit } from '../lib/rate-limiter';
-import { getLicenseByKey, getMonthlyUsageCount } from '../lib/db';
+import { getLicenseByKey, getMonthlyUsageCount, recordDailyUsage, getDailyUsageCount } from '../lib/db';
 import {
   normalizeEventType,
   isDeprecatedEvent,
@@ -599,6 +599,12 @@ export async function handleTrackEvent(
       now
     ).run();
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Daily Aggregation (for efficient counting)
+    // This upserts into usage_daily to avoid 1.8M rows/year in usage_events
+    // ─────────────────────────────────────────────────────────────────────────
+    await recordDailyUsage(env.DB, license.id, eventType, body.resource_count || 0);
+
     // Track feature-specific data (merge region from body into metadata)
     if (eventType === 'snapshot_save' && body.metadata?.snapshot_name) {
       await trackSnapshot(env.DB, license.id, { ...body.metadata, region: body.region });
@@ -725,18 +731,9 @@ async function checkEventLimit(
     };
   }
 
-  // Count current period usage
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const result = await db.prepare(`
-    SELECT COUNT(*) as count
-    FROM usage_events
-    WHERE license_id = ? AND event_type = ? AND created_at >= ?
-  `).bind(licenseId, eventType, startOfMonth.toISOString()).first<{ count: number }>();
-
-  const used = result?.count || 0;
+  // Count current period usage using efficient daily aggregation
+  // This queries usage_daily (50k rows/year) instead of usage_events (1.8M rows/year)
+  const used = await getDailyUsageCount(db, licenseId, eventType);
   const remaining = Math.max(0, limit - used);
 
   return {

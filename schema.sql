@@ -228,6 +228,28 @@ FROM usage_events
 GROUP BY license_id, event_type;
 
 -- ============================================================================
+-- Daily Usage Aggregation (for efficient counting)
+-- Instead of inserting every event, we upsert daily counters
+-- This reduces 1.8M rows/year to ~50k rows (365 days * 500 users)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS usage_daily (
+    id TEXT PRIMARY KEY,
+    license_id TEXT NOT NULL REFERENCES licenses(id) ON DELETE CASCADE,
+    date TEXT NOT NULL,  -- YYYY-MM-DD format
+    event_type TEXT NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1,
+    resource_count INTEGER DEFAULT 0,  -- Sum of resources for this day
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(license_id, date, event_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_usage_daily_license ON usage_daily(license_id);
+CREATE INDEX IF NOT EXISTS idx_usage_daily_date ON usage_daily(date);
+CREATE INDEX IF NOT EXISTS idx_usage_daily_lookup ON usage_daily(license_id, date, event_type);
+
+-- ============================================================================
 -- Cleanup: Remove old processed events (run via scheduled worker)
 -- DELETE FROM processed_events WHERE processed_at < datetime('now', '-30 days');
 -- ============================================================================

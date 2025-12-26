@@ -372,13 +372,26 @@ const LAST_SEEN_UPDATE_THROTTLE_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Check if we should update last_seen_at based on throttle interval.
- * Returns true if last_seen is null or older than LAST_SEEN_UPDATE_THROTTLE_MS.
+ * Returns true if last_seen is null/empty or older than LAST_SEEN_UPDATE_THROTTLE_MS.
+ *
+ * ROBUSTNESS: Handles edge cases where DB returns empty string, 'null', undefined,
+ * or invalid date strings. In all these cases, we update the timestamp.
  */
 function shouldUpdateLastSeen(lastSeen: string | null): boolean {
-  if (!lastSeen) return true;
+  // Handle falsy values (null, undefined, empty string)
+  if (!lastSeen || lastSeen === 'null' || lastSeen.trim() === '') {
+    return true;
+  }
 
   try {
     const lastSeenTime = new Date(lastSeen).getTime();
+
+    // Handle Invalid Date (getTime() returns NaN for invalid dates)
+    // NaN comparisons always return false, so we need explicit check
+    if (isNaN(lastSeenTime)) {
+      return true;
+    }
+
     const now = Date.now();
     return (now - lastSeenTime) > LAST_SEEN_UPDATE_THROTTLE_MS;
   } catch {
