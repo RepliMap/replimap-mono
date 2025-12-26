@@ -28,6 +28,20 @@ logger = logging.getLogger(__name__)
 
 REDACTED = "[REDACTED]"
 
+# Valid base64-encoded placeholder for UserData fields
+# Decodes to: "#!/bin/bash\necho 'REDACTED BY REPLIMAP - Replace with actual user data'"
+REDACTED_USERDATA_BASE64 = "IyEvYmluL2Jhc2gKZWNobyAnUkVEQUNURUQgQlkgUkVQTElNQVAgLSBSZXBsYWNlIHdpdGggYWN0dWFsIHVzZXIgZGF0YSc="
+
+# Fields that require base64-encoded redaction (UserData, etc.)
+BASE64_FIELDS: frozenset[str] = frozenset(
+    [
+        "userdata",
+        "user_data",
+        "userData",
+        "UserData",
+    ]
+)
+
 # Fields that ALWAYS contain secrets - redact entire value
 HIGH_RISK_FIELDS: frozenset[str] = frozenset(
     [
@@ -270,6 +284,10 @@ class Sanitizer:
         """Redact high-risk fields entirely."""
         self._record_redaction(path)
 
+        # Check if this is a UserData field that needs valid base64
+        path_lower = path.lower()
+        is_userdata = any(field.lower() in path_lower for field in BASE64_FIELDS)
+
         if isinstance(value, dict):
             # For Environment.Variables, redact each value but keep keys
             # This preserves the structure for debugging
@@ -279,6 +297,9 @@ class Sanitizer:
             # For other dicts, just replace entirely
             return REDACTED
         elif isinstance(value, str):
+            # UserData fields need valid base64 to avoid terraform apply errors
+            if is_userdata:
+                return REDACTED_USERDATA_BASE64
             return REDACTED
         elif isinstance(value, list):
             return REDACTED

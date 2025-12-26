@@ -37,13 +37,16 @@ class TestSanitizer:
     """Tests for the sanitization middleware."""
 
     def test_userdata_always_redacted(self):
-        """EC2 UserData should always be redacted."""
+        """EC2 UserData should be redacted with valid base64 placeholder."""
+        from replimap.core.sanitizer import REDACTED_USERDATA_BASE64
+
         data = {
             "InstanceId": "i-12345",
             "UserData": "IyEvYmluL2Jhc2gKZXhwb3J0IERCX1BBU1M9aHVudGVyMgo=",
         }
         result = Sanitizer().get_result(data)
-        assert result.data["UserData"] == "[REDACTED]"
+        # UserData gets valid base64 placeholder (not [REDACTED]) to avoid terraform errors
+        assert result.data["UserData"] == REDACTED_USERDATA_BASE64
         assert result.data["InstanceId"] == "i-12345"  # Not redacted
         assert result.redacted_count == 1
 
@@ -130,12 +133,15 @@ class TestSanitizeResourceConfig:
 
     def test_sanitize_resource_config(self):
         """Should sanitize and return clean config."""
+        from replimap.core.sanitizer import REDACTED_USERDATA_BASE64
+
         config = {
             "UserData": "sensitive",
             "InstanceType": "t2.micro",
         }
         clean = sanitize_resource_config(config)
-        assert clean["UserData"] == "[REDACTED]"
+        # UserData gets valid base64 placeholder to avoid terraform errors
+        assert clean["UserData"] == REDACTED_USERDATA_BASE64
         assert clean["InstanceType"] == "t2.micro"
 
 

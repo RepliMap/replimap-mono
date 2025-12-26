@@ -327,7 +327,10 @@ class TestGraphEngine:
         assert stored_node.config["subnet_id"] == "subnet-12345"
 
         # Sensitive fields should be redacted
-        assert stored_node.config["UserData"] == "[REDACTED]"
+        from replimap.core.sanitizer import REDACTED_USERDATA_BASE64
+
+        # UserData gets valid base64 placeholder to avoid terraform errors
+        assert stored_node.config["UserData"] == REDACTED_USERDATA_BASE64
         assert stored_node.config["password"] == "[REDACTED]"  # noqa: S105
         # Environment.Variables should have keys preserved but values redacted
         assert (
