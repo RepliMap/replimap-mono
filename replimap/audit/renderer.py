@@ -194,10 +194,21 @@ class AuditRenderer:
             lines.append("")
             lines.append("  tags = {")
             for key, value in sorted(resource.tags.items()):
+                # Filter out AWS system tags (aws:* prefix)
+                if key.startswith("aws:"):
+                    continue
                 quoted_key = self._quote_key_filter(key)
                 quoted_value = self._quote_filter(value)
                 lines.append(f"    {quoted_key} = {quoted_value}")
             lines.append("  }")
+
+        # SAFETY: Add lifecycle block to prevent accidental resource creation
+        # This is a forensic snapshot for audit - it should NEVER be applied
+        lines.append("")
+        lines.append("  # SAFETY: Prevent accidental apply of audit snapshot")
+        lines.append("  lifecycle {")
+        lines.append("    prevent_destroy = true")
+        lines.append("  }")
 
         lines.append("}")
 

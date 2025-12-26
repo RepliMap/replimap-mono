@@ -402,7 +402,19 @@ class RemediationGenerator:
                     f"Failed to generate fix for {finding.check_id} on {finding.resource}"
                 )
 
-        # Generate import script
+        # Generate Terraform 1.5+ import blocks (modern, preferred)
+        import_blocks = self._generate_import_blocks(plan)
+        if import_blocks:
+            plan.files.append(
+                RemediationFile(
+                    path=Path("imports.tf"),
+                    content=import_blocks,
+                    description="Terraform 1.5+ Import Blocks",
+                    remediation_type=RemediationType.OTHER,
+                )
+            )
+
+        # Generate legacy import script (deprecated, for backward compatibility)
         plan.import_script = self._generate_import_script(plan)
 
         # Generate README
@@ -437,6 +449,50 @@ class RemediationGenerator:
                 cmd = line.strip()[2:].strip()  # Remove "# " prefix
                 commands.append(cmd)
         return commands
+
+    def _generate_import_blocks(self, plan: RemediationPlan) -> str:
+        """
+        Generate Terraform 1.5+ import blocks.
+
+        This is the modern, preferred approach that:
+        - Works on all platforms (no bash required)
+        - Integrates with `terraform plan` workflow
+        - Provides better error messages
+        """
+        lines = [
+            "# ============================================================================",
+            "# RepliMap Remediation Import Blocks",
+            f"# Generated: {datetime.now(UTC).isoformat()}",
+            "#",
+            "# These Terraform 1.5+ import blocks automatically import existing resources.",
+            "# Run `terraform plan` to preview the imports before applying.",
+            "#",
+            "# WARNING: Review each import and replace placeholder values (REPLACE_WITH_*)",
+            "# ============================================================================",
+            "",
+        ]
+
+        has_imports = False
+        for file in plan.files:
+            if file.import_commands:
+                has_imports = True
+                lines.append(f"# Imports for: {file.description}")
+                for cmd in file.import_commands:
+                    # Parse: "terraform import aws_type.name id"
+                    parts = cmd.split(" ", 3)  # Split into max 4 parts
+                    if len(parts) >= 4:
+                        resource_addr = parts[2]
+                        resource_id = parts[3]
+                        lines.append("import {")
+                        lines.append(f"  to = {resource_addr}")
+                        lines.append(f'  id = "{resource_id}"')
+                        lines.append("}")
+                        lines.append("")
+
+        if not has_imports:
+            return ""
+
+        return "\n".join(lines)
 
     def _generate_import_script(self, plan: RemediationPlan) -> str:
         """Generate shell script for terraform imports."""
@@ -527,12 +583,23 @@ Each `.tf` file contains:
 
 If you're managing existing AWS resources with Terraform:
 
+**Modern Approach (Terraform 1.5+, Recommended):**
+
+The generated `imports.tf` file contains `import` blocks that work with `terraform plan`:
+
+```bash
+terraform plan   # Preview imports and changes
+terraform apply  # Apply imports and remediation
+```
+
+**Legacy Approach (Deprecated):**
+
+For older Terraform versions, use the import script:
+
 ```bash
 chmod +x import.sh
 ./import.sh
 ```
-
-Or run individual import commands from the generated files.
 
 ### 3. Apply the Remediation
 
