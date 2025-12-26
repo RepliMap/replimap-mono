@@ -42,6 +42,7 @@
  * - POST /v1/rightsizer/suggestions - Analyze resources and get downgrade suggestions
  *
  * Admin Endpoints (require X-API-Key):
+ * - GET /v1/admin/stats - Get system stats ("God Mode" for operational visibility)
  * - POST /v1/admin/licenses - Create a new license
  * - GET /v1/admin/licenses/{key} - Get license details
  * - POST /v1/admin/licenses/{key}/revoke - Revoke a license
@@ -56,6 +57,7 @@ import {
   handleCreateLicense,
   handleRevokeLicense,
   handleGetLicense,
+  handleGetStats,
   handleTrackAwsAccount,
   handleGetAwsAccounts,
   handleSyncUsage,
@@ -78,7 +80,9 @@ import {
   handleGetDepsUsage,
   handleRightSizerSuggestions,
 } from './handlers';
-import { AppError, Errors } from './lib/errors';
+import { AppError, Errors, generateSupportId } from './lib/errors';
+import { validateContentLength, MAX_CONTENT_LENGTH, logError } from './lib/security';
+import { rateLimit } from './lib/rate-limiter';
 
 // ============================================================================
 // CORS Configuration
@@ -183,6 +187,15 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
   const clientIP = getClientIP(request);
 
   try {
+    // ========================================================================
+    // Content-Length Validation (DoS Protection)
+    // ========================================================================
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+      // Stripe webhook needs larger payload (up to 1MB for large events)
+      const maxLength = path === '/v1/webhooks/stripe' ? 1024 * 1024 : MAX_CONTENT_LENGTH;
+      validateContentLength(request, maxLength);
+    }
+
     let response: Response | undefined;
 
     // ========================================================================
@@ -285,9 +298,44 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     }
 
     // ========================================================================
-    // Admin Endpoints
+    // Admin Endpoints (rate limited to prevent brute-force attacks)
     // ========================================================================
-    if (!response && path === '/v1/admin/licenses' && method === 'POST') {
+    // DEFENSE IN DEPTH: Router-level admin protection
+    // Even if a developer forgets to add auth in a new admin handler,
+    // this guard ensures all /v1/admin/* routes require authentication.
+    // ========================================================================
+    if (!response && path.startsWith('/v1/admin')) {
+      // Apply rate limiting first (before auth check to prevent timing attacks)
+      await rateLimit(env.CACHE, 'admin', clientIP);
+
+      // Verify admin API key at router level
+      const adminKey = request.headers.get('X-API-Key');
+      if (!env.ADMIN_API_KEY || env.ADMIN_API_KEY.length < 16) {
+        console.error('[ADMIN] ADMIN_API_KEY not configured or too short');
+        response = new Response(JSON.stringify({
+          error: 'SERVER_CONFIG_ERROR',
+          message: 'Admin API is not properly configured',
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      } else if (!adminKey) {
+        console.warn(`[ADMIN] Missing API key from ${clientIP}`);
+        response = new Response(JSON.stringify({
+          error: 'UNAUTHORIZED',
+          message: 'X-API-Key header required for admin endpoints',
+        }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+      // Note: Individual handlers still verify the key value for defense in depth
+    }
+
+    if (!response && path === '/v1/admin/stats' && method === 'GET') {
+      // "God Mode" endpoint - operational visibility
+      response = await handleGetStats(request, env);
+    } else if (!response && path === '/v1/admin/licenses' && method === 'POST') {
       response = await handleCreateLicense(request, env);
     } else if (!response && method === 'GET') {
       const adminLicenseKey = matchPathParam(path, '/v1/admin/licenses/{key}');
@@ -316,6 +364,10 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = new Response(JSON.stringify({
         status: 'ok',
         timestamp: new Date().toISOString(),
+        version: env.API_VERSION || '2.1.0',
+        // Date when AWS pricing data was last refreshed
+        // Update this when refreshing pricing data in the right-sizer
+        pricing_data_date: '2025-12-26',
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -365,12 +417,19 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       });
     }
 
-    // Log unknown errors
-    console.error('Unhandled error:', error);
+    // Generate support ID for tracking
+    const supportId = generateSupportId();
 
-    // Return generic error
-    const internalError = Errors.internal('An unexpected error occurred');
-    return new Response(JSON.stringify(internalError.toResponse()), {
+    // Log full error internally (with support ID for correlation)
+    logError(`Unhandled error [${supportId}]`, error);
+
+    // Return sanitized error - NEVER expose stack traces or internal details
+    return new Response(JSON.stringify({
+      valid: false,
+      error_code: 'INTERNAL_ERROR',
+      message: 'An unexpected error occurred. Please try again.',
+      support_id: supportId,
+    }), {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
@@ -381,11 +440,86 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 }
 
 // ============================================================================
+// Scheduled Handler (Cron Cleanup)
+// ============================================================================
+
+/**
+ * Scheduled handler for database maintenance.
+ * Runs weekly (configure in wrangler.toml: crons = ["0 0 * * 0"])
+ *
+ * Tasks:
+ * - Prune old usage_events (> 90 days)
+ * - Prune orphaned devices (not seen in 90 days)
+ * - Clean up expired idempotency keys
+ */
+async function handleScheduled(
+  _controller: ScheduledController,
+  env: Env
+): Promise<void> {
+  const startTime = Date.now();
+  console.log(`[Cron] Starting scheduled cleanup at ${new Date().toISOString()}`);
+
+  try {
+    // 1. Prune old usage_events (> 90 days)
+    const usageEventsResult = await env.DB.prepare(`
+      DELETE FROM usage_events
+      WHERE created_at < datetime('now', '-90 days')
+    `).run();
+    console.log(`[Cron] Deleted ${usageEventsResult.meta.changes} old usage_events`);
+
+    // 2. Prune orphaned devices (not seen in 90 days)
+    const devicesResult = await env.DB.prepare(`
+      DELETE FROM license_machines
+      WHERE last_seen_at < datetime('now', '-90 days')
+        AND is_active = 0
+    `).run();
+    console.log(`[Cron] Deleted ${devicesResult.meta.changes} orphaned devices`);
+
+    // 3. Mark stale devices as inactive (not seen in 30 days)
+    const staleResult = await env.DB.prepare(`
+      UPDATE license_machines
+      SET is_active = 0
+      WHERE last_seen_at < datetime('now', '-30 days')
+        AND is_active = 1
+    `).run();
+    console.log(`[Cron] Marked ${staleResult.meta.changes} stale devices as inactive`);
+
+    // 4. Clean up old idempotency keys (> 7 days)
+    const idempotencyResult = await env.DB.prepare(`
+      DELETE FROM usage_idempotency
+      WHERE created_at < datetime('now', '-7 days')
+    `).run();
+    console.log(`[Cron] Deleted ${idempotencyResult.meta.changes} old idempotency keys`);
+
+    // 5. Clean up old processed events (> 30 days)
+    const processedResult = await env.DB.prepare(`
+      DELETE FROM processed_events
+      WHERE processed_at < datetime('now', '-30 days')
+    `).run();
+    console.log(`[Cron] Deleted ${processedResult.meta.changes} old processed_events`);
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[Cron] Cleanup completed in ${elapsed}ms`);
+  } catch (error) {
+    console.error('[Cron] Cleanup failed:', error);
+    throw error;
+  }
+}
+
+// ============================================================================
 // Worker Export
 // ============================================================================
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     return handleRequest(request, env);
+  },
+
+  async scheduled(
+    controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    ctx.waitUntil(handleScheduled(controller, env));
   },
 };

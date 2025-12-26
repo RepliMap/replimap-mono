@@ -5,8 +5,9 @@
  */
 
 import type { Env } from '../types/env';
-import { Errors, AppError } from '../lib/errors';
+import { AppError } from '../lib/errors';
 import { rateLimit } from '../lib/rate-limiter';
+import { verifyAdminApiKey } from '../lib/security';
 
 // =============================================================================
 // Response Types
@@ -96,11 +97,12 @@ interface DepsUsageResponse {
 // Admin Authentication
 // =============================================================================
 
+/**
+ * Validate admin API key with constant-time comparison.
+ * Uses shared security utility to prevent timing attacks.
+ */
 function validateAdminAuth(request: Request, env: Env): void {
-  const apiKey = request.headers.get('X-API-Key');
-  if (!apiKey || apiKey !== env.ADMIN_API_KEY) {
-    throw Errors.unauthorized('Invalid or missing admin API key');
-  }
+  verifyAdminApiKey(request, env.ADMIN_API_KEY);
 }
 
 // =============================================================================

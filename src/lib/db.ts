@@ -101,6 +101,123 @@ export async function getActiveMachines(
   return result.results;
 }
 
+/**
+ * Get total count of ALL machines ever registered (active + inactive)
+ * Used for abuse detection - if a license has been used on 50+ devices,
+ * it's likely being shared.
+ */
+export async function getTotalMachineCount(
+  db: D1Database,
+  licenseId: string
+): Promise<number> {
+  const result = await db.prepare(`
+    SELECT COUNT(*) as count FROM license_machines
+    WHERE license_id = ?
+  `).bind(licenseId).first<{ count: number }>();
+
+  return result?.count ?? 0;
+}
+
+/**
+ * Get count of ACTIVE devices (seen in last N days)
+ * Used for improved abuse detection - only count recent activity
+ */
+export async function getActiveDeviceCount(
+  db: D1Database,
+  licenseId: string,
+  daysBack: number = 7,
+  excludeCI: boolean = true
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+
+  // Note: is_ci column may not exist yet, so we check machine_id patterns
+  const query = excludeCI
+    ? `
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ?
+        AND last_seen_at >= ?
+        AND machine_id NOT LIKE 'ci-%'
+        AND machine_id NOT LIKE 'github-%'
+        AND machine_id NOT LIKE 'gitlab-%'
+        AND machine_id NOT LIKE '%-ci-%'
+        AND machine_id NOT LIKE '%-runner-%'
+    `
+    : `
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ? AND last_seen_at >= ?
+    `;
+
+  const result = await db.prepare(query)
+    .bind(licenseId, cutoffDate.toISOString())
+    .first<{ count: number }>();
+
+  return result?.count ?? 0;
+}
+
+/**
+ * Get count of NEW devices registered in last N hours
+ * Used for detecting rapid churn (key sharing)
+ */
+export async function getNewDeviceCount(
+  db: D1Database,
+  licenseId: string,
+  hoursBack: number = 24,
+  excludeCI: boolean = true
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setHours(cutoffDate.getHours() - hoursBack);
+
+  const query = excludeCI
+    ? `
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ?
+        AND first_seen_at >= ?
+        AND machine_id NOT LIKE 'ci-%'
+        AND machine_id NOT LIKE 'github-%'
+        AND machine_id NOT LIKE 'gitlab-%'
+        AND machine_id NOT LIKE '%-ci-%'
+        AND machine_id NOT LIKE '%-runner-%'
+    `
+    : `
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ? AND first_seen_at >= ?
+    `;
+
+  const result = await db.prepare(query)
+    .bind(licenseId, cutoffDate.toISOString())
+    .first<{ count: number }>();
+
+  return result?.count ?? 0;
+}
+
+/**
+ * Get count of active CI devices for a license
+ */
+export async function getActiveCIDeviceCount(
+  db: D1Database,
+  licenseId: string,
+  daysBack: number = 30
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+
+  const result = await db.prepare(`
+    SELECT COUNT(*) as count FROM license_machines
+    WHERE license_id = ?
+      AND last_seen_at >= ?
+      AND (
+        machine_id LIKE 'ci-%'
+        OR machine_id LIKE 'github-%'
+        OR machine_id LIKE 'gitlab-%'
+        OR machine_id LIKE '%-ci-%'
+        OR machine_id LIKE '%-runner-%'
+      )
+  `).bind(licenseId, cutoffDate.toISOString()).first<{ count: number }>();
+
+  return result?.count ?? 0;
+}
+
 // ============================================================================
 // License Mutations
 // ============================================================================
@@ -472,4 +589,129 @@ export async function getActiveAwsAccountCount(
   `).bind(licenseId).first<{ count: number }>();
 
   return result?.count ?? 0;
+}
+
+// ============================================================================
+// Daily Usage Aggregation (for efficient telemetry)
+// ============================================================================
+
+/**
+ * Record a usage event using daily aggregation (upsert pattern).
+ * Instead of inserting every event, we increment a daily counter.
+ * This reduces 1.8M rows/year to ~50k rows.
+ *
+ * @param licenseId - The license ID
+ * @param eventType - The event type (e.g., 'scan', 'audit_fix')
+ * @param resourceCount - Optional resource count to add
+ */
+export async function recordDailyUsage(
+  db: D1Database,
+  licenseId: string,
+  eventType: string,
+  resourceCount: number = 0
+): Promise<void> {
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+  // SQLite UPSERT: Insert or increment on conflict
+  await db.prepare(`
+    INSERT INTO usage_daily (id, license_id, date, event_type, count, resource_count, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 1, ?, datetime('now'), datetime('now'))
+    ON CONFLICT(license_id, date, event_type)
+    DO UPDATE SET
+      count = count + 1,
+      resource_count = resource_count + excluded.resource_count,
+      updated_at = datetime('now')
+  `).bind(
+    generateId(),
+    licenseId,
+    today,
+    eventType,
+    resourceCount
+  ).run();
+}
+
+/**
+ * Get daily usage count for a specific event type this month.
+ *
+ * HYBRID READ: During the transition from usage_events (log-based) to
+ * usage_daily (aggregation-based), we must read from BOTH tables to avoid
+ * "Billing Amnesia" - losing track of usage recorded before the transition.
+ *
+ * Example: If deployed mid-month, usage_events has pre-deployment usage,
+ * and usage_daily has post-deployment usage. Both must be summed.
+ */
+export async function getDailyUsageCount(
+  db: D1Database,
+  licenseId: string,
+  eventType: string
+): Promise<number> {
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+  const startDate = startOfMonth.toISOString().split('T')[0];
+  const startDateTime = startOfMonth.toISOString();
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // HYBRID READ: Sum from both legacy (usage_events) and new (usage_daily)
+  // This ensures no usage is lost during the transition period.
+  // ─────────────────────────────────────────────────────────────────────────
+  const [legacyResult, newResult] = await Promise.all([
+    // Legacy: Count individual events from usage_events
+    db.prepare(`
+      SELECT COUNT(*) as count
+      FROM usage_events
+      WHERE license_id = ? AND event_type = ? AND created_at >= ?
+    `).bind(licenseId, eventType, startDateTime).first<{ count: number }>(),
+
+    // New: Sum aggregated counts from usage_daily
+    db.prepare(`
+      SELECT COALESCE(SUM(count), 0) as total
+      FROM usage_daily
+      WHERE license_id = ? AND event_type = ? AND date >= ?
+    `).bind(licenseId, eventType, startDate).first<{ total: number }>(),
+  ]);
+
+  const legacyCount = legacyResult?.count ?? 0;
+  const newCount = newResult?.total ?? 0;
+
+  // Return combined usage from both systems
+  return legacyCount + newCount;
+}
+
+// ============================================================================
+// Device Cleanup (for plan downgrades)
+// ============================================================================
+
+/**
+ * Wipe all devices for a license (force re-activation).
+ * Used when downgrading plans to enforce new device limits.
+ *
+ * @returns Number of devices deleted
+ */
+export async function wipeAllDevices(
+  db: D1Database,
+  licenseId: string
+): Promise<number> {
+  const result = await db.prepare(`
+    DELETE FROM license_machines WHERE license_id = ?
+  `).bind(licenseId).run();
+
+  return result.meta.changes ?? 0;
+}
+
+/**
+ * Deactivate all devices for a license (soft wipe).
+ * Marks devices as inactive rather than deleting them.
+ *
+ * @returns Number of devices deactivated
+ */
+export async function deactivateAllDevices(
+  db: D1Database,
+  licenseId: string
+): Promise<number> {
+  const result = await db.prepare(`
+    UPDATE license_machines SET is_active = 0 WHERE license_id = ? AND is_active = 1
+  `).bind(licenseId).run();
+
+  return result.meta.changes ?? 0;
 }

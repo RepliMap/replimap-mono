@@ -7,6 +7,7 @@ import type { Env } from '../types/env';
 import { Errors, AppError } from '../lib/errors';
 import { generateLicenseKey, validateLicenseKey, normalizeLicenseKey } from '../lib/license';
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
+import { verifyAdminApiKey as verifyApiKey } from '../lib/security';
 import {
   findOrCreateUser,
   createLicense,
@@ -19,43 +20,11 @@ import {
 // ============================================================================
 
 /**
- * Verify admin API key from X-API-Key header
- * Uses constant-time comparison to prevent timing attacks
+ * Verify admin API key from X-API-Key header.
+ * Uses shared security utility with constant-time comparison.
  */
 export function verifyAdminApiKey(request: Request, env: Env): void {
-  const adminKey = env.ADMIN_API_KEY;
-
-  if (!adminKey) {
-    throw new AppError(
-      'INTERNAL_ERROR',
-      'Admin API is not configured. Set ADMIN_API_KEY secret.',
-      503
-    );
-  }
-
-  const providedKey = request.headers.get('X-API-Key');
-
-  if (!providedKey) {
-    throw new AppError(
-      'INVALID_REQUEST',
-      'Missing X-API-Key header',
-      401
-    );
-  }
-
-  // Constant-time comparison
-  if (providedKey.length !== adminKey.length) {
-    throw new AppError('INVALID_REQUEST', 'Invalid API key', 403);
-  }
-
-  let result = 0;
-  for (let i = 0; i < providedKey.length; i++) {
-    result |= providedKey.charCodeAt(i) ^ adminKey.charCodeAt(i);
-  }
-
-  if (result !== 0) {
-    throw new AppError('INVALID_REQUEST', 'Invalid API key', 403);
-  }
+  verifyApiKey(request, env.ADMIN_API_KEY);
 }
 
 // ============================================================================
@@ -252,6 +221,116 @@ export async function handleGetLicense(
       created_at: license.created_at,
       updated_at: license.updated_at,
     }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      return new Response(JSON.stringify(error.toResponse()), {
+        status: error.statusCode,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get system stats (admin only) - "God Mode" endpoint
+ * GET /v1/admin/stats
+ *
+ * Provides operational visibility:
+ * - User and license counts
+ * - Active devices (7d/30d)
+ * - Event counts and trends
+ * - Database health indicators
+ */
+export async function handleGetStats(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  try {
+    // Verify admin API key
+    verifyAdminApiKey(request, env);
+
+    // Execute all queries in parallel for efficiency
+    const [
+      userCount,
+      licenseCount,
+      activeLicenses,
+      activeDevices7d,
+      activeDevices30d,
+      eventsToday,
+      eventsThisMonth,
+      topEventTypes,
+    ] = await Promise.all([
+      // Total users
+      env.DB.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>(),
+
+      // Total licenses
+      env.DB.prepare('SELECT COUNT(*) as count FROM licenses').first<{ count: number }>(),
+
+      // Active licenses (status = 'active')
+      env.DB.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'active'").first<{ count: number }>(),
+
+      // Active devices in last 7 days
+      env.DB.prepare(`
+        SELECT COUNT(*) as count FROM license_machines
+        WHERE last_seen_at > datetime('now', '-7 days')
+      `).first<{ count: number }>(),
+
+      // Active devices in last 30 days
+      env.DB.prepare(`
+        SELECT COUNT(*) as count FROM license_machines
+        WHERE last_seen_at > datetime('now', '-30 days')
+      `).first<{ count: number }>(),
+
+      // Events today (from usage_daily)
+      env.DB.prepare(`
+        SELECT COALESCE(SUM(count), 0) as count FROM usage_daily
+        WHERE date = date('now')
+      `).first<{ count: number }>(),
+
+      // Events this month (from usage_daily)
+      env.DB.prepare(`
+        SELECT COALESCE(SUM(count), 0) as count FROM usage_daily
+        WHERE date >= date('now', 'start of month')
+      `).first<{ count: number }>(),
+
+      // Top event types this month
+      env.DB.prepare(`
+        SELECT event_type, SUM(count) as total
+        FROM usage_daily
+        WHERE date >= date('now', 'start of month')
+        GROUP BY event_type
+        ORDER BY total DESC
+        LIMIT 10
+      `).all<{ event_type: string; total: number }>(),
+    ]);
+
+    const stats = {
+      timestamp: new Date().toISOString(),
+      environment: env.ENVIRONMENT,
+      version: env.API_VERSION || 'unknown',
+      users: {
+        total: userCount?.count ?? 0,
+      },
+      licenses: {
+        total: licenseCount?.count ?? 0,
+        active: activeLicenses?.count ?? 0,
+      },
+      devices: {
+        active_7d: activeDevices7d?.count ?? 0,
+        active_30d: activeDevices30d?.count ?? 0,
+      },
+      events: {
+        today: eventsToday?.count ?? 0,
+        this_month: eventsThisMonth?.count ?? 0,
+        top_types: topEventTypes?.results ?? [],
+      },
+    };
+
+    return new Response(JSON.stringify(stats), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

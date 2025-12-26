@@ -13,6 +13,14 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET: string;
   ADMIN_API_KEY: string;
 
+  // Machine signature verification (optional - for enhanced security)
+  // If set, CLI must send HMAC-SHA256 signature of machine_id
+  MACHINE_SIGNATURE_SECRET?: string;
+
+  // Lease token signing secret (optional - for offline mode support)
+  // If set, includes a signed JWT in validate response that CLI can cache
+  LEASE_TOKEN_SECRET?: string;
+
   // Environment variables
   ENVIRONMENT: 'development' | 'production';
   CORS_ORIGIN: string;

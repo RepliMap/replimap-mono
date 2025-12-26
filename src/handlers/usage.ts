@@ -13,12 +13,18 @@ import { validateLicenseKey, normalizeLicenseKey, nowISO, generateId } from '../
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
 import { Plan, PLAN_LIMITS } from '../features';
 import { rateLimit } from '../lib/rate-limiter';
-import { getLicenseByKey, getMonthlyUsageCount } from '../lib/db';
+import { getLicenseByKey, getMonthlyUsageCount, recordDailyUsage, getDailyUsageCount } from '../lib/db';
 import {
   normalizeEventType,
   isDeprecatedEvent,
   getEventDeprecationWarning,
 } from '../utils/event-compat';
+import {
+  trackEventRequestSchema,
+  syncUsageRequestSchema,
+  checkQuotaRequestSchema,
+  parseRequest,
+} from '../lib/schemas';
 
 // ============================================================================
 // Request/Response Types
@@ -55,11 +61,7 @@ interface QuotaInfo {
   scans_remaining: number | null;
 }
 
-interface CheckQuotaRequest {
-  license_key: string;
-  operation: 'scans' | 'resources';
-  amount?: number;
-}
+// CheckQuotaRequest is now defined via Zod schema in lib/schemas.ts
 
 interface CheckQuotaResponse {
   allowed: boolean;
@@ -83,52 +85,7 @@ interface UsageHistoryResponse {
 // NEW: Event Tracking Types
 // =============================================================================
 
-// Valid event types for the new tracking system
-const VALID_EVENT_TYPES = [
-  // Core
-  'scan',
-  'graph',
-  'graph_full',
-  'graph_security',
-  'clone',
-  // Security
-  'audit',
-  'audit_fix',
-  // Change detection
-  'drift',
-  'snapshot_save',
-  'snapshot_diff',
-  'snapshot_list',
-  'snapshot_delete',
-  // Dependency Explorer (current names)
-  'deps',
-  'deps_explore',
-  'deps_export',
-  // DEPRECATED: Blast Radius (accept but map to deps)
-  'blast',
-  'blast_analyze',
-  'blast_export',
-  // Cost
-  'cost',
-  'cost_export',
-  // Exports
-  'export_json',
-  'export_html',
-  'export_markdown',
-  'export_terraform',
-] as const;
-
-type EventType = (typeof VALID_EVENT_TYPES)[number];
-
-interface TrackEventRequest {
-  license_key: string;
-  event_type: EventType;
-  region?: string;
-  vpc_id?: string;
-  resource_count?: number;
-  duration_ms?: number;
-  metadata?: Record<string, unknown>;
-}
+// Event types and validation are now defined via Zod schema in lib/schemas.ts
 
 interface TrackEventResponse {
   success: boolean;
@@ -145,6 +102,11 @@ interface TrackEventResponse {
 /**
  * Sync usage data from CLI
  * POST /v1/usage/sync
+ *
+ * Input validation includes:
+ * - License key and machine ID format validation
+ * - Bounded usage counts (scans_count, resources_scanned, terraform_generations)
+ * - Period format validation (YYYY-MM)
  */
 export async function handleSyncUsage(
   request: Request,
@@ -155,25 +117,20 @@ export async function handleSyncUsage(
 
   try {
     // Parse request body
-    let body: SyncUsageRequest;
+    let rawBody: unknown;
     try {
-      body = await request.json() as SyncUsageRequest;
+      rawBody = await request.json();
     } catch {
       throw Errors.invalidRequest('Invalid JSON body');
     }
 
-    // Validate required fields
-    if (!body.license_key) {
-      throw Errors.invalidRequest('Missing license_key');
-    }
-    if (!body.machine_id) {
-      throw Errors.invalidRequest('Missing machine_id');
-    }
-    if (!body.usage) {
-      throw Errors.invalidRequest('Missing usage data');
+    // Validate with Zod schema (includes bounds checking)
+    const parseResult = parseRequest(syncUsageRequestSchema, rawBody);
+    if (!parseResult.success) {
+      throw Errors.invalidRequest(parseResult.error);
     }
 
-    validateLicenseKey(body.license_key);
+    const body = parseResult.data;
     const licenseKey = normalizeLicenseKey(body.license_key);
 
     // Get license
@@ -355,6 +312,11 @@ export async function handleGetUsageHistory(
 /**
  * Check if an operation is allowed within quota
  * POST /v1/usage/check-quota
+ *
+ * Input validation includes:
+ * - License key format validation
+ * - Operation enum validation (scans | resources)
+ * - Bounded amount (1-10,000)
  */
 export async function handleCheckQuota(
   request: Request,
@@ -365,23 +327,22 @@ export async function handleCheckQuota(
 
   try {
     // Parse request body
-    let body: CheckQuotaRequest;
+    let rawBody: unknown;
     try {
-      body = await request.json() as CheckQuotaRequest;
+      rawBody = await request.json();
     } catch {
       throw Errors.invalidRequest('Invalid JSON body');
     }
 
-    if (!body.license_key) {
-      throw Errors.invalidRequest('Missing license_key');
-    }
-    if (!body.operation) {
-      throw Errors.invalidRequest('Missing operation');
+    // Validate with Zod schema
+    const parseResult = parseRequest(checkQuotaRequestSchema, rawBody);
+    if (!parseResult.success) {
+      throw Errors.invalidRequest(parseResult.error);
     }
 
-    validateLicenseKey(body.license_key);
+    const body = parseResult.data;
     const licenseKey = normalizeLicenseKey(body.license_key);
-    const amount = body.amount || 1;
+    const amount = body.amount;
 
     // Get license
     const license = await getLicenseByKey(env.DB, licenseKey);
@@ -547,6 +508,13 @@ async function getUsageHistory(
 /**
  * Track feature usage event
  * POST /v1/usage/track
+ *
+ * Input validation includes:
+ * - License key format validation
+ * - Event type validation against allowed types
+ * - Bounded resource_count (0-100,000)
+ * - Bounded duration_ms (0-86,400,000 = 24 hours)
+ * - Metadata size limit (4KB)
  */
 export async function handleTrackEvent(
   request: Request,
@@ -557,27 +525,20 @@ export async function handleTrackEvent(
 
   try {
     // Parse request body
-    let body: TrackEventRequest;
+    let rawBody: unknown;
     try {
-      body = (await request.json()) as TrackEventRequest;
+      rawBody = await request.json();
     } catch {
       throw Errors.invalidRequest('Invalid JSON body');
     }
 
-    // Validate required fields
-    if (!body.license_key) {
-      throw Errors.invalidRequest('Missing license_key');
-    }
-    if (!body.event_type) {
-      throw Errors.invalidRequest('Missing event_type');
+    // Validate with Zod schema (includes bounds checking)
+    const parseResult = parseRequest(trackEventRequestSchema, rawBody);
+    if (!parseResult.success) {
+      throw Errors.invalidRequest(parseResult.error);
     }
 
-    // Validate event type
-    if (!VALID_EVENT_TYPES.includes(body.event_type)) {
-      throw Errors.invalidRequest(`Invalid event_type: ${body.event_type}`);
-    }
-
-    validateLicenseKey(body.license_key);
+    const body = parseResult.data;
     const licenseKey = normalizeLicenseKey(body.license_key);
 
     // Get license
@@ -638,6 +599,12 @@ export async function handleTrackEvent(
       now
     ).run();
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Daily Aggregation (for efficient counting)
+    // This upserts into usage_daily to avoid 1.8M rows/year in usage_events
+    // ─────────────────────────────────────────────────────────────────────────
+    await recordDailyUsage(env.DB, license.id, eventType, body.resource_count || 0);
+
     // Track feature-specific data (merge region from body into metadata)
     if (eventType === 'snapshot_save' && body.metadata?.snapshot_name) {
       await trackSnapshot(env.DB, license.id, { ...body.metadata, region: body.region });
@@ -676,6 +643,24 @@ export async function handleTrackEvent(
 // NEW: Feature-Specific Tracking Helpers
 // =============================================================================
 
+// ─────────────────────────────────────────────────────────────────────────
+// UNLIMITED OPERATIONS - These should NEVER consume quota
+// Read-only operations and cleanup operations are always free
+// ─────────────────────────────────────────────────────────────────────────
+const UNLIMITED_OPERATIONS = new Set([
+  // Read-only operations
+  'snapshot_list',
+  'snapshot_get',
+  'license_check',
+  'license_status',
+  'quota_check',
+  'help',
+  'version',
+
+  // Cleanup operations (user doing the right thing)
+  'snapshot_delete',
+]);
+
 async function checkEventLimit(
   db: D1Database,
   licenseId: string,
@@ -688,15 +673,28 @@ async function checkEventLimit(
   remaining: number | null;
   reset_at: string;
 }> {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Check if this is an unlimited operation (read-only or cleanup)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (UNLIMITED_OPERATIONS.has(eventType)) {
+    return {
+      allowed: true,
+      limit: -1,
+      used: 0,
+      remaining: null,
+      reset_at: '',
+    };
+  }
+
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS[Plan.FREE];
 
-  // Map event type to limit key
+  // ─────────────────────────────────────────────────────────────────────────
+  // METERED OPERATIONS - These consume quota
+  // ─────────────────────────────────────────────────────────────────────────
   const limitKeyMap: Record<string, string> = {
     audit_fix: 'audit_fix_count',
     snapshot_save: 'snapshot_count',
     snapshot_diff: 'snapshot_diff_count',
-    snapshot_list: 'snapshot_count',
-    snapshot_delete: 'snapshot_count',
     deps: 'deps_count',
     deps_explore: 'deps_count',
     deps_export: 'deps_count',
@@ -705,6 +703,7 @@ async function checkEventLimit(
     drift: 'drift_count',
     cost: 'cost_count',
     scan: 'scan_count',
+    rightsizer_analyze: 'rightsizer_count',
   };
 
   const limitKey = limitKeyMap[eventType] || `${eventType}_count`;
@@ -732,18 +731,9 @@ async function checkEventLimit(
     };
   }
 
-  // Count current period usage
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const result = await db.prepare(`
-    SELECT COUNT(*) as count
-    FROM usage_events
-    WHERE license_id = ? AND event_type = ? AND created_at >= ?
-  `).bind(licenseId, eventType, startOfMonth.toISOString()).first<{ count: number }>();
-
-  const used = result?.count || 0;
+  // Count current period usage using efficient daily aggregation
+  // This queries usage_daily (50k rows/year) instead of usage_events (1.8M rows/year)
+  const used = await getDailyUsageCount(db, licenseId, eventType);
   const remaining = Math.max(0, limit - used);
 
   return {

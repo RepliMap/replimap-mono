@@ -19,6 +19,8 @@ import { validateLicenseKey, normalizeLicenseKey, generateId, nowISO } from '../
 import { getLicenseByKey } from '../lib/db';
 import { rateLimit } from '../lib/rate-limiter';
 import { Plan } from '../features';
+import { rightSizerRequestSchema, parseRequest, type RightSizerResourceInput } from '../lib/schemas';
+import { checkVersionHeader, logError } from '../lib/security';
 import {
   ResourceCategory,
   DowngradeStrategy,
@@ -36,22 +38,8 @@ import {
 // Request/Response Types
 // =============================================================================
 
-interface ResourceInput {
-  resource_id: string;
-  resource_type: 'aws_instance' | 'aws_db_instance' | 'aws_elasticache_cluster' | 'aws_elasticache_replication_group';
-  instance_type: string;
-  region: string;
-  multi_az?: boolean;
-  storage_type?: string;
-  storage_size_gb?: number;
-  iops?: number;
-}
-
-interface RightSizerRequest {
-  resources: ResourceInput[];
-  strategy?: DowngradeStrategy;
-  target_env?: 'dev' | 'staging' | 'test';
-}
+// Use the Zod-inferred type for resources
+type ResourceInput = RightSizerResourceInput;
 
 interface SavingsBreakdown {
   instance: number;
@@ -112,17 +100,8 @@ interface RightSizerResponse {
 }
 
 // =============================================================================
-// Validation
+// Validation (now uses Zod schemas from lib/schemas.ts)
 // =============================================================================
-
-const SUPPORTED_RESOURCE_TYPES = [
-  'aws_instance',
-  'aws_db_instance',
-  'aws_elasticache_cluster',
-  'aws_elasticache_replication_group',
-] as const;
-
-const VALID_STRATEGIES: DowngradeStrategy[] = ['conservative', 'aggressive'];
 
 /**
  * Map Terraform resource type to internal category
@@ -130,6 +109,7 @@ const VALID_STRATEGIES: DowngradeStrategy[] = ['conservative', 'aggressive'];
 function mapResourceType(resourceType: string): ResourceCategory | null {
   switch (resourceType) {
     case 'aws_instance':
+    case 'aws_launch_template':
       return 'ec2';
     case 'aws_db_instance':
       return 'rds';
@@ -139,79 +119,6 @@ function mapResourceType(resourceType: string): ResourceCategory | null {
     default:
       return null;
   }
-}
-
-/**
- * Validate request body
- */
-function validateRequest(body: unknown): { valid: true; data: RightSizerRequest } | { valid: false; error: string } {
-  if (!body || typeof body !== 'object') {
-    return { valid: false, error: 'Request body must be a JSON object' };
-  }
-
-  const req = body as Record<string, unknown>;
-
-  // Validate resources array
-  if (!Array.isArray(req.resources)) {
-    return { valid: false, error: 'resources must be an array' };
-  }
-
-  if (req.resources.length === 0) {
-    return { valid: false, error: 'resources array cannot be empty' };
-  }
-
-  if (req.resources.length > 100) {
-    return { valid: false, error: 'Maximum 100 resources per request' };
-  }
-
-  // Validate strategy
-  if (req.strategy !== undefined) {
-    if (typeof req.strategy !== 'string' || !VALID_STRATEGIES.includes(req.strategy as DowngradeStrategy)) {
-      return { valid: false, error: `strategy must be one of: ${VALID_STRATEGIES.join(', ')}` };
-    }
-  }
-
-  // Validate each resource
-  for (let i = 0; i < req.resources.length; i++) {
-    const resource = req.resources[i];
-    if (!resource || typeof resource !== 'object') {
-      return { valid: false, error: `resources[${i}] must be an object` };
-    }
-
-    const r = resource as Record<string, unknown>;
-
-    if (!r.resource_id || typeof r.resource_id !== 'string') {
-      return { valid: false, error: `resources[${i}].resource_id is required and must be a string` };
-    }
-
-    if (!r.resource_type || typeof r.resource_type !== 'string') {
-      return { valid: false, error: `resources[${i}].resource_type is required and must be a string` };
-    }
-
-    if (!SUPPORTED_RESOURCE_TYPES.includes(r.resource_type as typeof SUPPORTED_RESOURCE_TYPES[number])) {
-      return {
-        valid: false,
-        error: `resources[${i}].resource_type '${r.resource_type}' is not supported. Supported: ${SUPPORTED_RESOURCE_TYPES.join(', ')}`,
-      };
-    }
-
-    if (!r.instance_type || typeof r.instance_type !== 'string') {
-      return { valid: false, error: `resources[${i}].instance_type is required and must be a string` };
-    }
-
-    if (!r.region || typeof r.region !== 'string') {
-      return { valid: false, error: `resources[${i}].region is required and must be a string` };
-    }
-  }
-
-  return {
-    valid: true,
-    data: {
-      resources: req.resources as ResourceInput[],
-      strategy: (req.strategy as DowngradeStrategy) ?? 'conservative',
-      target_env: req.target_env as RightSizerRequest['target_env'],
-    },
-  };
 }
 
 // =============================================================================
@@ -535,18 +442,23 @@ export async function handleRightSizerSuggestions(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // 2. REQUEST VALIDATION
+    // 2. REQUEST VALIDATION (Zod schema prevents DoS via large payloads)
     // ═══════════════════════════════════════════════════════════════════════
 
-    let body: unknown;
+    // Check version header for warnings
+    const cliVersionHeader = request.headers.get('X-Replimap-Version');
+    const versionWarning = checkVersionHeader(cliVersionHeader);
+
+    let rawBody: unknown;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch {
       throw Errors.invalidRequest('Request body must be valid JSON');
     }
 
-    const validation = validateRequest(body);
-    if (!validation.valid) {
+    // Validate with Zod schema (max 500 resources, strict field validation)
+    const validation = parseRequest(rightSizerRequestSchema, rawBody);
+    if (!validation.success) {
       throw Errors.invalidRequest(validation.error);
     }
 
@@ -618,7 +530,9 @@ export async function handleRightSizerSuggestions(
     // 5. BUILD RESPONSE
     // ═══════════════════════════════════════════════════════════════════════
 
-    const response: RightSizerResponse = {
+    const response: RightSizerResponse & {
+      _warning?: { message: string; upgrade_command: string };
+    } = {
       success: true,
       suggestions,
       skipped,
@@ -641,6 +555,14 @@ export async function handleRightSizerSuggestions(
       strategy_used: strategy,
     };
 
+    // Add version warning if outdated CLI
+    if (versionWarning) {
+      response._warning = {
+        message: versionWarning.message,
+        upgrade_command: versionWarning.upgrade_command,
+      };
+    }
+
     return new Response(JSON.stringify(response), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...rateLimitHeaders },
@@ -652,6 +574,8 @@ export async function handleRightSizerSuggestions(
         headers: { 'Content-Type': 'application/json', ...rateLimitHeaders },
       });
     }
+    // Log error but don't expose internals
+    logError('rightsizer/suggestions', error);
     throw error;
   }
 }

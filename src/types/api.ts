@@ -125,8 +125,10 @@ export type ErrorCode =
   | 'LICENSE_CANCELED'
   | 'LICENSE_PAST_DUE'
   | 'LICENSE_REVOKED'
+  | 'LICENSE_ABUSE_DETECTED'
   | 'MACHINE_LIMIT_EXCEEDED'
   | 'MACHINE_CHANGE_LIMIT'
+  | 'CI_DEVICE_LIMIT'
   | 'AWS_ACCOUNT_LIMIT_EXCEEDED'
   | 'RATE_LIMIT_EXCEEDED'
   | 'INVALID_REQUEST'
@@ -143,6 +145,7 @@ export interface ErrorResponse {
   message: string;
   support_id?: string;
   action?: string;
+  guidance?: string;
   retry_after?: number;
   machines?: string[];
   limit?: number;
@@ -157,6 +160,7 @@ export interface HealthResponse {
   status: 'ok' | 'error';
   timestamp: string;
   version?: string;
+  pricing_data_date?: string;  // Date when AWS pricing data was last updated
 }
 
 // ============================================================================
