@@ -52,19 +52,30 @@ class ComputeScanner(BaseScanner):
     ]
 
     def scan(self, graph: GraphEngine) -> None:
-        """Scan all compute resources and add to graph."""
+        """Scan all compute resources and add to graph.
+
+        Each resource type is scanned independently with its own error handling.
+        This ensures partial success - if one resource type fails (e.g., due to
+        IAM permissions), others will still be scanned.
+        """
         logger.info(f"Scanning compute resources in {self.region}...")
 
-        try:
-            # Scan in dependency order
-            self._scan_launch_templates(graph)
-            self._scan_target_groups(graph)
-            self._scan_load_balancers(graph)
-            self._scan_listeners(graph)
-            self._scan_autoscaling_groups(graph)
+        # Define scan steps - each wrapped independently for resilience
+        scan_steps = [
+            (self._scan_launch_templates, "Launch Templates"),
+            (self._scan_target_groups, "Target Groups"),
+            (self._scan_load_balancers, "Load Balancers"),
+            (self._scan_listeners, "Listeners"),
+            (self._scan_autoscaling_groups, "Auto Scaling Groups"),
+        ]
 
-        except ClientError as e:
-            self._handle_aws_error(e, "Compute scanning")
+        for scan_func, resource_name in scan_steps:
+            try:
+                scan_func(graph)
+            except ClientError as e:
+                # Log error but continue to next resource type
+                self._handle_aws_error(e, resource_name)
+                logger.warning(f"Continuing scan despite {resource_name} failure")
 
     def _scan_launch_templates(self, graph: GraphEngine) -> None:
         """Scan all Launch Templates in the region."""

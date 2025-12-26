@@ -117,7 +117,8 @@ class AuditRenderer:
         # Group resources by output file
         file_contents: dict[str, list[str]] = {}
 
-        for resource in graph.topological_sort():
+        # Use safe dependency order to handle cycles (e.g., mutual SG references)
+        for resource in graph.get_safe_dependency_order():
             output_file = self.FILE_MAPPING.get(resource.resource_type)
 
             if not output_file:

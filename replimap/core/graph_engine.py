@@ -25,14 +25,38 @@ import re
 import threading
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import networkx as nx
 
 from .models import DependencyType, ResourceNode, ResourceType
+from .sanitizer import sanitize_resource_config
 
 logger = logging.getLogger(__name__)
+
+
+class RepliMapJSONEncoder(json.JSONEncoder):
+    """
+    Custom JSON encoder that handles types from AWS/Boto3 responses.
+
+    Handles:
+    - datetime objects (from Boto3 timestamps like CreateTime, LaunchTime)
+    - set/frozenset (from some Boto3 responses)
+    - bytes (from binary data fields)
+
+    This ensures graph.save() never crashes on unexpected types.
+    """
+
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, (set, frozenset)):
+            return list(obj)
+        if isinstance(obj, bytes):
+            return "[BINARY DATA]"
+        return super().default(obj)
 
 
 @dataclass
@@ -222,9 +246,20 @@ class GraphEngine:
         If a resource with the same ID already exists, it will be updated.
         Thread-safe: uses internal lock for concurrent access.
 
+        Security: Config is sanitized BEFORE storage to prevent sensitive
+        data (passwords, API keys, UserData) from being persisted to cache.
+
         Args:
             node: The ResourceNode to add
         """
+        # SECURITY: Sanitize config BEFORE locking and storage
+        # This runs outside the lock to minimize contention (regex is expensive)
+        if node.config:
+            sanitized_config = sanitize_resource_config(node.config)
+            # Update config in-place (dict is mutable)
+            node.config.clear()
+            node.config.update(sanitized_config)
+
         with self._lock:
             self._resources[node.id] = node
             self._graph.add_node(
@@ -701,11 +736,14 @@ class GraphEngine:
         """
         Save the graph to a JSON file.
 
+        Uses RepliMapJSONEncoder to handle datetime, set, and bytes types
+        that may appear in Boto3 responses.
+
         Args:
             path: Path to save the JSON file
         """
         with open(path, "w") as f:
-            json.dump(self.to_dict(), f, indent=2)
+            json.dump(self.to_dict(), f, indent=2, cls=RepliMapJSONEncoder)
         logger.info(f"Graph saved to {path}")
 
     @classmethod

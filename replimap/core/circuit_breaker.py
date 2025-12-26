@@ -18,6 +18,7 @@ This prevents:
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -74,18 +75,21 @@ class CircuitBreaker:
     _last_failure_time: float | None = field(default=None, init=False)
     _state: CircuitState = field(default=CircuitState.CLOSED, init=False)
     _success_count_in_half_open: int = field(default=0, init=False)
+    # Thread safety: Lock protects all state mutations
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
 
     @property
     def state(self) -> CircuitState:
-        """Get the current circuit state, checking for recovery."""
-        if self._state == CircuitState.OPEN:
-            if self._should_attempt_recovery():
-                self._state = CircuitState.HALF_OPEN
-                self._success_count_in_half_open = 0
-                logger.info(
-                    f"Circuit breaker {self.key or 'default'} entering HALF_OPEN state"
-                )
-        return self._state
+        """Get the current circuit state, checking for recovery. Thread-safe."""
+        with self._lock:
+            if self._state == CircuitState.OPEN:
+                if self._should_attempt_recovery():
+                    self._state = CircuitState.HALF_OPEN
+                    self._success_count_in_half_open = 0
+                    logger.info(
+                        f"Circuit breaker {self.key or 'default'} entering HALF_OPEN state"
+                    )
+            return self._state
 
     def _should_attempt_recovery(self) -> bool:
         """Check if enough time has passed to attempt recovery."""
@@ -158,50 +162,54 @@ class CircuitBreaker:
             raise
 
     def _on_success(self) -> None:
-        """Handle successful call."""
-        if self._state == CircuitState.HALF_OPEN:
-            self._success_count_in_half_open += 1
-            # Require 2 successful calls before fully closing
-            if self._success_count_in_half_open >= 2:
-                self._state = CircuitState.CLOSED
+        """Handle successful call. Thread-safe."""
+        with self._lock:
+            if self._state == CircuitState.HALF_OPEN:
+                self._success_count_in_half_open += 1
+                # Require 2 successful calls before fully closing
+                if self._success_count_in_half_open >= 2:
+                    self._state = CircuitState.CLOSED
+                    self._failure_count = 0
+                    logger.info(
+                        f"Circuit breaker {self.key or 'default'} CLOSED after recovery"
+                    )
+            else:
+                # In closed state, reset failure count on success
                 self._failure_count = 0
-                logger.info(
-                    f"Circuit breaker {self.key or 'default'} CLOSED after recovery"
-                )
-        else:
-            # In closed state, reset failure count on success
-            self._failure_count = 0
 
     def _on_failure(self, error: Exception) -> None:
-        """Handle failed call."""
-        self._failure_count += 1
-        self._last_failure_time = time.time()
+        """Handle failed call. Thread-safe."""
+        with self._lock:
+            self._failure_count += 1
+            self._last_failure_time = time.time()
 
-        if self._state == CircuitState.HALF_OPEN:
-            # Failed during recovery test, go back to OPEN
-            self._state = CircuitState.OPEN
-            logger.warning(
-                f"Circuit breaker {self.key or 'default'} back to OPEN "
-                f"after failed recovery test: {error}"
-            )
-        elif self._failure_count >= self.failure_threshold:
-            self._state = CircuitState.OPEN
-            logger.warning(
-                f"Circuit breaker {self.key or 'default'} OPEN after "
-                f"{self._failure_count} failures. Will retry in {self.recovery_timeout}s"
-            )
+            if self._state == CircuitState.HALF_OPEN:
+                # Failed during recovery test, go back to OPEN
+                self._state = CircuitState.OPEN
+                logger.warning(
+                    f"Circuit breaker {self.key or 'default'} back to OPEN "
+                    f"after failed recovery test: {error}"
+                )
+            elif self._failure_count >= self.failure_threshold:
+                self._state = CircuitState.OPEN
+                logger.warning(
+                    f"Circuit breaker {self.key or 'default'} OPEN after "
+                    f"{self._failure_count} failures. Will retry in {self.recovery_timeout}s"
+                )
 
     def reset(self) -> None:
-        """Manually reset the circuit breaker to closed state."""
-        self._state = CircuitState.CLOSED
-        self._failure_count = 0
-        self._last_failure_time = None
-        self._success_count_in_half_open = 0
+        """Manually reset the circuit breaker to closed state. Thread-safe."""
+        with self._lock:
+            self._state = CircuitState.CLOSED
+            self._failure_count = 0
+            self._last_failure_time = None
+            self._success_count_in_half_open = 0
 
     def force_open(self) -> None:
-        """Manually force the circuit breaker to open state."""
-        self._state = CircuitState.OPEN
-        self._last_failure_time = time.time()
+        """Manually force the circuit breaker to open state. Thread-safe."""
+        with self._lock:
+            self._state = CircuitState.OPEN
+            self._last_failure_time = time.time()
 
 
 class CircuitBreakerRegistry:
@@ -209,7 +217,7 @@ class CircuitBreakerRegistry:
     Registry for circuit breakers by region/service.
 
     Allows shared circuit breaker state across scanners for the same
-    region or service.
+    region or service. Thread-safe for concurrent scanner access.
     """
 
     def __init__(
@@ -224,13 +232,17 @@ class CircuitBreakerRegistry:
             failure_threshold: Default failure threshold for new circuits
             recovery_timeout: Default recovery timeout for new circuits
         """
+        self._lock = threading.Lock()
         self._circuits: dict[str, CircuitBreaker] = {}
         self._failure_threshold = failure_threshold
         self._recovery_timeout = recovery_timeout
 
     def get(self, key: str) -> CircuitBreaker:
         """
-        Get or create a circuit breaker for a key.
+        Get or create a circuit breaker for a key. Thread-safe.
+
+        Uses double-checked locking for performance: fast path without
+        lock when circuit already exists.
 
         Args:
             key: Identifier like "us-east-1" or "us-east-1/ec2"
@@ -238,13 +250,20 @@ class CircuitBreakerRegistry:
         Returns:
             CircuitBreaker instance for this key
         """
-        if key not in self._circuits:
-            self._circuits[key] = CircuitBreaker(
-                failure_threshold=self._failure_threshold,
-                recovery_timeout=self._recovery_timeout,
-                key=key,
-            )
-        return self._circuits[key]
+        # Fast path: circuit already exists (no lock needed for read)
+        if key in self._circuits:
+            return self._circuits[key]
+
+        # Slow path: need to create circuit (requires lock)
+        with self._lock:
+            # Double-check after acquiring lock
+            if key not in self._circuits:
+                self._circuits[key] = CircuitBreaker(
+                    failure_threshold=self._failure_threshold,
+                    recovery_timeout=self._recovery_timeout,
+                    key=key,
+                )
+            return self._circuits[key]
 
     def get_for_region_service(self, region: str, service: str) -> CircuitBreaker:
         """

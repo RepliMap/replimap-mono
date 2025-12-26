@@ -95,7 +95,8 @@ class CloudFormationRenderer(BaseRenderer):
         # Group resources by output file
         file_resources: dict[str, list[ResourceNode]] = {}
 
-        for resource in graph.topological_sort():
+        # Use safe dependency order to handle cycles (e.g., mutual SG references)
+        for resource in graph.get_safe_dependency_order():
             output_file = self.FILE_MAPPING.get(resource.resource_type)
             if output_file:
                 if output_file not in file_resources:
