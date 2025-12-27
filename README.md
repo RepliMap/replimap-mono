@@ -2,7 +2,7 @@
 
 License validation, feature gating, and usage tracking API for RepliMap CLI.
 
-Built on Cloudflare Workers + D1 (SQLite) for global edge deployment.
+Built on Cloudflare Workers + D1 (SQLite) with Drizzle ORM for global edge deployment.
 
 ## Features
 
@@ -47,9 +47,12 @@ replimap-backend/
 │   │   ├── features.ts       # Feature info endpoints
 │   │   └── metrics.ts        # Admin metrics
 │   ├── lib/
+│   │   ├── db.ts             # Drizzle ORM client & database operations
 │   │   ├── crypto.ts         # License key generation/validation
 │   │   ├── errors.ts         # Error handling
 │   │   └── helpers.ts        # Utility functions
+│   ├── db/
+│   │   └── schema.ts         # Drizzle ORM schema definitions
 │   ├── types/
 │   │   ├── api.ts            # API types
 │   │   └── db.ts             # Database types
@@ -359,7 +362,7 @@ Set via `wrangler secret put <NAME>`:
 
 ### Core Tables
 
-- `users` - User accounts linked to Stripe customers
+- `user` - User accounts linked to Stripe customers (via `customer_id`)
 - `licenses` - License records with plan, features, expiry
 - `license_machines` - Machine activations per license
 - `machine_changes` - Monthly machine change tracking
@@ -404,6 +407,24 @@ curl -X POST https://your-api.workers.dev/v1/usage/track \
 ```
 
 ## Changelog
+
+### v2.2.0 (2025-12)
+
+**Drizzle ORM Migration:**
+- Migrated from raw D1 SQL strings to Drizzle ORM
+- Type-safe database operations with `DrizzleD1Database<typeof schema>`
+- Schema defined in `src/db/schema.ts` with proper TypeScript types
+- All handlers updated to use `createDb(env.DB)` factory pattern
+- Uses `sql` template literals for complex queries (performance-critical paths)
+- `onConflictDoUpdate` for atomic upsert operations
+- camelCase property names from Drizzle schema mappings
+
+**Schema Changes:**
+- Table `users` renamed to `user` (Drizzle convention)
+- Column `stripe_customer_id` renamed to `customer_id`
+
+**Dependencies:**
+- Added `drizzle-orm` for type-safe database access
 
 ### v2.1.0 (2025-12)
 
