@@ -16,11 +16,12 @@
 import type { Env } from '../types/env';
 import { AppError, Errors } from '../lib/errors';
 import { validateLicenseKey, normalizeLicenseKey, generateId, nowISO } from '../lib/license';
-import { getLicenseByKey } from '../lib/db';
+import { createDb, getLicenseByKey } from '../lib/db';
 import { rateLimit } from '../lib/rate-limiter';
 import { Plan } from '../features';
 import { rightSizerRequestSchema, parseRequest, type RightSizerResourceInput } from '../lib/schemas';
 import { checkVersionHeader, logError } from '../lib/security';
+import { sql } from 'drizzle-orm';
 import {
   ResourceCategory,
   DowngradeStrategy,
@@ -378,6 +379,8 @@ export async function handleRightSizerSuggestions(
   env: Env,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
+
   // Rate limiting (use 'validate' tier)
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
@@ -401,17 +404,17 @@ export async function handleRightSizerSuggestions(
     const normalizedKey = normalizeLicenseKey(licenseKey);
 
     // Get license from database
-    const license = await getLicenseByKey(env.DB, normalizedKey);
+    const license = await getLicenseByKey(db, normalizedKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
 
     // Check license status
     if (license.status === 'expired') {
-      throw Errors.licenseExpired(license.current_period_end ?? 'unknown');
+      throw Errors.licenseExpired(license.currentPeriodEnd ?? 'unknown');
     }
     if (license.status === 'canceled') {
-      throw Errors.licenseCanceled(license.current_period_end ?? 'unknown');
+      throw Errors.licenseCanceled(license.currentPeriodEnd ?? 'unknown');
     }
     if (license.status === 'past_due') {
       throw Errors.licensePastDue();
@@ -504,23 +507,23 @@ export async function handleRightSizerSuggestions(
     // ═══════════════════════════════════════════════════════════════════════
 
     try {
-      await env.DB.prepare(`
+      await db.run(sql`
         INSERT INTO usage_events (
           id, license_id, event_type, metadata, created_at
-        ) VALUES (?, ?, ?, ?, ?)
-      `).bind(
-        generateId(),
-        license.id,
-        'rightsizer_analyze',
-        JSON.stringify({
-          resources_count: requestData.resources.length,
-          suggestions_count: suggestions.length,
-          skipped_count: skipped.length,
-          strategy,
-          total_savings: totalMonthlySavings,
-        }),
-        nowISO()
-      ).run();
+        ) VALUES (
+          ${generateId()},
+          ${license.id},
+          ${'rightsizer_analyze'},
+          ${JSON.stringify({
+            resources_count: requestData.resources.length,
+            suggestions_count: suggestions.length,
+            skipped_count: skipped.length,
+            strategy,
+            total_savings: totalMonthlySavings,
+          })},
+          ${nowISO()}
+        )
+      `);
     } catch (err) {
       // Non-critical - log but don't fail
       console.error('Failed to log rightsizer usage:', err);

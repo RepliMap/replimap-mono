@@ -14,10 +14,13 @@ import {
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
 import { rateLimit } from '../lib/rate-limiter';
 import {
+  createDb,
   getLicenseByKey,
   trackAwsAccount,
   getActiveAwsAccountCount,
+  type DrizzleDb,
 } from '../lib/db';
+import { sql } from 'drizzle-orm';
 
 // ============================================================================
 // Request/Response Types
@@ -64,6 +67,7 @@ export async function handleTrackAwsAccount(
   env: Env,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   // Use validate rate limit (same as license validation)
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
@@ -94,7 +98,7 @@ export async function handleTrackAwsAccount(
     const licenseKey = normalizeLicenseKey(body.license_key);
 
     // Get license
-    const license = await getLicenseByKey(env.DB, licenseKey);
+    const license = await getLicenseByKey(db, licenseKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
@@ -102,7 +106,7 @@ export async function handleTrackAwsAccount(
     // Check license status
     if (license.status !== 'active' && license.status !== 'canceled') {
       if (license.status === 'expired') {
-        throw Errors.licenseExpired(license.current_period_end ?? 'Unknown');
+        throw Errors.licenseExpired(license.currentPeriodEnd ?? 'Unknown');
       }
       if (license.status === 'revoked') {
         throw Errors.licenseRevoked();
@@ -118,12 +122,12 @@ export async function handleTrackAwsAccount(
     const maxAccounts = features.aws_accounts;
 
     // Get current count
-    const currentCount = await getActiveAwsAccountCount(env.DB, license.id);
+    const currentCount = await getActiveAwsAccountCount(db, license.id);
 
     // Check if this would exceed the limit (for new accounts)
     // First try to track - if it's already tracked, no limit check needed
     const result = await trackAwsAccount(
-      env.DB,
+      db,
       license.id,
       body.aws_account_id,
       body.account_alias
@@ -174,6 +178,7 @@ export async function handleGetAwsAccounts(
   licenseKey: string,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -182,13 +187,13 @@ export async function handleGetAwsAccounts(
     const normalizedKey = normalizeLicenseKey(licenseKey);
 
     // Get license
-    const license = await getLicenseByKey(env.DB, normalizedKey);
+    const license = await getLicenseByKey(db, normalizedKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
 
     // Get all AWS accounts
-    const accounts = await getAwsAccountsForLicense(env.DB, license.id);
+    const accounts = await getAwsAccountsForLicense(db, license.id);
 
     // Get plan limits
     const plan = license.plan as PlanType;
@@ -240,15 +245,15 @@ interface AwsAccountRow {
 }
 
 async function getAwsAccountsForLicense(
-  db: D1Database,
+  db: DrizzleDb,
   licenseId: string
 ): Promise<AwsAccountRow[]> {
-  const result = await db.prepare(`
+  const result = await db.all<AwsAccountRow>(sql`
     SELECT aws_account_id, account_alias, is_active, first_seen_at, last_seen_at
     FROM license_aws_accounts
-    WHERE license_id = ?
+    WHERE license_id = ${licenseId}
     ORDER BY first_seen_at ASC
-  `).bind(licenseId).all<AwsAccountRow>();
+  `);
 
-  return result.results;
+  return result;
 }

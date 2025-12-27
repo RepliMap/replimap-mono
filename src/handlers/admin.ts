@@ -9,11 +9,13 @@ import { generateLicenseKey, validateLicenseKey, normalizeLicenseKey } from '../
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
 import { verifyAdminApiKey as verifyApiKey } from '../lib/security';
 import {
+  createDb,
   findOrCreateUser,
   createLicense,
   getLicenseByKey,
   updateLicenseStatus,
 } from '../lib/db';
+import { sql } from 'drizzle-orm';
 
 // ============================================================================
 // Admin API Key Verification
@@ -63,6 +65,8 @@ export async function handleCreateLicense(
   env: Env
 ): Promise<Response> {
   try {
+    const db = createDb(env.DB);
+
     // Verify admin API key
     verifyAdminApiKey(request, env);
 
@@ -86,7 +90,7 @@ export async function handleCreateLicense(
     }
 
     // Find or create user
-    const user = await findOrCreateUser(env.DB, body.customer_email);
+    const user = await findOrCreateUser(db, body.customer_email);
 
     // Generate license key
     const licenseKey = generateLicenseKey();
@@ -100,7 +104,7 @@ export async function handleCreateLicense(
     }
 
     // Create license
-    const license = await createLicense(env.DB, {
+    const license = await createLicense(db, {
       userId: user.id,
       licenseKey,
       plan,
@@ -108,11 +112,11 @@ export async function handleCreateLicense(
     });
 
     const response: CreateLicenseResponse = {
-      license_key: license.license_key,
+      license_key: license.licenseKey,
       plan: license.plan,
       status: license.status,
-      expires_at: license.current_period_end,
-      created_at: license.created_at,
+      expires_at: license.currentPeriodEnd,
+      created_at: license.createdAt,
     };
 
     return new Response(JSON.stringify(response), {
@@ -140,6 +144,8 @@ export async function handleRevokeLicense(
   licenseKey: string
 ): Promise<Response> {
   try {
+    const db = createDb(env.DB);
+
     // Verify admin API key
     verifyAdminApiKey(request, env);
 
@@ -159,13 +165,13 @@ export async function handleRevokeLicense(
     }
 
     // Get license
-    const license = await getLicenseByKey(env.DB, normalizedKey);
+    const license = await getLicenseByKey(db, normalizedKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
 
     // Revoke license
-    await updateLicenseStatus(env.DB, license.id, 'revoked');
+    await updateLicenseStatus(db, license.id, 'revoked');
 
     return new Response(JSON.stringify({
       revoked: true,
@@ -196,6 +202,8 @@ export async function handleGetLicense(
   licenseKey: string
 ): Promise<Response> {
   try {
+    const db = createDb(env.DB);
+
     // Verify admin API key
     verifyAdminApiKey(request, env);
 
@@ -204,7 +212,7 @@ export async function handleGetLicense(
     const normalizedKey = normalizeLicenseKey(licenseKey);
 
     // Get license
-    const license = await getLicenseByKey(env.DB, normalizedKey);
+    const license = await getLicenseByKey(db, normalizedKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
@@ -212,14 +220,14 @@ export async function handleGetLicense(
     const features = PLAN_FEATURES[license.plan as PlanType] ?? PLAN_FEATURES.free;
 
     return new Response(JSON.stringify({
-      license_key: license.license_key,
+      license_key: license.licenseKey,
       plan: license.plan,
       status: license.status,
       features,
-      expires_at: license.current_period_end,
-      stripe_subscription_id: license.stripe_subscription_id,
-      created_at: license.created_at,
-      updated_at: license.updated_at,
+      expires_at: license.currentPeriodEnd,
+      stripe_subscription_id: license.stripeSubscriptionId,
+      created_at: license.createdAt,
+      updated_at: license.updatedAt,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -250,6 +258,8 @@ export async function handleGetStats(
   env: Env
 ): Promise<Response> {
   try {
+    const db = createDb(env.DB);
+
     // Verify admin API key
     verifyAdminApiKey(request, env);
 
@@ -265,47 +275,47 @@ export async function handleGetStats(
       topEventTypes,
     ] = await Promise.all([
       // Total users
-      env.DB.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>(),
+      db.get<{ count: number }>(sql`SELECT COUNT(*) as count FROM users`),
 
       // Total licenses
-      env.DB.prepare('SELECT COUNT(*) as count FROM licenses').first<{ count: number }>(),
+      db.get<{ count: number }>(sql`SELECT COUNT(*) as count FROM licenses`),
 
       // Active licenses (status = 'active')
-      env.DB.prepare("SELECT COUNT(*) as count FROM licenses WHERE status = 'active'").first<{ count: number }>(),
+      db.get<{ count: number }>(sql`SELECT COUNT(*) as count FROM licenses WHERE status = 'active'`),
 
       // Active devices in last 7 days
-      env.DB.prepare(`
+      db.get<{ count: number }>(sql`
         SELECT COUNT(*) as count FROM license_machines
         WHERE last_seen_at > datetime('now', '-7 days')
-      `).first<{ count: number }>(),
+      `),
 
       // Active devices in last 30 days
-      env.DB.prepare(`
+      db.get<{ count: number }>(sql`
         SELECT COUNT(*) as count FROM license_machines
         WHERE last_seen_at > datetime('now', '-30 days')
-      `).first<{ count: number }>(),
+      `),
 
       // Events today (from usage_daily)
-      env.DB.prepare(`
+      db.get<{ count: number }>(sql`
         SELECT COALESCE(SUM(count), 0) as count FROM usage_daily
         WHERE date = date('now')
-      `).first<{ count: number }>(),
+      `),
 
       // Events this month (from usage_daily)
-      env.DB.prepare(`
+      db.get<{ count: number }>(sql`
         SELECT COALESCE(SUM(count), 0) as count FROM usage_daily
         WHERE date >= date('now', 'start of month')
-      `).first<{ count: number }>(),
+      `),
 
       // Top event types this month
-      env.DB.prepare(`
+      db.all<{ event_type: string; total: number }>(sql`
         SELECT event_type, SUM(count) as total
         FROM usage_daily
         WHERE date >= date('now', 'start of month')
         GROUP BY event_type
         ORDER BY total DESC
         LIMIT 10
-      `).all<{ event_type: string; total: number }>(),
+      `),
     ]);
 
     const stats = {
@@ -326,7 +336,7 @@ export async function handleGetStats(
       events: {
         today: eventsToday?.count ?? 0,
         this_month: eventsThisMonth?.count ?? 0,
-        top_types: topEventTypes?.results ?? [],
+        top_types: topEventTypes ?? [],
       },
     };
 

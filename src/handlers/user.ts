@@ -16,7 +16,8 @@ import {
 } from '../lib/license';
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
 import { rateLimit } from '../lib/rate-limiter';
-import { getLicenseByKey, getMonthlyUsageCount } from '../lib/db';
+import { createDb, getLicenseByKey, getMonthlyUsageCount, type DrizzleDb } from '../lib/db';
+import { sql } from 'drizzle-orm';
 
 // ============================================================================
 // Request/Response Types
@@ -87,6 +88,7 @@ export async function handleGetOwnLicense(
   clientIP: string
 ): Promise<Response> {
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const db = createDb(env.DB);
 
   try {
     const url = new URL(request.url);
@@ -100,7 +102,17 @@ export async function handleGetOwnLicense(
     const normalizedKey = normalizeLicenseKey(licenseKey);
 
     // Get license with counts
-    const result = await env.DB.prepare(`
+    const result = await db.get<{
+      license_key: string;
+      plan: string;
+      status: string;
+      current_period_start: string | null;
+      current_period_end: string | null;
+      stripe_subscription_id: string | null;
+      created_at: string;
+      active_machines: number;
+      active_aws_accounts: number;
+    }>(sql`
       SELECT
         l.license_key,
         l.plan,
@@ -112,18 +124,8 @@ export async function handleGetOwnLicense(
         (SELECT COUNT(*) FROM license_machines lm WHERE lm.license_id = l.id AND lm.is_active = 1) as active_machines,
         (SELECT COUNT(*) FROM license_aws_accounts la WHERE la.license_id = l.id AND la.is_active = 1) as active_aws_accounts
       FROM licenses l
-      WHERE l.license_key = ?
-    `).bind(normalizedKey).first<{
-      license_key: string;
-      plan: string;
-      status: string;
-      current_period_start: string | null;
-      current_period_end: string | null;
-      stripe_subscription_id: string | null;
-      created_at: string;
-      active_machines: number;
-      active_aws_accounts: number;
-    }>();
+      WHERE l.license_key = ${normalizedKey}
+    `);
 
     if (!result) {
       throw Errors.licenseNotFound();
@@ -133,9 +135,9 @@ export async function handleGetOwnLicense(
     const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
 
     // Get usage count
-    const licenseId = await getLicenseId(env.DB, normalizedKey);
+    const licenseId = await getLicenseId(db, normalizedKey);
     const scansThisMonth = licenseId
-      ? await getMonthlyUsageCount(env.DB, licenseId, 'scan')
+      ? await getMonthlyUsageCount(db, licenseId, 'scan')
       : 0;
 
     const response: GetLicenseResponse = {
@@ -195,6 +197,7 @@ export async function handleGetOwnMachines(
   clientIP: string
 ): Promise<Response> {
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const db = createDb(env.DB);
 
   try {
     const url = new URL(request.url);
@@ -208,7 +211,7 @@ export async function handleGetOwnMachines(
     const normalizedKey = normalizeLicenseKey(licenseKey);
 
     // Get license
-    const license = await getLicenseByKey(env.DB, normalizedKey);
+    const license = await getLicenseByKey(db, normalizedKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
@@ -217,28 +220,28 @@ export async function handleGetOwnMachines(
     const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
 
     // Get machines
-    const machinesResult = await env.DB.prepare(`
-      SELECT machine_id, machine_name, is_active, first_seen_at, last_seen_at
-      FROM license_machines
-      WHERE license_id = ?
-      ORDER BY last_seen_at DESC
-    `).bind(license.id).all<{
+    const machinesResult = await db.all<{
       machine_id: string;
       machine_name: string | null;
       is_active: number;
       first_seen_at: string;
       last_seen_at: string;
-    }>();
+    }>(sql`
+      SELECT machine_id, machine_name, is_active, first_seen_at, last_seen_at
+      FROM license_machines
+      WHERE license_id = ${license.id}
+      ORDER BY last_seen_at DESC
+    `);
 
     // Get machine changes this month
-    const changesResult = await env.DB.prepare(`
+    const changesResult = await db.get<{ count: number }>(sql`
       SELECT COUNT(*) as count
       FROM machine_changes
-      WHERE license_id = ?
+      WHERE license_id = ${license.id}
       AND changed_at >= datetime('now', 'start of month')
-    `).bind(license.id).first<{ count: number }>();
+    `);
 
-    const machines: MachineInfo[] = machinesResult.results.map((m) => ({
+    const machines: MachineInfo[] = machinesResult.map((m) => ({
       machine_id_truncated: truncateMachineId(m.machine_id),
       machine_name: m.machine_name,
       is_active: m.is_active === 1,
@@ -290,6 +293,7 @@ export async function handleResendKey(
 ): Promise<Response> {
   // Stricter rate limit for resend (prevent abuse)
   const rateLimitHeaders = await rateLimit(env.CACHE, 'activate', clientIP);
+  const db = createDb(env.DB);
 
   try {
     // Parse request body
@@ -311,33 +315,33 @@ export async function handleResendKey(
 
     const email = body.email.toLowerCase();
 
-    // Find user and their licenses
-    const result = await env.DB.prepare(`
-      SELECT l.license_key, l.plan, l.status
-      FROM users u
-      JOIN licenses l ON u.id = l.user_id
-      WHERE u.email = ?
-      AND l.status IN ('active', 'canceled', 'past_due')
-      ORDER BY l.created_at DESC
-      LIMIT 5
-    `).bind(email).all<{
+    // Find user and their licenses (Note: uses 'user' table with new schema)
+    const result = await db.all<{
       license_key: string;
       plan: string;
       status: string;
-    }>();
+    }>(sql`
+      SELECT l.license_key, l.plan, l.status
+      FROM user u
+      JOIN licenses l ON u.id = l.user_id
+      WHERE u.email = ${email}
+      AND l.status IN ('active', 'canceled', 'past_due')
+      ORDER BY l.created_at DESC
+      LIMIT 5
+    `);
 
     // Always return success to prevent email enumeration
     // In production, send email only if licenses found
-    if (result.results.length > 0) {
+    if (result.length > 0) {
       // TODO: Send email with license keys
       // For now, just log (in production, integrate with email provider)
-      console.log(`License resend requested for ${email}, found ${result.results.length} license(s)`);
+      console.log(`License resend requested for ${email}, found ${result.length} license(s)`);
 
       // Example integration with email API:
       // await sendEmail(env, {
       //   to: email,
       //   subject: 'Your RepliMap License Keys',
-      //   body: formatLicenseEmail(result.results),
+      //   body: formatLicenseEmail(result),
       // });
     }
 
@@ -376,9 +380,9 @@ function isValidEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
-async function getLicenseId(db: D1Database, licenseKey: string): Promise<string | null> {
-  const result = await db.prepare(`
-    SELECT id FROM licenses WHERE license_key = ?
-  `).bind(licenseKey).first<{ id: string }>();
+async function getLicenseId(db: DrizzleDb, licenseKey: string): Promise<string | null> {
+  const result = await db.get<{ id: string }>(sql`
+    SELECT id FROM licenses WHERE license_key = ${licenseKey}
+  `);
   return result?.id ?? null;
 }

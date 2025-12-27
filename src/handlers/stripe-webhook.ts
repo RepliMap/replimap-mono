@@ -9,6 +9,8 @@ import type { Env } from '../types/env';
 import { generateLicenseKey, timestampToISO } from '../lib/license';
 import { getPlanFromPriceId, isPlanDowngrade } from '../lib/constants';
 import {
+  createDb,
+  type DrizzleDb,
   findOrCreateUser,
   getUserByStripeCustomerId,
   createLicense,
@@ -19,6 +21,8 @@ import {
   markEventProcessed,
   deactivateAllDevices,
 } from '../lib/db';
+import { licenses } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 // Stripe event types we handle
 type StripeEventType =
@@ -145,7 +149,7 @@ async function verifyStripeSignature(
  * Creates user if needed, prepares for subscription creation
  */
 async function handleCheckoutCompleted(
-  db: D1Database,
+  db: DrizzleDb,
   session: StripeCheckoutSession
 ): Promise<void> {
   if (session.mode !== 'subscription') {
@@ -166,7 +170,7 @@ async function handleCheckoutCompleted(
  * This is the expected behavior - Stripe will retry until user exists.
  */
 async function handleSubscriptionCreated(
-  db: D1Database,
+  db: DrizzleDb,
   subscription: StripeSubscription
 ): Promise<{ success: boolean; retry?: boolean }> {
   // Check if license already exists for this subscription (idempotency)
@@ -231,7 +235,7 @@ async function handleSubscriptionCreated(
  * devices than their new plan allows.
  */
 async function handleSubscriptionUpdated(
-  db: D1Database,
+  db: DrizzleDb,
   subscription: StripeSubscription
 ): Promise<void> {
   const license = await getLicenseBySubscriptionId(db, subscription.id);
@@ -246,7 +250,7 @@ async function handleSubscriptionUpdated(
   const oldPlan = license.plan;
 
   // Map Stripe status to our status
-  let status: string;
+  let status: 'active' | 'canceled' | 'expired' | 'past_due' | 'revoked';
   switch (subscription.status) {
     case 'active':
     case 'trialing':
@@ -297,7 +301,7 @@ async function handleSubscriptionUpdated(
  * Marks license as canceled
  */
 async function handleSubscriptionDeleted(
-  db: D1Database,
+  db: DrizzleDb,
   subscription: StripeSubscription
 ): Promise<void> {
   const license = await getLicenseBySubscriptionId(db, subscription.id);
@@ -314,7 +318,7 @@ async function handleSubscriptionDeleted(
  * Updates period dates and ensures active status
  */
 async function handleInvoicePaid(
-  db: D1Database,
+  db: DrizzleDb,
   invoice: StripeInvoice
 ): Promise<void> {
   if (!invoice.subscription) {
@@ -343,7 +347,7 @@ async function handleInvoicePaid(
  * Sets status to past_due
  */
 async function handlePaymentFailed(
-  db: D1Database,
+  db: DrizzleDb,
   invoice: StripeInvoice
 ): Promise<void> {
   if (!invoice.subscription) {
@@ -370,7 +374,7 @@ interface StripeCustomer {
  * Expires all licenses for the customer
  */
 async function handleCustomerDeleted(
-  db: D1Database,
+  db: DrizzleDb,
   customer: StripeCustomer
 ): Promise<void> {
   // Get user by Stripe customer ID
@@ -381,15 +385,15 @@ async function handleCustomerDeleted(
   }
 
   // Get all licenses for this user and mark them as expired
-  const licenses = await db.prepare(`
-    SELECT id FROM licenses WHERE user_id = ? AND status = 'active'
-  `).bind(user.id).all<{ id: string }>();
+  const activeLicenses = await db.select({ id: licenses.id })
+    .from(licenses)
+    .where(and(eq(licenses.userId, user.id), eq(licenses.status, 'active')));
 
-  for (const license of licenses.results) {
+  for (const license of activeLicenses) {
     await updateLicenseStatus(db, license.id, 'expired');
   }
 
-  console.log(`Expired ${licenses.results.length} licenses for deleted customer ${customer.id}`);
+  console.log(`Expired ${activeLicenses.length} licenses for deleted customer ${customer.id}`);
 }
 
 /**
@@ -439,8 +443,11 @@ export async function handleStripeWebhook(
     // Parse event
     const event: StripeEvent = JSON.parse(payload);
 
+    // Create Drizzle DB instance
+    const db = createDb(env.DB);
+
     // Idempotency check
-    const alreadyProcessed = await isEventProcessed(env.DB, event.id);
+    const alreadyProcessed = await isEventProcessed(db, event.id);
     if (alreadyProcessed) {
       return new Response(JSON.stringify({ received: true, duplicate: true }), {
         status: 200,
@@ -452,14 +459,14 @@ export async function handleStripeWebhook(
     switch (event.type as StripeEventType) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(
-          env.DB,
+          db,
           event.data.object as unknown as StripeCheckoutSession
         );
         break;
 
       case 'customer.subscription.created': {
         const result = await handleSubscriptionCreated(
-          env.DB,
+          db,
           event.data.object as unknown as StripeSubscription
         );
         if (!result.success && result.retry) {
@@ -477,35 +484,35 @@ export async function handleStripeWebhook(
 
       case 'customer.subscription.updated':
         await handleSubscriptionUpdated(
-          env.DB,
+          db,
           event.data.object as unknown as StripeSubscription
         );
         break;
 
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(
-          env.DB,
+          db,
           event.data.object as unknown as StripeSubscription
         );
         break;
 
       case 'invoice.paid':
         await handleInvoicePaid(
-          env.DB,
+          db,
           event.data.object as unknown as StripeInvoice
         );
         break;
 
       case 'invoice.payment_failed':
         await handlePaymentFailed(
-          env.DB,
+          db,
           event.data.object as unknown as StripeInvoice
         );
         break;
 
       case 'customer.deleted':
         await handleCustomerDeleted(
-          env.DB,
+          db,
           event.data.object as unknown as StripeCustomer
         );
         break;
@@ -516,7 +523,7 @@ export async function handleStripeWebhook(
     }
 
     // Mark event as processed
-    await markEventProcessed(env.DB, event.id, event.type);
+    await markEventProcessed(db, event.id, event.type);
 
     return new Response(JSON.stringify({ received: true }), {
       status: 200,

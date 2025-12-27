@@ -23,6 +23,7 @@ import {
 } from '../lib/license';
 import { rateLimit } from '../lib/rate-limiter';
 import {
+  createDb,
   getLicenseForValidation,
   registerMachine,
   recordMachineChange,
@@ -40,6 +41,9 @@ export async function handleActivateLicense(
 ): Promise<Response> {
   // Rate limiting (stricter for activation)
   const rateLimitHeaders = await rateLimit(env.CACHE, 'activate', clientIP);
+
+  // Create Drizzle client
+  const db = createDb(env.DB);
 
   try {
     // Parse and validate request body
@@ -65,7 +69,7 @@ export async function handleActivateLicense(
     const machineId = normalizeMachineId(body.machine_id);
 
     // Get license with all related data
-    const license = await getLicenseForValidation(env.DB, licenseKey, machineId);
+    const license = await getLicenseForValidation(db, licenseKey, machineId);
 
     if (!license) {
       throw Errors.licenseNotFound();
@@ -103,8 +107,8 @@ export async function handleActivateLicense(
 
     // Check machine limit
     if (license.active_machines >= features.machines) {
-      const machines = await getActiveMachines(env.DB, license.license_id);
-      const truncatedIds = machines.map((m) => truncateMachineId(m.machine_id));
+      const machines = await getActiveMachines(db, license.license_id);
+      const truncatedIds = machines.map((m) => truncateMachineId(m.machineId));
       throw Errors.machineLimitExceeded(truncatedIds, features.machines);
     }
 
@@ -114,11 +118,11 @@ export async function handleActivateLicense(
     }
 
     // Register the machine
-    await registerMachine(env.DB, license.license_id, machineId, body.machine_name);
-    await recordMachineChange(env.DB, license.license_id, machineId);
+    await registerMachine(db, license.license_id, machineId, body.machine_name);
+    await recordMachineChange(db, license.license_id, machineId);
 
     // Log usage
-    await logUsage(env.DB, {
+    await logUsage(db, {
       licenseId: license.license_id,
       machineId,
       action: 'activate',

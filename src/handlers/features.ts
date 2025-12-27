@@ -9,6 +9,7 @@ import type { Env } from '../types/env';
 import { Errors, AppError } from '../lib/errors';
 import { validateLicenseKey, normalizeLicenseKey } from '../lib/license';
 import { rateLimit } from '../lib/rate-limiter';
+import { createDb } from '../lib/db';
 import { getLicenseByKey } from '../lib/db';
 import {
   Feature,
@@ -86,6 +87,7 @@ export async function handleGetFeatures(
   env: Env,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -97,7 +99,7 @@ export async function handleGetFeatures(
       try {
         validateLicenseKey(licenseKey);
         const normalizedKey = normalizeLicenseKey(licenseKey);
-        const license = await getLicenseByKey(env.DB, normalizedKey);
+        const license = await getLicenseByKey(db, normalizedKey);
         if (license) {
           plan = license.plan as Plan;
         }
@@ -170,6 +172,7 @@ export async function handleCheckFeature(
   env: Env,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -201,7 +204,7 @@ export async function handleCheckFeature(
     }
 
     // Get license
-    const license = await getLicenseByKey(env.DB, licenseKey);
+    const license = await getLicenseByKey(db, licenseKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
@@ -259,6 +262,7 @@ export async function handleGetFeatureFlags(
   env: Env,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -269,7 +273,7 @@ export async function handleGetFeatureFlags(
       try {
         validateLicenseKey(licenseKey);
         const normalizedKey = normalizeLicenseKey(licenseKey);
-        const license = await getLicenseByKey(env.DB, normalizedKey);
+        const license = await getLicenseByKey(db, normalizedKey);
         if (license) {
           plan = license.plan as Plan;
         }

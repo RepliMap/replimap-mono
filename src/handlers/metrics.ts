@@ -8,6 +8,8 @@ import type { Env } from '../types/env';
 import { AppError } from '../lib/errors';
 import { rateLimit } from '../lib/rate-limiter';
 import { verifyAdminApiKey } from '../lib/security';
+import { createDb } from '../lib/db';
+import { sql } from 'drizzle-orm';
 
 // =============================================================================
 // Response Types
@@ -119,12 +121,13 @@ export async function handleGetAdoption(
   clientIP: string
 ): Promise<Response> {
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const db = createDb(env.DB);
 
   try {
     validateAdminAuth(request, env);
 
     // Feature usage last 30 days with normalized event types
-    const featureUsage = await env.DB.prepare(`
+    const featureUsage = await db.all<FeatureUsageItem>(sql`
       SELECT
         CASE
           WHEN event_type IN ('blast', 'deps', 'deps_explore') THEN 'deps'
@@ -140,34 +143,37 @@ export async function handleGetAdoption(
       WHERE created_at > datetime('now', '-30 days')
       GROUP BY 1, 2
       ORDER BY total_uses DESC
-    `).all();
+    `);
 
     // New feature adoption
-    const newFeatures = ['audit_fix', 'snapshot_save', 'snapshot_diff', 'deps', 'deps_explore'];
-    const newFeatureAdoption = await env.DB.prepare(`
+    const newFeatureAdoption = await db.all<{
+      event_type: string;
+      adopters: number;
+      first_use: string;
+    }>(sql`
       SELECT
         event_type,
         COUNT(DISTINCT license_id) as adopters,
         MIN(created_at) as first_use
       FROM usage_events
-      WHERE event_type IN (${newFeatures.map(() => '?').join(',')})
+      WHERE event_type IN ('audit_fix', 'snapshot_save', 'snapshot_diff', 'deps', 'deps_explore')
       GROUP BY event_type
-    `).bind(...newFeatures).all();
+    `);
 
     // Deprecation stats
-    const deprecationStats = await env.DB.prepare(`
+    const deprecationStats = await db.get<{ users_on_old_cli: number; deprecated_event_count: number }>(sql`
       SELECT
         COUNT(DISTINCT license_id) as users_on_old_cli,
         COUNT(*) as deprecated_event_count
       FROM usage_events
       WHERE event_type LIKE 'blast%'
         AND created_at > datetime('now', '-7 days')
-    `).first<{ users_on_old_cli: number; deprecated_event_count: number }>();
+    `);
 
     const response: AdoptionResponse = {
       period: 'last_30_days',
-      feature_usage: (featureUsage.results || []) as unknown as FeatureUsageItem[],
-      new_feature_adoption: (newFeatureAdoption.results || []) as unknown as AdoptionResponse['new_feature_adoption'],
+      feature_usage: featureUsage,
+      new_feature_adoption: newFeatureAdoption,
       deprecation_status: {
         old_cli_users_last_7_days: deprecationStats?.users_on_old_cli || 0,
         deprecated_events_last_7_days: deprecationStats?.deprecated_event_count || 0,
@@ -200,12 +206,13 @@ export async function handleGetConversion(
   clientIP: string
 ): Promise<Response> {
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const db = createDb(env.DB);
 
   try {
     validateAdminAuth(request, env);
 
     // Audit → Audit Fix conversion
-    const auditConversion = await env.DB.prepare(`
+    const auditConversion = await db.get<{ audit_users: number; fix_users: number; converted: number }>(sql`
       WITH audit_users AS (
         SELECT DISTINCT license_id
         FROM usage_events
@@ -220,10 +227,10 @@ export async function handleGetConversion(
         (SELECT COUNT(*) FROM audit_users) as audit_users,
         (SELECT COUNT(*) FROM fix_users) as fix_users,
         (SELECT COUNT(*) FROM fix_users WHERE license_id IN (SELECT license_id FROM audit_users)) as converted
-    `).first<{ audit_users: number; fix_users: number; converted: number }>();
+    `);
 
     // Drift → Snapshot conversion
-    const snapshotConversion = await env.DB.prepare(`
+    const snapshotConversion = await db.get<{ drift_users: number; snapshot_users: number }>(sql`
       WITH drift_users AS (
         SELECT DISTINCT license_id
         FROM usage_events
@@ -237,7 +244,7 @@ export async function handleGetConversion(
       SELECT
         (SELECT COUNT(*) FROM drift_users) as drift_users,
         (SELECT COUNT(*) FROM snapshot_users) as snapshot_users
-    `).first<{ drift_users: number; snapshot_users: number }>();
+    `);
 
     const auditUsers = auditConversion?.audit_users || 0;
     const converted = auditConversion?.converted || 0;
@@ -280,11 +287,18 @@ export async function handleGetRemediationImpact(
   clientIP: string
 ): Promise<Response> {
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const db = createDb(env.DB);
 
   try {
     validateAdminAuth(request, env);
 
-    const impact = await env.DB.prepare(`
+    const impact = await db.get<{
+      total_runs: number;
+      total_findings: number;
+      total_fixable: number;
+      total_manual: number;
+      total_files_generated: number;
+    }>(sql`
       SELECT
         COUNT(*) as total_runs,
         COALESCE(SUM(total_findings), 0) as total_findings,
@@ -293,13 +307,7 @@ export async function handleGetRemediationImpact(
         COALESCE(SUM(files_generated), 0) as total_files_generated
       FROM remediations
       WHERE created_at > datetime('now', '-30 days')
-    `).first<{
-      total_runs: number;
-      total_findings: number;
-      total_fixable: number;
-      total_manual: number;
-      total_files_generated: number;
-    }>();
+    `);
 
     // Estimate time saved (30 min per fix on average)
     const totalFixable = impact?.total_fixable || 0;
@@ -347,11 +355,17 @@ export async function handleGetSnapshotUsage(
   clientIP: string
 ): Promise<Response> {
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const db = createDb(env.DB);
 
   try {
     validateAdminAuth(request, env);
 
-    const usage = await env.DB.prepare(`
+    const usage = await db.get<{
+      total_snapshots: number;
+      unique_users: number;
+      total_resources_tracked: number;
+      avg_resources_per_snapshot: number;
+    }>(sql`
       SELECT
         COUNT(*) as total_snapshots,
         COUNT(DISTINCT license_id) as unique_users,
@@ -359,19 +373,14 @@ export async function handleGetSnapshotUsage(
         COALESCE(AVG(resource_count), 0) as avg_resources_per_snapshot
       FROM snapshots
       WHERE created_at > datetime('now', '-30 days')
-    `).first<{
-      total_snapshots: number;
-      unique_users: number;
-      total_resources_tracked: number;
-      avg_resources_per_snapshot: number;
-    }>();
+    `);
 
     // Snapshot diff usage
-    const diffUsage = await env.DB.prepare(`
+    const diffUsage = await db.get<{ total_diffs: number }>(sql`
       SELECT COUNT(*) as total_diffs
       FROM usage_events
       WHERE event_type = 'snapshot_diff' AND created_at > datetime('now', '-30 days')
-    `).first<{ total_diffs: number }>();
+    `);
 
     const totalSnapshots = usage?.total_snapshots || 0;
     const totalDiffs = diffUsage?.total_diffs || 0;
@@ -415,12 +424,20 @@ export async function handleGetDepsUsage(
   clientIP: string
 ): Promise<Response> {
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const db = createDb(env.DB);
 
   try {
     validateAdminAuth(request, env);
 
     // Combine all blast + deps events
-    const usage = await env.DB.prepare(`
+    const usage = await db.get<{
+      total_analyses: number;
+      unique_users: number;
+      avg_affected: number;
+      max_affected: number;
+      from_old_cli: number;
+      from_new_cli: number;
+    }>(sql`
       SELECT
         COUNT(*) as total_analyses,
         COUNT(DISTINCT license_id) as unique_users,
@@ -431,14 +448,7 @@ export async function handleGetDepsUsage(
       FROM usage_events
       WHERE event_type IN ('blast', 'blast_analyze', 'blast_export', 'deps', 'deps_explore', 'deps_export')
         AND created_at > datetime('now', '-30 days')
-    `).first<{
-      total_analyses: number;
-      unique_users: number;
-      avg_affected: number;
-      max_affected: number;
-      from_old_cli: number;
-      from_new_cli: number;
-    }>();
+    `);
 
     const totalAnalyses = usage?.total_analyses || 0;
     const fromOldCli = usage?.from_old_cli || 0;

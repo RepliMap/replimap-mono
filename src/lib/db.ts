@@ -6,7 +6,7 @@
  */
 
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
-import { eq, and, sql, desc, gte, like, or, count, sum } from 'drizzle-orm';
+import { eq, and, sql, desc, gte, count } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { generateId, nowISO, normalizeLicenseKey, normalizeMachineId } from './license';
 

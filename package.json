@@ -17,6 +17,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.1",
     "stripe": "^14.10.0",
     "zod": "^4.2.1"
   },
