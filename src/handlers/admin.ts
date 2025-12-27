@@ -275,7 +275,7 @@ export async function handleGetStats(
       topEventTypes,
     ] = await Promise.all([
       // Total users
-      db.get<{ count: number }>(sql`SELECT COUNT(*) as count FROM users`),
+      db.get<{ count: number }>(sql`SELECT COUNT(*) as count FROM user`),
 
       // Total licenses
       db.get<{ count: number }>(sql`SELECT COUNT(*) as count FROM licenses`),
