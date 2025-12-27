@@ -13,7 +13,14 @@ import { validateLicenseKey, normalizeLicenseKey, nowISO, generateId } from '../
 import { PLAN_FEATURES, type PlanType } from '../lib/constants';
 import { Plan, PLAN_LIMITS } from '../features';
 import { rateLimit } from '../lib/rate-limiter';
-import { getLicenseByKey, getMonthlyUsageCount, recordDailyUsage, getDailyUsageCount } from '../lib/db';
+import {
+  createDb,
+  getLicenseByKey,
+  getMonthlyUsageCount,
+  recordDailyUsage,
+  getDailyUsageCount,
+  type DrizzleDb,
+} from '../lib/db';
 import {
   normalizeEventType,
   isDeprecatedEvent,
@@ -25,6 +32,7 @@ import {
   checkQuotaRequestSchema,
   parseRequest,
 } from '../lib/schemas';
+import { sql } from 'drizzle-orm';
 
 // ============================================================================
 // Request/Response Types
@@ -113,6 +121,7 @@ export async function handleSyncUsage(
   env: Env,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -134,7 +143,7 @@ export async function handleSyncUsage(
     const licenseKey = normalizeLicenseKey(body.license_key);
 
     // Get license
-    const license = await getLicenseByKey(env.DB, licenseKey);
+    const license = await getLicenseByKey(db, licenseKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
@@ -144,10 +153,10 @@ export async function handleSyncUsage(
 
     // Check idempotency
     if (body.idempotency_key) {
-      const exists = await checkIdempotencyKey(env.DB, body.idempotency_key);
+      const exists = await checkIdempotencyKey(db, body.idempotency_key);
       if (exists) {
         // Return current usage without updating
-        const currentUsage = await getUsageForPeriod(env.DB, license.id, period);
+        const currentUsage = await getUsageForPeriod(db, license.id, period);
         const plan = license.plan as PlanType;
         const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
 
@@ -169,10 +178,10 @@ export async function handleSyncUsage(
     }
 
     // Record usage
-    await recordUsage(env.DB, license.id, body.machine_id, period, body.usage, body.idempotency_key);
+    await recordUsage(db, license.id, body.machine_id, period, body.usage, body.idempotency_key);
 
     // Get updated usage
-    const currentUsage = await getUsageForPeriod(env.DB, license.id, period);
+    const currentUsage = await getUsageForPeriod(db, license.id, period);
     const plan = license.plan as PlanType;
     const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
 
@@ -212,6 +221,7 @@ export async function handleGetUsage(
   licenseKey: string,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -223,13 +233,13 @@ export async function handleGetUsage(
     const period = url.searchParams.get('period') || getCurrentPeriod();
 
     // Get license
-    const license = await getLicenseByKey(env.DB, normalizedKey);
+    const license = await getLicenseByKey(db, normalizedKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
 
     // Get usage
-    const usage = await getUsageForPeriod(env.DB, license.id, period);
+    const usage = await getUsageForPeriod(db, license.id, period);
     const plan = license.plan as PlanType;
     const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
 
@@ -270,6 +280,7 @@ export async function handleGetUsageHistory(
   licenseKey: string,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -281,13 +292,13 @@ export async function handleGetUsageHistory(
     const months = Math.min(12, Math.max(1, parseInt(url.searchParams.get('months') || '6', 10)));
 
     // Get license
-    const license = await getLicenseByKey(env.DB, normalizedKey);
+    const license = await getLicenseByKey(db, normalizedKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
 
     // Get history
-    const history = await getUsageHistory(env.DB, license.id, months);
+    const history = await getUsageHistory(db, license.id, months);
 
     const response: UsageHistoryResponse = {
       license_key: normalizedKey,
@@ -323,6 +334,7 @@ export async function handleCheckQuota(
   env: Env,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -345,7 +357,7 @@ export async function handleCheckQuota(
     const amount = body.amount;
 
     // Get license
-    const license = await getLicenseByKey(env.DB, licenseKey);
+    const license = await getLicenseByKey(db, licenseKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
@@ -358,7 +370,7 @@ export async function handleCheckQuota(
     let unlimited = false;
 
     if (body.operation === 'scans') {
-      current = await getMonthlyUsageCount(env.DB, license.id, 'scan');
+      current = await getMonthlyUsageCount(db, license.id, 'scan');
       limit = features.scans_per_month === -1 ? null : features.scans_per_month;
       unlimited = features.scans_per_month === -1;
     } else if (body.operation === 'resources') {
@@ -405,15 +417,15 @@ function getCurrentPeriod(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-async function checkIdempotencyKey(db: D1Database, key: string): Promise<boolean> {
-  const result = await db.prepare(`
-    SELECT 1 FROM usage_idempotency WHERE idempotency_key = ?
-  `).bind(key).first();
+async function checkIdempotencyKey(db: DrizzleDb, key: string): Promise<boolean> {
+  const result = await db.get<{ exists: number }>(sql`
+    SELECT 1 as exists FROM usage_idempotency WHERE idempotency_key = ${key}
+  `);
   return result !== null;
 }
 
 async function recordUsage(
-  db: D1Database,
+  db: DrizzleDb,
   licenseId: string,
   machineId: string,
   period: string,
@@ -425,30 +437,23 @@ async function recordUsage(
 
   // Record in usage_logs for each scan
   if (usage.scans_count && usage.scans_count > 0) {
-    await db.prepare(`
+    await db.run(sql`
       INSERT INTO usage_logs (id, license_id, machine_id, action, resources_count, metadata, created_at)
-      VALUES (?, ?, ?, 'scan', ?, ?, ?)
-    `).bind(
-      id,
-      licenseId,
-      machineId,
-      usage.resources_scanned || 0,
-      JSON.stringify({ period, scans_count: usage.scans_count }),
-      now
-    ).run();
+      VALUES (${id}, ${licenseId}, ${machineId}, 'scan', ${usage.resources_scanned || 0}, ${JSON.stringify({ period, scans_count: usage.scans_count })}, ${now})
+    `);
   }
 
   // Record idempotency key if provided
   if (idempotencyKey) {
-    await db.prepare(`
+    await db.run(sql`
       INSERT OR IGNORE INTO usage_idempotency (idempotency_key, license_id, created_at)
-      VALUES (?, ?, ?)
-    `).bind(idempotencyKey, licenseId, now).run();
+      VALUES (${idempotencyKey}, ${licenseId}, ${now})
+    `);
   }
 }
 
 async function getUsageForPeriod(
-  db: D1Database,
+  db: DrizzleDb,
   licenseId: string,
   period: string
 ): Promise<UsageData> {
@@ -457,19 +462,15 @@ async function getUsageForPeriod(
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 1);
 
-  const result = await db.prepare(`
+  const result = await db.get<{ scans_count: number; resources_scanned: number }>(sql`
     SELECT
       COUNT(CASE WHEN action = 'scan' THEN 1 END) as scans_count,
       COALESCE(SUM(resources_count), 0) as resources_scanned
     FROM usage_logs
-    WHERE license_id = ?
-    AND created_at >= ?
-    AND created_at < ?
-  `).bind(
-    licenseId,
-    startDate.toISOString(),
-    endDate.toISOString()
-  ).first<{ scans_count: number; resources_scanned: number }>();
+    WHERE license_id = ${licenseId}
+    AND created_at >= ${startDate.toISOString()}
+    AND created_at < ${endDate.toISOString()}
+  `);
 
   return {
     scans_count: result?.scans_count || 0,
@@ -479,7 +480,7 @@ async function getUsageForPeriod(
 }
 
 async function getUsageHistory(
-  db: D1Database,
+  db: DrizzleDb,
   licenseId: string,
   months: number
 ): Promise<Array<{ period: string; scans_count: number; resources_scanned: number }>> {
@@ -521,6 +522,7 @@ export async function handleTrackEvent(
   env: Env,
   clientIP: string
 ): Promise<Response> {
+  const db = createDb(env.DB);
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
 
   try {
@@ -542,7 +544,7 @@ export async function handleTrackEvent(
     const licenseKey = normalizeLicenseKey(body.license_key);
 
     // Get license
-    const license = await getLicenseByKey(env.DB, licenseKey);
+    const license = await getLicenseByKey(db, licenseKey);
     if (!license) {
       throw Errors.licenseNotFound();
     }
@@ -558,7 +560,7 @@ export async function handleTrackEvent(
 
     // Check usage limits
     const plan = license.plan as Plan;
-    const limitCheck = await checkEventLimit(env.DB, license.id, plan, eventType);
+    const limitCheck = await checkEventLimit(db, license.id, plan, eventType);
 
     if (!limitCheck.allowed) {
       return new Response(
@@ -580,36 +582,25 @@ export async function handleTrackEvent(
     const eventId = generateId();
     const now = nowISO();
 
-    await env.DB.prepare(`
+    await db.run(sql`
       INSERT INTO usage_events (
         id, license_id, event_type, region, vpc_id,
         resource_count, duration_ms, metadata, original_event_type, created_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      eventId,
-      license.id,
-      eventType,
-      body.region || null,
-      body.vpc_id || null,
-      body.resource_count || null,
-      body.duration_ms || null,
-      body.metadata ? JSON.stringify(body.metadata) : null,
-      wasDeprecated ? originalEventType : null,
-      now
-    ).run();
+      VALUES (${eventId}, ${license.id}, ${eventType}, ${body.region || null}, ${body.vpc_id || null}, ${body.resource_count || null}, ${body.duration_ms || null}, ${body.metadata ? JSON.stringify(body.metadata) : null}, ${wasDeprecated ? originalEventType : null}, ${now})
+    `);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Daily Aggregation (for efficient counting)
     // This upserts into usage_daily to avoid 1.8M rows/year in usage_events
     // ─────────────────────────────────────────────────────────────────────────
-    await recordDailyUsage(env.DB, license.id, eventType, body.resource_count || 0);
+    await recordDailyUsage(db, license.id, eventType, body.resource_count || 0);
 
     // Track feature-specific data (merge region from body into metadata)
     if (eventType === 'snapshot_save' && body.metadata?.snapshot_name) {
-      await trackSnapshot(env.DB, license.id, { ...body.metadata, region: body.region });
+      await trackSnapshot(db, license.id, { ...body.metadata, region: body.region });
     } else if (eventType === 'audit_fix' && body.metadata) {
-      await trackRemediation(env.DB, license.id, { ...body.metadata, region: body.region });
+      await trackRemediation(db, license.id, { ...body.metadata, region: body.region });
     }
 
     // Build response
@@ -662,7 +653,7 @@ const UNLIMITED_OPERATIONS = new Set([
 ]);
 
 async function checkEventLimit(
-  db: D1Database,
+  db: DrizzleDb,
   licenseId: string,
   plan: Plan,
   eventType: string
@@ -746,43 +737,25 @@ async function checkEventLimit(
 }
 
 async function trackSnapshot(
-  db: D1Database,
+  db: DrizzleDb,
   licenseId: string,
   metadata: Record<string, unknown>
 ): Promise<void> {
-  await db.prepare(`
+  await db.run(sql`
     INSERT INTO snapshots (id, license_id, name, region, vpc_id, resource_count, profile, replimap_version)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    generateId(),
-    licenseId,
-    metadata.snapshot_name as string,
-    metadata.region as string,
-    (metadata.vpc_id as string) || null,
-    (metadata.resource_count as number) || 0,
-    (metadata.profile as string) || null,
-    (metadata.version as string) || null
-  ).run();
+    VALUES (${generateId()}, ${licenseId}, ${metadata.snapshot_name as string}, ${metadata.region as string}, ${(metadata.vpc_id as string) || null}, ${(metadata.resource_count as number) || 0}, ${(metadata.profile as string) || null}, ${(metadata.version as string) || null})
+  `);
 }
 
 async function trackRemediation(
-  db: D1Database,
+  db: DrizzleDb,
   licenseId: string,
   metadata: Record<string, unknown>
 ): Promise<void> {
-  await db.prepare(`
+  await db.run(sql`
     INSERT INTO remediations (id, license_id, audit_id, region, total_findings, total_fixable, total_manual, files_generated)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    generateId(),
-    licenseId,
-    (metadata.audit_id as string) || null,
-    metadata.region as string,
-    (metadata.total_findings as number) || 0,
-    (metadata.total_fixable as number) || 0,
-    (metadata.total_manual as number) || 0,
-    (metadata.files_generated as number) || 0
-  ).run();
+    VALUES (${generateId()}, ${licenseId}, ${(metadata.audit_id as string) || null}, ${metadata.region as string}, ${(metadata.total_findings as number) || 0}, ${(metadata.total_fixable as number) || 0}, ${(metadata.total_manual as number) || 0}, ${(metadata.files_generated as number) || 0})
+  `);
 }
 
 function getEndOfMonth(): Date {

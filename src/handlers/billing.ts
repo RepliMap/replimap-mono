@@ -10,6 +10,8 @@ import { Errors, AppError } from '../lib/errors';
 import { validateLicenseKey, normalizeLicenseKey } from '../lib/license';
 import { PLAN_TO_STRIPE_PRICE } from '../lib/constants';
 import { rateLimit } from '../lib/rate-limiter';
+import { createDb } from '../lib/db';
+import { sql } from 'drizzle-orm';
 
 // ============================================================================
 // Request/Response Types
@@ -231,22 +233,26 @@ export async function handleCreateBillingPortal(
       throw Errors.invalidRequest('Invalid URL format');
     }
 
+    // Create Drizzle client
+    const db = createDb(env.DB);
+
     // Find license and associated Stripe customer
-    const result = await env.DB.prepare(`
-      SELECT l.stripe_subscription_id, u.stripe_customer_id
-      FROM licenses l
-      JOIN users u ON l.user_id = u.id
-      WHERE l.license_key = ?
-    `).bind(licenseKey).first<{
+    // NOTE: Uses 'user' table (singular) and 'customer_id' column (new schema)
+    const result = await db.get<{
       stripe_subscription_id: string | null;
-      stripe_customer_id: string | null;
-    }>();
+      customer_id: string | null;
+    }>(sql`
+      SELECT l.stripe_subscription_id, u.customer_id
+      FROM licenses l
+      JOIN user u ON l.user_id = u.id
+      WHERE l.license_key = ${licenseKey}
+    `);
 
     if (!result) {
       throw Errors.licenseNotFound();
     }
 
-    if (!result.stripe_customer_id) {
+    if (!result.customer_id) {
       throw new AppError(
         'INVALID_REQUEST',
         'No billing account associated with this license. This may be a free or manually created license.',
@@ -256,7 +262,7 @@ export async function handleCreateBillingPortal(
 
     // Create Stripe Customer Portal Session
     const session = await stripeRequest(env, 'billing_portal/sessions', {
-      'customer': result.stripe_customer_id,
+      'customer': result.customer_id,
       'return_url': body.return_url,
     });
 

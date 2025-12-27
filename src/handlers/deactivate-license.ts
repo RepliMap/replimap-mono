@@ -19,6 +19,7 @@ import {
 } from '../lib/license';
 import { rateLimit } from '../lib/rate-limiter';
 import {
+  createDb,
   getLicenseByKey,
   deactivateMachine,
   logUsage,
@@ -35,6 +36,9 @@ export async function handleDeactivateLicense(
 ): Promise<Response> {
   // Rate limiting
   const rateLimitHeaders = await rateLimit(env.CACHE, 'deactivate', clientIP);
+
+  // Create Drizzle client
+  const db = createDb(env.DB);
 
   try {
     // Parse and validate request body
@@ -60,18 +64,18 @@ export async function handleDeactivateLicense(
     const machineId = normalizeMachineId(body.machine_id);
 
     // Get license
-    const license = await getLicenseByKey(env.DB, licenseKey);
+    const license = await getLicenseByKey(db, licenseKey);
 
     if (!license) {
       throw Errors.licenseNotFound();
     }
 
     // Deactivate the machine
-    const deactivated = await deactivateMachine(env.DB, license.id, machineId);
+    const deactivated = await deactivateMachine(db, license.id, machineId);
 
     if (!deactivated) {
       // Machine wasn't active or doesn't exist - still return success
-      const activeMachines = await getActiveMachines(env.DB, license.id);
+      const activeMachines = await getActiveMachines(db, license.id);
       const response: DeactivateLicenseResponse = {
         deactivated: true,
         machines_remaining: activeMachines.length,
@@ -87,14 +91,14 @@ export async function handleDeactivateLicense(
     }
 
     // Log usage
-    await logUsage(env.DB, {
+    await logUsage(db, {
       licenseId: license.id,
       machineId,
       action: 'deactivate',
     });
 
     // Get remaining active machines
-    const activeMachines = await getActiveMachines(env.DB, license.id);
+    const activeMachines = await getActiveMachines(db, license.id);
 
     const response: DeactivateLicenseResponse = {
       deactivated: true,

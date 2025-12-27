@@ -33,6 +33,7 @@ import {
 } from '../lib/license';
 import { rateLimit } from '../lib/rate-limiter';
 import {
+  createDb,
   getLicenseForValidation,
   updateLicenseStatus,
   registerMachine,
@@ -44,6 +45,7 @@ import {
   getActiveDeviceCount,
   getNewDeviceCount,
   getActiveCIDeviceCount,
+  type DrizzleDb,
 } from '../lib/db';
 import { validateLicenseRequestSchema, parseRequest } from '../lib/schemas';
 import {
@@ -54,6 +56,7 @@ import {
   CI_DEVICE_LIMITS,
   createLeaseToken,
 } from '../lib/security';
+import { sql } from 'drizzle-orm';
 
 /**
  * Handle license validation request
@@ -65,6 +68,9 @@ export async function handleValidateLicense(
 ): Promise<Response> {
   // Rate limiting
   const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+
+  // Create Drizzle client
+  const db = createDb(env.DB);
 
   try {
     // Parse request body
@@ -116,7 +122,7 @@ export async function handleValidateLicense(
     const isCI = isCIEnvironment(machineId, body.is_ci);
 
     // Get license with all related data in a single query
-    const license = await getLicenseForValidation(env.DB, licenseKey, machineId);
+    const license = await getLicenseForValidation(db, licenseKey, machineId);
 
     if (!license) {
       // Random delay to prevent timing attacks on license discovery
@@ -131,8 +137,8 @@ export async function handleValidateLicense(
     // Device Abuse Detection (check ACTIVE devices, not lifetime total)
     // ─────────────────────────────────────────────────────────────────────────
     const [activeDeviceCount, newDevicesToday] = await Promise.all([
-      getActiveDeviceCount(env.DB, license.license_id, 7, true),  // Last 7 days, exclude CI
-      getNewDeviceCount(env.DB, license.license_id, 24, true),    // Last 24 hours, exclude CI
+      getActiveDeviceCount(db, license.license_id, 7, true),  // Last 7 days, exclude CI
+      getNewDeviceCount(db, license.license_id, 24, true),    // Last 24 hours, exclude CI
     ]);
 
     const abuseCheck = checkDeviceAbuse(activeDeviceCount, newDevicesToday);
@@ -155,7 +161,7 @@ export async function handleValidateLicense(
     // ─────────────────────────────────────────────────────────────────────────
     let ciWarning: string | undefined;
     if (isCI) {
-      const activeCIDevices = await getActiveCIDeviceCount(env.DB, license.license_id, 30);
+      const activeCIDevices = await getActiveCIDeviceCount(db, license.license_id, 30);
       const ciLimit = CI_DEVICE_LIMITS[plan] ?? CI_DEVICE_LIMITS.free;
 
       if (ciLimit !== -1 && activeCIDevices >= ciLimit) {
@@ -176,11 +182,11 @@ export async function handleValidateLicense(
     }
 
     // Check license status and expiry
-    await checkLicenseStatus(env.DB, license);
+    await checkLicenseStatus(db, license);
 
     // Handle machine binding (with throttled last_seen updates)
     await handleMachineBinding(
-      env.DB,
+      db,
       license.license_id,
       machineId,
       license.machine_is_active,
@@ -191,7 +197,7 @@ export async function handleValidateLicense(
     );
 
     // Log usage (non-blocking)
-    logUsage(env.DB, {
+    logUsage(db, {
       licenseId: license.license_id,
       machineId,
       action: 'validate',
@@ -199,7 +205,7 @@ export async function handleValidateLicense(
     }).catch(console.error);
 
     // Get scan count for this month
-    const scansThisMonth = await getMonthlyUsageCount(env.DB, license.license_id, 'scan');
+    const scansThisMonth = await getMonthlyUsageCount(db, license.license_id, 'scan');
 
     // Check CLI version compatibility
     const cliVersionCheck = checkCliVersion(body.cli_version);
@@ -315,7 +321,7 @@ export async function handleValidateLicense(
  * Check license status and update if expired
  */
 async function checkLicenseStatus(
-  db: D1Database,
+  db: DrizzleDb,
   license: {
     license_id: string;
     status: string;
@@ -407,7 +413,7 @@ function shouldUpdateLastSeen(lastSeen: string | null): boolean {
  * write amplification. Only updates if > 1 hour has passed since last update.
  */
 async function handleMachineBinding(
-  db: D1Database,
+  db: DrizzleDb,
   licenseId: string,
   machineId: string,
   machineIsActive: number | null,
@@ -437,11 +443,11 @@ async function handleMachineBinding(
       throw Errors.machineChangeLimitExceeded(nextMonthStartISO());
     }
 
-    // Re-activate (update is_active = 1 and record change)
-    await db.prepare(`
+    // Re-activate using Drizzle
+    await db.run(sql`
       UPDATE license_machines SET is_active = 1, last_seen_at = datetime('now')
-      WHERE license_id = ? AND machine_id = ?
-    `).bind(licenseId, machineId).run();
+      WHERE license_id = ${licenseId} AND machine_id = ${machineId}
+    `);
 
     await recordMachineChange(db, licenseId, machineId);
     return;
@@ -451,7 +457,7 @@ async function handleMachineBinding(
   if (activeMachines >= machineLimit) {
     // Get list of active machines for error message
     const machines = await getActiveMachines(db, licenseId);
-    const truncatedIds = machines.map((m) => truncateMachineId(m.machine_id));
+    const truncatedIds = machines.map((m) => truncateMachineId(m.machineId));
     throw Errors.machineLimitExceeded(truncatedIds, machineLimit);
   }
 
