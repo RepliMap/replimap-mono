@@ -76,6 +76,11 @@ class ResourceType(str, Enum):
     SQS_QUEUE = "aws_sqs_queue"
     SNS_TOPIC = "aws_sns_topic"
 
+    # Phase 3 - IAM
+    IAM_ROLE = "aws_iam_role"
+    IAM_POLICY = "aws_iam_policy"
+    IAM_INSTANCE_PROFILE = "aws_iam_instance_profile"
+
     def __str__(self) -> str:
         return self.value
 

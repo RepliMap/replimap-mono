@@ -7,6 +7,15 @@ from .async_base import (
     run_all_async_scanners,
 )
 from .async_vpc_scanner import AsyncVPCScanner
+
+# Unified async scanners (P0-4) - use AsyncAWSClient with full resilience
+from .unified_scanners import (
+    AsyncEC2Scanner,
+    AsyncIAMScanner,
+    AsyncRDSScanner,
+    UnifiedScannerRegistry,
+    run_unified_scanners,
+)
 from .base import (
     BaseScanner,
     ScannerRegistry,
@@ -47,9 +56,15 @@ __all__ = [
     "S3PolicyScanner",
     "SQSScanner",
     "SNSScanner",
-    # Async scanners
+    # Async scanners (legacy)
     "AsyncBaseScanner",
     "AsyncScannerRegistry",
     "run_all_async_scanners",
     "AsyncVPCScanner",
+    # Unified async scanners (P0-4)
+    "AsyncEC2Scanner",
+    "AsyncRDSScanner",
+    "AsyncIAMScanner",
+    "UnifiedScannerRegistry",
+    "run_unified_scanners",
 ]

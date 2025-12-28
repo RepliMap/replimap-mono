@@ -26,7 +26,10 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from replimap.core import GraphEngine
 
 from aiobotocore.config import AioConfig
 from aiobotocore.session import get_session
@@ -540,6 +543,8 @@ class AWSResourceScanner:
 
     Example:
         class EC2InstanceScanner(AWSResourceScanner):
+            resource_types: ClassVar[list[str]] = ["aws_instance"]
+
             async def scan(self, graph: GraphEngine) -> None:
                 instances = await self.client.paginate(
                     "ec2", "describe_instances", "Reservations"
@@ -550,7 +555,8 @@ class AWSResourceScanner:
     """
 
     # Resource types this scanner handles (for documentation/registration)
-    resource_types: list[str] = []
+    # Subclasses should override with ClassVar[list[str]]
+    resource_types: ClassVar[list[str]] = []
 
     def __init__(
         self,
@@ -622,3 +628,14 @@ class AWSResourceScanner:
         if not tag_list:
             return {}
         return {tag.get("Key", ""): tag.get("Value", "") for tag in tag_list}
+
+    async def scan(self, graph: GraphEngine) -> None:
+        """
+        Scan AWS resources and add them to the graph.
+
+        Subclasses must implement this method.
+
+        Args:
+            graph: GraphEngine to populate with discovered resources
+        """
+        raise NotImplementedError("Subclasses must implement scan()")
