@@ -397,16 +397,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic sensitive data sanitization
 - Minimal IAM policy requirements
 
-## Plan Comparison (v3.2)
+## Plan Comparison
 
 | Feature | Free | Solo ($49) | Pro ($99) | Team ($199) | Enterprise ($500+) |
 |---------|------|------------|-----------|-------------|-------------------|
-| Resources/Scan | 5 | ∞ | ∞ | ∞ | ∞ |
+| Resources/Scan | ∞ | ∞ | ∞ | ∞ | ∞ |
 | Scans/Month | 3 | ∞ | ∞ | ∞ | ∞ |
 | AWS Accounts | 1 | 1 | 3 | 10 | ∞ |
 | Terraform Output | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CloudFormation | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Pulumi | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Full Audit Details | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Local Cache/Snapshots | ❌ | ✅ (5) | ✅ (15) | ✅ (30) | ✅ (∞) |
+| Async Scanning | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Drift Detection | ❌ | ❌ | ✅ | ✅ | ✅ |
 | CI/CD Mode | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Trust Center | ❌ | ❌ | ❌ | ✅ | ✅ |
