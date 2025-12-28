@@ -30,6 +30,12 @@ Data Transfer Cost Analysis (P1-6):
 - Cross-region transfer costs
 - VPC Endpoint optimization suggestions
 
+Enterprise Pricing Engine (P2-7):
+- EDP (Enterprise Discount Program) discount application
+- PPA (Private Pricing Agreement) custom prices
+- Volume discount rules
+- YAML configuration support
+
 This is a Pro+ feature ($79/mo).
 """
 
@@ -122,6 +128,20 @@ from replimap.cost.unused_detector import (
     UnusedResourceDetector,
     UnusedResourcesReport,
 )
+from replimap.cost.enterprise_pricing import (
+    CustomPrice,
+    DiscountRule,
+    DiscountScope,
+    DiscountType,
+    EDPConfig,
+    EnterprisePricingConfig,
+    EnterprisePricingEngine,
+    VolumeDiscount,
+    VolumeDiscountTier,
+    create_edp_config,
+    create_enterprise_engine,
+    generate_sample_config,
+)
 
 __all__ = [
     # Disclaimer constants
@@ -206,4 +226,17 @@ __all__ = [
     "TransferType",
     "TrafficDirection",
     "TransferPricingTiers",
+    # Enterprise Pricing Engine (P2-7)
+    "EnterprisePricingEngine",
+    "EnterprisePricingConfig",
+    "EDPConfig",
+    "CustomPrice",
+    "DiscountRule",
+    "DiscountType",
+    "DiscountScope",
+    "VolumeDiscount",
+    "VolumeDiscountTier",
+    "create_enterprise_engine",
+    "create_edp_config",
+    "generate_sample_config",
 ]
