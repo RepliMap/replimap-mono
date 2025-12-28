@@ -88,8 +88,27 @@ class D3Formatter:
         # Calculate hierarchical layout
         layout_result = self._layout_engine.layout(aggregated_nodes, aggregated_links)
 
+        # Prune invalid links (edges referencing non-existent nodes)
+        valid_node_ids = {node["id"] for node in aggregated_nodes}
+        pruned_links, invalid_links = self._prune_invalid_links(
+            aggregated_links, valid_node_ids
+        )
+        if invalid_links:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"Pruned {len(invalid_links)} invalid links referencing "
+                f"non-existent nodes: {[lnk['source'] + ' -> ' + lnk['target'] for lnk in invalid_links[:5]]}"
+                + (
+                    f"... and {len(invalid_links) - 5} more"
+                    if len(invalid_links) > 5
+                    else ""
+                )
+            )
+
         # Create view manager with the processed nodes and get overview data
-        view_manager = ViewManager(aggregated_nodes, aggregated_links)
+        view_manager = ViewManager(aggregated_nodes, pruned_links)
         view_data = view_manager.get_overview_data()
 
         # Get unique environments for filter controls
@@ -103,10 +122,10 @@ class D3Formatter:
         # Get unique resource types
         resource_types = sorted({node.get("type", "") for node in aggregated_nodes})
 
-        # Prepare final graph data with enriched nodes
+        # Prepare final graph data with enriched nodes and pruned links
         final_graph_data = {
             "nodes": aggregated_nodes,
-            "links": aggregated_links,
+            "links": pruned_links,
         }
 
         # Render template
@@ -172,3 +191,41 @@ class D3Formatter:
             "width": layout_result.get("width", 1200),
             "height": layout_result.get("height", 800),
         }
+
+    def _prune_invalid_links(
+        self,
+        links: list[dict[str, Any]],
+        valid_node_ids: set[str],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """
+        Prune links that reference non-existent nodes.
+
+        This prevents D3.js from throwing 'node not found' errors when
+        links reference nodes that were filtered out or don't exist.
+
+        Args:
+            links: List of link dictionaries with source/target keys
+            valid_node_ids: Set of valid node IDs
+
+        Returns:
+            Tuple of (valid_links, invalid_links)
+        """
+        valid_links: list[dict[str, Any]] = []
+        invalid_links: list[dict[str, Any]] = []
+
+        for link in links:
+            source = link.get("source", "")
+            target = link.get("target", "")
+
+            # Handle case where source/target may already be node objects
+            if isinstance(source, dict):
+                source = source.get("id", "")
+            if isinstance(target, dict):
+                target = target.get("id", "")
+
+            if source in valid_node_ids and target in valid_node_ids:
+                valid_links.append(link)
+            else:
+                invalid_links.append(link)
+
+        return valid_links, invalid_links

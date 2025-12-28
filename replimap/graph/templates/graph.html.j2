@@ -1160,6 +1160,44 @@
         };
 
         // ============================================
+        // DATA VALIDATION (defensive check)
+        // Prune any links referencing non-existent nodes
+        // ============================================
+        function validateGraphData(data) {
+            const validNodeIds = new Set(data.nodes.map(n => n.id));
+            const originalLinkCount = data.links.length;
+            const missingNodes = new Set();
+
+            // Filter out invalid links
+            data.links = data.links.filter(link => {
+                const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+                const sourceValid = validNodeIds.has(sourceId);
+                const targetValid = validNodeIds.has(targetId);
+
+                if (!sourceValid) missingNodes.add(sourceId);
+                if (!targetValid) missingNodes.add(targetId);
+
+                return sourceValid && targetValid;
+            });
+
+            const prunedCount = originalLinkCount - data.links.length;
+            if (prunedCount > 0) {
+                console.warn(
+                    `[RepliMap] Pruned ${prunedCount} invalid links referencing non-existent nodes:`,
+                    Array.from(missingNodes).slice(0, 10),
+                    missingNodes.size > 10 ? `... and ${missingNodes.size - 10} more` : ''
+                );
+            }
+
+            return { prunedCount, missingNodes: Array.from(missingNodes) };
+        }
+
+        // Validate data before D3 initialization
+        const validationResult = validateGraphData(graphData);
+
+        // ============================================
         // STATE
         // ============================================
         let selectedNode = null;
@@ -2097,11 +2135,63 @@
             svg.attr('width', newWidth).attr('height', newHeight);
         });
 
-        // Hide loading and initialize
+        // Force hide loading after timeout (safety net)
+        const LOADING_TIMEOUT_MS = 3000;
+        let initializationComplete = false;
+
         setTimeout(() => {
+            if (!initializationComplete) {
+                console.warn('[RepliMap] Loading timeout reached, forcing hide');
+                loading.classed('hidden', true);
+            }
+        }, LOADING_TIMEOUT_MS);
+
+        // Initialize with error handling
+        try {
+            // Hide loading and initialize
+            setTimeout(() => {
+                initializationComplete = true;
+                loading.classed('hidden', true);
+                zoomToFit();
+
+                // Log validation results if any issues were found
+                if (validationResult.prunedCount > 0) {
+                    console.info(
+                        `[RepliMap] Graph loaded with ${graphData.nodes.length} nodes and ${graphData.links.length} links ` +
+                        `(${validationResult.prunedCount} invalid links were removed)`
+                    );
+                } else {
+                    console.info(
+                        `[RepliMap] Graph loaded successfully: ${graphData.nodes.length} nodes, ${graphData.links.length} links`
+                    );
+                }
+            }, 500);
+        } catch (error) {
+            console.error('[RepliMap] Failed to initialize graph:', error);
+            initializationComplete = true;
             loading.classed('hidden', true);
-            zoomToFit();
-        }, 500);
+
+            // Show error message in the UI
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #dc2626;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 14px;
+                z-index: 2000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            `;
+            errorDiv.textContent = 'Failed to render graph. Check console for details.';
+            document.body.appendChild(errorDiv);
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
     </script>
 </body>
 </html>
