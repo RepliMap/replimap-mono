@@ -15,9 +15,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -29,7 +28,6 @@ from replimap.core.aws_config import BOTO_CONFIG
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
-    from replimap.core.models import ResourceNode
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +67,9 @@ class ResourceFingerprint:
             "resource_id": self.resource_id,
             "resource_type": self.resource_type,
             "arn": self.arn,
-            "last_modified": self.last_modified.isoformat() if self.last_modified else None,
+            "last_modified": self.last_modified.isoformat()
+            if self.last_modified
+            else None,
             "config_hash": self.config_hash,
             "tags_hash": self.tags_hash,
             "version": self.version,
@@ -102,7 +102,7 @@ class ResourceChange:
     change_type: ChangeType
     previous_fingerprint: ResourceFingerprint | None = None
     current_fingerprint: ResourceFingerprint | None = None
-    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
@@ -111,7 +111,9 @@ class ResourceChange:
             "resource_type": self.resource_type,
             "change_type": self.change_type.value,
             "previous_fingerprint": (
-                self.previous_fingerprint.to_dict() if self.previous_fingerprint else None
+                self.previous_fingerprint.to_dict()
+                if self.previous_fingerprint
+                else None
             ),
             "current_fingerprint": (
                 self.current_fingerprint.to_dict() if self.current_fingerprint else None
@@ -156,9 +158,7 @@ class ScanState:
         return {
             "region": self.region,
             "last_scan": self.last_scan.isoformat() if self.last_scan else None,
-            "fingerprints": {
-                k: v.to_dict() for k, v in self.fingerprints.items()
-            },
+            "fingerprints": {k: v.to_dict() for k, v in self.fingerprints.items()},
             "metadata": self.metadata,
         }
 
@@ -478,7 +478,7 @@ class IncrementalScanner:
             resource_id=resource_id,
             resource_type=resource_type,
             arn=arn,
-            last_modified=datetime.now(timezone.utc),
+            last_modified=datetime.now(UTC),
             config_hash=self._compute_hash(config) if config else "",
             tags_hash=self._compute_hash(tags),
         )
@@ -524,9 +524,7 @@ class IncrementalScanner:
             tags = {t["Key"]: t["Value"] for t in resource.get("Tags", [])}
 
             # Create current fingerprint
-            current_fp = self._create_fingerprint(
-                resource_id, resource_type, arn, tags
-            )
+            current_fp = self._create_fingerprint(resource_id, resource_type, arn, tags)
 
             # Check against previous state
             previous_fp = previous_state.get_fingerprint(resource_id)
@@ -583,13 +581,13 @@ class IncrementalScanner:
         Returns:
             IncrementalScanResult with scan details
         """
-        scan_start = datetime.now(timezone.utc)
+        scan_start = datetime.now(UTC)
         account_id = self._get_account_id()
         errors: list[str] = []
 
         # Load previous state
-        previous_state = None if force_full else self.state_store.load(
-            self.region, account_id
+        previous_state = (
+            None if force_full else self.state_store.load(self.region, account_id)
         )
         full_scan = previous_state is None or force_full
 
@@ -611,7 +609,9 @@ class IncrementalScanner:
                 # Incremental scan
                 logger.info(f"Performing incremental scan for {self.region}")
                 changes = self.detect_changes(previous_state)
-                resources_checked = len(previous_state.fingerprints) if previous_state else 0
+                resources_checked = (
+                    len(previous_state.fingerprints) if previous_state else 0
+                )
 
                 for change in changes:
                     if change.change_type == ChangeType.CREATED:
@@ -624,13 +624,15 @@ class IncrementalScanner:
                         resources_deleted += 1
                         self._remove_resource(graph, change)
 
-                resources_unchanged = resources_checked - resources_updated - resources_deleted
+                resources_unchanged = (
+                    resources_checked - resources_updated - resources_deleted
+                )
 
         except Exception as e:
             logger.error(f"Error during incremental scan: {e}")
             errors.append(str(e))
 
-        scan_end = datetime.now(timezone.utc)
+        scan_end = datetime.now(UTC)
 
         # Update and save state
         new_state = self._create_state_from_graph(graph)
@@ -708,7 +710,7 @@ class IncrementalScanner:
                 resource_id=node.id,
                 resource_type=node.resource_type,
                 arn=node.arn,
-                last_modified=datetime.now(timezone.utc),
+                last_modified=datetime.now(UTC),
                 config_hash=self._compute_hash(node.config),
                 tags_hash=self._compute_hash(node.tags),
             )

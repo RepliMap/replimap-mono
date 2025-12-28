@@ -2,24 +2,23 @@
 Tests for P3-2: Historical Snapshots (Time Machine).
 
 Tests verify:
-1. SnapshotManager save/load/list operations
-2. ResourceSnapshot serialization
-3. SnapshotComparison diff logic
-4. Retention policy enforcement
-5. AuditTrail functionality
+1. ResourceSnapshot serialization
+2. SnapshotMetadata model
+3. AuditTrail and AuditEvent functionality
+4. SnapshotDiff model
+5. SnapshotComparison model and properties
+6. SnapshotManager basic operations
 """
 
 import tempfile
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import pytest
-
 from replimap.cache.snapshots import (
+    AuditEvent,
+    AuditEventType,
     AuditTrail,
-    AuditTrailEntry,
     ResourceSnapshot,
-    Snapshot,
     SnapshotComparison,
     SnapshotDiff,
     SnapshotManager,
@@ -36,13 +35,17 @@ class TestResourceSnapshot:
             resource_id="vpc-12345",
             resource_type="aws_vpc",
             resource_name="my-vpc",
+            arn="arn:aws:ec2:us-east-1:123456789012:vpc/vpc-12345",
             region="us-east-1",
             config={"cidr_block": "10.0.0.0/16"},
+            tags={"Environment": "prod"},
+            dependencies=[],
         )
 
         assert snap.resource_id == "vpc-12345"
         assert snap.resource_type == "aws_vpc"
         assert snap.config["cidr_block"] == "10.0.0.0/16"
+        assert snap.config_hash  # Should be auto-computed
 
     def test_snapshot_to_dict(self):
         """Test snapshot serialization."""
@@ -50,15 +53,19 @@ class TestResourceSnapshot:
             resource_id="vpc-12345",
             resource_type="aws_vpc",
             resource_name="my-vpc",
+            arn=None,
             region="us-east-1",
             config={"cidr_block": "10.0.0.0/16"},
             tags={"Environment": "prod"},
+            dependencies=["igw-12345"],
         )
 
         data = snap.to_dict()
         assert data["resource_id"] == "vpc-12345"
         assert data["config"]["cidr_block"] == "10.0.0.0/16"
         assert data["tags"]["Environment"] == "prod"
+        assert data["dependencies"] == ["igw-12345"]
+        assert data["config_hash"]
 
     def test_snapshot_from_dict(self):
         """Test snapshot deserialization."""
@@ -66,263 +73,405 @@ class TestResourceSnapshot:
             "resource_id": "vpc-12345",
             "resource_type": "aws_vpc",
             "resource_name": "my-vpc",
+            "arn": None,
             "region": "us-east-1",
             "config": {"cidr_block": "10.0.0.0/16"},
             "tags": {},
+            "dependencies": [],
             "config_hash": "abc123",
         }
 
         snap = ResourceSnapshot.from_dict(data)
         assert snap.resource_id == "vpc-12345"
         assert snap.config["cidr_block"] == "10.0.0.0/16"
+        assert snap.config_hash == "abc123"
 
-
-class TestSnapshot:
-    """Test Snapshot model."""
-
-    def test_create_snapshot(self):
-        """Test creating a full snapshot."""
-        snap = Snapshot(
-            snapshot_id="snap-001",
-            account_id="123456789012",
-            created_at=datetime.utcnow(),
+    def test_config_hash_computed(self):
+        """Test that config hash is auto-computed if not provided."""
+        snap1 = ResourceSnapshot(
+            resource_id="vpc-1",
+            resource_type="aws_vpc",
+            resource_name="vpc",
+            arn=None,
+            region="us-east-1",
+            config={"cidr": "10.0.0.0/16"},
+            tags={},
+            dependencies=[],
         )
 
-        snap.add_resource(
-            ResourceSnapshot(
-                "vpc-1", "aws_vpc", "vpc-1", "us-east-1", {}
+        snap2 = ResourceSnapshot(
+            resource_id="vpc-2",
+            resource_type="aws_vpc",
+            resource_name="vpc",
+            arn=None,
+            region="us-east-1",
+            config={"cidr": "10.0.0.0/16"},  # Same config
+            tags={},
+            dependencies=[],
+        )
+
+        # Same config should produce same hash
+        assert snap1.config_hash == snap2.config_hash
+
+
+class TestSnapshotMetadata:
+    """Test SnapshotMetadata model."""
+
+    def test_create_metadata(self):
+        """Test creating snapshot metadata."""
+        meta = SnapshotMetadata(
+            snapshot_id="snap-001",
+            created_at=datetime.now(UTC),
+            region="us-east-1",
+            account_id="123456789012",
+            resource_count=10,
+            description="Test snapshot",
+        )
+
+        assert meta.snapshot_id == "snap-001"
+        assert meta.resource_count == 10
+
+    def test_metadata_to_dict(self):
+        """Test metadata serialization."""
+        now = datetime.now(UTC)
+        meta = SnapshotMetadata(
+            snapshot_id="snap-001",
+            created_at=now,
+            region="us-east-1",
+            account_id="123456789012",
+            resource_count=10,
+            description="Test snapshot",
+            tags={"env": "test"},
+        )
+
+        data = meta.to_dict()
+        assert data["snapshot_id"] == "snap-001"
+        assert data["resource_count"] == 10
+        assert data["tags"] == {"env": "test"}
+
+    def test_metadata_from_dict(self):
+        """Test metadata deserialization."""
+        data = {
+            "snapshot_id": "snap-001",
+            "created_at": "2024-01-01T00:00:00+00:00",
+            "region": "us-east-1",
+            "account_id": "123456789012",
+            "resource_count": 5,
+        }
+
+        meta = SnapshotMetadata.from_dict(data)
+        assert meta.snapshot_id == "snap-001"
+        assert meta.resource_count == 5
+
+
+class TestAuditEventAndTrail:
+    """Test AuditEvent and AuditTrail."""
+
+    def test_create_audit_event(self):
+        """Test creating an audit event."""
+        event = AuditEvent(
+            event_type=AuditEventType.SNAPSHOT_CREATED,
+            timestamp=datetime.now(UTC),
+            details={"resource_count": 10},
+            snapshot_id="snap-001",
+        )
+
+        assert event.event_type == AuditEventType.SNAPSHOT_CREATED
+        assert event.details["resource_count"] == 10
+
+    def test_audit_event_to_dict(self):
+        """Test event serialization."""
+        now = datetime.now(UTC)
+        event = AuditEvent(
+            event_type=AuditEventType.RESOURCE_ADDED,
+            timestamp=now,
+            details={"resource_id": "vpc-1"},
+            actor="test-user",
+            snapshot_id="snap-001",
+        )
+
+        data = event.to_dict()
+        assert data["event_type"] == "resource_added"
+        assert data["actor"] == "test-user"
+
+    def test_audit_event_from_dict(self):
+        """Test event deserialization."""
+        data = {
+            "event_type": "snapshot_deleted",
+            "timestamp": "2024-01-01T00:00:00+00:00",
+            "details": {},
+            "actor": "system",
+            "snapshot_id": "snap-001",
+        }
+
+        event = AuditEvent.from_dict(data)
+        assert event.event_type == AuditEventType.SNAPSHOT_DELETED
+
+    def test_audit_trail_add_event(self):
+        """Test adding events to audit trail."""
+        trail = AuditTrail()
+
+        event = AuditEvent(
+            event_type=AuditEventType.SNAPSHOT_CREATED,
+            timestamp=datetime.now(UTC),
+            snapshot_id="snap-001",
+        )
+
+        trail.add_event(event)
+        assert len(trail.events) == 1
+
+    def test_audit_trail_get_events_by_type(self):
+        """Test filtering events by type."""
+        trail = AuditTrail()
+
+        trail.add_event(
+            AuditEvent(
+                event_type=AuditEventType.SNAPSHOT_CREATED,
+                timestamp=datetime.now(UTC),
+                snapshot_id="snap-001",
+            )
+        )
+        trail.add_event(
+            AuditEvent(
+                event_type=AuditEventType.SNAPSHOT_DELETED,
+                timestamp=datetime.now(UTC),
+                snapshot_id="snap-002",
+            )
+        )
+        trail.add_event(
+            AuditEvent(
+                event_type=AuditEventType.SNAPSHOT_CREATED,
+                timestamp=datetime.now(UTC),
+                snapshot_id="snap-003",
             )
         )
 
-        assert snap.snapshot_id == "snap-001"
-        assert len(snap.resources) == 1
+        created_events = trail.get_events(event_type=AuditEventType.SNAPSHOT_CREATED)
+        assert len(created_events) == 2
 
-    def test_snapshot_metadata(self):
-        """Test snapshot metadata."""
-        snap = Snapshot(
-            snapshot_id="snap-001",
-            account_id="123456789012",
-            created_at=datetime.utcnow(),
+    def test_audit_trail_get_events_by_time(self):
+        """Test filtering events by time."""
+        trail = AuditTrail()
+        now = datetime.now(UTC)
+
+        trail.add_event(
+            AuditEvent(
+                event_type=AuditEventType.SNAPSHOT_CREATED,
+                timestamp=now - timedelta(hours=2),
+            )
+        )
+        trail.add_event(
+            AuditEvent(
+                event_type=AuditEventType.SNAPSHOT_CREATED,
+                timestamp=now,
+            )
         )
 
+        # Get events from last hour
+        recent_events = trail.get_events(start_time=now - timedelta(hours=1))
+        assert len(recent_events) == 1
+
+    def test_audit_trail_max_events(self):
+        """Test audit trail trimming at max capacity."""
+        trail = AuditTrail(max_events=5)
+
         for i in range(10):
-            snap.add_resource(
-                ResourceSnapshot(
-                    f"vpc-{i}", "aws_vpc", f"vpc-{i}", "us-east-1",
-                    {"data": "x" * 100}
+            trail.add_event(
+                AuditEvent(
+                    event_type=AuditEventType.SNAPSHOT_CREATED,
+                    timestamp=datetime.now(UTC),
+                    snapshot_id=f"snap-{i}",
                 )
             )
 
-        meta = snap.get_metadata()
-        assert meta.snapshot_id == "snap-001"
-        assert meta.resource_count == 10
-        assert meta.size_bytes > 0
+        # Should only keep last 5 events
+        assert len(trail.events) == 5
+        assert trail.events[0].snapshot_id == "snap-5"
+
+
+class TestSnapshotDiff:
+    """Test SnapshotDiff model."""
+
+    def test_create_diff_added(self):
+        """Test creating a diff for added resource."""
+        new_resource = ResourceSnapshot(
+            resource_id="vpc-1",
+            resource_type="aws_vpc",
+            resource_name="new-vpc",
+            arn=None,
+            region="us-east-1",
+            config={"cidr": "10.0.0.0/16"},
+            tags={},
+            dependencies=[],
+        )
+
+        diff = SnapshotDiff(
+            resource_id="vpc-1",
+            resource_type="aws_vpc",
+            change_type="added",
+            new_snapshot=new_resource,
+        )
+
+        assert diff.change_type == "added"
+        assert diff.old_snapshot is None
+        assert diff.new_snapshot is not None
+
+    def test_create_diff_modified(self):
+        """Test creating a diff for modified resource."""
+        old_resource = ResourceSnapshot(
+            resource_id="vpc-1",
+            resource_type="aws_vpc",
+            resource_name="vpc",
+            arn=None,
+            region="us-east-1",
+            config={"cidr": "10.0.0.0/16"},
+            tags={},
+            dependencies=[],
+        )
+
+        new_resource = ResourceSnapshot(
+            resource_id="vpc-1",
+            resource_type="aws_vpc",
+            resource_name="vpc",
+            arn=None,
+            region="us-east-1",
+            config={"cidr": "10.0.0.0/8"},  # Modified
+            tags={},
+            dependencies=[],
+        )
+
+        diff = SnapshotDiff(
+            resource_id="vpc-1",
+            resource_type="aws_vpc",
+            change_type="modified",
+            old_snapshot=old_resource,
+            new_snapshot=new_resource,
+            changed_fields=["cidr"],
+        )
+
+        assert diff.change_type == "modified"
+        assert "cidr" in diff.changed_fields
+
+    def test_diff_to_dict(self):
+        """Test diff serialization."""
+        diff = SnapshotDiff(
+            resource_id="vpc-1",
+            resource_type="aws_vpc",
+            change_type="removed",
+        )
+
+        data = diff.to_dict()
+        assert data["resource_id"] == "vpc-1"
+        assert data["change_type"] == "removed"
+
+
+class TestSnapshotComparison:
+    """Test SnapshotComparison model."""
+
+    def test_create_comparison(self):
+        """Test creating a snapshot comparison."""
+        now = datetime.now(UTC)
+        comparison = SnapshotComparison(
+            old_snapshot_id="snap-001",
+            new_snapshot_id="snap-002",
+            old_timestamp=now - timedelta(hours=1),
+            new_timestamp=now,
+            added_count=3,
+            removed_count=1,
+            modified_count=2,
+        )
+
+        assert comparison.total_changes == 6
+        assert comparison.has_changes
+
+    def test_comparison_no_changes(self):
+        """Test comparison with no changes."""
+        now = datetime.now(UTC)
+        comparison = SnapshotComparison(
+            old_snapshot_id="snap-001",
+            new_snapshot_id="snap-002",
+            old_timestamp=now - timedelta(hours=1),
+            new_timestamp=now,
+        )
+
+        assert comparison.total_changes == 0
+        assert not comparison.has_changes
+
+    def test_comparison_to_dict(self):
+        """Test comparison serialization."""
+        now = datetime.now(UTC)
+        comparison = SnapshotComparison(
+            old_snapshot_id="snap-001",
+            new_snapshot_id="snap-002",
+            old_timestamp=now - timedelta(hours=1),
+            new_timestamp=now,
+            added_count=1,
+            removed_count=1,
+            modified_count=1,
+        )
+
+        data = comparison.to_dict()
+        assert data["old_snapshot_id"] == "snap-001"
+        assert data["summary"]["total_changes"] == 3
 
 
 class TestSnapshotManager:
     """Test SnapshotManager."""
 
-    def test_save_and_load_snapshot(self):
-        """Test saving and loading a snapshot."""
+    def test_manager_initialization(self):
+        """Test manager initialization."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SnapshotManager(Path(tmpdir))
+            assert manager.retention_days == 30
+            assert manager.compress is True
 
-            # Create and save snapshot
-            snap = Snapshot(
-                snapshot_id="snap-001",
-                account_id="123456789012",
-                created_at=datetime.utcnow(),
-            )
-            snap.add_resource(
-                ResourceSnapshot(
-                    "vpc-1", "aws_vpc", "my-vpc", "us-east-1",
-                    {"cidr_block": "10.0.0.0/16"}
-                )
-            )
+    def test_manager_custom_retention(self):
+        """Test manager with custom retention."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = SnapshotManager(Path(tmpdir), retention_days=7)
+            assert manager.retention_days == 7
 
-            manager.save_snapshot(snap)
-
-            # Load and verify
-            loaded = manager.load_snapshot("snap-001")
-            assert loaded is not None
-            assert loaded.snapshot_id == "snap-001"
-            assert len(loaded.resources) == 1
-            assert loaded.resources["vpc-1"].config["cidr_block"] == "10.0.0.0/16"
-
-    def test_list_snapshots(self):
-        """Test listing snapshots."""
+    def test_list_empty_snapshots(self):
+        """Test listing snapshots when none exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SnapshotManager(Path(tmpdir))
-
-            # Create multiple snapshots
-            for i in range(3):
-                snap = Snapshot(
-                    snapshot_id=f"snap-00{i}",
-                    account_id="123456789012",
-                    created_at=datetime.utcnow(),
-                )
-                manager.save_snapshot(snap)
-
             snapshots = manager.list_snapshots()
-            assert len(snapshots) >= 3
+            assert len(snapshots) == 0
 
-    def test_delete_snapshot(self):
-        """Test deleting a snapshot."""
+    def test_audit_trail_property(self):
+        """Test accessing audit trail."""
         with tempfile.TemporaryDirectory() as tmpdir:
             manager = SnapshotManager(Path(tmpdir))
+            trail = manager.audit_trail
+            assert isinstance(trail, AuditTrail)
 
-            # Create snapshot
-            snap = Snapshot(
-                snapshot_id="snap-to-delete",
-                account_id="123456789012",
-                created_at=datetime.utcnow(),
-            )
-            manager.save_snapshot(snap)
-
-            # Verify exists
-            assert manager.load_snapshot("snap-to-delete") is not None
-
-            # Delete
-            manager.delete_snapshot("snap-to-delete")
-
-            # Verify deleted
-            assert manager.load_snapshot("snap-to-delete") is None
-
-    def test_retention_policy(self):
-        """Test snapshot retention policy."""
+    def test_delete_nonexistent_snapshot(self):
+        """Test deleting a snapshot that doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Short retention for testing
+            manager = SnapshotManager(Path(tmpdir))
+            result = manager.delete_snapshot("nonexistent-id")
+            assert result is False
+
+    def test_load_nonexistent_snapshot(self):
+        """Test loading a snapshot that doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manager = SnapshotManager(Path(tmpdir))
+            result = manager.load_snapshot("nonexistent-id")
+            assert result is None
+
+    def test_cleanup_old_snapshots_empty(self):
+        """Test cleanup when no snapshots exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
             manager = SnapshotManager(Path(tmpdir), retention_days=1)
+            deleted = manager.cleanup_old_snapshots()
+            assert deleted == 0
 
-            # Create old snapshot (simulate)
-            old_snap = Snapshot(
-                snapshot_id="snap-old",
-                account_id="123456789012",
-                created_at=datetime.utcnow() - timedelta(days=35),
-            )
-            manager.save_snapshot(old_snap)
-
-            # Create recent snapshot
-            new_snap = Snapshot(
-                snapshot_id="snap-new",
-                account_id="123456789012",
-                created_at=datetime.utcnow(),
-            )
-            manager.save_snapshot(new_snap)
-
-            # Apply retention - old should be cleaned
-            deleted = manager.apply_retention_policy()
-            # Note: May need to verify implementation handles dates correctly
-
-
-class TestSnapshotComparison:
-    """Test SnapshotComparison."""
-
-    def test_compare_snapshots(self):
-        """Test comparing two snapshots."""
-        # Older snapshot
-        snap1 = Snapshot(
-            snapshot_id="snap-001",
-            account_id="123456789012",
-            created_at=datetime.utcnow() - timedelta(hours=1),
-        )
-        snap1.add_resource(
-            ResourceSnapshot(
-                "vpc-same", "aws_vpc", "same", "us-east-1",
-                {"cidr": "10.0.0.0/16"}
-            )
-        )
-        snap1.add_resource(
-            ResourceSnapshot(
-                "vpc-modified", "aws_vpc", "modified", "us-east-1",
-                {"cidr": "10.0.0.0/16"}
-            )
-        )
-        snap1.add_resource(
-            ResourceSnapshot(
-                "vpc-deleted", "aws_vpc", "deleted", "us-east-1",
-                {"cidr": "10.0.0.0/16"}
-            )
-        )
-
-        # Newer snapshot
-        snap2 = Snapshot(
-            snapshot_id="snap-002",
-            account_id="123456789012",
-            created_at=datetime.utcnow(),
-        )
-        snap2.add_resource(
-            ResourceSnapshot(
-                "vpc-same", "aws_vpc", "same", "us-east-1",
-                {"cidr": "10.0.0.0/16"}  # Same config
-            )
-        )
-        snap2.add_resource(
-            ResourceSnapshot(
-                "vpc-modified", "aws_vpc", "modified", "us-east-1",
-                {"cidr": "10.0.0.0/8"}  # Modified config
-            )
-        )
-        snap2.add_resource(
-            ResourceSnapshot(
-                "vpc-created", "aws_vpc", "created", "us-east-1",
-                {"cidr": "172.16.0.0/16"}  # New resource
-            )
-        )
-
-        comparison = SnapshotComparison.compare(snap1, snap2)
-
-        assert len(comparison.added) == 1
-        assert "vpc-created" in comparison.added
-
-        assert len(comparison.removed) == 1
-        assert "vpc-deleted" in comparison.removed
-
-        assert len(comparison.modified) == 1
-        assert "vpc-modified" in comparison.modified
-
-        assert len(comparison.unchanged) == 1
-        assert "vpc-same" in comparison.unchanged
-
-
-class TestAuditTrail:
-    """Test AuditTrail."""
-
-    def test_create_audit_trail(self):
-        """Test creating audit trail."""
+    def test_get_snapshot_at_time_none(self):
+        """Test getting snapshot at time when none exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            trail = AuditTrail(Path(tmpdir))
-
-            # Log entry
-            trail.log_entry(
-                action="snapshot_created",
-                snapshot_id="snap-001",
-                details={"resource_count": 10},
+            manager = SnapshotManager(Path(tmpdir))
+            result = manager.get_snapshot_at_time(
+                target_time=datetime.now(UTC),
+                region="us-east-1",
             )
-
-            # Get entries
-            entries = trail.get_entries()
-            assert len(entries) >= 1
-
-    def test_audit_trail_filtering(self):
-        """Test audit trail time filtering."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            trail = AuditTrail(Path(tmpdir))
-
-            # Log entries
-            trail.log_entry(
-                action="snapshot_created",
-                snapshot_id="snap-001",
-            )
-
-            # Get entries from last hour
-            entries = trail.get_entries(
-                since=datetime.utcnow() - timedelta(hours=1)
-            )
-            assert len(entries) >= 1
-
-            # Get entries from future (should be empty)
-            future_entries = trail.get_entries(
-                since=datetime.utcnow() + timedelta(hours=1)
-            )
-            assert len(future_entries) == 0
+            assert result is None

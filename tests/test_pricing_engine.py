@@ -9,17 +9,6 @@ Tests cover:
 
 from decimal import Decimal
 
-import pytest
-
-from replimap.cost.models import CostCategory, PricingTier
-from replimap.cost.pricing_engine import (
-    BasePricingEngine,
-    Currency,
-    DefaultPricingEngine,
-    PricePoint,
-    PricingUnit,
-    ResourceCost,
-)
 from replimap.cost.au_pricing import (
     AU_GST_RATE,
     AUD_EXCHANGE_RATE,
@@ -30,6 +19,15 @@ from replimap.cost.au_pricing import (
     calculate_gst,
     compare_au_regions,
 )
+from replimap.cost.models import CostCategory, PricingTier
+from replimap.cost.pricing_engine import (
+    BasePricingEngine,
+    Currency,
+    DefaultPricingEngine,
+    PricePoint,
+    PricingUnit,
+    ResourceCost,
+)
 from replimap.cost.transfer_analyzer import (
     DataTransferAnalyzer,
     TrafficDirection,
@@ -39,7 +37,6 @@ from replimap.cost.transfer_analyzer import (
     TransferReport,
     TransferType,
 )
-
 
 # =============================================================================
 # P1-4: GENERAL PRICING ENGINE TESTS
@@ -62,8 +59,14 @@ class TestPricingUnit:
     def test_all_units_exist(self) -> None:
         """Test all expected units exist."""
         expected = [
-            "HOURLY", "MONTHLY", "YEARLY", "PER_GB", "PER_GB_MONTH",
-            "PER_REQUEST", "PER_MILLION_REQUESTS", "PER_GB_TRANSFERRED",
+            "HOURLY",
+            "MONTHLY",
+            "YEARLY",
+            "PER_GB",
+            "PER_GB_MONTH",
+            "PER_REQUEST",
+            "PER_MILLION_REQUESTS",
+            "PER_GB_TRANSFERRED",
         ]
         for unit in expected:
             assert hasattr(PricingUnit, unit)
@@ -455,9 +458,16 @@ class TestTransferType:
     def test_all_types_exist(self) -> None:
         """Test all expected transfer types exist."""
         expected = [
-            "INTERNET_EGRESS", "INTERNET_INGRESS", "CROSS_AZ",
-            "CROSS_REGION", "VPC_PEERING", "TRANSIT_GATEWAY",
-            "NAT_GATEWAY", "VPC_ENDPOINT", "DIRECT_CONNECT", "CLOUDFRONT",
+            "INTERNET_EGRESS",
+            "INTERNET_INGRESS",
+            "CROSS_AZ",
+            "CROSS_REGION",
+            "VPC_PEERING",
+            "TRANSIT_GATEWAY",
+            "NAT_GATEWAY",
+            "VPC_ENDPOINT",
+            "DIRECT_CONNECT",
+            "CLOUDFRONT",
         ]
         for t in expected:
             assert hasattr(TransferType, t)
@@ -648,12 +658,26 @@ class TestDataTransferAnalyzer:
         analyzer = DataTransferAnalyzer("ap-southeast-2")
 
         resources = [
-            {"id": "i-1234", "type": "aws_instance", "region": "ap-southeast-2", "availability_zone": "ap-southeast-2a"},
-            {"id": "i-5678", "type": "aws_instance", "region": "ap-southeast-2", "availability_zone": "ap-southeast-2b"},
+            {
+                "id": "i-1234",
+                "type": "aws_instance",
+                "region": "ap-southeast-2",
+                "availability_zone": "ap-southeast-2a",
+            },
+            {
+                "id": "i-5678",
+                "type": "aws_instance",
+                "region": "ap-southeast-2",
+                "availability_zone": "ap-southeast-2b",
+            },
         ]
 
         connections = [
-            {"source_id": "i-1234", "destination_id": "i-5678", "estimated_gb_month": 100},
+            {
+                "source_id": "i-1234",
+                "destination_id": "i-5678",
+                "estimated_gb_month": 100,
+            },
         ]
 
         paths = analyzer.detect_cross_az_traffic(resources, connections)
@@ -735,10 +759,7 @@ class TestModuleImports:
         """Test importing pricing engine classes."""
         from replimap.cost import (
             BasePricingEngine,
-            Currency,
             DefaultPricingEngine,
-            PricePoint,
-            PricingUnit,
         )
 
         assert BasePricingEngine is not None
@@ -748,13 +769,7 @@ class TestModuleImports:
         """Test importing AU pricing classes."""
         from replimap.cost import (
             AU_GST_RATE,
-            AUD_EXCHANGE_RATE,
-            AUPricingConfig,
             AustraliaPricingEngine,
-            RegionComparison,
-            add_gst,
-            calculate_gst,
-            compare_au_regions,
         )
 
         assert AustraliaPricingEngine is not None
@@ -764,10 +779,6 @@ class TestModuleImports:
         """Test importing transfer analyzer classes."""
         from replimap.cost import (
             DataTransferAnalyzer,
-            TrafficDirection,
-            TransferCost,
-            TransferPath,
-            TransferReport,
             TransferType,
         )
 

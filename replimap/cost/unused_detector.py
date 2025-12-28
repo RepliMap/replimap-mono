@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -155,9 +155,7 @@ class UnusedResourcesReport:
                 "potential_monthly_savings": round(self.total_potential_savings, 2),
             },
             "unused_resources": [r.to_dict() for r in self.unused_resources],
-            "by_type": {
-                k: [r.resource_id for r in v] for k, v in self.by_type.items()
-            },
+            "by_type": {k: [r.resource_id for r in v] for k, v in self.by_type.items()},
             "by_region": {
                 k: [r.resource_id for r in v] for k, v in self.by_region.items()
             },
@@ -338,7 +336,7 @@ class UnusedResourceDetector:
                 metrics = await self._get_ec2_metrics(node.id)
                 if metrics:
                     cpu_avg = metrics.get("cpu_avg", 100)
-                    network_avg = metrics.get("network_avg", float("inf"))
+                    _network_avg = metrics.get("network_avg", float("inf"))  # noqa: F841
 
                     if cpu_avg < THRESHOLDS["ec2_cpu_low"]:
                         unused.append(
@@ -639,7 +637,9 @@ class UnusedResourceDetector:
 
             datapoints = response.get("Datapoints", [])
             if datapoints:
-                connections_avg = sum(d["Average"] for d in datapoints) / len(datapoints)
+                connections_avg = sum(d["Average"] for d in datapoints) / len(
+                    datapoints
+                )
             else:
                 connections_avg = 0
 

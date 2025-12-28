@@ -18,8 +18,9 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from .classifier import classifier
 from .models import APICallRecord
@@ -246,9 +247,7 @@ class AuditHooks:
         sanitized: dict[str, Any] = {}
         for key, value in params.items():
             # Check if key contains sensitive terms
-            is_sensitive = any(
-                s.lower() in key.lower() for s in self.SENSITIVE_PARAMS
-            )
+            is_sensitive = any(s.lower() in key.lower() for s in self.SENSITIVE_PARAMS)
 
             if is_sensitive:
                 sanitized[key] = "***REDACTED***"

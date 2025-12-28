@@ -13,8 +13,6 @@ Tests cover:
 
 from __future__ import annotations
 
-import json
-import tempfile
 import threading
 import time
 from pathlib import Path
@@ -26,8 +24,6 @@ from replimap.core.models import ResourceNode, ResourceType
 from replimap.core.storage import (
     ConfigCompressor,
     GraphStore,
-    NodeInfo,
-    StorageStats,
     migrate_from_json,
 )
 
@@ -68,9 +64,7 @@ class TestConfigCompressor:
             "ImageId": "ami-12345678",
             "SubnetId": "subnet-12345678",
             "VpcId": "vpc-12345678",
-            "SecurityGroups": [
-                {"GroupId": "sg-12345678", "GroupName": "default"}
-            ],
+            "SecurityGroups": [{"GroupId": "sg-12345678", "GroupName": "default"}],
             "Tags": [
                 {"Key": "Name", "Value": "Web Server"},
                 {"Key": "Environment", "Value": "production"},
@@ -195,9 +189,7 @@ class TestGraphStore:
         assert f"{account_id}:us-east-1:subnet-12345678" in node_ids
         assert f"{account_id}:us-east-1:i-12345678" in node_ids
 
-    def test_load_edges(
-        self, store: GraphStore, sample_graph: GraphEngine
-    ) -> None:
+    def test_load_edges(self, store: GraphStore, sample_graph: GraphEngine) -> None:
         """Edges are saved and can be loaded."""
         account_id = "123456789012"
 
@@ -236,9 +228,7 @@ class TestGraphStore:
         config = store.get_node_config("nonexistent:us-east-1:vpc-99999")
         assert config is None
 
-    def test_get_node_tags(
-        self, store: GraphStore, sample_graph: GraphEngine
-    ) -> None:
+    def test_get_node_tags(self, store: GraphStore, sample_graph: GraphEngine) -> None:
         """Tags can be retrieved separately."""
         account_id = "123456789012"
         store.save_graph(sample_graph, account_id)
@@ -309,9 +299,7 @@ class TestGraphStore:
         assert "111111111111" in nodes1[0].node_id
         assert "222222222222" in nodes2[0].node_id
 
-    def test_delete_node(
-        self, store: GraphStore, sample_graph: GraphEngine
-    ) -> None:
+    def test_delete_node(self, store: GraphStore, sample_graph: GraphEngine) -> None:
         """Node can be deleted."""
         account_id = "123456789012"
         store.save_graph(sample_graph, account_id)
@@ -331,9 +319,7 @@ class TestGraphStore:
         result = store.delete_node("nonexistent:us-east-1:vpc-99999")
         assert result is False
 
-    def test_delete_account(
-        self, store: GraphStore, sample_graph: GraphEngine
-    ) -> None:
+    def test_delete_account(self, store: GraphStore, sample_graph: GraphEngine) -> None:
         """All nodes for an account can be deleted."""
         account_id = "123456789012"
         store.save_graph(sample_graph, account_id)
@@ -344,9 +330,7 @@ class TestGraphStore:
         nodes = store.load_topology(account_id=account_id)
         assert len(nodes) == 0
 
-    def test_get_statistics(
-        self, store: GraphStore, sample_graph: GraphEngine
-    ) -> None:
+    def test_get_statistics(self, store: GraphStore, sample_graph: GraphEngine) -> None:
         """Statistics are accurately reported."""
         account_id = "123456789012"
         store.save_graph(sample_graph, account_id)

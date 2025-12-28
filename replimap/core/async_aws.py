@@ -369,7 +369,9 @@ class AsyncAWSClient:
 
                 # Fatal errors - don't retry
                 if error_code in FATAL_ERRORS:
-                    logger.debug(f"Fatal error {error_code} for {operation}, not retrying")
+                    logger.debug(
+                        f"Fatal error {error_code} for {operation}, not retrying"
+                    )
                     self.stats.failed_calls += 1
                     raise
 
@@ -382,7 +384,9 @@ class AsyncAWSClient:
                 last_exception = e
 
                 if attempt == self.max_retries:
-                    logger.error(f"Max retries ({self.max_retries}) exceeded for {operation}")
+                    logger.error(
+                        f"Max retries ({self.max_retries}) exceeded for {operation}"
+                    )
                     self.stats.failed_calls += 1
                     raise
 

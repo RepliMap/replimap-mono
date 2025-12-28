@@ -378,7 +378,7 @@ class SavingsPlansAnalyzer:
             mean = avg_daily
             if mean > 0 and len(costs) > 1:
                 variance = sum((c - mean) ** 2 for c in costs) / len(costs)
-                std_dev = variance ** 0.5
+                std_dev = variance**0.5
                 variability = std_dev / mean
             else:
                 variability = 0
@@ -440,7 +440,9 @@ class SavingsPlansAnalyzer:
 
         # Adjust based on risk tolerance
         commitment_pct = min(min_usage_pct, coverage_target)
-        hourly_commitment = (total_compute_cost / 720) * commitment_pct  # 720 hours/month
+        hourly_commitment = (
+            total_compute_cost / 720
+        ) * commitment_pct  # 720 hours/month
 
         # Generate recommendation for Compute SP (most flexible)
         discount = SAVINGS_PLAN_DISCOUNTS[SavingsPlanType.COMPUTE][Term.ONE_YEAR][
@@ -462,7 +464,7 @@ class SavingsPlansAnalyzer:
             confidence = "LOW"
 
         rationale.append(f"Based on {len(usage_patterns)} compute services")
-        rationale.append(f"Coverage target: {coverage_target*100:.0f}%")
+        rationale.append(f"Coverage target: {coverage_target * 100:.0f}%")
 
         if hourly_commitment > 0.01:  # Only recommend if meaningful
             recommendations.append(
@@ -596,15 +598,9 @@ async def get_savings_plan_utilization(
             "utilization_percentage": float(
                 utilization.get("UtilizationPercentage", 0)
             ),
-            "total_commitment": float(
-                utilization.get("TotalCommitment", 0)
-            ),
-            "used_commitment": float(
-                utilization.get("UsedCommitment", 0)
-            ),
-            "unused_commitment": float(
-                utilization.get("UnusedCommitment", 0)
-            ),
+            "total_commitment": float(utilization.get("TotalCommitment", 0)),
+            "used_commitment": float(utilization.get("UsedCommitment", 0)),
+            "unused_commitment": float(utilization.get("UnusedCommitment", 0)),
         }
     except Exception as e:
         logger.error(f"Failed to get SP utilization: {e}")

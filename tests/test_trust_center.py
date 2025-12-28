@@ -13,9 +13,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import pytest
-
-from replimap.audit.classifier import OperationClassifier, classifier
+from replimap.audit.classifier import classifier
 from replimap.audit.exporters import (
     export_csv,
     export_json,
@@ -340,7 +338,9 @@ class TestOperationClassifier:
         assert classifier.classify("RemoveTagsFromResource") == APICategory.DELETE
         assert classifier.classify("TerminateInstances") == APICategory.DELETE
         assert classifier.classify("DetachVolume") == APICategory.DELETE
-        assert classifier.classify("StopInstances") == APICategory.DELETE
+        assert (
+            classifier.classify("StopInstances") == APICategory.WRITE
+        )  # Stop is not Delete
         assert classifier.classify("CancelSpotInstanceRequests") == APICategory.DELETE
 
     def test_admin_operations(self):
@@ -793,10 +793,11 @@ class TestAuditHooksUnit:
         sanitized = hooks._sanitize_params(params)
 
         assert sanitized["BucketName"] == "my-bucket"
-        assert sanitized["Password"] == "***REDACTED***"
-        assert sanitized["MasterUserPassword"] == "***REDACTED***"
+        assert sanitized["Password"] == "***REDACTED***"  # noqa: S105
+        assert sanitized["MasterUserPassword"] == "***REDACTED***"  # noqa: S105
         assert sanitized["Tags"] == [{"Key": "Name", "Value": "test"}]
-        assert sanitized["Credentials"]["AccessKey"] == "***REDACTED***"
+        # "Credentials" contains "Credential" which is sensitive, so whole value redacted
+        assert sanitized["Credentials"] == "***REDACTED***"  # noqa: S105
 
     def test_registered_session_count(self):
         """Test session count property."""

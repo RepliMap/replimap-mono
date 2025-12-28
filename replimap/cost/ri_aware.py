@@ -18,14 +18,13 @@ from enum import Enum
 from typing import Any
 
 from replimap.core.async_aws import AsyncAWSClient
-from replimap.cost.models import CostCategory, PricingTier
+from replimap.cost.models import PricingTier
 from replimap.cost.pricing_engine import (
     BasePricingEngine,
     Currency,
     DefaultPricingEngine,
     PricePoint,
     PricingUnit,
-    ResourceCost,
 )
 
 logger = logging.getLogger(__name__)
@@ -336,7 +335,9 @@ class RightSizingRecommendation:
             "reservation": {
                 "has_reservation": self.has_reservation,
                 "reservation_id": self.reservation_id,
-                "reservation_type": str(self.reservation_type) if self.reservation_type else None,
+                "reservation_type": str(self.reservation_type)
+                if self.reservation_type
+                else None,
                 "impact": self.reservation_impact,
                 "is_constrained": self.is_reservation_constrained,
                 "can_use_convertible": self.can_use_convertible,
@@ -521,7 +522,9 @@ class RIAwarePricingEngine(BasePricingEngine):
         tier: PricingTier = PricingTier.ON_DEMAND,
     ) -> PricePoint:
         """Get RDS price (RIs not directly tracked here)."""
-        return self._default_engine.get_rds_price(instance_class, engine, multi_az, tier)
+        return self._default_engine.get_rds_price(
+            instance_class, engine, multi_az, tier
+        )
 
     def get_storage_price(
         self,
@@ -558,7 +561,11 @@ class RIAwarePricingEngine(BasePricingEngine):
             # Check if covered by Savings Plan
             for sp in self.savings_plans:
                 if sp.is_active and sp.savings_plan_type == "Compute":
-                    return (True, ReservationType.SAVINGS_PLAN_COMPUTE, sp.savings_plan_id)
+                    return (
+                        True,
+                        ReservationType.SAVINGS_PLAN_COMPUTE,
+                        sp.savings_plan_id,
+                    )
                 if (
                     sp.is_active
                     and sp.savings_plan_type == "EC2Instance"
@@ -662,7 +669,16 @@ class RIAwarePricingEngine(BasePricingEngine):
         family: str,
     ) -> list[str]:
         """Get alternative instance types in the same family."""
-        sizes = ["nano", "micro", "small", "medium", "large", "xlarge", "2xlarge", "4xlarge"]
+        sizes = [
+            "nano",
+            "micro",
+            "small",
+            "medium",
+            "large",
+            "xlarge",
+            "2xlarge",
+            "4xlarge",
+        ]
         current_size = current_type.split(".")[-1] if "." in current_type else "large"
 
         try:
@@ -802,9 +818,7 @@ class RIAwareAnalyzer:
             utilization: dict[str, float] = {}
             for item in response.get("UtilizationsByTime", []):
                 total = item.get("Total", {})
-                utilization["overall"] = float(
-                    total.get("UtilizationPercentage", 0)
-                )
+                utilization["overall"] = float(total.get("UtilizationPercentage", 0))
 
             return utilization
 
@@ -838,9 +852,7 @@ class RIAwareAnalyzer:
                 "utilization_percentage": float(
                     utilization.get("UtilizationPercentage", 0)
                 ),
-                "used_commitment": Decimal(
-                    str(utilization.get("UsedCommitment", 0))
-                ),
+                "used_commitment": Decimal(str(utilization.get("UsedCommitment", 0))),
                 "unused_commitment": Decimal(
                     str(utilization.get("UnusedCommitment", 0))
                 ),
@@ -924,9 +936,7 @@ class RIAwareAnalyzer:
                 f"{len(expiring_sps)} Savings Plan(s) expiring within 30 days"
             )
         if waste:
-            warnings.append(
-                f"{len(waste)} underutilized reservation(s) detected"
-            )
+            warnings.append(f"{len(waste)} underutilized reservation(s) detected")
 
         return RIAwareAnalysis(
             analysis_date=today,
@@ -1002,9 +1012,7 @@ class RIAwareAnalyzer:
             if util_pct < 50:
                 level = UtilizationLevel.CRITICAL
                 monthly_waste = sp.unused_commitment * Decimal("730")
-                recommendation = (
-                    "Critical underutilization. Commitment is too high for current usage."
-                )
+                recommendation = "Critical underutilization. Commitment is too high for current usage."
             elif util_pct < 70:
                 level = UtilizationLevel.LOW
                 monthly_waste = sp.unused_commitment * Decimal("730")
@@ -1100,7 +1108,9 @@ class RIAwareAnalyzer:
                         savings_percentage=0.0,
                         has_reservation=True,
                         reservation_id=impact.get("reservation_id"),
-                        reservation_type=ReservationType(impact.get("reservation_type", "reserved_instance")),
+                        reservation_type=ReservationType(
+                            impact.get("reservation_type", "reserved_instance")
+                        ),
                         reservation_impact=impact.get("recommendation", ""),
                         is_reservation_constrained=True,
                         confidence="LOW",
@@ -1148,7 +1158,9 @@ class RIAwareAnalyzer:
                     is_reservation_constrained=False,
                     can_use_convertible=impact.get("can_use_convertible", False),
                     alternative_actions=impact.get("alternatives", []),
-                    confidence="HIGH" if not impact.get("has_reservation") else "MEDIUM",
+                    confidence="HIGH"
+                    if not impact.get("has_reservation")
+                    else "MEDIUM",
                     rationale=rationale,
                 )
             )

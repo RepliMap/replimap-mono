@@ -132,16 +132,12 @@ def export_summary_csv(
         writer.writerow(
             ["Total Duration (seconds)", f"{report.total_duration_seconds:.2f}"]
         )
-        writer.writerow(
-            ["Read-Only Percentage", f"{report.read_only_percentage:.1f}%"]
-        )
+        writer.writerow(["Read-Only Percentage", f"{report.read_only_percentage:.1f}%"])
         writer.writerow(
             ["Fully Read-Only", "Yes" if report.is_fully_read_only else "No"]
         )
         writer.writerow(["Total Errors", report.total_errors])
-        writer.writerow(
-            ["Error Rate", f"{report.error_rate_percentage:.2f}%"]
-        )
+        writer.writerow(["Error Rate", f"{report.error_rate_percentage:.2f}%"])
         writer.writerow([])
 
         # Calls by category
@@ -242,7 +238,9 @@ def generate_compliance_text(report: TrustCenterReport) -> str:
 
     # Category breakdown
     for category, count in sorted(report.calls_by_category.items()):
-        pct = (count / report.total_api_calls * 100) if report.total_api_calls > 0 else 0
+        pct = (
+            (count / report.total_api_calls * 100) if report.total_api_calls > 0 else 0
+        )
         lines.append(f"  {category.upper():12} {count:>8,} ({pct:>5.1f}%)")
 
     lines.extend(
@@ -256,9 +254,7 @@ def generate_compliance_text(report: TrustCenterReport) -> str:
     )
 
     # Service breakdown (top 10)
-    sorted_services = sorted(
-        report.calls_by_service.items(), key=lambda x: -x[1]
-    )[:10]
+    sorted_services = sorted(report.calls_by_service.items(), key=lambda x: -x[1])[:10]
     for service, count in sorted_services:
         lines.append(f"  {service:20} {count:>8,} calls")
 

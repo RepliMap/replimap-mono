@@ -16,10 +16,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from replimap.graph.visualizer import (
     GraphEdge,
@@ -28,7 +29,7 @@ from replimap.graph.visualizer import (
 )
 
 if TYPE_CHECKING:
-    from replimap.core import GraphEngine
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +215,8 @@ class MultiRegionConfig:
         """Create configuration for US regions only."""
         return cls(
             regions=[
-                r for r, g in REGION_GROUPS.items()
+                r
+                for r, g in REGION_GROUPS.items()
                 if g in (RegionGroup.US_EAST, RegionGroup.US_WEST)
             ]
         )
@@ -222,20 +224,14 @@ class MultiRegionConfig:
     @classmethod
     def eu_only(cls) -> MultiRegionConfig:
         """Create configuration for EU regions only."""
-        return cls(
-            regions=[
-                r for r, g in REGION_GROUPS.items()
-                if g == RegionGroup.EU
-            ]
-        )
+        return cls(regions=[r for r, g in REGION_GROUPS.items() if g == RegionGroup.EU])
 
     @classmethod
     def asia_pacific_only(cls) -> MultiRegionConfig:
         """Create configuration for Asia Pacific regions only."""
         return cls(
             regions=[
-                r for r, g in REGION_GROUPS.items()
-                if g == RegionGroup.ASIA_PACIFIC
+                r for r, g in REGION_GROUPS.items() if g == RegionGroup.ASIA_PACIFIC
             ]
         )
 
@@ -244,12 +240,12 @@ class MultiRegionConfig:
 REGION_COLORS: dict[RegionGroup, str] = {
     RegionGroup.US_EAST: "#3b82f6",  # Blue
     RegionGroup.US_WEST: "#8b5cf6",  # Purple
-    RegionGroup.EU: "#10b981",       # Green
+    RegionGroup.EU: "#10b981",  # Green
     RegionGroup.ASIA_PACIFIC: "#f59e0b",  # Amber
     RegionGroup.SOUTH_AMERICA: "#ef4444",  # Red
     RegionGroup.MIDDLE_EAST: "#ec4899",  # Pink
-    RegionGroup.AFRICA: "#14b8a6",   # Teal
-    RegionGroup.CANADA: "#6366f1",   # Indigo
+    RegionGroup.AFRICA: "#14b8a6",  # Teal
+    RegionGroup.CANADA: "#6366f1",  # Indigo
 }
 
 
@@ -315,10 +311,7 @@ class MultiRegionGraph:
 
     def get_nodes_in_region(self, region: str) -> list[GraphNode]:
         """Get all nodes in a specific region."""
-        return [
-            node for node in self.nodes
-            if node.properties.get("region") == region
-        ]
+        return [node for node in self.nodes if node.properties.get("region") == region]
 
     def get_cross_region_edges(self) -> list[GraphEdge]:
         """Get edges that connect resources in different regions."""
@@ -578,9 +571,7 @@ class MultiRegionScanner:
             for node in result.graph.nodes:
                 # Create new node with region attribution
                 new_id = (
-                    f"{region}:{node.id}"
-                    if self.config.prefix_node_ids
-                    else node.id
+                    f"{region}:{node.id}" if self.config.prefix_node_ids else node.id
                 )
                 node_id_mapping[node.id] = new_id
 

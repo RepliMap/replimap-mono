@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, ClassVar
 
-from replimap.cost.models import CostCategory, PricingTier
+from replimap.cost.models import PricingTier
 from replimap.cost.pricing_engine import (
     BasePricingEngine,
     Currency,
@@ -23,7 +23,6 @@ from replimap.cost.pricing_engine import (
     PricingUnit,
     ResourceCost,
 )
-
 
 # Australian GST rate
 AU_GST_RATE = Decimal("0.10")  # 10%
@@ -349,9 +348,7 @@ class AustraliaPricingEngine(BasePricingEngine):
         if self.is_melbourne:
             base = base * self.MELBOURNE_PREMIUM
 
-        unit = (
-            PricingUnit.HOURLY if "hourly" in transfer_type else PricingUnit.PER_GB
-        )
+        unit = PricingUnit.HOURLY if "hourly" in transfer_type else PricingUnit.PER_GB
 
         return PricePoint(
             amount=base,

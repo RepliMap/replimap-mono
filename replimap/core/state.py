@@ -77,7 +77,9 @@ class ScanRecord:
             "account_id": self.account_id,
             "region": self.region,
             "started_at": self.started_at.isoformat(),
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": self.completed_at.isoformat()
+            if self.completed_at
+            else None,
             "duration_seconds": self.duration_seconds,
             "node_count": self.node_count,
             "edge_count": self.edge_count,
@@ -419,9 +421,7 @@ class RepliMapState:
             else 0
         )
         avg_nodes = (
-            sum(s.node_count for s in successful) / len(successful)
-            if successful
-            else 0
+            sum(s.node_count for s in successful) / len(successful) if successful else 0
         )
 
         return {
@@ -468,9 +468,7 @@ class RepliMapState:
         state.resource_hashes = data.get("resource_hashes", {})
 
         # Load snapshots
-        state.snapshots = [
-            SnapshotInfo.from_dict(s) for s in data.get("snapshots", [])
-        ]
+        state.snapshots = [SnapshotInfo.from_dict(s) for s in data.get("snapshots", [])]
 
         # Load errors
         state.errors = [ErrorRecord.from_dict(e) for e in data.get("errors", [])]
@@ -563,7 +561,9 @@ class StateManager:
             if replimap_pattern not in content:
                 # Append to gitignore
                 with open(gitignore_path, "a") as f:
-                    f.write(f"\n# RepliMap state (auto-generated)\n{replimap_pattern}\n")
+                    f.write(
+                        f"\n# RepliMap state (auto-generated)\n{replimap_pattern}\n"
+                    )
                 logger.debug(f"Added {replimap_pattern} to .gitignore")
         except Exception as e:
             logger.warning(f"Could not update .gitignore: {e}")
@@ -702,9 +702,7 @@ def compute_config_hash(config: dict[str, Any]) -> str:
         """Recursively clean volatile fields."""
         if isinstance(obj, dict):
             return {
-                k: clean_config(v)
-                for k, v in obj.items()
-                if k not in VOLATILE_FIELDS
+                k: clean_config(v) for k, v in obj.items() if k not in VOLATILE_FIELDS
             }
         elif isinstance(obj, list):
             return [clean_config(item) for item in obj]

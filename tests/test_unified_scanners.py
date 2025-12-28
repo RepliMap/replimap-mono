@@ -18,7 +18,6 @@ import pytest
 
 from replimap.core import GraphEngine
 from replimap.core.async_aws import AsyncAWSClient
-from replimap.core.circuit_breaker import CircuitBreakerRegistry
 from replimap.core.models import ResourceType
 from replimap.scanners.unified_scanners import (
     AsyncEC2Scanner,
@@ -127,9 +126,7 @@ class TestAsyncEC2Scanner:
 
         scanner = AsyncEC2Scanner(region="us-east-1")
         mock_client = MagicMock(spec=AsyncAWSClient)
-        mock_client.paginate_with_resilience = AsyncMock(
-            return_value=mock_reservations
-        )
+        mock_client.paginate_with_resilience = AsyncMock(return_value=mock_reservations)
         scanner._client = mock_client
 
         await scanner.scan(graph)
@@ -296,13 +293,11 @@ class TestRunUnifiedScanners:
         graph = GraphEngine()
 
         # Patch the scanner classes to avoid real AWS calls
-        with patch.object(
-            AsyncEC2Scanner, "scan", new=AsyncMock()
-        ) as mock_ec2_scan, patch.object(
-            AsyncRDSScanner, "scan", new=AsyncMock()
-        ) as mock_rds_scan, patch.object(
-            AsyncIAMScanner, "scan", new=AsyncMock()
-        ) as mock_iam_scan:
+        with (
+            patch.object(AsyncEC2Scanner, "scan", new=AsyncMock()) as mock_ec2_scan,
+            patch.object(AsyncRDSScanner, "scan", new=AsyncMock()) as mock_rds_scan,
+            patch.object(AsyncIAMScanner, "scan", new=AsyncMock()) as mock_iam_scan,
+        ):
             results = await run_unified_scanners(
                 region="us-east-1",
                 graph=graph,
@@ -324,14 +319,14 @@ class TestRunUnifiedScanners:
         graph = GraphEngine()
 
         # Make EC2 scanner fail
-        with patch.object(
-            AsyncEC2Scanner,
-            "scan",
-            new=AsyncMock(side_effect=RuntimeError("Test error")),
-        ), patch.object(
-            AsyncRDSScanner, "scan", new=AsyncMock()
-        ), patch.object(
-            AsyncIAMScanner, "scan", new=AsyncMock()
+        with (
+            patch.object(
+                AsyncEC2Scanner,
+                "scan",
+                new=AsyncMock(side_effect=RuntimeError("Test error")),
+            ),
+            patch.object(AsyncRDSScanner, "scan", new=AsyncMock()),
+            patch.object(AsyncIAMScanner, "scan", new=AsyncMock()),
         ):
             results = await run_unified_scanners(
                 region="us-east-1",

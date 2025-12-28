@@ -12,19 +12,15 @@ Tests verify:
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from replimap.core.topology_constraints import (
     ConstraintType,
     ConstraintViolation,
     TopologyConstraint,
     TopologyConstraintsConfig,
-    TopologyValidator,
     ValidationResult,
     ViolationSeverity,
     create_default_constraints,
     generate_sample_config_yaml,
-    load_constraints_from_yaml,
 )
 
 

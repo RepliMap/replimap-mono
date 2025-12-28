@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from replimap.graph.visualizer import (
     GraphEdge,
@@ -24,7 +24,7 @@ from replimap.graph.visualizer import (
 )
 
 if TYPE_CHECKING:
-    from replimap.core.models import ResourceNode
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -160,14 +160,14 @@ class ViewMode(str, Enum):
 # Category colors for visualization
 CATEGORY_COLORS: dict[GlobalCategory, str] = {
     GlobalCategory.IDENTITY: "#f59e0b",  # Amber
-    GlobalCategory.DNS: "#10b981",       # Green
-    GlobalCategory.CDN: "#3b82f6",       # Blue
+    GlobalCategory.DNS: "#10b981",  # Green
+    GlobalCategory.CDN: "#3b82f6",  # Blue
     GlobalCategory.SECURITY: "#ef4444",  # Red
     GlobalCategory.NETWORKING: "#8b5cf6",  # Purple
-    GlobalCategory.STORAGE: "#06b6d4",   # Cyan
+    GlobalCategory.STORAGE: "#06b6d4",  # Cyan
     GlobalCategory.ORGANIZATION: "#6366f1",  # Indigo
     GlobalCategory.CERTIFICATES: "#84cc16",  # Lime
-    GlobalCategory.COST: "#f97316",      # Orange
+    GlobalCategory.COST: "#f97316",  # Orange
 }
 
 # Category icons
@@ -287,7 +287,8 @@ class GlobalContext:
     def get_nodes_by_category(self, category: GlobalCategory) -> list[GraphNode]:
         """Get all nodes in a specific category."""
         return [
-            node for node in self.nodes
+            node
+            for node in self.nodes
             if RESOURCE_CATEGORY.get(node.resource_type) == category
         ]
 
@@ -301,7 +302,9 @@ class GlobalContext:
 
     def get_cloudfront_distributions(self) -> list[GraphNode]:
         """Get all CloudFront distributions."""
-        return [n for n in self.nodes if n.resource_type == "aws_cloudfront_distribution"]
+        return [
+            n for n in self.nodes if n.resource_type == "aws_cloudfront_distribution"
+        ]
 
     def to_visualization_graph(
         self,
@@ -331,14 +334,13 @@ class GlobalContext:
         edges: list[GraphEdge] = []
 
         # Add super-nodes for each category
-        for category, super_node in self.super_nodes.items():
+        for _category, super_node in self.super_nodes.items():
             nodes.append(super_node.to_graph_node())
 
         # Add edges between super-nodes (aggregated from child edges)
         category_edges: set[tuple[GlobalCategory, GlobalCategory]] = set()
         node_categories = {
-            node.id: RESOURCE_CATEGORY.get(node.resource_type)
-            for node in self.nodes
+            node.id: RESOURCE_CATEGORY.get(node.resource_type) for node in self.nodes
         }
 
         for edge in self.edges:
@@ -387,13 +389,15 @@ class GlobalContext:
         }
 
         nodes = [
-            node for node in self.nodes
+            node
+            for node in self.nodes
             if RESOURCE_CATEGORY.get(node.resource_type) in security_categories
         ]
         node_ids = {node.id for node in nodes}
 
         edges = [
-            edge for edge in self.edges
+            edge
+            for edge in self.edges
             if edge.source in node_ids and edge.target in node_ids
         ]
 
@@ -412,7 +416,8 @@ class GlobalContext:
         node_ids = {node.id for node in nodes}
 
         edges = [
-            edge for edge in self.edges
+            edge
+            for edge in self.edges
             if edge.source in node_ids and edge.target in node_ids
         ]
 
@@ -446,8 +451,7 @@ class GlobalContext:
                 for e in self.edges
             ],
             "super_nodes": {
-                cat.value: sn.to_dict()
-                for cat, sn in self.super_nodes.items()
+                cat.value: sn.to_dict() for cat, sn in self.super_nodes.items()
             },
             "summary": {
                 "total_resources": self.total_resources,
@@ -528,9 +532,7 @@ class GlobalContextExtractor:
     """
 
     # Set of global resource types
-    GLOBAL_TYPES: set[str] = {
-        rt.value for rt in GlobalResourceType
-    }
+    GLOBAL_TYPES: set[str] = {rt.value for rt in GlobalResourceType}
 
     def __init__(self, config: GlobalContextConfig | None = None) -> None:
         """
@@ -622,13 +624,19 @@ class GlobalContextExtractor:
             return False
         if resource_type.startswith("aws_route53_") and not self.config.include_route53:
             return False
-        if resource_type.startswith("aws_cloudfront_") and not self.config.include_cloudfront:
+        if (
+            resource_type.startswith("aws_cloudfront_")
+            and not self.config.include_cloudfront
+        ):
             return False
         if resource_type.startswith("aws_waf") and not self.config.include_waf:
             return False
         if resource_type == "aws_s3_bucket" and not self.config.include_s3:
             return False
-        if resource_type.startswith("aws_organizations_") and not self.config.include_organizations:
+        if (
+            resource_type.startswith("aws_organizations_")
+            and not self.config.include_organizations
+        ):
             return False
 
         return True

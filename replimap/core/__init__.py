@@ -20,6 +20,14 @@ from .cache import (
     populate_graph_from_cache,
     update_cache_from_graph,
 )
+from .circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerRegistry,
+    CircuitOpenError,
+    CircuitState,
+    get_circuit_breaker_registry,
+)
+from .config import ConfigLoader, RepliMapConfig, deep_merge, generate_example_config
 from .errors import (
     DetailedError,
     ErrorAggregator,
@@ -31,14 +39,6 @@ from .errors import (
     is_retryable,
     reset_error_aggregator,
 )
-from .circuit_breaker import (
-    CircuitBreaker,
-    CircuitBreakerRegistry,
-    CircuitOpenError,
-    CircuitState,
-    get_circuit_breaker_registry,
-)
-from .config import ConfigLoader, RepliMapConfig, deep_merge, generate_example_config
 from .filters import ScanFilter, apply_filter_to_graph
 from .graph_engine import GraphEngine, SCCResult, TarjanSCC
 from .models import ResourceNode

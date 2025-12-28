@@ -16,7 +16,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from replimap.cost.pricing_engine import Currency, PricingUnit
+from replimap.cost.pricing_engine import Currency
 
 
 class TransferType(Enum):
@@ -198,9 +198,7 @@ class TransferReport:
                 "total_data_gb": float(self.total_data_gb),
                 "path_count": len(self.paths),
             },
-            "cost_by_type": {
-                k.value: float(v) for k, v in self.cost_by_type.items()
-            },
+            "cost_by_type": {k.value: float(v) for k, v in self.cost_by_type.items()},
             "optimization": {
                 "total_potential_savings": float(self.total_potential_savings),
                 "optimization_count": self.optimization_count,
@@ -436,9 +434,7 @@ class DataTransferAnalyzer:
                     destination_az=dest_az,
                     transfer_type=TransferType.CROSS_AZ,
                     direction=TrafficDirection.BIDIRECTIONAL,
-                    estimated_gb_month=Decimal(
-                        str(conn.get("estimated_gb_month", 10))
-                    ),
+                    estimated_gb_month=Decimal(str(conn.get("estimated_gb_month", 10))),
                     description=f"Cross-AZ traffic: {source_az} -> {dest_az}",
                 )
                 paths.append(path)
@@ -664,7 +660,11 @@ class DataTransferAnalyzer:
             hourly = rates["hourly"] * Decimal("730")
             data = estimated_gb_month * rates["per_gb"]
             endpoint_cost = hourly + data
-            savings = nat_monthly_cost - endpoint_cost if nat_monthly_cost > endpoint_cost else Decimal("0")
+            savings = (
+                nat_monthly_cost - endpoint_cost
+                if nat_monthly_cost > endpoint_cost
+                else Decimal("0")
+            )
             recommendation = (
                 f"Use Interface VPC Endpoint for {service} - "
                 f"${endpoint_cost:.2f}/month vs ${nat_monthly_cost:.2f}/month"
@@ -756,7 +756,9 @@ class DataTransferAnalyzer:
             )
 
         # High internet egress
-        egress_cost = report.cost_by_type.get(TransferType.INTERNET_EGRESS, Decimal("0"))
+        egress_cost = report.cost_by_type.get(
+            TransferType.INTERNET_EGRESS, Decimal("0")
+        )
         if egress_cost > Decimal("1000"):
             report.warnings.append(
                 f"High internet egress costs: ${egress_cost:.2f}/month. "
@@ -764,7 +766,9 @@ class DataTransferAnalyzer:
             )
 
         # Cross-region transfers
-        cross_region_cost = report.cost_by_type.get(TransferType.CROSS_REGION, Decimal("0"))
+        cross_region_cost = report.cost_by_type.get(
+            TransferType.CROSS_REGION, Decimal("0")
+        )
         if cross_region_cost > Decimal("200"):
             report.warnings.append(
                 f"Cross-region transfer costs: ${cross_region_cost:.2f}/month. "

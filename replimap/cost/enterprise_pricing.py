@@ -22,7 +22,7 @@ from typing import Any
 
 import yaml
 
-from replimap.cost.models import CostCategory, PricingTier
+from replimap.cost.models import PricingTier
 from replimap.cost.pricing_engine import (
     BasePricingEngine,
     Currency,
@@ -154,8 +154,12 @@ class DiscountRule:
             "name": self.name,
             "discount_type": self.discount_type.value,
             "scope": self.scope.value,
-            "discount_percentage": float(self.discount_percentage) if self.discount_percentage else None,
-            "discount_amount": float(self.discount_amount) if self.discount_amount else None,
+            "discount_percentage": float(self.discount_percentage)
+            if self.discount_percentage
+            else None,
+            "discount_amount": float(self.discount_amount)
+            if self.discount_amount
+            else None,
             "priority": self.priority,
             "applies_to": self.applies_to,
             "excludes": self.excludes,
@@ -318,7 +322,9 @@ class EnterprisePricingConfig:
         if "edp" in data:
             edp_data = data["edp"]
             edp = EDPConfig(
-                discount_percentage=Decimal(str(edp_data.get("discount_percentage", 0))),
+                discount_percentage=Decimal(
+                    str(edp_data.get("discount_percentage", 0))
+                ),
                 commitment_amount=Decimal(str(edp_data.get("commitment_amount", 0))),
                 commitment_period_months=edp_data.get("commitment_period_months", 12),
                 excluded_services=edp_data.get("excluded_services", []),
@@ -369,9 +375,11 @@ class EnterprisePricingConfig:
                     discount_type=DiscountType(rule_data.get("discount_type", "edp")),
                     scope=DiscountScope(rule_data.get("scope", "global")),
                     discount_percentage=Decimal(str(rule_data["discount_percentage"]))
-                    if "discount_percentage" in rule_data else None,
+                    if "discount_percentage" in rule_data
+                    else None,
                     discount_amount=Decimal(str(rule_data["discount_amount"]))
-                    if "discount_amount" in rule_data else None,
+                    if "discount_amount" in rule_data
+                    else None,
                     priority=rule_data.get("priority", 100),
                     applies_to=rule_data.get("applies_to", []),
                     excludes=rule_data.get("excludes", []),
@@ -500,6 +508,7 @@ class EnterprisePricingEngine(BasePricingEngine):
         else:
             # Use default pricing - call the DefaultPricingEngine directly
             from replimap.cost.pricing_engine import DefaultPricingEngine
+
             default_engine = DefaultPricingEngine(self.region, self.currency)
             base_price = default_engine.get_ec2_price(instance_type, tier, os)
 
@@ -521,11 +530,16 @@ class EnterprisePricingEngine(BasePricingEngine):
 
         # Get base price
         if self.base_engine:
-            base_price = self.base_engine.get_rds_price(instance_class, engine, multi_az, tier)
+            base_price = self.base_engine.get_rds_price(
+                instance_class, engine, multi_az, tier
+            )
         else:
             from replimap.cost.pricing_engine import DefaultPricingEngine
+
             default_engine = DefaultPricingEngine(self.region, self.currency)
-            base_price = default_engine.get_rds_price(instance_class, engine, multi_az, tier)
+            base_price = default_engine.get_rds_price(
+                instance_class, engine, multi_az, tier
+            )
 
         return self._apply_edp(base_price, "rds")
 
@@ -540,6 +554,7 @@ class EnterprisePricingEngine(BasePricingEngine):
             base_price = self.base_engine.get_storage_price(storage_type, size_gb)
         else:
             from replimap.cost.pricing_engine import DefaultPricingEngine
+
             default_engine = DefaultPricingEngine(self.region, self.currency)
             base_price = default_engine.get_storage_price(storage_type, size_gb)
 
@@ -557,10 +572,13 @@ class EnterprisePricingEngine(BasePricingEngine):
             base_price = self.base_engine.get_network_price(service, transfer_type)
         else:
             from replimap.cost.pricing_engine import DefaultPricingEngine
+
             default_engine = DefaultPricingEngine(self.region, self.currency)
             base_price = default_engine.get_network_price(service, transfer_type)
 
-        return self._apply_edp(base_price, "ec2")  # Network is usually under EC2 billing
+        return self._apply_edp(
+            base_price, "ec2"
+        )  # Network is usually under EC2 billing
 
     def _apply_edp(self, price: PricePoint, service: str) -> PricePoint:
         """Apply EDP discount if applicable."""
@@ -571,7 +589,9 @@ class EnterprisePricingEngine(BasePricingEngine):
         if not edp.applies_to_service(service):
             return price
 
-        discount_multiplier = (Decimal("100") - edp.discount_percentage) / Decimal("100")
+        discount_multiplier = (Decimal("100") - edp.discount_percentage) / Decimal(
+            "100"
+        )
         discounted_amount = price.amount * discount_multiplier
 
         return PricePoint(
@@ -711,13 +731,16 @@ class EnterprisePricingEngine(BasePricingEngine):
                             discount_type = parts[0]
                             savings = original - cost.monthly_cost
                             by_discount_type[discount_type] = (
-                                by_discount_type.get(discount_type, Decimal("0")) + savings
+                                by_discount_type.get(discount_type, Decimal("0"))
+                                + savings
                             )
                     break
 
         total_savings = total_original - total_discounted
         savings_percentage = (
-            (total_savings / total_original * 100) if total_original > 0 else Decimal("0")
+            (total_savings / total_original * 100)
+            if total_original > 0
+            else Decimal("0")
         )
 
         return {

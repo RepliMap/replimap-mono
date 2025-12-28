@@ -11,10 +11,7 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import datetime
 from unittest.mock import MagicMock
-
-import pytest
 
 from replimap.core.errors import (
     DetailedError,
@@ -282,9 +279,7 @@ class TestErrorAggregator:
         aggregator.record(
             DetailedError("AccessDenied", "Test1", ErrorCategory.PERMISSION)
         )
-        aggregator.record(
-            DetailedError("Throttling", "Test2", ErrorCategory.TRANSIENT)
-        )
+        aggregator.record(DetailedError("Throttling", "Test2", ErrorCategory.TRANSIENT))
         aggregator.record(
             DetailedError("ExpiredToken", "Test3", ErrorCategory.PERMISSION)
         )
@@ -299,14 +294,18 @@ class TestErrorAggregator:
         aggregator = ErrorAggregator()
         aggregator.record(
             DetailedError(
-                "AccessDenied", "Test1", ErrorCategory.PERMISSION,
-                scanner_name="EC2Scanner"
+                "AccessDenied",
+                "Test1",
+                ErrorCategory.PERMISSION,
+                scanner_name="EC2Scanner",
             )
         )
         aggregator.record(
             DetailedError(
-                "Throttling", "Test2", ErrorCategory.TRANSIENT,
-                scanner_name="RDSScanner"
+                "Throttling",
+                "Test2",
+                ErrorCategory.TRANSIENT,
+                scanner_name="RDSScanner",
             )
         )
 
@@ -320,14 +319,15 @@ class TestErrorAggregator:
         aggregator = ErrorAggregator()
         aggregator.record(
             DetailedError(
-                "AccessDenied", "Test1", ErrorCategory.PERMISSION,
-                resource_type="aws_instance"
+                "AccessDenied",
+                "Test1",
+                ErrorCategory.PERMISSION,
+                resource_type="aws_instance",
             )
         )
         aggregator.record(
             DetailedError(
-                "Throttling", "Test2", ErrorCategory.TRANSIENT,
-                resource_type="aws_vpc"
+                "Throttling", "Test2", ErrorCategory.TRANSIENT, resource_type="aws_vpc"
             )
         )
 
@@ -344,9 +344,7 @@ class TestErrorAggregator:
         aggregator.record(
             DetailedError("AccessDenied", "Test2", ErrorCategory.PERMISSION)
         )
-        aggregator.record(
-            DetailedError("Throttling", "Test3", ErrorCategory.TRANSIENT)
-        )
+        aggregator.record(DetailedError("Throttling", "Test3", ErrorCategory.TRANSIENT))
 
         codes = aggregator.get_unique_error_codes()
 
@@ -357,14 +355,20 @@ class TestErrorAggregator:
         aggregator = ErrorAggregator()
         aggregator.record(
             DetailedError(
-                "AccessDenied", "Test1", ErrorCategory.PERMISSION,
-                scanner_name="EC2Scanner"
+                "AccessDenied",
+                "Test1",
+                ErrorCategory.PERMISSION,
+                scanner_name="EC2Scanner",
             )
         )
         aggregator.record(
             DetailedError(
-                "Throttling", "Test2", ErrorCategory.TRANSIENT,
-                scanner_name="RDSScanner", was_retried=True, retry_successful=True
+                "Throttling",
+                "Test2",
+                ErrorCategory.TRANSIENT,
+                scanner_name="RDSScanner",
+                was_retried=True,
+                retry_successful=True,
             )
         )
 
@@ -400,9 +404,7 @@ class TestScanCompletionStatus:
         """Should return FULL_SUCCESS when no errors."""
         aggregator = ErrorAggregator()
 
-        status = aggregator.get_completion_status(
-            total_scanners=5, failed_scanners=0
-        )
+        status = aggregator.get_completion_status(total_scanners=5, failed_scanners=0)
 
         assert status == ScanCompletionStatus.FULL_SUCCESS
 
@@ -413,22 +415,16 @@ class TestScanCompletionStatus:
             DetailedError("AccessDenied", "Test", ErrorCategory.PERMISSION)
         )
 
-        status = aggregator.get_completion_status(
-            total_scanners=3, failed_scanners=3
-        )
+        status = aggregator.get_completion_status(total_scanners=3, failed_scanners=3)
 
         assert status == ScanCompletionStatus.FAILED
 
     def test_partial_success(self) -> None:
         """Should return PARTIAL_SUCCESS when some scanners fail."""
         aggregator = ErrorAggregator()
-        aggregator.record(
-            DetailedError("Throttling", "Test", ErrorCategory.TRANSIENT)
-        )
+        aggregator.record(DetailedError("Throttling", "Test", ErrorCategory.TRANSIENT))
 
-        status = aggregator.get_completion_status(
-            total_scanners=5, failed_scanners=1
-        )
+        status = aggregator.get_completion_status(total_scanners=5, failed_scanners=1)
 
         assert status == ScanCompletionStatus.PARTIAL_SUCCESS
 
@@ -437,8 +433,10 @@ class TestScanCompletionStatus:
         aggregator = ErrorAggregator()
         aggregator.record(
             DetailedError(
-                "AccessDenied", "Test", ErrorCategory.PERMISSION,
-                resource_type="aws_vpc"
+                "AccessDenied",
+                "Test",
+                ErrorCategory.PERMISSION,
+                resource_type="aws_vpc",
             )
         )
 
@@ -460,9 +458,7 @@ class TestRecoveryActions:
         aggregator.record(
             DetailedError("AccessDenied", "Test1", ErrorCategory.PERMISSION)
         )
-        aggregator.record(
-            DetailedError("Throttling", "Test2", ErrorCategory.TRANSIENT)
-        )
+        aggregator.record(DetailedError("Throttling", "Test2", ErrorCategory.TRANSIENT))
 
         actions = aggregator.get_recovery_actions()
 
@@ -473,14 +469,18 @@ class TestRecoveryActions:
         aggregator = ErrorAggregator()
         aggregator.record(
             DetailedError(
-                "AccessDenied", "Test1", ErrorCategory.PERMISSION,
-                operation="describe_instances"
+                "AccessDenied",
+                "Test1",
+                ErrorCategory.PERMISSION,
+                operation="describe_instances",
             )
         )
         aggregator.record(
             DetailedError(
-                "AccessDenied", "Test2", ErrorCategory.PERMISSION,
-                operation="describe_vpcs"
+                "AccessDenied",
+                "Test2",
+                ErrorCategory.PERMISSION,
+                operation="describe_vpcs",
             )
         )
 
@@ -505,9 +505,7 @@ class TestGlobalAggregator:
     def test_reset_global_aggregator(self) -> None:
         """Should create new aggregator on reset."""
         agg1 = get_error_aggregator()
-        agg1.record(
-            DetailedError("Test", "Test", ErrorCategory.UNKNOWN)
-        )
+        agg1.record(DetailedError("Test", "Test", ErrorCategory.UNKNOWN))
 
         reset_error_aggregator()
         agg2 = get_error_aggregator()

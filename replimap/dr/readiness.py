@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from replimap.graph.visualizer import GraphNode, VisualizationGraph
-    from replimap.graph.multi_region import MultiRegionGraph
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +64,10 @@ class DRTier(str, Enum):
         """Get typical RTO in minutes for this tier."""
         rtos = {
             DRTier.TIER_0: 99999,  # No target
-            DRTier.TIER_1: 1440,   # 24 hours
-            DRTier.TIER_2: 240,    # 4 hours
-            DRTier.TIER_3: 60,     # 1 hour
-            DRTier.TIER_4: 1,      # 1 minute
+            DRTier.TIER_1: 1440,  # 24 hours
+            DRTier.TIER_2: 240,  # 4 hours
+            DRTier.TIER_3: 60,  # 1 hour
+            DRTier.TIER_4: 1,  # 1 minute
         }
         return rtos.get(self, 99999)
 
@@ -77,10 +76,10 @@ class DRTier(str, Enum):
         """Get typical RPO in minutes for this tier."""
         rpos = {
             DRTier.TIER_0: 99999,  # No target
-            DRTier.TIER_1: 1440,   # 24 hours
-            DRTier.TIER_2: 60,     # 1 hour
-            DRTier.TIER_3: 15,     # 15 minutes
-            DRTier.TIER_4: 0,      # Zero
+            DRTier.TIER_1: 1440,  # 24 hours
+            DRTier.TIER_2: 60,  # 1 hour
+            DRTier.TIER_3: 15,  # 15 minutes
+            DRTier.TIER_4: 0,  # Zero
         }
         return rpos.get(self, 99999)
 
@@ -437,14 +436,18 @@ class DRScorecard:
     @property
     def critical_gaps_count(self) -> int:
         """Count of critical gaps."""
-        return len([g for g in self.gaps if g.severity == DRRecommendationPriority.CRITICAL])
+        return len(
+            [g for g in self.gaps if g.severity == DRRecommendationPriority.CRITICAL]
+        )
 
     @property
     def high_priority_recommendations(self) -> list[DRRecommendation]:
         """Get high priority recommendations."""
         return [
-            r for r in self.recommendations
-            if r.priority in (DRRecommendationPriority.CRITICAL, DRRecommendationPriority.HIGH)
+            r
+            for r in self.recommendations
+            if r.priority
+            in (DRRecommendationPriority.CRITICAL, DRRecommendationPriority.HIGH)
         ]
 
     def get_grade(self) -> str:
@@ -957,7 +960,7 @@ class ReadinessAssessor:
         """Identify gaps in DR coverage."""
         gaps: list[DRGap] = []
 
-        for category, analysis in coverage.items():
+        for _category, analysis in coverage.items():
             for resource in analysis.resources:
                 resource_gaps = self._identify_resource_gaps(resource)
                 gaps.extend(resource_gaps)
@@ -998,7 +1001,10 @@ class ReadinessAssessor:
 
         # High: Single region for critical resources
         if not resource.has_cross_region:
-            if resource.category in (ResourceCategory.DATABASE, ResourceCategory.COMPUTE):
+            if resource.category in (
+                ResourceCategory.DATABASE,
+                ResourceCategory.COMPUTE,
+            ):
                 gaps.append(
                     DRGap(
                         resource_id=resource.resource_id,

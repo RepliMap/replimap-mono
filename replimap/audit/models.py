@@ -161,9 +161,7 @@ class AuditSession:
     def is_read_only(self) -> bool:
         """Check if all operations in this session were read-only."""
         return (
-            self.write_calls == 0
-            and self.delete_calls == 0
-            and self.admin_calls == 0
+            self.write_calls == 0 and self.delete_calls == 0 and self.admin_calls == 0
         )
 
     @property

@@ -43,19 +43,17 @@ import os
 import sqlite3
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 import zstandard as zstd
 
 if TYPE_CHECKING:
-    import networkx as nx
-
     from .graph_engine import GraphEngine
-    from .models import ResourceNode
 
 logger = logging.getLogger(__name__)
 
@@ -353,9 +351,7 @@ class GraphStore:
             conn.rollback()
             raise
 
-    def build_node_id(
-        self, account_id: str, region: str, resource_id: str
-    ) -> str:
+    def build_node_id(self, account_id: str, region: str, resource_id: str) -> str:
         """
         Build a canonical node ID with account prefix.
 
@@ -434,38 +430,42 @@ class GraphStore:
                     continue
 
                 # Build canonical node ID
-                node_id = self.build_node_id(
-                    account_id, resource.region, resource.id
-                )
+                node_id = self.build_node_id(account_id, resource.region, resource.id)
 
                 # Prepare node data
-                nodes_data.append((
-                    node_id,
-                    account_id,
-                    resource.region,
-                    str(resource.resource_type),
-                    resource.arn,
-                    resource.terraform_name,
-                    resource.original_name,
-                    1 if resource.is_phantom else 0,
-                    resource.phantom_reason,
-                    datetime.now().isoformat(),
-                    datetime.now().isoformat(),
-                ))
+                nodes_data.append(
+                    (
+                        node_id,
+                        account_id,
+                        resource.region,
+                        str(resource.resource_type),
+                        resource.arn,
+                        resource.terraform_name,
+                        resource.original_name,
+                        1 if resource.is_phantom else 0,
+                        resource.phantom_reason,
+                        datetime.now().isoformat(),
+                        datetime.now().isoformat(),
+                    )
+                )
 
                 # Compress and store config
                 compressed, config_hash, orig_size = self._compressor.compress(
                     resource.config
                 )
 
-                configs_data.append((
-                    node_id,
-                    compressed,
-                    config_hash,
-                    orig_size,
-                    json.dumps(resource.tags) if resource.tags else None,
-                    json.dumps(resource.dependencies) if resource.dependencies else None,
-                ))
+                configs_data.append(
+                    (
+                        node_id,
+                        compressed,
+                        config_hash,
+                        orig_size,
+                        json.dumps(resource.tags) if resource.tags else None,
+                        json.dumps(resource.dependencies)
+                        if resource.dependencies
+                        else None,
+                    )
+                )
 
             # Delete existing data for this account/region
             if region:
@@ -508,8 +508,7 @@ class GraphStore:
 
                 # Filter by region if specified
                 if region and (
-                    source_resource.region != region
-                    or target_resource.region != region
+                    source_resource.region != region or target_resource.region != region
                 ):
                     continue
 
@@ -523,13 +522,15 @@ class GraphStore:
                 edge_type = data.get("relation", "belongs_to")
                 metadata = {k: v for k, v in data.items() if k != "relation"}
 
-                edges_data.append((
-                    source_node_id,
-                    target_node_id,
-                    str(edge_type),
-                    json.dumps(metadata) if metadata else None,
-                    datetime.now().isoformat(),
-                ))
+                edges_data.append(
+                    (
+                        source_node_id,
+                        target_node_id,
+                        str(edge_type),
+                        json.dumps(metadata) if metadata else None,
+                        datetime.now().isoformat(),
+                    )
+                )
 
             # Batch insert edges
             cursor.executemany(
@@ -873,9 +874,7 @@ class GraphStore:
         by_account = {row["account_id"]: row["cnt"] for row in cursor.fetchall()}
 
         # By region
-        cursor.execute(
-            "SELECT region, COUNT(*) as cnt FROM nodes GROUP BY region"
-        )
+        cursor.execute("SELECT region, COUNT(*) as cnt FROM nodes GROUP BY region")
         by_region = {row["region"] or "global": row["cnt"] for row in cursor.fetchall()}
 
         # By type

@@ -12,8 +12,7 @@ Tests cover:
 
 from __future__ import annotations
 
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -463,8 +462,12 @@ class TestIncrementalScanning:
 
         # Simulate scanning and hashing
         resources = {
-            "vpc-1": compute_config_hash({"VpcId": "vpc-1", "CidrBlock": "10.0.0.0/16"}),
-            "vpc-2": compute_config_hash({"VpcId": "vpc-2", "CidrBlock": "10.1.0.0/16"}),
+            "vpc-1": compute_config_hash(
+                {"VpcId": "vpc-1", "CidrBlock": "10.0.0.0/16"}
+            ),
+            "vpc-2": compute_config_hash(
+                {"VpcId": "vpc-2", "CidrBlock": "10.1.0.0/16"}
+            ),
         }
         state.update_resource_hashes_batch(resources)
 
@@ -477,9 +480,15 @@ class TestIncrementalScanning:
 
         # Simulate new scan with one changed resource
         new_resources = {
-            "vpc-1": compute_config_hash({"VpcId": "vpc-1", "CidrBlock": "10.0.0.0/16"}),  # Same
-            "vpc-2": compute_config_hash({"VpcId": "vpc-2", "CidrBlock": "10.2.0.0/16"}),  # Changed!
-            "vpc-3": compute_config_hash({"VpcId": "vpc-3", "CidrBlock": "10.3.0.0/16"}),  # New
+            "vpc-1": compute_config_hash(
+                {"VpcId": "vpc-1", "CidrBlock": "10.0.0.0/16"}
+            ),  # Same
+            "vpc-2": compute_config_hash(
+                {"VpcId": "vpc-2", "CidrBlock": "10.2.0.0/16"}
+            ),  # Changed!
+            "vpc-3": compute_config_hash(
+                {"VpcId": "vpc-3", "CidrBlock": "10.3.0.0/16"}
+            ),  # New
         }
 
         changed = state2.get_changed_resources(new_resources)

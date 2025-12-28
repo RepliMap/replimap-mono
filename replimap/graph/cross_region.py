@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 from replimap.graph.visualizer import GraphEdge, GraphNode, VisualizationGraph
 
 if TYPE_CHECKING:
-    from replimap.graph.multi_region import MultiRegionGraph
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -207,7 +207,8 @@ class CrossRegionAnalysis:
     ) -> list[CrossRegionDependency]:
         """Get all dependencies involving a specific region."""
         return [
-            dep for dep in self.dependencies
+            dep
+            for dep in self.dependencies
             if dep.source_region == region or dep.target_region == region
         ]
 
@@ -233,8 +234,7 @@ class CrossRegionAnalysis:
             "unique_regions": list(self.unique_regions),
             "dependencies": [d.to_dict() for d in self.dependencies],
             "by_type": {
-                t.value: [d.to_dict() for d in deps]
-                for t, deps in self.by_type.items()
+                t.value: [d.to_dict() for d in deps] for t, deps in self.by_type.items()
             },
             "region_pairs": {
                 f"{r1}:{r2}": [d.to_dict() for d in deps]
@@ -254,7 +254,9 @@ class CrossRegionAnalysis:
                     self.get_dependencies_by_type(CrossRegionType.S3_REPLICATION)
                 ),
                 "transit_gateway_peering": len(
-                    self.get_dependencies_by_type(CrossRegionType.TRANSIT_GATEWAY_PEERING)
+                    self.get_dependencies_by_type(
+                        CrossRegionType.TRANSIT_GATEWAY_PEERING
+                    )
                 ),
                 "route53_failover": len(
                     self.get_dependencies_by_type(CrossRegionType.ROUTE53_FAILOVER)
@@ -323,7 +325,9 @@ class CrossRegionDetector:
         dependencies.extend(self._detect_aurora_global(graph.nodes, nodes_by_id))
         dependencies.extend(self._detect_dynamodb_global(graph.nodes, nodes_by_id))
         dependencies.extend(self._detect_s3_replication(graph.nodes, nodes_by_id))
-        dependencies.extend(self._detect_transit_gateway_peering(graph.nodes, nodes_by_id))
+        dependencies.extend(
+            self._detect_transit_gateway_peering(graph.nodes, nodes_by_id)
+        )
         dependencies.extend(self._detect_route53_failover(graph.nodes, nodes_by_id))
         dependencies.extend(self._detect_global_accelerator(graph.nodes, nodes_by_id))
 
@@ -366,7 +370,9 @@ class CrossRegionDetector:
                 continue
 
             props = node.properties
-            source_db = props.get("replicate_source_db") or props.get("ReplicateSourceDBInstanceIdentifier")
+            source_db = props.get("replicate_source_db") or props.get(
+                "ReplicateSourceDBInstanceIdentifier"
+            )
 
             if source_db:
                 # This is a read replica
@@ -411,7 +417,9 @@ class CrossRegionDetector:
                 continue
 
             props = node.properties
-            global_id = props.get("global_cluster_identifier") or props.get("GlobalClusterIdentifier")
+            global_id = props.get("global_cluster_identifier") or props.get(
+                "GlobalClusterIdentifier"
+            )
 
             if global_id:
                 if global_id not in global_clusters:
@@ -431,8 +439,8 @@ class CrossRegionDetector:
                 props = cluster.properties
                 # Check various ways to identify primary
                 is_primary = (
-                    props.get("is_primary_cluster", False) or
-                    props.get("replication_source_identifier") is None
+                    props.get("is_primary_cluster", False)
+                    or props.get("replication_source_identifier") is None
                 )
                 if is_primary and primary is None:
                     primary = cluster
@@ -490,7 +498,9 @@ class CrossRegionDetector:
 
             for replica in replicas:
                 if isinstance(replica, dict):
-                    target_region = replica.get("region_name") or replica.get("RegionName")
+                    target_region = replica.get("region_name") or replica.get(
+                        "RegionName"
+                    )
                 elif isinstance(replica, str):
                     target_region = replica
                 else:
@@ -528,7 +538,9 @@ class CrossRegionDetector:
                 continue
 
             props = node.properties
-            replication = props.get("replication_configuration") or props.get("ReplicationConfiguration")
+            replication = props.get("replication_configuration") or props.get(
+                "ReplicationConfiguration"
+            )
 
             if not replication:
                 continue
@@ -633,8 +645,14 @@ class CrossRegionDetector:
             record_name = props.get("name") or props.get("Name", "")
 
             # Check for failover or latency routing
-            routing_policy = props.get("set_identifier") or props.get("failover_routing_policy")
-            if routing_policy or props.get("latency_routing_policy") or props.get("geolocation_routing_policy"):
+            routing_policy = props.get("set_identifier") or props.get(
+                "failover_routing_policy"
+            )
+            if (
+                routing_policy
+                or props.get("latency_routing_policy")
+                or props.get("geolocation_routing_policy")
+            ):
                 if record_name not in records_by_name:
                     records_by_name[record_name] = []
                 records_by_name[record_name].append(node)
@@ -712,14 +730,18 @@ class CrossRegionDetector:
 
             # Find parent accelerator
             listener_arn = props.get("listener_arn", "")
-            accelerator_arn = self._extract_accelerator_from_listener(listener_arn)
+            _accelerator_arn = self._extract_accelerator_from_listener(listener_arn)  # noqa: F841
 
             # Get endpoint group region
-            eg_region = props.get("endpoint_group_region") or props.get("region", "unknown")
+            eg_region = props.get("endpoint_group_region") or props.get(
+                "region", "unknown"
+            )
 
             # Global Accelerator is global, but endpoint groups are regional
             for acc_id, acc in accelerators.items():
-                acc_region = acc.properties.get("region", "us-west-2")  # GA typically us-west-2
+                acc_region = acc.properties.get(
+                    "region", "us-west-2"
+                )  # GA typically us-west-2
 
                 if eg_region != acc_region:
                     dependencies.append(
@@ -822,9 +844,7 @@ def enrich_graph_with_cross_region(
     # Update metadata
     new_metadata = graph.metadata.copy()
     new_metadata["cross_region_dependencies"] = analysis.total_dependencies
-    new_metadata["cross_region_types"] = [
-        t.value for t in analysis.by_type.keys()
-    ]
+    new_metadata["cross_region_types"] = [t.value for t in analysis.by_type.keys()]
 
     return VisualizationGraph(
         nodes=graph.nodes,

@@ -50,63 +50,73 @@ class ScanCompletionStatus(str, Enum):
 
 
 # Error code to category mapping
-PERMISSION_ERRORS = frozenset([
-    "AccessDenied",
-    "AccessDeniedException",
-    "UnauthorizedAccess",
-    "InvalidClientTokenId",
-    "ExpiredToken",
-    "ExpiredTokenException",
-    "UnrecognizedClientException",
-    "SignatureDoesNotMatch",
-    "IncompleteSignature",
-    "MissingAuthenticationToken",
-])
+PERMISSION_ERRORS = frozenset(
+    [
+        "AccessDenied",
+        "AccessDeniedException",
+        "UnauthorizedAccess",
+        "InvalidClientTokenId",
+        "ExpiredToken",
+        "ExpiredTokenException",
+        "UnrecognizedClientException",
+        "SignatureDoesNotMatch",
+        "IncompleteSignature",
+        "MissingAuthenticationToken",
+    ]
+)
 
-TRANSIENT_ERRORS = frozenset([
-    "Throttling",
-    "ThrottlingException",
-    "RequestLimitExceeded",
-    "TooManyRequestsException",
-    "ProvisionedThroughputExceededException",
-    "RequestTimeout",
-    "RequestTimeoutException",
-    "ServiceUnavailable",
-    "ServiceUnavailableException",
-])
+TRANSIENT_ERRORS = frozenset(
+    [
+        "Throttling",
+        "ThrottlingException",
+        "RequestLimitExceeded",
+        "TooManyRequestsException",
+        "ProvisionedThroughputExceededException",
+        "RequestTimeout",
+        "RequestTimeoutException",
+        "ServiceUnavailable",
+        "ServiceUnavailableException",
+    ]
+)
 
-VALIDATION_ERRORS = frozenset([
-    "ValidationException",
-    "ValidationError",
-    "InvalidParameterValue",
-    "InvalidParameterException",
-    "InvalidParameter",
-    "MalformedQueryString",
-    "MissingParameter",
-    "MissingRequiredParameter",
-    "InvalidInput",
-    "InvalidAction",
-])
+VALIDATION_ERRORS = frozenset(
+    [
+        "ValidationException",
+        "ValidationError",
+        "InvalidParameterValue",
+        "InvalidParameterException",
+        "InvalidParameter",
+        "MalformedQueryString",
+        "MissingParameter",
+        "MissingRequiredParameter",
+        "InvalidInput",
+        "InvalidAction",
+    ]
+)
 
-RESOURCE_ERRORS = frozenset([
-    "ResourceNotFoundException",
-    "ResourceNotFound",
-    "NoSuchEntity",
-    "NoSuchBucket",
-    "DBInstanceNotFound",
-    "DBClusterNotFound",
-    "ConflictException",
-    "ResourceAlreadyExists",
-    "EntityAlreadyExists",
-])
+RESOURCE_ERRORS = frozenset(
+    [
+        "ResourceNotFoundException",
+        "ResourceNotFound",
+        "NoSuchEntity",
+        "NoSuchBucket",
+        "DBInstanceNotFound",
+        "DBClusterNotFound",
+        "ConflictException",
+        "ResourceAlreadyExists",
+        "EntityAlreadyExists",
+    ]
+)
 
-SERVICE_ERRORS = frozenset([
-    "InternalError",
-    "InternalFailure",
-    "InternalServiceError",
-    "ServiceException",
-    "ServerException",
-])
+SERVICE_ERRORS = frozenset(
+    [
+        "InternalError",
+        "InternalFailure",
+        "InternalServiceError",
+        "ServiceException",
+        "ServerException",
+    ]
+)
 
 
 def categorize_error(error_code: str) -> ErrorCategory:
@@ -309,9 +319,7 @@ class DetailedError:
         error_message = error_info.get("Message", str(error))
 
         # Try to get request ID from response metadata
-        request_id = error_response.get("ResponseMetadata", {}).get(
-            "RequestId", ""
-        )
+        request_id = error_response.get("ResponseMetadata", {}).get("RequestId", "")
 
         return cls(
             error_code=error_code,

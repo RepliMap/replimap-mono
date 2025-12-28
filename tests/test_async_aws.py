@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from botocore.exceptions import ClientError
@@ -222,9 +221,7 @@ class TestAsyncAWSClientUnit:
             {"Error": {"Code": "Throttling", "Message": "Rate exceeded"}},
             "DescribeVpcs",
         )
-        mock_ec2.describe_vpcs = AsyncMock(
-            side_effect=[throttle_error, {"Vpcs": []}]
-        )
+        mock_ec2.describe_vpcs = AsyncMock(side_effect=[throttle_error, {"Vpcs": []}])
 
         with patch.object(client, "_get_client") as mock_get_client:
             mock_get_client.return_value.__aenter__ = AsyncMock(return_value=mock_ec2)

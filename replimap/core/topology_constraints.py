@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import yaml
 
 if TYPE_CHECKING:
-    from replimap.graph.visualizer import GraphEdge, GraphNode, VisualizationGraph
+    from replimap.graph.visualizer import GraphNode, VisualizationGraph
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +222,9 @@ class ValidationResult:
     @property
     def critical_count(self) -> int:
         """Count of critical violations."""
-        return len([v for v in self.violations if v.severity == ViolationSeverity.CRITICAL])
+        return len(
+            [v for v in self.violations if v.severity == ViolationSeverity.CRITICAL]
+        )
 
     @property
     def high_count(self) -> int:
@@ -267,7 +269,9 @@ class TopologyConstraintsConfig:
         constraint_type: ConstraintType,
     ) -> list[TopologyConstraint]:
         """Get constraints of a specific type."""
-        return [c for c in self.enabled_constraints if c.constraint_type == constraint_type]
+        return [
+            c for c in self.enabled_constraints if c.constraint_type == constraint_type
+        ]
 
     def add_constraint(self, constraint: TopologyConstraint) -> None:
         """Add a constraint."""
@@ -293,8 +297,7 @@ class TopologyConstraintsConfig:
     def from_dict(cls, data: dict[str, Any]) -> TopologyConstraintsConfig:
         """Create from dictionary."""
         constraints = [
-            TopologyConstraint.from_dict(c)
-            for c in data.get("constraints", [])
+            TopologyConstraint.from_dict(c) for c in data.get("constraints", [])
         ]
 
         return cls(
@@ -314,7 +317,9 @@ class TopologyConstraintsConfig:
     def to_yaml(self, path: str | Path) -> None:
         """Save configuration to YAML file."""
         with open(path, "w") as f:
-            yaml.dump({"topology_constraints": self.to_dict()}, f, default_flow_style=False)
+            yaml.dump(
+                {"topology_constraints": self.to_dict()}, f, default_flow_style=False
+            )
 
 
 class TopologyValidator:
@@ -390,17 +395,13 @@ class TopologyValidator:
                 self._check_prohibit_cross_region(constraint, graph, nodes_by_id)
             )
         elif constraint.constraint_type == ConstraintType.REQUIRE_TAG:
-            violations.extend(
-                self._check_require_tag(constraint, graph.nodes)
-            )
+            violations.extend(self._check_require_tag(constraint, graph.nodes))
         elif constraint.constraint_type == ConstraintType.PROHIBIT_PUBLIC_ACCESS:
             violations.extend(
                 self._check_prohibit_public_access(constraint, graph.nodes)
             )
         elif constraint.constraint_type == ConstraintType.REQUIRE_ENCRYPTION:
-            violations.extend(
-                self._check_require_encryption(constraint, graph.nodes)
-            )
+            violations.extend(self._check_require_encryption(constraint, graph.nodes))
 
         return violations
 
@@ -428,11 +429,16 @@ class TopologyValidator:
 
             # Check relationship type if specified
             if constraint.relationship_type:
-                if edge.edge_type != constraint.relationship_type and edge.label != constraint.relationship_type:
+                if (
+                    edge.edge_type != constraint.relationship_type
+                    and edge.label != constraint.relationship_type
+                ):
                     continue
 
             # Check exceptions
-            if constraint.is_exception(source_node.id) or constraint.is_exception(target_node.id):
+            if constraint.is_exception(source_node.id) or constraint.is_exception(
+                target_node.id
+            ):
                 continue
 
             violations.append(
@@ -482,7 +488,9 @@ class TopologyValidator:
             # Check for same_region_only constraint
             if constraint.same_region_only:
                 # Check exceptions
-                if constraint.is_exception(source_node.id) or constraint.is_exception(target_node.id):
+                if constraint.is_exception(source_node.id) or constraint.is_exception(
+                    target_node.id
+                ):
                     continue
 
                 violations.append(
@@ -530,7 +538,10 @@ class TopologyValidator:
 
         for node in nodes:
             # Check if this resource type should be checked
-            if constraint.resource_types and node.resource_type not in constraint.resource_types:
+            if (
+                constraint.resource_types
+                and node.resource_type not in constraint.resource_types
+            ):
                 continue
 
             # Check exceptions
@@ -552,7 +563,10 @@ class TopologyValidator:
                             details={"missing_tag": required_tag},
                         )
                     )
-                elif required_value is not None and tags.get(required_tag) != required_value:
+                elif (
+                    required_value is not None
+                    and tags.get(required_tag) != required_value
+                ):
                     violations.append(
                         ConstraintViolation(
                             constraint=constraint,
@@ -579,7 +593,10 @@ class TopologyValidator:
 
         for node in nodes:
             # Check if this resource type should be checked
-            if constraint.resource_types and node.resource_type not in constraint.resource_types:
+            if (
+                constraint.resource_types
+                and node.resource_type not in constraint.resource_types
+            ):
                 continue
 
             # Check exceptions
@@ -644,7 +661,10 @@ class TopologyValidator:
 
         for node in nodes:
             # Check if this resource type should be checked
-            if constraint.resource_types and node.resource_type not in constraint.resource_types:
+            if (
+                constraint.resource_types
+                and node.resource_type not in constraint.resource_types
+            ):
                 continue
 
             # Check exceptions

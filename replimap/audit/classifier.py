@@ -160,9 +160,7 @@ class OperationClassifier:
         "AssumeRoleWithSAML",
         "AssumeRoleWithWebIdentity",
         # Service Control Policies
-        "CreatePolicy",
         "UpdatePolicy",
-        "DeletePolicy",
         "AttachPolicy",
         "DetachPolicy",
     }

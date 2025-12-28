@@ -11,8 +11,7 @@ Tests cover:
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -24,12 +23,11 @@ from replimap.cost.explorer import (
     CostExplorerResults,
     CostForecast,
     Granularity,
-    GroupByDimension,
     GroupedCost,
     MetricType,
-    get_cost_comparison,
 )
 from replimap.cost.savings_plans import (
+    SAVINGS_PLAN_DISCOUNTS,
     PaymentOption,
     SavingsPlanRecommendation,
     SavingsPlansAnalysis,
@@ -37,7 +35,6 @@ from replimap.cost.savings_plans import (
     SavingsPlanType,
     Term,
     UsagePattern,
-    SAVINGS_PLAN_DISCOUNTS,
 )
 from replimap.cost.trends import (
     AnomalyType,
@@ -51,14 +48,13 @@ from replimap.cost.trends import (
     TrendReport,
 )
 from replimap.cost.unused_detector import (
+    THRESHOLDS,
     ConfidenceLevel,
     UnusedReason,
     UnusedResource,
     UnusedResourceDetector,
     UnusedResourcesReport,
-    THRESHOLDS,
 )
-
 
 # =============================================================================
 # Cost Explorer Tests
@@ -169,9 +165,7 @@ class TestCostExplorerClient:
             "ResultsByTime": [
                 {
                     "TimePeriod": {"Start": "2024-01-01", "End": "2024-01-02"},
-                    "Total": {
-                        "UnblendedCost": {"Amount": "100.50", "Unit": "USD"}
-                    },
+                    "Total": {"UnblendedCost": {"Amount": "100.50", "Unit": "USD"}},
                     "Estimated": False,
                 }
             ]
@@ -271,7 +265,10 @@ class TestSavingsPlansModels:
         """PaymentOption should have discount factors."""
         assert PaymentOption.NO_UPFRONT.discount_factor == 1.0
         assert PaymentOption.PARTIAL_UPFRONT.discount_factor < 1.0
-        assert PaymentOption.ALL_UPFRONT.discount_factor < PaymentOption.PARTIAL_UPFRONT.discount_factor
+        assert (
+            PaymentOption.ALL_UPFRONT.discount_factor
+            < PaymentOption.PARTIAL_UPFRONT.discount_factor
+        )
 
     def test_term_discount_factors(self) -> None:
         """Term should have discount factors."""
@@ -347,9 +344,15 @@ class TestSavingsPlanDiscounts:
         """Discount rates should be defined for all combinations."""
         for plan_type in [SavingsPlanType.COMPUTE, SavingsPlanType.EC2_INSTANCE]:
             for term in [Term.ONE_YEAR, Term.THREE_YEAR]:
-                for payment in [PaymentOption.NO_UPFRONT, PaymentOption.PARTIAL_UPFRONT, PaymentOption.ALL_UPFRONT]:
+                for payment in [
+                    PaymentOption.NO_UPFRONT,
+                    PaymentOption.PARTIAL_UPFRONT,
+                    PaymentOption.ALL_UPFRONT,
+                ]:
                     rate = SAVINGS_PLAN_DISCOUNTS[plan_type][term][payment]
-                    assert 0 < rate < 1, f"Invalid rate for {plan_type}/{term}/{payment}"
+                    assert 0 < rate < 1, (
+                        f"Invalid rate for {plan_type}/{term}/{payment}"
+                    )
 
     def test_three_year_better_than_one_year(self) -> None:
         """3-year terms should have better discounts than 1-year."""
@@ -547,8 +550,7 @@ class TestUnusedResourceDetector:
 
         assert result.total_unused >= 1
         stopped_found = any(
-            r.resource_id == "i-stopped"
-            and r.reason == UnusedReason.STOPPED
+            r.resource_id == "i-stopped" and r.reason == UnusedReason.STOPPED
             for r in result.unused_resources
         )
         assert stopped_found
@@ -581,8 +583,7 @@ class TestUnusedResourceDetector:
 
         assert result.total_unused >= 1
         volume_found = any(
-            r.resource_id == "vol-unattached"
-            and r.reason == UnusedReason.UNATTACHED
+            r.resource_id == "vol-unattached" and r.reason == UnusedReason.UNATTACHED
             for r in result.unused_resources
         )
         assert volume_found
@@ -612,8 +613,7 @@ class TestUnusedResourceDetector:
         result = await detector.scan(graph, check_metrics=False)
 
         lb_found = any(
-            r.resource_id == "app/my-lb/12345"
-            and r.reason == UnusedReason.ORPHANED
+            r.resource_id == "app/my-lb/12345" and r.reason == UnusedReason.ORPHANED
             for r in result.unused_resources
         )
         assert lb_found
@@ -952,7 +952,10 @@ class TestCostTrendAnalyzer:
 
         assert len(insights) > 0
         # Should mention upward trend
-        assert any("upward" in insight.lower() or "increase" in insight.lower() for insight in insights)
+        assert any(
+            "upward" in insight.lower() or "increase" in insight.lower()
+            for insight in insights
+        )
 
 
 # =============================================================================
@@ -968,9 +971,6 @@ class TestCostModuleImports:
         from replimap.cost import (
             CostDataPoint,
             CostExplorerClient,
-            CostExplorerResults,
-            Granularity,
-            MetricType,
         )
 
         assert CostExplorerClient is not None
@@ -980,10 +980,7 @@ class TestCostModuleImports:
         """Should be able to import Savings Plans classes."""
         from replimap.cost import (
             SavingsPlansAnalyzer,
-            SavingsPlanRecommendation,
             SavingsPlanType,
-            PaymentOption,
-            Term,
         )
 
         assert SavingsPlansAnalyzer is not None
@@ -992,10 +989,8 @@ class TestCostModuleImports:
     def test_unused_detector_imports(self) -> None:
         """Should be able to import Unused Detector classes."""
         from replimap.cost import (
-            UnusedResourceDetector,
-            UnusedResource,
             UnusedReason,
-            ConfidenceLevel,
+            UnusedResourceDetector,
         )
 
         assert UnusedResourceDetector is not None
@@ -1005,9 +1000,7 @@ class TestCostModuleImports:
         """Should be able to import Trend Analyzer classes."""
         from replimap.cost import (
             CostTrendAnalyzer,
-            TrendReport,
             TrendDirection,
-            AnomalyType,
         )
 
         assert CostTrendAnalyzer is not None

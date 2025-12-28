@@ -31,10 +31,11 @@ import json
 import logging
 import threading
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
 
 from .classifier import classifier
 from .hooks import AuditHooks
@@ -330,9 +331,7 @@ class TrustCenter:
         # Collect sessions
         if session_ids:
             sessions = [
-                self._sessions[sid]
-                for sid in session_ids
-                if sid in self._sessions
+                self._sessions[sid] for sid in session_ids if sid in self._sessions
             ]
         else:
             sessions = self.list_sessions(period_start, period_end)
@@ -454,8 +453,7 @@ class TrustCenter:
             raise ValueError(f"Session not found: {session_id}")
 
         filename = (
-            f"session_{session_id}_"
-            f"{session.start_time.strftime('%Y%m%d_%H%M%S')}.json"
+            f"session_{session_id}_{session.start_time.strftime('%Y%m%d_%H%M%S')}.json"
         )
         filepath = self._storage_dir / filename
 

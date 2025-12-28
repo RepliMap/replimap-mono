@@ -17,13 +17,11 @@ import gzip
 import hashlib
 import json
 import logging
-import os
-import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -98,7 +96,7 @@ class AuditTrail:
         self.events.append(event)
         # Trim if over limit
         if len(self.events) > self.max_events:
-            self.events = self.events[-self.max_events:]
+            self.events = self.events[-self.max_events :]
 
     def get_events(
         self,
@@ -372,7 +370,7 @@ class SnapshotManager:
 
     def _generate_snapshot_id(self, region: str, account_id: str) -> str:
         """Generate a unique snapshot ID."""
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         return f"{account_id}_{region}_{timestamp}"
 
     def _load_audit_trail(self) -> AuditTrail:
@@ -404,7 +402,7 @@ class SnapshotManager:
         """Record an audit event."""
         event = AuditEvent(
             event_type=event_type,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             details=details or {},
             snapshot_id=snapshot_id,
         )
@@ -433,7 +431,7 @@ class SnapshotManager:
             SnapshotMetadata for the created snapshot
         """
         snapshot_id = self._generate_snapshot_id(region, account_id)
-        created_at = datetime.now(timezone.utc)
+        created_at = datetime.now(UTC)
 
         # Create resource snapshots
         resources: list[dict[str, Any]] = []
@@ -494,9 +492,7 @@ class SnapshotManager:
             snapshot_id,
         )
 
-        logger.info(
-            f"Created snapshot {snapshot_id} with {len(resources)} resources"
-        )
+        logger.info(f"Created snapshot {snapshot_id} with {len(resources)} resources")
 
         return metadata
 
@@ -527,8 +523,7 @@ class SnapshotManager:
 
                     # Parse resources
                     resources = [
-                        ResourceSnapshot.from_dict(r)
-                        for r in data.get("resources", [])
+                        ResourceSnapshot.from_dict(r) for r in data.get("resources", [])
                     ]
 
                     # Create metadata
@@ -771,7 +766,7 @@ class SnapshotManager:
         Returns:
             Number of snapshots deleted
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+        cutoff = datetime.now(UTC) - timedelta(days=self.retention_days)
         snapshots = self.list_snapshots(end_date=cutoff)
 
         deleted = 0

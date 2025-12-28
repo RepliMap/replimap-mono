@@ -8,7 +8,6 @@ and provide forecasting for AWS spending.
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
@@ -19,7 +18,6 @@ from replimap.cost.explorer import (
     CostExplorerClient,
     CostExplorerResults,
     Granularity,
-    GroupByDimension,
 )
 
 logger = logging.getLogger(__name__)
@@ -326,7 +324,8 @@ class CostTrendAnalyzer:
         previous_month = sum(
             dp.amount
             for dp in monthly_data.data_points
-            if dp.start_date.month == (today.month - 1) or (today.month == 1 and dp.start_date.month == 12)
+            if dp.start_date.month == (today.month - 1)
+            or (today.month == 1 and dp.start_date.month == 12)
         )
 
         if previous_month > 0:
@@ -398,14 +397,16 @@ class CostTrendAnalyzer:
         x_mean = sum(x_vals) / n
         y_mean = sum(costs) / n
 
-        numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_vals, costs))
+        numerator = sum(
+            (x - x_mean) * (y - y_mean) for x, y in zip(x_vals, costs, strict=False)
+        )
         denominator = sum((x - x_mean) ** 2 for x in x_vals)
 
         slope = numerator / denominator if denominator > 0 else 0
 
         # Calculate R-squared
         y_pred = [y_mean + slope * (x - x_mean) for x in x_vals]
-        ss_res = sum((y - yp) ** 2 for y, yp in zip(costs, y_pred))
+        ss_res = sum((y - yp) ** 2 for y, yp in zip(costs, y_pred, strict=False))
         ss_tot = sum((y - y_mean) ** 2 for y in costs)
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
 
@@ -526,7 +527,7 @@ class CostTrendAnalyzer:
             window = costs[i - window_size : i]
             mean = sum(window) / len(window)
             variance = sum((x - mean) ** 2 for x in window) / len(window)
-            std_dev = variance ** 0.5
+            std_dev = variance**0.5
 
             current = costs[i]
             deviation = (current - mean) / std_dev if std_dev > 0 else 0
@@ -555,7 +556,9 @@ class CostTrendAnalyzer:
                         deviation_pct=(current - mean) / mean * 100 if mean > 0 else 0,
                         severity=severity,
                         possible_causes=[
-                            "New resource deployment" if deviation > 0 else "Resource termination",
+                            "New resource deployment"
+                            if deviation > 0
+                            else "Resource termination",
                             "Pricing change",
                             "Usage spike" if deviation > 0 else "Reduced usage",
                         ],
@@ -588,8 +591,8 @@ class CostTrendAnalyzer:
 
         # Calculate standard error
         y_pred = [y_mean + slope * (i - x_mean) for i in range(n)]
-        mse = sum((y - yp) ** 2 for y, yp in zip(costs, y_pred)) / n
-        std_error = mse ** 0.5
+        mse = sum((y - yp) ** 2 for y, yp in zip(costs, y_pred, strict=False)) / n
+        std_error = mse**0.5
 
         # Generate forecasts
         for day in range(1, forecast_days + 1):
@@ -627,17 +630,19 @@ class CostTrendAnalyzer:
             day_costs[day_of_week].append(dp.amount)
 
         # Calculate average for weekdays vs weekends
-        weekday_avg = sum(
-            sum(day_costs[i]) / len(day_costs[i])
-            for i in range(5)
-            if day_costs[i]
-        ) / 5
+        weekday_avg = (
+            sum(sum(day_costs[i]) / len(day_costs[i]) for i in range(5) if day_costs[i])
+            / 5
+        )
 
-        weekend_avg = sum(
-            sum(day_costs[i]) / len(day_costs[i])
-            for i in range(5, 7)
-            if day_costs[i]
-        ) / 2
+        weekend_avg = (
+            sum(
+                sum(day_costs[i]) / len(day_costs[i])
+                for i in range(5, 7)
+                if day_costs[i]
+            )
+            / 2
+        )
 
         # Check for weekly pattern
         if weekday_avg > 0 and weekend_avg > 0:
@@ -680,7 +685,9 @@ class CostTrendAnalyzer:
             )
 
         # Service insights
-        growing_services = [s for s in service_trends if s.change_pct > 50 and s.current_monthly > 100]
+        growing_services = [
+            s for s in service_trends if s.change_pct > 50 and s.current_monthly > 100
+        ]
         for service in growing_services[:3]:
             insights.append(
                 f"{service.service} costs increased {service.change_pct:.0f}% "

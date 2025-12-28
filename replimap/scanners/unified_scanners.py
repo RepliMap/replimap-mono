@@ -14,7 +14,7 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from replimap.core.async_aws import AsyncAWSClient, AWSResourceScanner
+from replimap.core.async_aws import AWSResourceScanner
 from replimap.core.circuit_breaker import CircuitOpenError
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 
@@ -98,9 +98,7 @@ class AsyncEC2Scanner(AWSResourceScanner):
             logger.warning(f"Circuit open for EC2 in {self.region}: {e}")
             raise
 
-    def _process_instance(
-        self, instance: dict[str, Any], graph: GraphEngine
-    ) -> bool:
+    def _process_instance(self, instance: dict[str, Any], graph: GraphEngine) -> bool:
         """
         Process a single EC2 instance.
 
@@ -119,32 +117,32 @@ class AsyncEC2Scanner(AWSResourceScanner):
         vpc_id = instance.get("VpcId")
 
         # Extract security group IDs
-        security_groups = [
-            sg["GroupId"] for sg in instance.get("SecurityGroups", [])
-        ]
+        security_groups = [sg["GroupId"] for sg in instance.get("SecurityGroups", [])]
 
         # Extract block device mappings
         block_devices = []
         for mapping in instance.get("BlockDeviceMappings", []):
             ebs = mapping.get("Ebs", {})
-            block_devices.append({
-                "device_name": mapping["DeviceName"],
-                "volume_id": ebs.get("VolumeId"),
-                "delete_on_termination": ebs.get("DeleteOnTermination", True),
-            })
+            block_devices.append(
+                {
+                    "device_name": mapping["DeviceName"],
+                    "volume_id": ebs.get("VolumeId"),
+                    "delete_on_termination": ebs.get("DeleteOnTermination", True),
+                }
+            )
 
         # Extract network interfaces
         network_interfaces = []
         for eni in instance.get("NetworkInterfaces", []):
-            network_interfaces.append({
-                "network_interface_id": eni["NetworkInterfaceId"],
-                "device_index": eni["Attachment"]["DeviceIndex"],
-                "subnet_id": eni.get("SubnetId"),
-                "private_ip_address": eni.get("PrivateIpAddress"),
-                "security_groups": [
-                    sg["GroupId"] for sg in eni.get("Groups", [])
-                ],
-            })
+            network_interfaces.append(
+                {
+                    "network_interface_id": eni["NetworkInterfaceId"],
+                    "device_index": eni["Attachment"]["DeviceIndex"],
+                    "subnet_id": eni.get("SubnetId"),
+                    "private_ip_address": eni.get("PrivateIpAddress"),
+                    "security_groups": [sg["GroupId"] for sg in eni.get("Groups", [])],
+                }
+            )
 
         config = {
             "ami": instance["ImageId"],
@@ -155,9 +153,7 @@ class AsyncEC2Scanner(AWSResourceScanner):
             "security_group_ids": security_groups,
             "private_ip_address": instance.get("PrivateIpAddress"),
             "public_ip_address": instance.get("PublicIpAddress"),
-            "availability_zone": instance.get("Placement", {}).get(
-                "AvailabilityZone"
-            ),
+            "availability_zone": instance.get("Placement", {}).get("AvailabilityZone"),
             "tenancy": instance.get("Placement", {}).get("Tenancy", "default"),
             "ebs_optimized": instance.get("EbsOptimized", False),
             "monitoring": instance.get("Monitoring", {}).get("State") == "enabled",
@@ -179,9 +175,7 @@ class AsyncEC2Scanner(AWSResourceScanner):
                 if bd["device_name"] == root_device_name:
                     config["root_block_device"] = {
                         "device_name": bd["device_name"],
-                        "delete_on_termination": bd.get(
-                            "delete_on_termination", True
-                        ),
+                        "delete_on_termination": bd.get("delete_on_termination", True),
                     }
                     break
 
@@ -222,19 +216,13 @@ class AsyncEC2Scanner(AWSResourceScanner):
             "name": arn.split("/")[-1] if arn else "",
         }
 
-    def _extract_metadata_options(
-        self, options: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _extract_metadata_options(self, options: dict[str, Any]) -> dict[str, Any]:
         """Extract instance metadata options."""
         return {
             "http_endpoint": options.get("HttpEndpoint", "enabled"),
             "http_tokens": options.get("HttpTokens", "optional"),
-            "http_put_response_hop_limit": options.get(
-                "HttpPutResponseHopLimit", 1
-            ),
-            "instance_metadata_tags": options.get(
-                "InstanceMetadataTags", "disabled"
-            ),
+            "http_put_response_hop_limit": options.get("HttpPutResponseHopLimit", 1),
+            "instance_metadata_tags": options.get("InstanceMetadataTags", "disabled"),
         }
 
 
@@ -294,8 +282,7 @@ class AsyncRDSScanner(AWSResourceScanner):
             group_name = group["DBSubnetGroupName"]
 
             subnet_ids = [
-                subnet["SubnetIdentifier"]
-                for subnet in group.get("Subnets", [])
+                subnet["SubnetIdentifier"] for subnet in group.get("Subnets", [])
             ]
 
             config = {
@@ -307,11 +294,7 @@ class AsyncRDSScanner(AWSResourceScanner):
 
             tags = {"Name": group_name}
 
-            node_id = (
-                self.build_node_id(group_name)
-                if self.account_id
-                else group_name
-            )
+            node_id = self.build_node_id(group_name) if self.account_id else group_name
 
             node = ResourceNode(
                 id=node_id,
@@ -327,9 +310,7 @@ class AsyncRDSScanner(AWSResourceScanner):
             # Add dependencies to subnets
             for subnet_id in subnet_ids:
                 if graph.get_resource(subnet_id):
-                    graph.add_dependency(
-                        node_id, subnet_id, DependencyType.REFERENCES
-                    )
+                    graph.add_dependency(node_id, subnet_id, DependencyType.REFERENCES)
 
             logger.debug(f"Added DB Subnet Group: {group_name}")
 
@@ -368,8 +349,7 @@ class AsyncRDSScanner(AWSResourceScanner):
 
         # Extract security group IDs
         security_groups = [
-            sg["VpcSecurityGroupId"]
-            for sg in instance.get("VpcSecurityGroups", [])
+            sg["VpcSecurityGroupId"] for sg in instance.get("VpcSecurityGroups", [])
         ]
 
         # Extract parameter groups
@@ -383,8 +363,7 @@ class AsyncRDSScanner(AWSResourceScanner):
 
         # Extract option groups
         option_groups = [
-            og["OptionGroupName"]
-            for og in instance.get("OptionGroupMemberships", [])
+            og["OptionGroupName"] for og in instance.get("OptionGroupMemberships", [])
         ]
 
         config = {
@@ -409,9 +388,7 @@ class AsyncRDSScanner(AWSResourceScanner):
             "backup_retention_period": instance.get("BackupRetentionPeriod", 0),
             "backup_window": instance.get("PreferredBackupWindow"),
             "maintenance_window": instance.get("PreferredMaintenanceWindow"),
-            "auto_minor_version_upgrade": instance.get(
-                "AutoMinorVersionUpgrade", True
-            ),
+            "auto_minor_version_upgrade": instance.get("AutoMinorVersionUpgrade", True),
             "publicly_accessible": instance.get("PubliclyAccessible", False),
             "deletion_protection": instance.get("DeletionProtection", False),
             "db_name": instance.get("DBName"),
@@ -434,10 +411,7 @@ class AsyncRDSScanner(AWSResourceScanner):
         }
 
         # Get tags
-        tags = {
-            tag["Key"]: tag["Value"]
-            for tag in instance.get("TagList", [])
-        }
+        tags = {tag["Key"]: tag["Value"] for tag in instance.get("TagList", [])}
         if "Name" not in tags:
             tags["Name"] = db_id
 
@@ -540,9 +514,7 @@ class AsyncIAMScanner(AWSResourceScanner):
             }
 
             node_id = (
-                self.build_node_id(policy_name)
-                if self.account_id
-                else policy_name
+                self.build_node_id(policy_name) if self.account_id else policy_name
             )
 
             node = ResourceNode(
@@ -588,18 +560,11 @@ class AsyncIAMScanner(AWSResourceScanner):
             }
 
             # Get tags
-            tags = {
-                tag["Key"]: tag["Value"]
-                for tag in role.get("Tags", [])
-            }
+            tags = {tag["Key"]: tag["Value"] for tag in role.get("Tags", [])}
             if "Name" not in tags:
                 tags["Name"] = role_name
 
-            node_id = (
-                self.build_node_id(role_name)
-                if self.account_id
-                else role_name
-            )
+            node_id = self.build_node_id(role_name) if self.account_id else role_name
 
             node = ResourceNode(
                 id=node_id,
@@ -626,10 +591,7 @@ class AsyncIAMScanner(AWSResourceScanner):
                 "AttachedPolicies",
                 RoleName=role_name,
             )
-            return [
-                {"name": p["PolicyName"], "arn": p["PolicyArn"]}
-                for p in policies
-            ]
+            return [{"name": p["PolicyName"], "arn": p["PolicyArn"]} for p in policies]
         except Exception as e:
             logger.debug(f"Could not get attached policies for {role_name}: {e}")
             return []
@@ -660,9 +622,7 @@ class AsyncIAMScanner(AWSResourceScanner):
             }
 
             node_id = (
-                self.build_node_id(profile_name)
-                if self.account_id
-                else profile_name
+                self.build_node_id(profile_name) if self.account_id else profile_name
             )
 
             node = ResourceNode(
@@ -684,9 +644,7 @@ class AsyncIAMScanner(AWSResourceScanner):
                     else role["name"]
                 )
                 if graph.get_resource(role_id):
-                    graph.add_dependency(
-                        node_id, role_id, DependencyType.REFERENCES
-                    )
+                    graph.add_dependency(node_id, role_id, DependencyType.REFERENCES)
 
             logger.debug(f"Added IAM Instance Profile: {profile_name}")
 

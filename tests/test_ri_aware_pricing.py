@@ -12,8 +12,7 @@ Tests verify:
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-import pytest
-
+from replimap.cost.pricing_engine import Currency
 from replimap.cost.ri_aware import (
     ReservationCoverage,
     ReservationState,
@@ -28,7 +27,6 @@ from replimap.cost.ri_aware import (
     UtilizationLevel,
     get_utilization_level,
 )
-from replimap.cost.pricing_engine import Currency, PricingTier
 
 
 class TestReservedInstance:

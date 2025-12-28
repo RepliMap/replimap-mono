@@ -603,6 +603,10 @@ async def get_cost_comparison(
         "change": {
             "amount": round(change, 2),
             "percentage": round(change_pct, 1),
-            "direction": "increase" if change > 0 else "decrease" if change < 0 else "unchanged",
+            "direction": "increase"
+            if change > 0
+            else "decrease"
+            if change < 0
+            else "unchanged",
         },
     }
