@@ -52,6 +52,14 @@ from .selection import (
     apply_selection,
     build_subgraph_from_selection,
 )
+from .state import (
+    ErrorRecord,
+    RepliMapState,
+    ScanRecord,
+    SnapshotInfo,
+    StateManager,
+    compute_config_hash,
+)
 from .storage import (
     ConfigCompressor,
     GraphStore,
@@ -129,4 +137,11 @@ __all__ = [
     "ConfigCompressor",
     "migrate_from_json",
     "migrate_from_cache",
+    # State Management
+    "StateManager",
+    "RepliMapState",
+    "ScanRecord",
+    "SnapshotInfo",
+    "ErrorRecord",
+    "compute_config_hash",
 ]
