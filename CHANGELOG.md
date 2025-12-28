@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **FOMO Design for Audit CLI Output** - Rich-based output with plan-based gating
+  - New `replimap/ui/` module with FOMO design functions
+  - `print_audit_findings_fomo()` - Shows ALL issue titles (even for FREE users)
+  - First CRITICAL finding gets 2-line remediation preview (taste of value)
+  - Remaining remediation details are gated by plan tier
+  - Beautiful Rich panels with severity icons and color coding
+  - Upgrade prompts with v3.2 pricing ($49/$99/$199/$500)
+  - Philosophy: "Gate at OUTPUT, not at SCAN" - users see full value, pay to export
+
+- **v3.2 Pricing Matrix** - Updated feature gating implementation
+  - 25+ new `PlanFeatures` fields for storage, trust center, compliance, support
+  - 20+ new gate check functions in `replimap/licensing/gates.py`
+  - Storage layer: local cache, snapshots, retention policies
+  - Trust Center: TEAM+ feature with export and compliance verification
+  - Regional compliance: APRA CPS 234, Essential Eight, RBNZ, NZISM (Enterprise)
+  - Remediate beta access (Pro+)
+  - Email support SLA by tier (48h Solo, 24h Pro, 12h Team, 4h Enterprise)
+
 - **CLI Integration for P0-P3 Features** - Comprehensive CLI commands for all new features
   - `replimap scan --trust-center` - Enable API auditing during scan
   - `replimap scan --incremental` - Incremental scanning mode
@@ -109,11 +127,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TerraformRenderer generates variables.tf with Right-Sizer compatible variables
 
 ### Changed
-- **Indie-Friendly Pricing** - Updated pricing structure
-  - SOLO: $49 → $29/mo ($17/mo annual)
-  - PRO: $99 → $79/mo ($50/mo annual)
-  - TEAM: $199 → $149/mo ($100/mo annual)
-  - ENTERPRISE: $499 → $399/mo ($333/mo annual)
+- **v3.2 Pricing** - Updated pricing structure
+  - SOLO: $49/mo ($33/mo annual - 2 months free)
+  - PRO: $99/mo ($66/mo annual - 2 months free)
+  - TEAM: $199/mo ($133/mo annual - 2 months free)
+  - ENTERPRISE: From $500/mo (custom pricing)
 
 ### Added (previous)
 - **Sovereign Engineer Protocol (Level 2-5)** - Complete Terraform renderer refactoring
@@ -379,19 +397,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automatic sensitive data sanitization
 - Minimal IAM policy requirements
 
-## Plan Comparison
+## Plan Comparison (v3.2)
 
-| Feature | Free | Solo ($49) | Pro ($99) | Team ($199) | Enterprise ($499+) |
+| Feature | Free | Solo ($49) | Pro ($99) | Team ($199) | Enterprise ($500+) |
 |---------|------|------------|-----------|-------------|-------------------|
 | Resources/Scan | 5 | ∞ | ∞ | ∞ | ∞ |
 | Scans/Month | 3 | ∞ | ∞ | ∞ | ∞ |
 | AWS Accounts | 1 | 1 | 3 | 10 | ∞ |
 | Terraform Output | ✅ | ✅ | ✅ | ✅ | ✅ |
-| CloudFormation | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Pulumi | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Async Scanning | ❌ | ✅ | ✅ | ✅ | ✅ |
-| Web Dashboard | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Collaboration | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Full Audit Details | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Local Cache/Snapshots | ❌ | ✅ (5) | ✅ (15) | ✅ (30) | ✅ (∞) |
+| Drift Detection | ❌ | ❌ | ✅ | ✅ | ✅ |
+| CI/CD Mode | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Trust Center | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Compliance Mapping | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Email Support SLA | ❌ | 48h | 24h | 12h | 4h |
 | SSO | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ---
