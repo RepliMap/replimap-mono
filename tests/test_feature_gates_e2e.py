@@ -17,12 +17,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from replimap.licensing.gates import (
-    GateResult,
     check_audit_ci_mode_allowed,
-    check_audit_export_allowed,
     check_audit_export_format_allowed,
     check_clone_download_allowed,
     check_compliance_apra_allowed,
@@ -96,7 +92,7 @@ class TestFreeUserWorkflow:
             # First 3 scans should be allowed
             for i in range(3):
                 result = check_scan_allowed()
-                assert result.allowed is True, f"Scan {i+1} should be allowed"
+                assert result.allowed is True, f"Scan {i + 1} should be allowed"
                 # Record the scan
                 tracker.record_scan(
                     scan_id=f"scan-{i}",

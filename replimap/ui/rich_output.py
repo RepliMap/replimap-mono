@@ -32,14 +32,20 @@ if TYPE_CHECKING:
 def _get_fix_suggestion(check_id: str) -> str | None:
     """Lazy import to avoid circular dependency with audit module."""
     from replimap.audit.fix_suggestions import get_fix_suggestion
+
     return get_fix_suggestion(check_id)
+
 
 # Initialize console
 console = Console()
 
 # Severity colors and icons
 SEVERITY_STYLES = {
-    "CRITICAL": {"color": "bold magenta", "icon": "🔴", "badge": "[magenta]CRITICAL[/]"},
+    "CRITICAL": {
+        "color": "bold magenta",
+        "icon": "🔴",
+        "badge": "[magenta]CRITICAL[/]",
+    },
     "HIGH": {"color": "bold red", "icon": "🟠", "badge": "[red]HIGH[/]"},
     "MEDIUM": {"color": "bold yellow", "icon": "🟡", "badge": "[yellow]MEDIUM[/]"},
     "LOW": {"color": "bold blue", "icon": "🔵", "badge": "[blue]LOW[/]"},
@@ -88,7 +94,6 @@ def print_remediation_preview(
     if fix:
         # Get first N lines of the fix
         lines = fix.strip().split("\n")[:max_lines]
-        preview = "\n".join(lines)
 
         console.print()
         console.print("     [dim]┌─ Remediation Preview ──────────────────────[/]")
@@ -101,7 +106,9 @@ def print_remediation_preview(
     else:
         console.print()
         console.print("     [dim]┌─ Remediation ──────────────────────────────[/]")
-        console.print(f"     [dim]│[/] See: [cyan]{finding.guideline or 'Checkov docs'}[/]")
+        console.print(
+            f"     [dim]│[/] See: [cyan]{finding.guideline or 'Checkov docs'}[/]"
+        )
         console.print("     [dim]└────────────────────────────────────────────[/]")
 
 
@@ -171,12 +178,12 @@ def print_audit_summary_fomo(
 
     # Score line
     if show_grade:
-        summary.append(f"Security Score: ", style="bold")
+        summary.append("Security Score: ", style="bold")
         summary.append(f"{results.score}%", style=f"bold {score_color}")
-        summary.append(f"  Grade: ", style="bold")
+        summary.append("  Grade: ", style="bold")
         summary.append(f"{results.grade}", style=f"bold {score_color}")
     else:
-        summary.append(f"Security Score: ", style="bold")
+        summary.append("Security Score: ", style="bold")
         summary.append(f"{results.score}%", style=f"bold {score_color}")
 
     summary.append("\n\n")
@@ -188,9 +195,13 @@ def print_audit_summary_fomo(
     low = len(results.findings_by_severity.get("LOW", []))
 
     summary.append("Issues Found:\n", style="bold")
-    summary.append(f"├── 🔴 CRITICAL:  {critical}\n", style="magenta" if critical > 0 else "dim")
+    summary.append(
+        f"├── 🔴 CRITICAL:  {critical}\n", style="magenta" if critical > 0 else "dim"
+    )
     summary.append(f"├── 🟠 HIGH:      {high}\n", style="red" if high > 0 else "dim")
-    summary.append(f"├── 🟡 MEDIUM:    {medium}\n", style="yellow" if medium > 0 else "dim")
+    summary.append(
+        f"├── 🟡 MEDIUM:    {medium}\n", style="yellow" if medium > 0 else "dim"
+    )
     summary.append(f"└── 🔵 LOW:       {low}\n", style="blue" if low > 0 else "dim")
     summary.append("\n")
     summary.append(f"TOTAL: {results.failed} security issues detected", style="bold")

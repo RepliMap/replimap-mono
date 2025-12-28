@@ -8,8 +8,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from replimap.licensing.gates import (
     check_audit_export_format_allowed,
     check_compliance_apra_allowed,

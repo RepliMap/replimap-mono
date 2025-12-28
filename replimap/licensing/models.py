@@ -177,7 +177,9 @@ class PlanFeatures:
 
     # Audit output limits
     audit_titles_visible: bool  # Show all issue titles (always True)
-    audit_first_critical_preview_lines: int | None  # Lines for 1st critical, None = full
+    audit_first_critical_preview_lines: (
+        int | None
+    )  # Lines for 1st critical, None = full
     audit_details_visible: bool  # See full remediation details
     audit_report_export: bool  # Can export reports
     audit_export_formats: set[str]  # Available formats: html, pdf, json, csv

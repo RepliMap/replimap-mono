@@ -6,10 +6,7 @@ from dataclasses import dataclass, field
 from io import StringIO
 from unittest.mock import patch
 
-import pytest
 from rich.console import Console
-
-from replimap.licensing.models import Plan
 
 
 @dataclass
@@ -178,7 +175,9 @@ class TestFOMODesign:
                 MockFinding("CKV_AWS_20", "Ensure SSL access", "HIGH"),
             ],
             findings_by_severity={
-                "CRITICAL": [MockFinding("CKV_AWS_19", "Ensure S3 encryption", "CRITICAL")],
+                "CRITICAL": [
+                    MockFinding("CKV_AWS_19", "Ensure S3 encryption", "CRITICAL")
+                ],
                 "HIGH": [MockFinding("CKV_AWS_20", "Ensure SSL access", "HIGH")],
             },
         )
