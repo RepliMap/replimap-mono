@@ -52,6 +52,14 @@ from .selection import (
     apply_selection,
     build_subgraph_from_selection,
 )
+from .storage import (
+    ConfigCompressor,
+    GraphStore,
+    NodeInfo,
+    StorageStats,
+    migrate_from_cache,
+    migrate_from_json,
+)
 
 __all__ = [
     # Models
@@ -114,4 +122,11 @@ __all__ = [
     "GraphSelector",
     "apply_selection",
     "build_subgraph_from_selection",
+    # Storage Engine
+    "GraphStore",
+    "NodeInfo",
+    "StorageStats",
+    "ConfigCompressor",
+    "migrate_from_json",
+    "migrate_from_cache",
 ]

@@ -51,6 +51,7 @@ dependencies = [
     "rich>=13.0.0",
     "pyyaml>=6.0.0",
     "httpx>=0.25.0",
+    "zstandard>=0.21.0",
 ]
 
 [project.optional-dependencies]
@@ -120,7 +121,7 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "botocore.*", "networkx.*", "aiobotocore.*"]
+module = ["boto3.*", "botocore.*", "networkx.*", "aiobotocore.*", "zstandard.*"]
 ignore_missing_imports = true
 
 [tool.ruff]
