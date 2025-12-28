@@ -1,5 +1,13 @@
 """Core engine components for RepliMap."""
 
+from .async_aws import (
+    AsyncAWSClient,
+    AsyncRateLimiter,
+    AWSResourceScanner,
+    CallStats,
+    RateLimiterRegistry,
+    get_rate_limiter_registry,
+)
 from .aws_config import BOTO_CONFIG, get_boto_config
 from .bootstrap import (
     EnvironmentDetector,
@@ -76,6 +84,13 @@ __all__ = [
     # SCC Analysis
     "SCCResult",
     "TarjanSCC",
+    # Async AWS Client
+    "AsyncAWSClient",
+    "AsyncRateLimiter",
+    "AWSResourceScanner",
+    "CallStats",
+    "RateLimiterRegistry",
+    "get_rate_limiter_registry",
     # AWS Config
     "BOTO_CONFIG",
     "get_boto_config",
