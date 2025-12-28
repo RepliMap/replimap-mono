@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI Integration for P0-P3 Features** - Comprehensive CLI commands for all new features
+  - `replimap scan --trust-center` - Enable API auditing during scan
+  - `replimap scan --incremental` - Incremental scanning mode
+  - `replimap trust-center report/status/clear` - Trust Center management
+  - `replimap validate` - Topology constraints validation with YAML config
+  - `replimap cost --ri-aware --show-reservations` - RI-aware pricing
+  - `replimap unused` - Detect unused/underutilized resources
+  - `replimap trends` - Cost trend analysis with anomaly detection
+  - `replimap transfer` - Data transfer cost analysis
+  - `replimap dr assess/scorecard` - DR readiness assessment
+
+- **Unused Resource Detection CLI (P1-2)** - Find idle resources
+  - Detects low CPU EC2, unattached EBS, idle RDS, unused NAT/ELB
+  - Confidence levels: high/medium/low
+  - Export to JSON, CSV, Markdown
+
+- **Cost Trend Analysis CLI (P1-2)** - Spending pattern analysis
+  - Uses AWS Cost Explorer for historical data
+  - Trend direction, anomaly detection, forecasting
+  - 7-day and 30-day cost projections
+
+- **Data Transfer Analysis CLI (P1-6)** - Transfer cost optimization
+  - Cross-AZ traffic detection
+  - NAT Gateway analysis
+  - VPC Endpoint optimization recommendations
+
+- **DR Readiness Assessment CLI** - Disaster recovery analysis
+  - `replimap dr assess` for single-region DR assessment
+  - DR tier classification (0-4)
+  - RTO/RPO estimation
+  - Coverage analysis and gap identification
+  - Export to JSON, Markdown, HTML
+
 - **Trust Center Audit System (P1-9)** - Enterprise-grade API call auditing for compliance
   - `TrustCenter` singleton class for centralized audit management
   - Automatic boto3 event hooks capture all AWS API calls transparently

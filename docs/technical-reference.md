@@ -249,12 +249,22 @@ print(report.compliance_statement)
 
 ```bash
 # Enable Trust Center auditing during scan
-replimap scan --profile prod --audit
+replimap scan --profile prod --trust-center
 
-# Generate audit report
-replimap audit-report --format json --output audit.json
-replimap audit-report --format csv --output audit.csv
-replimap audit-report --format text --output compliance.txt
+# Check Trust Center status
+replimap trust-center status
+
+# Generate compliance report
+replimap trust-center report
+replimap trust-center report -f json -o audit.json
+replimap trust-center report -f csv -o api-calls.csv
+replimap trust-center report -f text -o compliance.txt
+
+# Include detailed API call records in JSON
+replimap trust-center report -f json -o audit.json --include-records
+
+# Clear all audit sessions
+replimap trust-center clear
 ```
 
 ### Features
@@ -613,15 +623,21 @@ replimap clone --profile prod --output-dir ./staging-tf \
 
 Incremental scanning uses the AWS ResourceGroupsTaggingAPI for efficient change detection, reducing scan times from minutes to sub-seconds after the initial full scan.
 
-### How It Works
+### CLI Usage
 
 ```bash
 # First scan - full scan, builds baseline
-replimap scan --profile prod
+replimap scan --profile prod -r us-east-1
 
-# Subsequent scans - only detect changes
-replimap scan --profile prod --incremental
+# Subsequent scans - only detect changes (fast)
+replimap scan --profile prod -r us-east-1 --incremental
 # Output: "Incremental scan: 3 created, 1 modified, 0 deleted, 247 unchanged"
+
+# Force full scan even with existing state
+replimap scan --profile prod -r us-east-1 --refresh-cache
+
+# Use cache for faster repeated scans
+replimap scan --profile prod -r us-east-1 --cache
 ```
 
 ### API Usage
@@ -745,14 +761,21 @@ topology_constraints:
 ### CLI Usage
 
 ```bash
+# Generate default constraints file
+replimap validate --generate-defaults
+
 # Validate infrastructure against constraints
-replimap validate --config constraints.yaml --profile prod
+replimap validate -p prod -r us-east-1
 
-# Generate default constraints
-replimap constraints generate --output constraints.yaml
+# Use custom constraints file
+replimap validate -p prod -r us-east-1 -c my-constraints.yaml
 
-# Validate with specific severity threshold
-replimap validate --config constraints.yaml --fail-on high
+# Fail on high severity violations (for CI/CD)
+replimap validate -p prod -r us-east-1 --fail-on high
+
+# Export validation report
+replimap validate -p prod -r us-east-1 -o report.json
+replimap validate -p prod -r us-east-1 -o report.md
 ```
 
 ### Constraint Types
@@ -791,8 +814,8 @@ The RI-aware pricing engine considers your Reserved Instances and Savings Plans 
 # Cost estimate with reservation awareness
 replimap cost --profile prod --ri-aware
 
-# Show reservation utilization
-replimap reservations --profile prod
+# Show reservation utilization details
+replimap cost --profile prod --ri-aware --show-reservations
 
 # Right-sizing with reservation constraints
 replimap clone --profile prod --dev-mode --ri-aware
@@ -847,6 +870,274 @@ for waste in analysis.waste_items:
     print(f"{waste.reservation_id}: {waste.utilization_percentage}% utilized")
     print(f"  Monthly waste: ${waste.monthly_waste}")
     print(f"  Recommendation: {waste.recommendation}")
+```
+
+## Unused Resource Detection (P1-2)
+
+Detect idle, underutilized, or orphaned AWS resources that may be candidates for termination to reduce costs.
+
+### CLI Usage
+
+```bash
+# Detect all unused resources in a region
+replimap unused -r us-east-1
+
+# Only show high-confidence findings (safe to delete)
+replimap unused -r us-east-1 --confidence high
+
+# Check specific resource types only
+replimap unused -r us-east-1 --types ec2,ebs,rds
+
+# Export to JSON for automation
+replimap unused -r us-east-1 -f json -o unused.json
+
+# Export to CSV for spreadsheet analysis
+replimap unused -r us-east-1 -f csv -o unused.csv
+
+# Export Markdown report
+replimap unused -r us-east-1 -f markdown -o unused.md
+```
+
+### Resource Types Detected
+
+| Resource Type | Detection Method |
+|---------------|------------------|
+| EC2 Instances | Low CPU/network utilization over 14 days |
+| EBS Volumes | Unattached volumes with no recent snapshots |
+| RDS Instances | No database connections for extended period |
+| NAT Gateways | Minimal traffic (< 1GB/month) |
+| Load Balancers | No registered targets or zero traffic |
+| Elastic IPs | Unassociated EIPs |
+| EBS Snapshots | Orphaned snapshots with no AMI reference |
+
+### Confidence Levels
+
+| Level | Description | Action |
+|-------|-------------|--------|
+| HIGH | Very likely unused, safe to remove | Delete after verification |
+| MEDIUM | Probably unused, verify before removing | Investigate usage |
+| LOW | Possibly unused, investigate further | Monitor before action |
+
+### API Usage
+
+```python
+from replimap.cost.unused_detector import (
+    UnusedResourceDetector,
+    ConfidenceLevel,
+    UnusedReason,
+)
+
+# Create detector
+detector = UnusedResourceDetector(session, region="us-east-1")
+
+# Detect from graph
+unused = detector.detect_from_graph(graph)
+
+# Filter high-confidence findings
+high_confidence = [r for r in unused if r.confidence == ConfidenceLevel.HIGH]
+
+for resource in high_confidence:
+    print(f"{resource.resource_id}: {resource.reason.description}")
+    print(f"  Estimated savings: ${resource.estimated_monthly_savings}/mo")
+```
+
+## Cost Trend Analysis (P1-2)
+
+Analyze historical AWS spending patterns using Cost Explorer to identify trends, anomalies, and forecast future costs.
+
+### CLI Usage
+
+```bash
+# Analyze last 30 days (default)
+replimap trends
+
+# Analyze last 90 days
+replimap trends --days 90
+
+# Analyze with specific profile
+replimap trends --profile production
+
+# Export to JSON
+replimap trends -f json -o trends.json
+
+# Export to Markdown
+replimap trends -f markdown -o trends.md
+```
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Trend Direction** | INCREASING, DECREASING, STABLE, VOLATILE |
+| **Rate of Change** | $/day change rate with confidence |
+| **Anomaly Detection** | Spikes, drops, unexpected services |
+| **Seasonal Patterns** | Weekly/monthly cost patterns |
+| **Forecasting** | 7-day and 30-day cost projections |
+| **Service Breakdown** | Top services by cost |
+
+### Output Example
+
+```
+Trend Analysis
+  Direction: INCREASING
+  Rate: $12.50/day
+  Period change: +15.3% (+$375.00)
+  Projected monthly: $4,125.00
+
+Anomalies Detected (2)
+  • 2025-01-15: spike - $892.00 (Unexpected EC2 usage)
+  • 2025-01-22: drop - $45.00 (RDS instance stopped)
+
+Top Services by Cost
+  • Amazon EC2: $2,450.00
+  • Amazon RDS: $890.00
+  • Amazon S3: $125.00
+
+Forecast
+  Next 7 days: $875.50
+  Next 30 days: $4,250.00
+```
+
+### Requirements
+
+- AWS Cost Explorer must be enabled in your account
+- IAM permissions: `ce:GetCostAndUsage`, `ce:GetCostForecast`
+
+## Data Transfer Analysis (P1-6)
+
+Analyze data transfer costs and identify optimization opportunities across your AWS infrastructure.
+
+### CLI Usage
+
+```bash
+# Analyze transfer costs in a region
+replimap transfer -r us-east-1
+
+# Export detailed analysis to JSON
+replimap transfer -r us-east-1 -f json -o transfer.json
+
+# Use specific profile
+replimap transfer -p production -r us-east-1
+```
+
+### Transfer Types Analyzed
+
+| Type | Cost | Description |
+|------|------|-------------|
+| Cross-AZ | $0.01/GB each way | Traffic between availability zones |
+| NAT Gateway | $0.045/GB + $0.045/hr | Internet access from private subnets |
+| Cross-Region | $0.02-0.09/GB | Traffic between AWS regions |
+| Internet Egress | $0.09/GB (first 10TB) | Traffic to the internet |
+| VPC Peering | Free (same region) | Traffic between peered VPCs |
+
+### Optimization Recommendations
+
+The analyzer provides actionable recommendations:
+
+- **VPC Endpoints**: Replace NAT Gateway traffic to S3/DynamoDB with free VPC endpoints
+- **Same-AZ Placement**: Co-locate resources in the same AZ to avoid cross-AZ costs
+- **CloudFront**: Use CDN for static content to reduce egress costs
+- **PrivateLink**: Use PrivateLink for cross-VPC service access
+
+### Output Example
+
+```
+Transfer Cost Summary
+  Total paths analyzed: 47
+  Estimated monthly cost: $1,245.00
+
+Cross-AZ Traffic (12 paths)
+  • EC2 → RDS: ~500 GB/mo ($10.00)
+  • EC2 → ElastiCache: ~1.2 TB/mo ($24.00)
+
+NAT Gateway Traffic (8 paths)
+  • EC2 → Internet: ~2 TB/mo ($90.00)
+
+Optimization Recommendations (3)
+  ✓ Add S3 VPC Endpoint for bucket access
+    Potential savings: $45.00/mo
+  ✓ Move RDS read replica to same AZ as application
+    Potential savings: $18.00/mo
+```
+
+## DR Readiness Assessment
+
+Assess disaster recovery readiness for your AWS infrastructure with comprehensive analysis of RTO/RPO capabilities.
+
+### CLI Usage
+
+```bash
+# Basic DR assessment
+replimap dr assess -r us-east-1
+
+# Specify DR region
+replimap dr assess -r us-east-1 --dr-region us-west-2
+
+# Target specific DR tier
+replimap dr assess -r us-east-1 --target-tier tier_3
+
+# Export to JSON
+replimap dr assess -r us-east-1 -f json -o dr-assessment.json
+
+# Export to HTML report
+replimap dr assess -r us-east-1 -f html -o dr-report.html
+
+# Export to Markdown
+replimap dr assess -r us-east-1 -f markdown -o dr-assessment.md
+
+# Multi-region scorecard
+replimap dr scorecard
+```
+
+### DR Tiers
+
+| Tier | Name | RTO | RPO | Description |
+|------|------|-----|-----|-------------|
+| 0 | No DR | N/A | N/A | Development/test environments |
+| 1 | Cold Standby | 24-72h | 24h | Backup-based recovery |
+| 2 | Warm Standby | 1-4h | 1h | Pilot light with scaled resources |
+| 3 | Hot Standby | 15min-1h | 15min | Full replica with minimal scaling |
+| 4 | Active-Active | <1min | 0 | Multi-region active-active |
+
+### Assessment Categories
+
+| Category | What's Analyzed |
+|----------|-----------------|
+| Compute | EC2 AMIs, ASG cross-region, Lambda replication |
+| Database | RDS read replicas, DynamoDB global tables, Aurora Global |
+| Storage | S3 cross-region replication, EBS snapshots |
+| Network | Route53 health checks, Global Accelerator |
+| Identity | IAM roles, cross-region access |
+
+### Output Example
+
+```
+DR Readiness Score: 72/100
+
+Current Tier: Warm Standby (Tier 2)
+Target Tier: Hot Standby (Tier 3)
+
+Recovery Objectives
+  Estimated RTO: 45 minutes
+  Estimated RPO: 30 minutes
+
+Coverage Analysis
+  Compute:   ████████░░ 80%
+  Database:  █████████░ 90%
+  Storage:   ██████░░░░ 60%
+  Network:   █████░░░░░ 50%
+
+Gaps Identified (3)
+  ⚠ No cross-region RDS replica for primary database
+    Impact: RPO would be 24+ hours for database tier
+  ⚠ S3 buckets missing cross-region replication
+    Impact: Data loss risk for objects created since last backup
+
+Recommendations (4)
+  ✓ Create RDS cross-region read replica
+    Est. cost: $150/mo
+  ✓ Enable S3 cross-region replication for critical buckets
+    Est. cost: $25/mo
 ```
 
 ## Output Formats
@@ -1022,7 +1313,63 @@ replimap cost [OPTIONS]
   --vpc, -v TEXT           VPC ID to scope the scan
   --format, -f TEXT        Output format: console, table, html, json, csv [default: console]
   --output, -o PATH        Output file path
+  --ri-aware               Consider Reserved Instances and Savings Plans
+  --show-reservations      Show detailed reservation utilization
   --open/--no-open         Open HTML report in browser [default: open]
+
+# Unused resource detection (Pro+)
+replimap unused [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        AWS region [default: us-east-1]
+  --format, -f TEXT        Output format: console, json, csv, markdown [default: console]
+  --output, -o PATH        Output file path
+  --confidence, -c TEXT    Filter by confidence: high, medium, low, all [default: all]
+  --types, -t TEXT         Resource types: ec2,ebs,rds,nat,elb (comma-separated)
+
+# Cost trend analysis (Pro+)
+replimap trends [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --days, -d INT           Number of days to analyze [default: 30]
+  --format, -f TEXT        Output format: console, json, markdown [default: console]
+  --output, -o PATH        Output file path
+
+# Data transfer analysis (Pro+)
+replimap transfer [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        AWS region [default: us-east-1]
+  --format, -f TEXT        Output format: console, json [default: console]
+  --output, -o PATH        Output file path
+
+# DR readiness assessment
+replimap dr assess [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        Primary AWS region to assess
+  --dr-region TEXT         DR region to check for replicas
+  --target-tier, -t TEXT   Target DR tier: tier_0-tier_4 [default: tier_2]
+  --format, -f TEXT        Output format: console, json, markdown, html [default: console]
+  --output, -o PATH        Output file path
+
+replimap dr scorecard [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --output, -o PATH        Output file path
+
+# Trust Center commands (Enterprise)
+replimap trust-center report [OPTIONS]
+  --format, -f TEXT        Output format: json, csv, text [default: text]
+  --output, -o PATH        Output file path
+  --include-records        Include detailed API call records in JSON
+
+replimap trust-center status    # Show audit session summary
+replimap trust-center clear     # Clear all audit sessions
+
+# Topology validation
+replimap validate [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region, -r TEXT        AWS region [default: us-east-1]
+  --config, -c PATH        Path to constraints YAML file [default: constraints.yaml]
+  --output, -o PATH        Output file path (JSON or Markdown)
+  --fail-on TEXT           Fail on severity: critical, high, medium, low [default: critical]
+  --generate-defaults      Generate default constraints file
 
 # License commands
 replimap license activate KEY
