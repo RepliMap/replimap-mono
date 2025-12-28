@@ -142,6 +142,22 @@ from replimap.cost.enterprise_pricing import (
     create_enterprise_engine,
     generate_sample_config,
 )
+from replimap.cost.ri_aware import (
+    ReservationCoverage,
+    ReservationState,
+    ReservationType,
+    ReservationWaste,
+    ReservedInstance,
+    RIAwareAnalysis,
+    RIAwareAnalyzer,
+    RIAwarePricingEngine,
+    RightSizingAction,
+    RightSizingRecommendation,
+    SavingsPlanCommitment,
+    UtilizationLevel,
+    analyze_ri_sp_coverage,
+    get_utilization_level,
+)
 
 __all__ = [
     # Disclaimer constants
@@ -239,4 +255,19 @@ __all__ = [
     "create_enterprise_engine",
     "create_edp_config",
     "generate_sample_config",
+    # RI/SP Aware Pricing (P3-4)
+    "RIAwarePricingEngine",
+    "RIAwareAnalyzer",
+    "RIAwareAnalysis",
+    "ReservedInstance",
+    "SavingsPlanCommitment",
+    "ReservationType",
+    "ReservationState",
+    "ReservationCoverage",
+    "ReservationWaste",
+    "RightSizingRecommendation",
+    "RightSizingAction",
+    "UtilizationLevel",
+    "analyze_ri_sp_coverage",
+    "get_utilization_level",
 ]

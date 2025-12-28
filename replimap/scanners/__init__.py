@@ -6,6 +6,19 @@ from .async_base import (
     AsyncScannerRegistry,
     run_all_async_scanners,
 )
+
+# Incremental scanning (P3-1)
+from .incremental import (
+    ChangeType,
+    IncrementalScanner,
+    IncrementalScanResult,
+    ResourceChange,
+    ResourceFingerprint,
+    ScanState,
+    ScanStateStore,
+    create_incremental_scanner,
+    get_change_summary,
+)
 from .async_vpc_scanner import AsyncVPCScanner
 
 # Unified async scanners (P0-4) - use AsyncAWSClient with full resilience
@@ -67,4 +80,14 @@ __all__ = [
     "AsyncIAMScanner",
     "UnifiedScannerRegistry",
     "run_unified_scanners",
+    # Incremental scanning (P3-1)
+    "IncrementalScanner",
+    "IncrementalScanResult",
+    "ChangeType",
+    "ResourceChange",
+    "ResourceFingerprint",
+    "ScanState",
+    "ScanStateStore",
+    "create_incremental_scanner",
+    "get_change_summary",
 ]

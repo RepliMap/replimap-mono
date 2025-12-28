@@ -87,6 +87,19 @@ from .storage import (
     migrate_from_cache,
     migrate_from_json,
 )
+from .topology_constraints import (
+    ConstraintType,
+    ConstraintViolation,
+    TopologyConstraint,
+    TopologyConstraintsConfig,
+    TopologyValidator,
+    ValidationResult,
+    ViolationSeverity,
+    create_default_constraints,
+    generate_sample_config_yaml,
+    load_constraints_from_yaml,
+    validate_topology,
+)
 
 __all__ = [
     # Models
@@ -180,4 +193,16 @@ __all__ = [
     "SnapshotInfo",
     "ErrorRecord",
     "compute_config_hash",
+    # Topology Constraints (P3-3)
+    "TopologyValidator",
+    "TopologyConstraint",
+    "TopologyConstraintsConfig",
+    "ConstraintType",
+    "ConstraintViolation",
+    "ValidationResult",
+    "ViolationSeverity",
+    "load_constraints_from_yaml",
+    "validate_topology",
+    "create_default_constraints",
+    "generate_sample_config_yaml",
 ]
