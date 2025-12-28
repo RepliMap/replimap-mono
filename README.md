@@ -173,10 +173,10 @@ RepliMap is **Open Core**. The CLI and Terraform generation are free forever.
 | Plan | Price | Best For |
 |------|-------|----------|
 | **Free** | $0/mo | Trying out, small projects |
-| **Solo** | $29/mo | Individual DevOps engineers |
-| **Pro** | $79/mo | Small teams, multiple accounts |
-| **Team** | $149/mo | Larger teams with collaboration |
-| **Enterprise** | Custom | SSO, audit logs, support SLA |
+| **Solo** | $49/mo | Individual DevOps engineers |
+| **Pro** | $99/mo | Small teams, multiple accounts |
+| **Team** | $199/mo | Larger teams with collaboration |
+| **Enterprise** | From $500/mo | SSO, audit logs, support SLA |
 
 ### Feature Comparison
 
