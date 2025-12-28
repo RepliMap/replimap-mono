@@ -64,6 +64,7 @@ from replimap.licensing.tracker import get_usage_tracker
 from replimap.renderers import TerraformRenderer
 from replimap.scanners.base import run_all_scanners
 from replimap.transformers import create_default_pipeline
+from replimap.ui import print_audit_findings_fomo
 
 # Credential cache directory
 CACHE_DIR = Path.home() / ".replimap" / "cache"
@@ -2315,40 +2316,12 @@ def audit(
         console.print(f"[green]✓ JSON Report:[/] {json_path.absolute()}")
         console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
     else:
-        # Display results for HTML format
+        # Display results with FOMO design
+        # This shows ALL issue titles (even for FREE users)
+        # First CRITICAL gets 2-line remediation preview
+        # Remaining remediation details are gated by plan
         console.print()
-
-        # Score with color
-        if results.score >= 80:
-            score_color = "green"
-        elif results.score >= 60:
-            score_color = "yellow"
-        else:
-            score_color = "red"
-
-        console.print(
-            Panel(
-                f"[bold]Security Score: [{score_color}]{results.score}%[/] (Grade: {results.grade})[/bold]\n\n"
-                f"[green]✓ Passed:[/] {results.passed}\n"
-                f"[red]✗ Failed:[/] {results.failed}\n"
-                f"[dim]○ Skipped:[/] {results.skipped}",
-                title="📊 Audit Results",
-                border_style=score_color,
-            )
-        )
-
-        # High severity warning
-        if results.high_severity:
-            console.print()
-            console.print(
-                f"[bold red]⚠️  {len(results.high_severity)} High/Critical severity issues require attention![/bold red]"
-            )
-            for finding in results.high_severity[:5]:
-                console.print(f"  [red]•[/] {finding.check_id}: {finding.check_name}")
-            if len(results.high_severity) > 5:
-                console.print(
-                    f"  [dim]... and {len(results.high_severity) - 5} more[/dim]"
-                )
+        print_audit_findings_fomo(results, console_out=console)
 
         # Output paths
         console.print()

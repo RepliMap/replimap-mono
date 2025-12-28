@@ -681,6 +681,69 @@ UPGRADE_PROMPTS: dict[str, str] = {
 │                                                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 """,
+    # =========================================================================
+    # FOMO DESIGN PROMPTS (v3.2)
+    # =========================================================================
+    "audit_fomo_unlock": """
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                               │
+│  💊 You can see the problems. Now get the cure.                              │
+│                                                                               │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │  All {total_count} issue titles shown above.                            │ │
+│  │  {hidden_count} remediation details hidden.                             │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                               │
+│  Upgrade to Solo ($49/mo) to unlock:                                         │
+│                                                                               │
+│  ✓ Complete remediation steps for all {total_count} issues                   │
+│  ✓ Affected resource lists with exact file locations                         │
+│  ✓ Terraform/AWS CLI fix commands                                            │
+│  ✓ Exportable HTML reports                                                   │
+│  ✓ Local caching with SQLite + Zstd compression                              │
+│                                                                               │
+│  → replimap upgrade solo                                                     │
+│  → https://replimap.com/pricing                                              │
+│                                                                               │
+│  💡 At $49/mo, that's less than 30 minutes of your hourly rate.              │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+""",
+    "audit_fomo_first_critical": """
+     ┌─ Remediation Preview (First CRITICAL) ─────────────────────────────────┐
+     │                                                                         │
+     │  {preview_code}                                                        │
+     │                                                                         │
+     │  ... {remaining_lines} more lines hidden                                │
+     │                                                                         │
+     │  🔒 Upgrade to Solo ($49/mo) for full remediation code                  │
+     │                                                                         │
+     └─────────────────────────────────────────────────────────────────────────┘
+""",
+    "audit_fomo_summary": """
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                               │
+│  🛡️ Security Audit Complete                                                  │
+│                                                                               │
+│  Security Score:  {score}/100  Grade: {grade}                                │
+│                                                                               │
+│  Issues Found:                                                               │
+│  ├── 🔴 CRITICAL:  {critical_count}                                          │
+│  ├── 🟠 HIGH:      {high_count}                                              │
+│  ├── 🟡 MEDIUM:    {medium_count}                                            │
+│  └── 🔵 LOW:       {low_count}                                               │
+│                                                                               │
+│  TOTAL: {total_count} security issues detected                               │
+│                                                                               │
+│  ─────────────────────────────────────────────────────────────────────────── │
+│                                                                               │
+│  🔒 FREE PLAN: All {total_count} issue titles visible                        │
+│  First CRITICAL shown with 2-line remediation preview                        │
+│                                                                               │
+│  💡 You know what's broken. Upgrade to fix it.                               │
+│                                                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+""",
 }
 
 
@@ -817,5 +880,83 @@ def format_snapshot_limit_prompt(current_count: int, limit: int) -> str:
         {
             "current": current_count,
             "limit": limit,
+        },
+    )
+
+
+def format_audit_fomo_unlock(total_count: int, hidden_count: int) -> str:
+    """
+    Format the FOMO unlock prompt for audit findings.
+
+    Shown when FREE users have hidden remediation details.
+
+    Args:
+        total_count: Total number of findings
+        hidden_count: Number of findings with hidden remediation
+    """
+    return get_upgrade_prompt(
+        "audit_fomo_unlock",
+        {
+            "total_count": total_count,
+            "hidden_count": hidden_count,
+        },
+    )
+
+
+def format_audit_fomo_summary(
+    score: int,
+    grade: str,
+    critical_count: int,
+    high_count: int,
+    medium_count: int,
+    low_count: int,
+    total_count: int,
+) -> str:
+    """
+    Format the FOMO summary for audit findings.
+
+    Shows score and severity breakdown with upgrade hints.
+
+    Args:
+        score: Security score (0-100)
+        grade: Letter grade (A-F)
+        critical_count: Number of CRITICAL findings
+        high_count: Number of HIGH findings
+        medium_count: Number of MEDIUM findings
+        low_count: Number of LOW findings
+        total_count: Total number of findings
+    """
+    return get_upgrade_prompt(
+        "audit_fomo_summary",
+        {
+            "score": score,
+            "grade": grade,
+            "critical_count": critical_count,
+            "high_count": high_count,
+            "medium_count": medium_count,
+            "low_count": low_count,
+            "total_count": total_count,
+        },
+    )
+
+
+def format_audit_fomo_first_critical(
+    preview_code: str,
+    remaining_lines: int,
+) -> str:
+    """
+    Format the first CRITICAL remediation preview.
+
+    Shows 2 lines of remediation code as a teaser.
+
+    Args:
+        preview_code: First 2 lines of remediation code
+        remaining_lines: Number of lines hidden
+    """
+    return get_upgrade_prompt(
+        "audit_fomo_first_critical",
+        {
+            "preview_code": preview_code,
+            "remaining_lines": remaining_lines,
         },
     )
