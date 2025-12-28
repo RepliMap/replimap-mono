@@ -520,6 +520,19 @@ def scan(
         "--refresh-cache",
         help="Force refresh of scan cache (re-scan all resources)",
     ),
+    # Trust Center auditing (P1-9)
+    trust_center: bool = typer.Option(
+        False,
+        "--trust-center",
+        "--audit",
+        help="Enable Trust Center API auditing for compliance",
+    ),
+    # Incremental scanning (P3-1)
+    incremental: bool = typer.Option(
+        False,
+        "--incremental",
+        help="Use incremental scanning (only detect changes since last scan)",
+    ),
 ) -> None:
     """
     Scan AWS resources and build dependency graph.
@@ -555,6 +568,14 @@ def scan(
     Cache Examples:
         replimap scan --profile prod --cache  # Use cached results
         replimap scan --profile prod --cache --refresh-cache  # Force refresh
+
+    Trust Center Examples (P1-9):
+        replimap scan --profile prod --trust-center  # Enable API auditing
+        replimap trust-center report  # Generate compliance report
+
+    Incremental Scanning Examples (P3-1):
+        replimap scan --profile prod  # First scan (full)
+        replimap scan --profile prod --incremental  # Subsequent scans (fast)
     """
     # Interactive mode - prompt for missing options
     if interactive:
@@ -636,6 +657,37 @@ def scan(
 
     # Initialize graph
     graph = GraphEngine()
+
+    # Enable Trust Center auditing if requested (P1-9)
+    tc_session_id = None
+    if trust_center:
+        from replimap.audit import TrustCenter
+
+        tc = TrustCenter.get_instance()
+        tc.enable(session)
+        tc_session_id = tc.start_session(f"scan_{effective_region}")
+        console.print("[dim]Trust Center API auditing enabled[/]")
+
+    # Handle incremental scanning (P3-1)
+    if incremental:
+        from replimap.scanners.incremental import IncrementalScanner, ScanStateStore
+
+        console.print("[dim]Using incremental scanning mode...[/]")
+        state_store = ScanStateStore()
+        inc_scanner = IncrementalScanner(session, effective_region, state_store)
+
+        # Detect changes
+        changes = inc_scanner.detect_changes()
+        if changes:
+            created = sum(1 for c in changes if c.change_type.value == "created")
+            modified = sum(1 for c in changes if c.change_type.value == "modified")
+            deleted = sum(1 for c in changes if c.change_type.value == "deleted")
+            console.print(
+                f"[dim]Incremental scan: {created} created, {modified} modified, "
+                f"{deleted} deleted, {len(changes) - created - modified - deleted} unchanged[/]"
+            )
+        else:
+            console.print("[dim]No previous scan state found - performing full scan[/]")
 
     # Load scan cache if enabled
     scan_cache: ScanCache | None = None
@@ -796,6 +848,22 @@ def scan(
     if output:
         graph.save(output)
         console.print(f"\n[green]Graph saved to[/] {output}")
+
+    # Close Trust Center session if enabled (P1-9)
+    if trust_center and tc_session_id:
+        from replimap.audit import TrustCenter
+
+        tc = TrustCenter.get_instance()
+        tc.end_session(tc_session_id)
+        session_info = tc.get_session(tc_session_id)
+        if session_info:
+            console.print(
+                f"\n[dim]Trust Center: {session_info.total_calls} API calls captured "
+                f"({session_info.read_only_percentage:.1f}% read-only)[/]"
+            )
+            console.print(
+                "[dim]Run 'replimap trust-center report' to generate compliance report[/]"
+            )
 
     console.print()
 
@@ -3205,6 +3273,17 @@ def cost(
         "-y",
         help="Acknowledge that this is an estimate only (skip confirmation for exports)",
     ),
+    # RI-Aware Pricing (P3-4)
+    ri_aware: bool = typer.Option(
+        False,
+        "--ri-aware",
+        help="Consider Reserved Instances and Savings Plans in cost estimates",
+    ),
+    show_reservations: bool = typer.Option(
+        False,
+        "--show-reservations",
+        help="Show detailed reservation utilization",
+    ),
 ) -> None:
     """
     Estimate monthly AWS costs for your infrastructure.
@@ -3237,6 +3316,13 @@ def cost(
 
         # Export with acknowledgment (skip prompt)
         replimap cost -r us-east-1 -f json -o costs.json --acknowledge
+
+    RI-Aware Pricing Examples (P3-4):
+        # Consider reservations in cost estimate
+        replimap cost -r us-east-1 --ri-aware
+
+        # Show reservation utilization details
+        replimap cost -r us-east-1 --ri-aware --show-reservations
     """
     import webbrowser
 
@@ -3309,6 +3395,25 @@ def cost(
             # Estimate costs
             estimator = CostEstimator(effective_region)
             estimate = estimator.estimate_from_graph_engine(graph)
+
+            # Apply RI-aware pricing if requested (P3-4)
+            ri_analysis = None
+            if ri_aware:
+                progress.update(task, description="Analyzing reservations...")
+                try:
+                    from replimap.cost.ri_aware import RIAwarePricingEngine
+
+                    ri_engine = RIAwarePricingEngine(session, effective_region)
+                    ri_analysis = ri_engine.analyze()
+
+                    # Adjust costs based on reservations
+                    if ri_analysis and ri_analysis.total_savings > 0:
+                        console.print(
+                            f"\n[dim]RI/Savings Plans coverage: "
+                            f"${ri_analysis.total_savings:.2f}/month savings[/]"
+                        )
+                except Exception as e:
+                    logger.warning(f"Could not analyze reservations: {e}")
 
             progress.update(task, completed=True)
 
@@ -3388,6 +3493,59 @@ def cost(
             reporter.to_csv(estimate, output)
         elif output.suffix == ".md":
             reporter.to_markdown(estimate, output)
+
+    # Show reservation details if requested (P3-4)
+    if show_reservations and ri_analysis:
+        console.print("\n[bold]Reservation Utilization[/bold]")
+        table = Table(show_header=True)
+        table.add_column("Type", style="cyan")
+        table.add_column("ID")
+        table.add_column("Instance Type")
+        table.add_column("Utilization", justify="right")
+        table.add_column("Status")
+
+        for ri in ri_analysis.reserved_instances[:10]:  # Show first 10
+            util_pct = ri.utilization_percentage
+            if util_pct >= 80:
+                status = "[green]Healthy[/]"
+            elif util_pct >= 60:
+                status = "[yellow]Medium[/]"
+            elif util_pct >= 40:
+                status = "[orange1]Low[/]"
+            else:
+                status = "[red]Critical[/]"
+
+            table.add_row(
+                "RI",
+                ri.reservation_id[:16] + "...",
+                ri.instance_type,
+                f"{util_pct:.1f}%",
+                status,
+            )
+
+        for sp in ri_analysis.savings_plans[:10]:  # Show first 10
+            util_pct = sp.utilization_percentage
+            if util_pct >= 80:
+                status = "[green]Healthy[/]"
+            elif util_pct >= 60:
+                status = "[yellow]Medium[/]"
+            else:
+                status = "[red]Low[/]"
+
+            table.add_row(
+                "SP",
+                sp.savings_plan_id[:16] + "...",
+                sp.savings_plan_type,
+                f"{util_pct:.1f}%",
+                status,
+            )
+
+        console.print(table)
+
+        if ri_analysis.waste_items:
+            console.print(
+                f"\n[yellow]⚠ Found {len(ri_analysis.waste_items)} underutilized reservations[/]"
+            )
 
     console.print()
 
@@ -4205,6 +4363,428 @@ def snapshot_delete(
 
 # Register snapshot command group
 app.add_typer(snapshot_app, name="snapshot")
+
+
+# =============================================================================
+# TRUST CENTER COMMANDS (P1-9)
+# =============================================================================
+
+trust_center_app = typer.Typer(help="Trust Center API auditing for compliance")
+
+
+@trust_center_app.command("report")
+def trust_center_report(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (JSON, CSV, or TXT)",
+    ),
+    format_type: str = typer.Option(
+        "text",
+        "--format",
+        "-f",
+        help="Output format: json, csv, text",
+    ),
+    include_records: bool = typer.Option(
+        False,
+        "--include-records",
+        help="Include detailed API call records in JSON output",
+    ),
+) -> None:
+    """
+    Generate Trust Center compliance report.
+
+    Shows all AWS API calls made by RepliMap with categorization
+    (READ/WRITE/DELETE/ADMIN) for enterprise compliance reviews.
+
+    Examples:
+        # Generate text report to console
+        replimap trust-center report
+
+        # Export JSON report
+        replimap trust-center report -f json -o audit.json
+
+        # Export CSV with all API calls
+        replimap trust-center report -f csv -o api-calls.csv
+
+        # JSON with detailed records
+        replimap trust-center report -f json -o audit.json --include-records
+    """
+    from replimap.audit import TrustCenter
+
+    tc = TrustCenter.get_instance()
+
+    if tc.session_count == 0:
+        console.print(
+            "[yellow]No audit sessions found.[/]\n"
+            "Run a scan with --trust-center to enable API auditing:\n"
+            "  replimap scan --profile prod --trust-center"
+        )
+        raise typer.Exit(0)
+
+    # Generate report
+    report = tc.generate_report()
+
+    if format_type == "json":
+        output_path = output or Path("trust_center_report.json")
+        tc.export_json(report, output_path, include_records=include_records)
+        console.print(f"[green]✓ Saved JSON report: {output_path}[/]")
+
+    elif format_type == "csv":
+        output_path = output or Path("trust_center_records.csv")
+        sessions = tc.list_sessions()
+        tc.export_csv(sessions, output_path)
+        console.print(f"[green]✓ Saved CSV report: {output_path}[/]")
+
+    elif format_type == "text":
+        if output:
+            tc.save_compliance_text(report, output)
+            console.print(f"[green]✓ Saved compliance report: {output}[/]")
+        else:
+            # Print to console
+            text = tc.generate_compliance_text(report)
+            console.print(text)
+
+    else:
+        console.print(f"[red]Unknown format: {format_type}[/]")
+        raise typer.Exit(1)
+
+
+@trust_center_app.command("status")
+def trust_center_status() -> None:
+    """
+    Show Trust Center status and session summary.
+
+    Examples:
+        replimap trust-center status
+    """
+    from replimap.audit import TrustCenter
+
+    tc = TrustCenter.get_instance()
+
+    console.print("[bold]Trust Center Status[/bold]\n")
+    console.print(f"Active Sessions: {tc.session_count}")
+
+    sessions = tc.list_sessions()
+    if sessions:
+        console.print("\n[bold]Recent Sessions:[/bold]")
+        table = Table(show_header=True)
+        table.add_column("Session ID", style="cyan")
+        table.add_column("Name")
+        table.add_column("API Calls", justify="right")
+        table.add_column("Read-Only %", justify="right")
+        table.add_column("Status")
+
+        for session in sessions[-5:]:  # Last 5 sessions
+            status = (
+                "[green]✓ Read-Only[/]"
+                if session.is_read_only
+                else "[yellow]⚠ Has Writes[/]"
+            )
+            table.add_row(
+                session.session_id[:12] + "...",
+                session.session_name or "-",
+                str(session.total_calls),
+                f"{session.read_only_percentage:.1f}%",
+                status,
+            )
+        console.print(table)
+    else:
+        console.print("\n[dim]No sessions recorded yet.[/]")
+
+
+@trust_center_app.command("clear")
+def trust_center_clear(
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Skip confirmation prompt",
+    ),
+) -> None:
+    """
+    Clear all Trust Center audit sessions.
+
+    Examples:
+        replimap trust-center clear
+        replimap trust-center clear --force
+    """
+    from replimap.audit import TrustCenter
+
+    tc = TrustCenter.get_instance()
+
+    if tc.session_count == 0:
+        console.print("[dim]No sessions to clear.[/]")
+        raise typer.Exit(0)
+
+    if not force:
+        if not Confirm.ask(f"Clear {tc.session_count} audit sessions?"):
+            console.print("[dim]Cancelled[/]")
+            raise typer.Exit(0)
+
+    tc.clear_sessions()
+    console.print("[green]✓ Cleared all audit sessions[/]")
+
+
+# Register trust-center command group
+app.add_typer(trust_center_app, name="trust-center")
+
+
+# =============================================================================
+# TOPOLOGY CONSTRAINTS VALIDATION (P3-3)
+# =============================================================================
+
+
+@app.command()
+def validate(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to validate",
+    ),
+    config: Path = typer.Option(
+        Path("constraints.yaml"),
+        "--config",
+        "-c",
+        help="Path to constraints YAML file",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file for validation report (JSON or Markdown)",
+    ),
+    fail_on: str = typer.Option(
+        "critical",
+        "--fail-on",
+        help="Fail on severity level: critical, high, medium, low, info",
+    ),
+    generate_defaults: bool = typer.Option(
+        False,
+        "--generate-defaults",
+        help="Generate default constraints file",
+    ),
+) -> None:
+    """
+    Validate infrastructure against topology constraints.
+
+    Checks your AWS infrastructure against policy rules defined in a
+    constraints YAML file. Perfect for enforcing security policies,
+    tagging standards, and architectural patterns.
+
+    Examples:
+        # Generate default constraints file
+        replimap validate --generate-defaults
+
+        # Validate with default constraints
+        replimap validate -p prod -r us-east-1
+
+        # Use custom constraints file
+        replimap validate -p prod -r us-east-1 -c my-constraints.yaml
+
+        # Fail on high severity violations (for CI/CD)
+        replimap validate -p prod -r us-east-1 --fail-on high
+
+        # Export validation report
+        replimap validate -p prod -r us-east-1 -o report.json
+    """
+    from replimap.core.topology_constraints import (
+        ConstraintSeverity,
+        TopologyConstraint,
+        TopologyValidator,
+    )
+
+    # Handle generate-defaults
+    if generate_defaults:
+        default_constraints = """# RepliMap Topology Constraints
+# See: https://docs.replimap.io/topology-constraints
+
+version: "1.0"
+
+constraints:
+  # Require Environment tag on all resources
+  - name: require-environment-tag
+    constraint_type: require_tag
+    severity: high
+    description: All resources must have Environment tag
+    required_tags:
+      Environment: null  # Any value accepted
+
+  # Require Owner tag
+  - name: require-owner-tag
+    constraint_type: require_tag
+    severity: medium
+    description: All resources should have Owner tag
+    required_tags:
+      Owner: null
+
+  # Require encryption on RDS instances
+  - name: require-rds-encryption
+    constraint_type: require_encryption
+    severity: critical
+    description: All RDS instances must be encrypted
+    source_type: aws_db_instance
+
+  # Require encryption on S3 buckets
+  - name: require-s3-encryption
+    constraint_type: require_encryption
+    severity: critical
+    description: All S3 buckets must have encryption enabled
+    source_type: aws_s3_bucket
+
+  # Prohibit public RDS instances
+  - name: prohibit-public-rds
+    constraint_type: prohibit_public_access
+    severity: critical
+    description: RDS instances must not be publicly accessible
+    source_type: aws_db_instance
+"""
+        config.write_text(default_constraints)
+        console.print(f"[green]✓ Generated default constraints: {config}[/]")
+        raise typer.Exit(0)
+
+    # Check constraints file exists
+    if not config.exists():
+        console.print(
+            f"[red]Constraints file not found: {config}[/]\n"
+            "Run with --generate-defaults to create one:\n"
+            "  replimap validate --generate-defaults"
+        )
+        raise typer.Exit(1)
+
+    # Parse fail-on severity
+    severity_map = {
+        "critical": ConstraintSeverity.CRITICAL,
+        "high": ConstraintSeverity.HIGH,
+        "medium": ConstraintSeverity.MEDIUM,
+        "low": ConstraintSeverity.LOW,
+        "info": ConstraintSeverity.INFO,
+    }
+    fail_severity = severity_map.get(fail_on.lower(), ConstraintSeverity.CRITICAL)
+
+    # Load constraints
+    import yaml
+
+    with open(config) as f:
+        config_data = yaml.safe_load(f)
+
+    constraints = []
+    for c in config_data.get("constraints", []):
+        constraints.append(
+            TopologyConstraint(
+                name=c["name"],
+                constraint_type=c["constraint_type"],
+                severity=ConstraintSeverity(c.get("severity", "medium")),
+                description=c.get("description", ""),
+                source_type=c.get("source_type"),
+                target_type=c.get("target_type"),
+                required_tags=c.get("required_tags", {}),
+                config=c.get("config", {}),
+            )
+        )
+
+    if not constraints:
+        console.print("[yellow]No constraints defined in config file[/]")
+        raise typer.Exit(0)
+
+    console.print(f"[dim]Loaded {len(constraints)} constraints from {config}[/]\n")
+
+    # Scan infrastructure
+    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    effective_profile = profile or "default"
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning infrastructure...", total=None)
+
+        try:
+            session = boto3.Session(profile_name=effective_profile)
+            graph = GraphEngine()
+            run_all_scanners(session, graph, effective_region)
+            progress.update(task, description="Validating constraints...")
+
+            # Validate
+            validator = TopologyValidator(constraints)
+            result = validator.validate(graph)
+
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/]")
+            raise typer.Exit(1)
+
+    # Display results
+    console.print("[bold]Validation Results[/bold]\n")
+    console.print(f"Region: {effective_region}")
+    console.print(f"Resources: {len(graph.nodes)}")
+    console.print(f"Constraints: {len(constraints)}")
+    console.print()
+
+    if result.is_valid:
+        console.print("[green]✓ All constraints passed![/green]")
+    else:
+        # Group by severity
+        by_severity: dict[str, list] = {}
+        for v in result.violations:
+            sev = v.severity.value
+            if sev not in by_severity:
+                by_severity[sev] = []
+            by_severity[sev].append(v)
+
+        console.print(f"[red]✗ Found {len(result.violations)} violations[/red]\n")
+
+        for severity in ["critical", "high", "medium", "low", "info"]:
+            if severity in by_severity:
+                console.print(
+                    f"[bold]{severity.upper()}[/bold] ({len(by_severity[severity])})"
+                )
+                for v in by_severity[severity][:5]:  # Show first 5
+                    console.print(f"  • {v.constraint_name}: {v.resource_id}")
+                    if v.message:
+                        console.print(f"    [dim]{v.message}[/dim]")
+                if len(by_severity[severity]) > 5:
+                    console.print(f"  ... and {len(by_severity[severity]) - 5} more")
+                console.print()
+
+    # Export if requested
+    if output:
+        if output.suffix == ".json":
+            import json as json_module
+
+            with open(output, "w") as f:
+                json_module.dump(result.to_dict(), f, indent=2)
+            console.print(f"\n[green]✓ Saved report: {output}[/]")
+        else:
+            # Markdown
+            with open(output, "w") as f:
+                f.write("# Topology Validation Report\n\n")
+                f.write(f"- Region: {effective_region}\n")
+                f.write(f"- Resources: {len(graph.nodes)}\n")
+                f.write(f"- Valid: {'Yes' if result.is_valid else 'No'}\n")
+                f.write(f"- Violations: {len(result.violations)}\n\n")
+                for v in result.violations:
+                    f.write(
+                        f"- **{v.constraint_name}** ({v.severity.value}): {v.resource_id}\n"
+                    )
+            console.print(f"\n[green]✓ Saved report: {output}[/]")
+
+    # Exit code based on severity
+    if not result.is_valid:
+        max_severity = max(v.severity for v in result.violations)
+        if max_severity.value in ["critical", "high"] and fail_severity in [
+            ConstraintSeverity.CRITICAL,
+            ConstraintSeverity.HIGH,
+        ]:
+            raise typer.Exit(1 if max_severity == ConstraintSeverity.HIGH else 2)
 
 
 def cli() -> None:
