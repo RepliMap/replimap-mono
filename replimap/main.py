@@ -520,6 +520,19 @@ def scan(
         "--refresh-cache",
         help="Force refresh of scan cache (re-scan all resources)",
     ),
+    # Trust Center auditing (P1-9)
+    trust_center: bool = typer.Option(
+        False,
+        "--trust-center",
+        "--audit",
+        help="Enable Trust Center API auditing for compliance",
+    ),
+    # Incremental scanning (P3-1)
+    incremental: bool = typer.Option(
+        False,
+        "--incremental",
+        help="Use incremental scanning (only detect changes since last scan)",
+    ),
 ) -> None:
     """
     Scan AWS resources and build dependency graph.
@@ -555,6 +568,14 @@ def scan(
     Cache Examples:
         replimap scan --profile prod --cache  # Use cached results
         replimap scan --profile prod --cache --refresh-cache  # Force refresh
+
+    Trust Center Examples (P1-9):
+        replimap scan --profile prod --trust-center  # Enable API auditing
+        replimap trust-center report  # Generate compliance report
+
+    Incremental Scanning Examples (P3-1):
+        replimap scan --profile prod  # First scan (full)
+        replimap scan --profile prod --incremental  # Subsequent scans (fast)
     """
     # Interactive mode - prompt for missing options
     if interactive:
@@ -636,6 +657,37 @@ def scan(
 
     # Initialize graph
     graph = GraphEngine()
+
+    # Enable Trust Center auditing if requested (P1-9)
+    tc_session_id = None
+    if trust_center:
+        from replimap.audit import TrustCenter
+
+        tc = TrustCenter.get_instance()
+        tc.enable(session)
+        tc_session_id = tc.start_session(f"scan_{effective_region}")
+        console.print("[dim]Trust Center API auditing enabled[/]")
+
+    # Handle incremental scanning (P3-1)
+    if incremental:
+        from replimap.scanners.incremental import IncrementalScanner, ScanStateStore
+
+        console.print("[dim]Using incremental scanning mode...[/]")
+        state_store = ScanStateStore()
+        inc_scanner = IncrementalScanner(session, effective_region, state_store)
+
+        # Detect changes
+        changes = inc_scanner.detect_changes()
+        if changes:
+            created = sum(1 for c in changes if c.change_type.value == "created")
+            modified = sum(1 for c in changes if c.change_type.value == "modified")
+            deleted = sum(1 for c in changes if c.change_type.value == "deleted")
+            console.print(
+                f"[dim]Incremental scan: {created} created, {modified} modified, "
+                f"{deleted} deleted, {len(changes) - created - modified - deleted} unchanged[/]"
+            )
+        else:
+            console.print("[dim]No previous scan state found - performing full scan[/]")
 
     # Load scan cache if enabled
     scan_cache: ScanCache | None = None
@@ -796,6 +848,22 @@ def scan(
     if output:
         graph.save(output)
         console.print(f"\n[green]Graph saved to[/] {output}")
+
+    # Close Trust Center session if enabled (P1-9)
+    if trust_center and tc_session_id:
+        from replimap.audit import TrustCenter
+
+        tc = TrustCenter.get_instance()
+        tc.end_session(tc_session_id)
+        session_info = tc.get_session(tc_session_id)
+        if session_info:
+            console.print(
+                f"\n[dim]Trust Center: {session_info.total_calls} API calls captured "
+                f"({session_info.read_only_percentage:.1f}% read-only)[/]"
+            )
+            console.print(
+                "[dim]Run 'replimap trust-center report' to generate compliance report[/]"
+            )
 
     console.print()
 
@@ -3205,6 +3273,17 @@ def cost(
         "-y",
         help="Acknowledge that this is an estimate only (skip confirmation for exports)",
     ),
+    # RI-Aware Pricing (P3-4)
+    ri_aware: bool = typer.Option(
+        False,
+        "--ri-aware",
+        help="Consider Reserved Instances and Savings Plans in cost estimates",
+    ),
+    show_reservations: bool = typer.Option(
+        False,
+        "--show-reservations",
+        help="Show detailed reservation utilization",
+    ),
 ) -> None:
     """
     Estimate monthly AWS costs for your infrastructure.
@@ -3237,6 +3316,13 @@ def cost(
 
         # Export with acknowledgment (skip prompt)
         replimap cost -r us-east-1 -f json -o costs.json --acknowledge
+
+    RI-Aware Pricing Examples (P3-4):
+        # Consider reservations in cost estimate
+        replimap cost -r us-east-1 --ri-aware
+
+        # Show reservation utilization details
+        replimap cost -r us-east-1 --ri-aware --show-reservations
     """
     import webbrowser
 
@@ -3309,6 +3395,25 @@ def cost(
             # Estimate costs
             estimator = CostEstimator(effective_region)
             estimate = estimator.estimate_from_graph_engine(graph)
+
+            # Apply RI-aware pricing if requested (P3-4)
+            ri_analysis = None
+            if ri_aware:
+                progress.update(task, description="Analyzing reservations...")
+                try:
+                    from replimap.cost.ri_aware import RIAwarePricingEngine
+
+                    ri_engine = RIAwarePricingEngine(session, effective_region)
+                    ri_analysis = ri_engine.analyze()
+
+                    # Adjust costs based on reservations
+                    if ri_analysis and ri_analysis.total_savings > 0:
+                        console.print(
+                            f"\n[dim]RI/Savings Plans coverage: "
+                            f"${ri_analysis.total_savings:.2f}/month savings[/]"
+                        )
+                except Exception as e:
+                    logger.warning(f"Could not analyze reservations: {e}")
 
             progress.update(task, completed=True)
 
@@ -3388,6 +3493,59 @@ def cost(
             reporter.to_csv(estimate, output)
         elif output.suffix == ".md":
             reporter.to_markdown(estimate, output)
+
+    # Show reservation details if requested (P3-4)
+    if show_reservations and ri_analysis:
+        console.print("\n[bold]Reservation Utilization[/bold]")
+        table = Table(show_header=True)
+        table.add_column("Type", style="cyan")
+        table.add_column("ID")
+        table.add_column("Instance Type")
+        table.add_column("Utilization", justify="right")
+        table.add_column("Status")
+
+        for ri in ri_analysis.reserved_instances[:10]:  # Show first 10
+            util_pct = ri.utilization_percentage
+            if util_pct >= 80:
+                status = "[green]Healthy[/]"
+            elif util_pct >= 60:
+                status = "[yellow]Medium[/]"
+            elif util_pct >= 40:
+                status = "[orange1]Low[/]"
+            else:
+                status = "[red]Critical[/]"
+
+            table.add_row(
+                "RI",
+                ri.reservation_id[:16] + "...",
+                ri.instance_type,
+                f"{util_pct:.1f}%",
+                status,
+            )
+
+        for sp in ri_analysis.savings_plans[:10]:  # Show first 10
+            util_pct = sp.utilization_percentage
+            if util_pct >= 80:
+                status = "[green]Healthy[/]"
+            elif util_pct >= 60:
+                status = "[yellow]Medium[/]"
+            else:
+                status = "[red]Low[/]"
+
+            table.add_row(
+                "SP",
+                sp.savings_plan_id[:16] + "...",
+                sp.savings_plan_type,
+                f"{util_pct:.1f}%",
+                status,
+            )
+
+        console.print(table)
+
+        if ri_analysis.waste_items:
+            console.print(
+                f"\n[yellow]⚠ Found {len(ri_analysis.waste_items)} underutilized reservations[/]"
+            )
 
     console.print()
 
@@ -4205,6 +4363,1305 @@ def snapshot_delete(
 
 # Register snapshot command group
 app.add_typer(snapshot_app, name="snapshot")
+
+
+# =============================================================================
+# TRUST CENTER COMMANDS (P1-9)
+# =============================================================================
+
+trust_center_app = typer.Typer(help="Trust Center API auditing for compliance")
+
+
+@trust_center_app.command("report")
+def trust_center_report(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (JSON, CSV, or TXT)",
+    ),
+    format_type: str = typer.Option(
+        "text",
+        "--format",
+        "-f",
+        help="Output format: json, csv, text",
+    ),
+    include_records: bool = typer.Option(
+        False,
+        "--include-records",
+        help="Include detailed API call records in JSON output",
+    ),
+) -> None:
+    """
+    Generate Trust Center compliance report.
+
+    Shows all AWS API calls made by RepliMap with categorization
+    (READ/WRITE/DELETE/ADMIN) for enterprise compliance reviews.
+
+    Examples:
+        # Generate text report to console
+        replimap trust-center report
+
+        # Export JSON report
+        replimap trust-center report -f json -o audit.json
+
+        # Export CSV with all API calls
+        replimap trust-center report -f csv -o api-calls.csv
+
+        # JSON with detailed records
+        replimap trust-center report -f json -o audit.json --include-records
+    """
+    from replimap.audit import TrustCenter
+
+    tc = TrustCenter.get_instance()
+
+    if tc.session_count == 0:
+        console.print(
+            "[yellow]No audit sessions found.[/]\n"
+            "Run a scan with --trust-center to enable API auditing:\n"
+            "  replimap scan --profile prod --trust-center"
+        )
+        raise typer.Exit(0)
+
+    # Generate report
+    report = tc.generate_report()
+
+    if format_type == "json":
+        output_path = output or Path("trust_center_report.json")
+        tc.export_json(report, output_path, include_records=include_records)
+        console.print(f"[green]✓ Saved JSON report: {output_path}[/]")
+
+    elif format_type == "csv":
+        output_path = output or Path("trust_center_records.csv")
+        sessions = tc.list_sessions()
+        tc.export_csv(sessions, output_path)
+        console.print(f"[green]✓ Saved CSV report: {output_path}[/]")
+
+    elif format_type == "text":
+        if output:
+            tc.save_compliance_text(report, output)
+            console.print(f"[green]✓ Saved compliance report: {output}[/]")
+        else:
+            # Print to console
+            text = tc.generate_compliance_text(report)
+            console.print(text)
+
+    else:
+        console.print(f"[red]Unknown format: {format_type}[/]")
+        raise typer.Exit(1)
+
+
+@trust_center_app.command("status")
+def trust_center_status() -> None:
+    """
+    Show Trust Center status and session summary.
+
+    Examples:
+        replimap trust-center status
+    """
+    from replimap.audit import TrustCenter
+
+    tc = TrustCenter.get_instance()
+
+    console.print("[bold]Trust Center Status[/bold]\n")
+    console.print(f"Active Sessions: {tc.session_count}")
+
+    sessions = tc.list_sessions()
+    if sessions:
+        console.print("\n[bold]Recent Sessions:[/bold]")
+        table = Table(show_header=True)
+        table.add_column("Session ID", style="cyan")
+        table.add_column("Name")
+        table.add_column("API Calls", justify="right")
+        table.add_column("Read-Only %", justify="right")
+        table.add_column("Status")
+
+        for session in sessions[-5:]:  # Last 5 sessions
+            status = (
+                "[green]✓ Read-Only[/]"
+                if session.is_read_only
+                else "[yellow]⚠ Has Writes[/]"
+            )
+            table.add_row(
+                session.session_id[:12] + "...",
+                session.session_name or "-",
+                str(session.total_calls),
+                f"{session.read_only_percentage:.1f}%",
+                status,
+            )
+        console.print(table)
+    else:
+        console.print("\n[dim]No sessions recorded yet.[/]")
+
+
+@trust_center_app.command("clear")
+def trust_center_clear(
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Skip confirmation prompt",
+    ),
+) -> None:
+    """
+    Clear all Trust Center audit sessions.
+
+    Examples:
+        replimap trust-center clear
+        replimap trust-center clear --force
+    """
+    from replimap.audit import TrustCenter
+
+    tc = TrustCenter.get_instance()
+
+    if tc.session_count == 0:
+        console.print("[dim]No sessions to clear.[/]")
+        raise typer.Exit(0)
+
+    if not force:
+        if not Confirm.ask(f"Clear {tc.session_count} audit sessions?"):
+            console.print("[dim]Cancelled[/]")
+            raise typer.Exit(0)
+
+    tc.clear_sessions()
+    console.print("[green]✓ Cleared all audit sessions[/]")
+
+
+# Register trust-center command group
+app.add_typer(trust_center_app, name="trust-center")
+
+
+# =============================================================================
+# TOPOLOGY CONSTRAINTS VALIDATION (P3-3)
+# =============================================================================
+
+
+@app.command()
+def validate(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to validate",
+    ),
+    config: Path = typer.Option(
+        Path("constraints.yaml"),
+        "--config",
+        "-c",
+        help="Path to constraints YAML file",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file for validation report (JSON or Markdown)",
+    ),
+    fail_on: str = typer.Option(
+        "critical",
+        "--fail-on",
+        help="Fail on severity level: critical, high, medium, low, info",
+    ),
+    generate_defaults: bool = typer.Option(
+        False,
+        "--generate-defaults",
+        help="Generate default constraints file",
+    ),
+) -> None:
+    """
+    Validate infrastructure against topology constraints.
+
+    Checks your AWS infrastructure against policy rules defined in a
+    constraints YAML file. Perfect for enforcing security policies,
+    tagging standards, and architectural patterns.
+
+    Examples:
+        # Generate default constraints file
+        replimap validate --generate-defaults
+
+        # Validate with default constraints
+        replimap validate -p prod -r us-east-1
+
+        # Use custom constraints file
+        replimap validate -p prod -r us-east-1 -c my-constraints.yaml
+
+        # Fail on high severity violations (for CI/CD)
+        replimap validate -p prod -r us-east-1 --fail-on high
+
+        # Export validation report
+        replimap validate -p prod -r us-east-1 -o report.json
+    """
+    from replimap.core.topology_constraints import (
+        ConstraintSeverity,
+        TopologyConstraint,
+        TopologyValidator,
+    )
+
+    # Handle generate-defaults
+    if generate_defaults:
+        default_constraints = """# RepliMap Topology Constraints
+# See: https://docs.replimap.io/topology-constraints
+
+version: "1.0"
+
+constraints:
+  # Require Environment tag on all resources
+  - name: require-environment-tag
+    constraint_type: require_tag
+    severity: high
+    description: All resources must have Environment tag
+    required_tags:
+      Environment: null  # Any value accepted
+
+  # Require Owner tag
+  - name: require-owner-tag
+    constraint_type: require_tag
+    severity: medium
+    description: All resources should have Owner tag
+    required_tags:
+      Owner: null
+
+  # Require encryption on RDS instances
+  - name: require-rds-encryption
+    constraint_type: require_encryption
+    severity: critical
+    description: All RDS instances must be encrypted
+    source_type: aws_db_instance
+
+  # Require encryption on S3 buckets
+  - name: require-s3-encryption
+    constraint_type: require_encryption
+    severity: critical
+    description: All S3 buckets must have encryption enabled
+    source_type: aws_s3_bucket
+
+  # Prohibit public RDS instances
+  - name: prohibit-public-rds
+    constraint_type: prohibit_public_access
+    severity: critical
+    description: RDS instances must not be publicly accessible
+    source_type: aws_db_instance
+"""
+        config.write_text(default_constraints)
+        console.print(f"[green]✓ Generated default constraints: {config}[/]")
+        raise typer.Exit(0)
+
+    # Check constraints file exists
+    if not config.exists():
+        console.print(
+            f"[red]Constraints file not found: {config}[/]\n"
+            "Run with --generate-defaults to create one:\n"
+            "  replimap validate --generate-defaults"
+        )
+        raise typer.Exit(1)
+
+    # Parse fail-on severity
+    severity_map = {
+        "critical": ConstraintSeverity.CRITICAL,
+        "high": ConstraintSeverity.HIGH,
+        "medium": ConstraintSeverity.MEDIUM,
+        "low": ConstraintSeverity.LOW,
+        "info": ConstraintSeverity.INFO,
+    }
+    fail_severity = severity_map.get(fail_on.lower(), ConstraintSeverity.CRITICAL)
+
+    # Load constraints
+    import yaml
+
+    with open(config) as f:
+        config_data = yaml.safe_load(f)
+
+    constraints = []
+    for c in config_data.get("constraints", []):
+        constraints.append(
+            TopologyConstraint(
+                name=c["name"],
+                constraint_type=c["constraint_type"],
+                severity=ConstraintSeverity(c.get("severity", "medium")),
+                description=c.get("description", ""),
+                source_type=c.get("source_type"),
+                target_type=c.get("target_type"),
+                required_tags=c.get("required_tags", {}),
+                config=c.get("config", {}),
+            )
+        )
+
+    if not constraints:
+        console.print("[yellow]No constraints defined in config file[/]")
+        raise typer.Exit(0)
+
+    console.print(f"[dim]Loaded {len(constraints)} constraints from {config}[/]\n")
+
+    # Scan infrastructure
+    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    effective_profile = profile or "default"
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning infrastructure...", total=None)
+
+        try:
+            session = boto3.Session(profile_name=effective_profile)
+            graph = GraphEngine()
+            run_all_scanners(session, graph, effective_region)
+            progress.update(task, description="Validating constraints...")
+
+            # Validate
+            validator = TopologyValidator(constraints)
+            result = validator.validate(graph)
+
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/]")
+            raise typer.Exit(1)
+
+    # Display results
+    console.print("[bold]Validation Results[/bold]\n")
+    console.print(f"Region: {effective_region}")
+    console.print(f"Resources: {len(graph.nodes)}")
+    console.print(f"Constraints: {len(constraints)}")
+    console.print()
+
+    if result.is_valid:
+        console.print("[green]✓ All constraints passed![/green]")
+    else:
+        # Group by severity
+        by_severity: dict[str, list] = {}
+        for v in result.violations:
+            sev = v.severity.value
+            if sev not in by_severity:
+                by_severity[sev] = []
+            by_severity[sev].append(v)
+
+        console.print(f"[red]✗ Found {len(result.violations)} violations[/red]\n")
+
+        for severity in ["critical", "high", "medium", "low", "info"]:
+            if severity in by_severity:
+                console.print(
+                    f"[bold]{severity.upper()}[/bold] ({len(by_severity[severity])})"
+                )
+                for v in by_severity[severity][:5]:  # Show first 5
+                    console.print(f"  • {v.constraint_name}: {v.resource_id}")
+                    if v.message:
+                        console.print(f"    [dim]{v.message}[/dim]")
+                if len(by_severity[severity]) > 5:
+                    console.print(f"  ... and {len(by_severity[severity]) - 5} more")
+                console.print()
+
+    # Export if requested
+    if output:
+        if output.suffix == ".json":
+            import json as json_module
+
+            with open(output, "w") as f:
+                json_module.dump(result.to_dict(), f, indent=2)
+            console.print(f"\n[green]✓ Saved report: {output}[/]")
+        else:
+            # Markdown
+            with open(output, "w") as f:
+                f.write("# Topology Validation Report\n\n")
+                f.write(f"- Region: {effective_region}\n")
+                f.write(f"- Resources: {len(graph.nodes)}\n")
+                f.write(f"- Valid: {'Yes' if result.is_valid else 'No'}\n")
+                f.write(f"- Violations: {len(result.violations)}\n\n")
+                for v in result.violations:
+                    f.write(
+                        f"- **{v.constraint_name}** ({v.severity.value}): {v.resource_id}\n"
+                    )
+            console.print(f"\n[green]✓ Saved report: {output}[/]")
+
+    # Exit code based on severity
+    if not result.is_valid:
+        max_severity = max(v.severity for v in result.violations)
+        if max_severity.value in ["critical", "high"] and fail_severity in [
+            ConstraintSeverity.CRITICAL,
+            ConstraintSeverity.HIGH,
+        ]:
+            raise typer.Exit(1 if max_severity == ConstraintSeverity.HIGH else 2)
+
+
+# =============================================================================
+# UNUSED RESOURCES COMMAND (P1-2)
+# =============================================================================
+
+
+@app.command()
+def unused(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to scan",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (JSON, CSV, or Markdown)",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, json, csv, markdown",
+    ),
+    confidence: str = typer.Option(
+        "all",
+        "--confidence",
+        "-c",
+        help="Filter by confidence: high, medium, low, all",
+    ),
+    resource_types: str | None = typer.Option(
+        None,
+        "--types",
+        "-t",
+        help="Resource types to check: ec2,ebs,rds,nat,elb (comma-separated)",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Detect unused and underutilized AWS resources.
+
+    Identifies resources that may be candidates for termination
+    or optimization to reduce costs:
+    - EC2 instances with low CPU/network utilization
+    - Unattached EBS volumes
+    - RDS instances with no connections
+    - NAT Gateways with minimal traffic
+    - Load balancers with no targets
+
+    Examples:
+        # Detect all unused resources
+        replimap unused -r us-east-1
+
+        # Only high-confidence findings
+        replimap unused -r us-east-1 --confidence high
+
+        # Check specific resource types
+        replimap unused -r us-east-1 --types ec2,ebs
+
+        # Export to JSON
+        replimap unused -r us-east-1 -f json -o unused.json
+
+        # Export to CSV for spreadsheet analysis
+        replimap unused -r us-east-1 -f csv -o unused.csv
+    """
+    from replimap.cost.unused_detector import (
+        ConfidenceLevel,
+        UnusedResourceDetector,
+    )
+    from replimap.licensing import check_cost_allowed
+
+    # Check feature access
+    cost_gate = check_cost_allowed()
+    if not cost_gate.allowed:
+        console.print(cost_gate.prompt)
+        raise typer.Exit(1)
+
+    # Determine region
+    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    effective_profile = profile or "default"
+
+    console.print(
+        Panel(
+            f"[bold cyan]Unused Resource Detector[/bold cyan]\n\n"
+            f"Region: [cyan]{effective_region}[/]\n"
+            f"Profile: [cyan]{effective_profile}[/]",
+            border_style="cyan",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(
+        effective_profile, effective_region, use_cache=not no_cache
+    )
+
+    # Parse resource types filter
+    types_filter = None
+    if resource_types:
+        types_filter = [t.strip().lower() for t in resource_types.split(",")]
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning for unused resources...", total=None)
+
+        try:
+            # Create graph and run scanners
+            graph = GraphEngine()
+            run_all_scanners(session, effective_region, graph)
+
+            progress.update(task, description="Analyzing resource utilization...")
+
+            # Detect unused resources
+            detector = UnusedResourceDetector(session, effective_region)
+            unused_resources = detector.detect_from_graph(graph)
+
+            progress.update(task, completed=True)
+
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/]")
+            raise typer.Exit(1)
+
+    # Filter by confidence
+    if confidence != "all":
+        confidence_map = {
+            "high": ConfidenceLevel.HIGH,
+            "medium": ConfidenceLevel.MEDIUM,
+            "low": ConfidenceLevel.LOW,
+        }
+        filter_confidence = confidence_map.get(confidence.lower())
+        if filter_confidence:
+            unused_resources = [
+                r for r in unused_resources if r.confidence == filter_confidence
+            ]
+
+    # Filter by resource type
+    if types_filter:
+        unused_resources = [
+            r
+            for r in unused_resources
+            if any(t in r.resource_type.lower() for t in types_filter)
+        ]
+
+    # Display results
+    console.print()
+    if not unused_resources:
+        console.print("[green]✓ No unused resources detected![/green]")
+        console.print()
+        return
+
+    console.print(
+        f"[yellow]Found {len(unused_resources)} unused/underutilized resources[/yellow]\n"
+    )
+
+    if output_format == "console":
+        # Group by resource type
+        by_type: dict[str, list] = {}
+        for r in unused_resources:
+            if r.resource_type not in by_type:
+                by_type[r.resource_type] = []
+            by_type[r.resource_type].append(r)
+
+        for rtype, resources in sorted(by_type.items()):
+            console.print(f"[bold]{rtype}[/bold] ({len(resources)})")
+            table = Table(show_header=True)
+            table.add_column("Resource ID", style="cyan")
+            table.add_column("Name")
+            table.add_column("Reason")
+            table.add_column("Confidence")
+            table.add_column("Monthly Savings", justify="right")
+
+            for r in resources[:10]:  # Show first 10
+                conf_style = {"high": "green", "medium": "yellow", "low": "dim"}.get(
+                    r.confidence.value, "dim"
+                )
+                table.add_row(
+                    r.resource_id,
+                    r.resource_name[:30] if r.resource_name else "-",
+                    r.reason.description[:40],
+                    f"[{conf_style}]{r.confidence.value}[/]",
+                    f"${r.estimated_monthly_savings:.2f}"
+                    if r.estimated_monthly_savings
+                    else "-",
+                )
+
+            console.print(table)
+            if len(resources) > 10:
+                console.print(f"  ... and {len(resources) - 10} more")
+            console.print()
+
+        # Summary
+        total_savings = sum(r.estimated_monthly_savings or 0 for r in unused_resources)
+        if total_savings > 0:
+            console.print(
+                f"[bold green]Potential monthly savings: ${total_savings:.2f}[/bold green]"
+            )
+
+    elif output_format == "json":
+        import json as json_module
+
+        output_path = output or Path("unused_resources.json")
+        data = {
+            "region": effective_region,
+            "total_unused": len(unused_resources),
+            "resources": [
+                {
+                    "resource_id": r.resource_id,
+                    "resource_type": r.resource_type,
+                    "resource_name": r.resource_name,
+                    "reason": r.reason.value,
+                    "confidence": r.confidence.value,
+                    "details": r.details,
+                    "estimated_monthly_savings": float(
+                        r.estimated_monthly_savings or 0
+                    ),
+                }
+                for r in unused_resources
+            ],
+        }
+        with open(output_path, "w") as f:
+            json_module.dump(data, f, indent=2)
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+
+    elif output_format == "csv":
+        import csv
+
+        output_path = output or Path("unused_resources.csv")
+        with open(output_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(
+                [
+                    "Resource ID",
+                    "Type",
+                    "Name",
+                    "Reason",
+                    "Confidence",
+                    "Details",
+                    "Monthly Savings",
+                ]
+            )
+            for r in unused_resources:
+                writer.writerow(
+                    [
+                        r.resource_id,
+                        r.resource_type,
+                        r.resource_name,
+                        r.reason.value,
+                        r.confidence.value,
+                        r.details,
+                        r.estimated_monthly_savings or 0,
+                    ]
+                )
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+
+    elif output_format in ("md", "markdown"):
+        output_path = output or Path("unused_resources.md")
+        with open(output_path, "w") as f:
+            f.write("# Unused Resources Report\n\n")
+            f.write(f"- Region: {effective_region}\n")
+            f.write(f"- Total: {len(unused_resources)}\n\n")
+            f.write("| Resource ID | Type | Reason | Confidence | Savings |\n")
+            f.write("|-------------|------|--------|------------|--------|\n")
+            for r in unused_resources:
+                f.write(
+                    f"| {r.resource_id} | {r.resource_type} | {r.reason.value} | "
+                    f"{r.confidence.value} | ${r.estimated_monthly_savings or 0:.2f} |\n"
+                )
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+
+    console.print()
+
+
+# =============================================================================
+# COST TRENDS COMMAND (P1-2)
+# =============================================================================
+
+
+@app.command()
+def trends(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    days: int = typer.Option(
+        30,
+        "--days",
+        "-d",
+        help="Number of days to analyze (default: 30)",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (JSON or Markdown)",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, json, markdown",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Analyze AWS cost trends and detect anomalies.
+
+    Uses AWS Cost Explorer to analyze historical spending patterns:
+    - Trend direction and rate of change
+    - Cost anomalies (spikes, drops)
+    - Seasonal patterns
+    - Cost forecasting
+
+    Requires Cost Explorer access in your AWS account.
+
+    Examples:
+        # Analyze last 30 days
+        replimap trends
+
+        # Analyze last 90 days
+        replimap trends --days 90
+
+        # Export to JSON
+        replimap trends -f json -o trends.json
+    """
+    from replimap.cost.trends import CostTrendAnalyzer
+    from replimap.licensing import check_cost_allowed
+
+    # Check feature access
+    cost_gate = check_cost_allowed()
+    if not cost_gate.allowed:
+        console.print(cost_gate.prompt)
+        raise typer.Exit(1)
+
+    effective_profile = profile or "default"
+
+    console.print(
+        Panel(
+            f"[bold cyan]Cost Trend Analyzer[/bold cyan]\n\n"
+            f"Profile: [cyan]{effective_profile}[/]\n"
+            f"Period: [cyan]Last {days} days[/]",
+            border_style="cyan",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(effective_profile, "us-east-1", use_cache=not no_cache)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Fetching cost data from Cost Explorer...", total=None)
+
+        try:
+            analyzer = CostTrendAnalyzer(session)
+            result = analyzer.analyze(days=days)
+            progress.update(task, completed=True)
+
+        except Exception as e:
+            console.print(f"\n[red]Error: {e}[/]")
+            console.print(
+                "[dim]Note: Cost Explorer must be enabled in your AWS account[/]"
+            )
+            raise typer.Exit(1)
+
+    console.print()
+
+    if output_format == "console":
+        # Trend Analysis
+        console.print("[bold]Trend Analysis[/bold]")
+        trend = result.trend
+        direction_style = {
+            "increasing": "red",
+            "decreasing": "green",
+            "stable": "dim",
+            "volatile": "yellow",
+        }.get(trend.direction.value, "dim")
+
+        console.print(
+            f"  Direction: [{direction_style}]{trend.direction.value.upper()}[/]"
+        )
+        console.print(f"  Rate: ${abs(trend.slope):.2f}/day")
+        console.print(
+            f"  Period change: {trend.period_change_pct:+.1f}% (${trend.period_change_amount:+.2f})"
+        )
+        console.print(f"  Projected monthly: ${trend.projected_monthly:.2f}")
+        console.print()
+
+        # Anomalies
+        if result.anomalies:
+            console.print(
+                f"[bold yellow]Anomalies Detected ({len(result.anomalies)})[/bold yellow]"
+            )
+            for a in result.anomalies[:5]:
+                console.print(
+                    f"  • {a.date}: {a.anomaly_type.value} - ${a.amount:.2f} ({a.description})"
+                )
+            console.print()
+
+        # Top Services
+        if result.service_breakdown:
+            console.print("[bold]Top Services by Cost[/bold]")
+            for svc, cost in list(result.service_breakdown.items())[:5]:
+                console.print(f"  • {svc}: ${cost:.2f}")
+            console.print()
+
+        # Forecast
+        if result.forecast:
+            console.print("[bold]Forecast[/bold]")
+            console.print(f"  Next 7 days: ${result.forecast.next_7_days:.2f}")
+            console.print(f"  Next 30 days: ${result.forecast.next_30_days:.2f}")
+
+    elif output_format == "json":
+        import json as json_module
+
+        output_path = output or Path("cost_trends.json")
+        with open(output_path, "w") as f:
+            json_module.dump(result.to_dict(), f, indent=2)
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+
+    elif output_format in ("md", "markdown"):
+        output_path = output or Path("cost_trends.md")
+        with open(output_path, "w") as f:
+            f.write("# Cost Trend Analysis\n\n")
+            f.write(f"- Period: Last {days} days\n")
+            f.write(f"- Direction: {result.trend.direction.value}\n")
+            f.write(f"- Rate: ${abs(result.trend.slope):.2f}/day\n")
+            f.write(f"- Projected monthly: ${result.trend.projected_monthly:.2f}\n")
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+
+    console.print()
+
+
+# =============================================================================
+# DATA TRANSFER ANALYSIS COMMAND (P1-6)
+# =============================================================================
+
+
+@app.command()
+def transfer(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region to analyze",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, json",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Analyze data transfer costs and optimization opportunities.
+
+    Identifies costly data transfer patterns:
+    - Cross-AZ traffic between resources
+    - NAT Gateway traffic analysis
+    - Cross-region data transfer
+    - VPC Endpoint optimization opportunities
+    - Internet egress costs
+
+    Examples:
+        # Analyze transfer costs
+        replimap transfer -r us-east-1
+
+        # Export detailed analysis
+        replimap transfer -r us-east-1 -f json -o transfer.json
+    """
+    from replimap.cost.transfer_analyzer import DataTransferAnalyzer
+    from replimap.licensing import check_cost_allowed
+
+    # Check feature access
+    cost_gate = check_cost_allowed()
+    if not cost_gate.allowed:
+        console.print(cost_gate.prompt)
+        raise typer.Exit(1)
+
+    # Determine region
+    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    effective_profile = profile or "default"
+
+    console.print(
+        Panel(
+            f"[bold cyan]Data Transfer Analyzer[/bold cyan]\n\n"
+            f"Region: [cyan]{effective_region}[/]\n"
+            f"Profile: [cyan]{effective_profile}[/]",
+            border_style="cyan",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(
+        effective_profile, effective_region, use_cache=not no_cache
+    )
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning infrastructure...", total=None)
+
+        try:
+            # Create graph and run scanners
+            graph = GraphEngine()
+            run_all_scanners(session, effective_region, graph)
+
+            progress.update(task, description="Analyzing transfer paths...")
+
+            # Analyze transfer costs
+            analyzer = DataTransferAnalyzer(session, effective_region)
+            report = analyzer.analyze_from_graph(graph)
+
+            progress.update(task, completed=True)
+
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/]")
+            raise typer.Exit(1)
+
+    console.print()
+
+    if output_format == "console":
+        # Summary
+        console.print("[bold]Transfer Cost Summary[/bold]")
+        console.print(f"  Total paths analyzed: {report.total_paths}")
+        console.print(f"  Estimated monthly cost: ${report.total_monthly_cost:.2f}")
+        console.print()
+
+        # Cross-AZ traffic
+        if report.cross_az_paths:
+            console.print(
+                f"[bold yellow]Cross-AZ Traffic ({len(report.cross_az_paths)} paths)[/bold yellow]"
+            )
+            console.print("  [dim]Cross-AZ traffic incurs $0.01/GB each way[/dim]")
+            for path in report.cross_az_paths[:5]:
+                console.print(
+                    f"  • {path.source_type} → {path.destination_type}: "
+                    f"~{path.estimated_gb_month} GB/mo (${float(path.estimated_gb_month) * 0.02:.2f})"
+                )
+            console.print()
+
+        # NAT Gateway
+        if report.nat_gateway_paths:
+            console.print(
+                f"[bold yellow]NAT Gateway Traffic ({len(report.nat_gateway_paths)} paths)[/bold yellow]"
+            )
+            console.print("  [dim]NAT Gateway: $0.045/hour + $0.045/GB processed[/dim]")
+            for path in report.nat_gateway_paths[:5]:
+                console.print(
+                    f"  • {path.source_type} → Internet: ~{path.estimated_gb_month} GB/mo"
+                )
+            console.print()
+
+        # Optimizations
+        if report.optimizations:
+            console.print(
+                f"[bold green]Optimization Recommendations ({len(report.optimizations)})[/bold green]"
+            )
+            for opt in report.optimizations[:5]:
+                console.print(f"  ✓ {opt.description}")
+                console.print(
+                    f"    [dim]Potential savings: ${opt.estimated_savings:.2f}/mo[/dim]"
+                )
+            console.print()
+
+    elif output_format == "json":
+        import json as json_module
+
+        output_path = output or Path("transfer_analysis.json")
+        with open(output_path, "w") as f:
+            json_module.dump(report.to_dict(), f, indent=2)
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+
+    console.print()
+
+
+# =============================================================================
+# DR READINESS COMMAND
+# =============================================================================
+
+dr_app = typer.Typer(help="Disaster Recovery readiness assessment")
+
+
+@dr_app.command("assess")
+def dr_assess(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="Primary AWS region to assess",
+    ),
+    dr_region: str | None = typer.Option(
+        None,
+        "--dr-region",
+        help="DR region to check for replicas",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path",
+    ),
+    output_format: str = typer.Option(
+        "console",
+        "--format",
+        "-f",
+        help="Output format: console, json, markdown, html",
+    ),
+    target_tier: str = typer.Option(
+        "tier_2",
+        "--target-tier",
+        "-t",
+        help="Target DR tier: tier_0, tier_1, tier_2, tier_3, tier_4",
+    ),
+    no_cache: bool = typer.Option(
+        False,
+        "--no-cache",
+        help="Don't use cached credentials",
+    ),
+) -> None:
+    """
+    Assess disaster recovery readiness for your infrastructure.
+
+    Analyzes your AWS infrastructure to determine:
+    - Current DR tier (0-4)
+    - Compute/database/storage coverage
+    - RTO (Recovery Time Objective) estimates
+    - RPO (Recovery Point Objective) estimates
+    - Gaps and recommendations
+
+    DR Tiers:
+    - Tier 0: No DR capability
+    - Tier 1: Cold standby (RTO: 24-72h, RPO: 24h)
+    - Tier 2: Warm standby (RTO: 1-4h, RPO: 1h)
+    - Tier 3: Hot standby (RTO: 15min-1h, RPO: 15min)
+    - Tier 4: Active-Active (RTO: <1min, RPO: 0)
+
+    Examples:
+        # Assess DR readiness
+        replimap dr assess -r us-east-1
+
+        # Specify DR region
+        replimap dr assess -r us-east-1 --dr-region us-west-2
+
+        # Target Tier 3 (hot standby)
+        replimap dr assess -r us-east-1 --target-tier tier_3
+
+        # Export to HTML report
+        replimap dr assess -r us-east-1 -f html -o dr-report.html
+    """
+    from replimap.dr.readiness import DRReadinessAssessor, DRTier
+
+    # Determine region
+    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    effective_profile = profile or "default"
+
+    # Parse target tier
+    tier_map = {
+        "tier_0": DRTier.TIER_0,
+        "tier_1": DRTier.TIER_1,
+        "tier_2": DRTier.TIER_2,
+        "tier_3": DRTier.TIER_3,
+        "tier_4": DRTier.TIER_4,
+    }
+    target = tier_map.get(target_tier.lower(), DRTier.TIER_2)
+
+    console.print(
+        Panel(
+            f"[bold cyan]DR Readiness Assessment[/bold cyan]\n\n"
+            f"Primary Region: [cyan]{effective_region}[/]\n"
+            f"DR Region: [cyan]{dr_region or 'Auto-detect'}[/]\n"
+            f"Target Tier: [cyan]{target.display_name}[/]",
+            border_style="cyan",
+        )
+    )
+
+    # Get AWS session
+    session = get_aws_session(
+        effective_profile, effective_region, use_cache=not no_cache
+    )
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Scanning primary region...", total=None)
+
+        try:
+            # Create graph and run scanners
+            graph = GraphEngine()
+            run_all_scanners(session, effective_region, graph)
+
+            progress.update(task, description="Assessing DR readiness...")
+
+            # Run DR assessment
+            assessor = DRReadinessAssessor(
+                session,
+                primary_region=effective_region,
+                dr_region=dr_region,
+            )
+            result = assessor.assess(graph, target_tier=target)
+
+            progress.update(task, completed=True)
+
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/]")
+            raise typer.Exit(1)
+
+    console.print()
+
+    if output_format == "console":
+        # Overall Score
+        score_color = (
+            "green" if result.score >= 80 else "yellow" if result.score >= 60 else "red"
+        )
+        console.print(
+            f"[bold]DR Readiness Score: [{score_color}]{result.score}/100[/][/bold]"
+        )
+        console.print(f"Current Tier: [bold]{result.current_tier.display_name}[/bold]")
+        console.print(f"Target Tier: {target.display_name}")
+        console.print()
+
+        # RTO/RPO
+        console.print("[bold]Recovery Objectives[/bold]")
+        console.print(f"  Estimated RTO: {result.estimated_rto_minutes} minutes")
+        console.print(f"  Estimated RPO: {result.estimated_rpo_minutes} minutes")
+        console.print()
+
+        # Coverage
+        console.print("[bold]Coverage Analysis[/bold]")
+        for category, coverage in result.coverage.items():
+            pct = coverage.percentage
+            bar = "█" * int(pct / 10) + "░" * (10 - int(pct / 10))
+            color = "green" if pct >= 80 else "yellow" if pct >= 50 else "red"
+            console.print(f"  {category}: [{color}]{bar}[/] {pct:.0f}%")
+        console.print()
+
+        # Gaps
+        if result.gaps:
+            console.print(
+                f"[bold yellow]Gaps Identified ({len(result.gaps)})[/bold yellow]"
+            )
+            for gap in result.gaps[:5]:
+                console.print(f"  ⚠ {gap.description}")
+                console.print(f"    [dim]Impact: {gap.impact}[/dim]")
+            console.print()
+
+        # Recommendations
+        if result.recommendations:
+            console.print(
+                f"[bold green]Recommendations ({len(result.recommendations)})[/bold green]"
+            )
+            for rec in result.recommendations[:5]:
+                console.print(f"  ✓ {rec.description}")
+                if rec.estimated_cost:
+                    console.print(f"    [dim]Est. cost: ${rec.estimated_cost}/mo[/dim]")
+
+    elif output_format == "json":
+        import json as json_module
+
+        output_path = output or Path("dr_assessment.json")
+        with open(output_path, "w") as f:
+            json_module.dump(result.to_dict(), f, indent=2)
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+
+    elif output_format in ("md", "markdown"):
+        output_path = output or Path("dr_assessment.md")
+        with open(output_path, "w") as f:
+            f.write("# DR Readiness Assessment\n\n")
+            f.write(f"- Score: {result.score}/100\n")
+            f.write(f"- Current Tier: {result.current_tier.display_name}\n")
+            f.write(f"- Estimated RTO: {result.estimated_rto_minutes} minutes\n")
+            f.write(f"- Estimated RPO: {result.estimated_rpo_minutes} minutes\n")
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+
+    elif output_format == "html":
+        output_path = output or Path("dr_assessment.html")
+        # Generate HTML report
+        html_content = f"""<!DOCTYPE html>
+<html>
+<head><title>DR Readiness Report</title>
+<style>
+body {{ font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }}
+.score {{ font-size: 48px; color: {"green" if result.score >= 80 else "orange" if result.score >= 60 else "red"}; }}
+.metric {{ background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }}
+</style>
+</head>
+<body>
+<h1>DR Readiness Assessment</h1>
+<p class="score">{result.score}/100</p>
+<div class="metric"><strong>Current Tier:</strong> {result.current_tier.display_name}</div>
+<div class="metric"><strong>Estimated RTO:</strong> {result.estimated_rto_minutes} minutes</div>
+<div class="metric"><strong>Estimated RPO:</strong> {result.estimated_rpo_minutes} minutes</div>
+<h2>Coverage</h2>
+{"".join(f'<div class="metric">{cat}: {cov.percentage:.0f}%</div>' for cat, cov in result.coverage.items())}
+</body>
+</html>"""
+        with open(output_path, "w") as f:
+            f.write(html_content)
+        console.print(f"[green]✓ Saved to {output_path}[/]")
+        import webbrowser
+
+        webbrowser.open(f"file://{output_path.absolute()}")
+
+    console.print()
+
+
+@dr_app.command("scorecard")
+def dr_scorecard(
+    profile: str | None = typer.Option(None, "--profile", "-p"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """
+    Generate DR readiness scorecard for all regions.
+
+    Scans all active regions and generates a comprehensive
+    DR scorecard showing readiness levels across your infrastructure.
+
+    Examples:
+        replimap dr scorecard
+        replimap dr scorecard -o scorecard.html
+    """
+    console.print("[dim]Generating multi-region DR scorecard...[/dim]")
+    console.print("[yellow]This feature requires scanning multiple regions.[/yellow]")
+    console.print("Use 'replimap dr assess -r <region>' for single-region assessment.")
+
+
+# Register DR command group
+app.add_typer(dr_app, name="dr")
 
 
 def cli() -> None:

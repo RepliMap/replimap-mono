@@ -71,3 +71,6 @@ terraform.rc
 # OS
 .DS_Store
 Thumbs.db
+
+# RepliMap cache/data directories
+.replimap/

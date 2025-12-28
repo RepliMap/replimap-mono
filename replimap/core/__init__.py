@@ -1,5 +1,13 @@
 """Core engine components for RepliMap."""
 
+from .async_aws import (
+    AsyncAWSClient,
+    AsyncRateLimiter,
+    AWSResourceScanner,
+    CallStats,
+    RateLimiterRegistry,
+    get_rate_limiter_registry,
+)
 from .aws_config import BOTO_CONFIG, get_boto_config
 from .bootstrap import (
     EnvironmentDetector,
@@ -20,6 +28,17 @@ from .circuit_breaker import (
     get_circuit_breaker_registry,
 )
 from .config import ConfigLoader, RepliMapConfig, deep_merge, generate_example_config
+from .errors import (
+    DetailedError,
+    ErrorAggregator,
+    ErrorCategory,
+    ScanCompletionStatus,
+    categorize_error,
+    get_error_aggregator,
+    get_recovery_recommendation,
+    is_retryable,
+    reset_error_aggregator,
+)
 from .filters import ScanFilter, apply_filter_to_graph
 from .graph_engine import GraphEngine, SCCResult, TarjanSCC
 from .models import ResourceNode
@@ -52,6 +71,35 @@ from .selection import (
     apply_selection,
     build_subgraph_from_selection,
 )
+from .state import (
+    ErrorRecord,
+    RepliMapState,
+    ScanRecord,
+    SnapshotInfo,
+    StateManager,
+    compute_config_hash,
+)
+from .storage import (
+    ConfigCompressor,
+    GraphStore,
+    NodeInfo,
+    StorageStats,
+    migrate_from_cache,
+    migrate_from_json,
+)
+from .topology_constraints import (
+    ConstraintType,
+    ConstraintViolation,
+    TopologyConstraint,
+    TopologyConstraintsConfig,
+    TopologyValidator,
+    ValidationResult,
+    ViolationSeverity,
+    create_default_constraints,
+    generate_sample_config_yaml,
+    load_constraints_from_yaml,
+    validate_topology,
+)
 
 __all__ = [
     # Models
@@ -60,9 +108,26 @@ __all__ = [
     # SCC Analysis
     "SCCResult",
     "TarjanSCC",
+    # Async AWS Client
+    "AsyncAWSClient",
+    "AsyncRateLimiter",
+    "AWSResourceScanner",
+    "CallStats",
+    "RateLimiterRegistry",
+    "get_rate_limiter_registry",
     # AWS Config
     "BOTO_CONFIG",
     "get_boto_config",
+    # Error Handling
+    "DetailedError",
+    "ErrorAggregator",
+    "ErrorCategory",
+    "ScanCompletionStatus",
+    "categorize_error",
+    "get_error_aggregator",
+    "get_recovery_recommendation",
+    "is_retryable",
+    "reset_error_aggregator",
     # Configuration (Level 2-5)
     "ConfigLoader",
     "RepliMapConfig",
@@ -114,4 +179,30 @@ __all__ = [
     "GraphSelector",
     "apply_selection",
     "build_subgraph_from_selection",
+    # Storage Engine
+    "GraphStore",
+    "NodeInfo",
+    "StorageStats",
+    "ConfigCompressor",
+    "migrate_from_json",
+    "migrate_from_cache",
+    # State Management
+    "StateManager",
+    "RepliMapState",
+    "ScanRecord",
+    "SnapshotInfo",
+    "ErrorRecord",
+    "compute_config_hash",
+    # Topology Constraints (P3-3)
+    "TopologyValidator",
+    "TopologyConstraint",
+    "TopologyConstraintsConfig",
+    "ConstraintType",
+    "ConstraintViolation",
+    "ValidationResult",
+    "ViolationSeverity",
+    "load_constraints_from_yaml",
+    "validate_topology",
+    "create_default_constraints",
+    "generate_sample_config_yaml",
 ]

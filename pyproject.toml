@@ -51,6 +51,7 @@ dependencies = [
     "rich>=13.0.0",
     "pyyaml>=6.0.0",
     "httpx>=0.25.0",
+    "zstandard>=0.21.0",
 ]
 
 [project.optional-dependencies]
@@ -61,6 +62,7 @@ dev = [
     "mypy>=1.0.0",
     "ruff>=0.1.0",
     "boto3-stubs[ec2,s3,rds,sts]>=1.28.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 # Note: Checkov is used via CLI subprocess, not as a Python import.
@@ -106,6 +108,7 @@ dev = [
     "ruff>=0.1.0",
     "hatch>=1.9.0",
     "boto3-stubs[ec2,s3,rds,sts]>=1.28.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 [tool.mypy]
@@ -120,7 +123,7 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["boto3.*", "botocore.*", "networkx.*", "aiobotocore.*"]
+module = ["boto3.*", "botocore.*", "networkx.*", "aiobotocore.*", "zstandard.*", "yaml"]
 ignore_missing_imports = true
 
 [tool.ruff]

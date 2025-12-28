@@ -9,6 +9,8 @@ Provides infrastructure visualization with:
 - Environment detection and filtering
 - Smart VPC-based aggregation
 - Overview mode with progressive disclosure
+- Multi-region graph aggregation
+- Global resource context and views
 """
 
 from replimap.graph.aggregation import (
@@ -36,6 +38,18 @@ from replimap.graph.cost_overlay import (
     generate_cost_overlay_css,
     generate_cost_overlay_js,
 )
+from replimap.graph.cross_region import (
+    CrossRegionAnalysis,
+    CrossRegionDependency,
+    CrossRegionDetector,
+    CrossRegionType,
+    ReplicationDirection,
+    calculate_replication_coverage,
+    detect_cross_region_dependencies,
+    enrich_graph_with_cross_region,
+    find_single_region_resources,
+    get_cross_region_pairs,
+)
 from replimap.graph.drift import (
     DriftDetector,
     DriftedAttribute,
@@ -59,6 +73,26 @@ from replimap.graph.filters import (
     GraphFilter,
     ResourceVisibility,
 )
+from replimap.graph.global_context import (
+    CATEGORY_COLORS,
+    CATEGORY_ICONS,
+    RESOURCE_CATEGORY,
+    GlobalCategory,
+    GlobalContext,
+    GlobalContextConfig,
+    GlobalContextExtractor,
+    GlobalResourceType,
+    SuperNode,
+    categorize_node,
+    extract_global_context,
+    find_unused_global_resources,
+    get_iam_role_usage,
+    is_global_resource,
+    merge_global_context,
+)
+from replimap.graph.global_context import (
+    ViewMode as GlobalViewMode,
+)
 from replimap.graph.grouper import (
     DEFAULT_COLLAPSE_THRESHOLD,
     GroupingConfig,
@@ -79,6 +113,24 @@ from replimap.graph.link_classification import (
     enrich_links_with_classification,
     get_dependency_links,
     get_traffic_flow_links,
+)
+from replimap.graph.multi_region import (
+    COMMON_REGIONS,
+    REGION_COLORS,
+    REGION_DISPLAY_NAMES,
+    REGION_GROUPS,
+    MultiRegionConfig,
+    MultiRegionGraph,
+    MultiRegionScanner,
+    RegionGroup,
+    RegionScanResult,
+    aggregate_regional_graphs,
+    calculate_region_distribution,
+    create_multi_region_scanner,
+    detect_primary_region,
+    enrich_nodes_with_region,
+    get_region_color,
+    get_regions_for_group,
 )
 from replimap.graph.naming import (
     DisplayName,
@@ -224,4 +276,49 @@ __all__ = [
     "enrich_nodes_with_orphan_status",
     "generate_orphan_visualization_css",
     "generate_orphan_visualization_js",
+    # Multi-Region
+    "MultiRegionScanner",
+    "MultiRegionGraph",
+    "MultiRegionConfig",
+    "RegionScanResult",
+    "RegionGroup",
+    "REGION_GROUPS",
+    "REGION_COLORS",
+    "REGION_DISPLAY_NAMES",
+    "COMMON_REGIONS",
+    "aggregate_regional_graphs",
+    "create_multi_region_scanner",
+    "enrich_nodes_with_region",
+    "get_region_color",
+    "get_regions_for_group",
+    "detect_primary_region",
+    "calculate_region_distribution",
+    # Global Context
+    "GlobalContext",
+    "GlobalContextConfig",
+    "GlobalContextExtractor",
+    "GlobalCategory",
+    "GlobalResourceType",
+    "GlobalViewMode",
+    "SuperNode",
+    "CATEGORY_COLORS",
+    "CATEGORY_ICONS",
+    "RESOURCE_CATEGORY",
+    "extract_global_context",
+    "merge_global_context",
+    "get_iam_role_usage",
+    "find_unused_global_resources",
+    "categorize_node",
+    "is_global_resource",
+    # Cross-Region Dependencies
+    "CrossRegionDetector",
+    "CrossRegionDependency",
+    "CrossRegionAnalysis",
+    "CrossRegionType",
+    "ReplicationDirection",
+    "detect_cross_region_dependencies",
+    "enrich_graph_with_cross_region",
+    "get_cross_region_pairs",
+    "find_single_region_resources",
+    "calculate_replication_coverage",
 ]
