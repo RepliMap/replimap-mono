@@ -617,7 +617,7 @@ Incremental scanning uses the AWS ResourceGroupsTaggingAPI for efficient change 
 
 ```bash
 # First scan - full scan, builds baseline
-replimap scan --profile prod --incremental
+replimap scan --profile prod
 
 # Subsequent scans - only detect changes
 replimap scan --profile prod --incremental
