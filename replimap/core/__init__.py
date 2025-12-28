@@ -20,6 +20,17 @@ from .cache import (
     populate_graph_from_cache,
     update_cache_from_graph,
 )
+from .errors import (
+    DetailedError,
+    ErrorAggregator,
+    ErrorCategory,
+    ScanCompletionStatus,
+    categorize_error,
+    get_error_aggregator,
+    get_recovery_recommendation,
+    is_retryable,
+    reset_error_aggregator,
+)
 from .circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerRegistry,
@@ -94,6 +105,16 @@ __all__ = [
     # AWS Config
     "BOTO_CONFIG",
     "get_boto_config",
+    # Error Handling
+    "DetailedError",
+    "ErrorAggregator",
+    "ErrorCategory",
+    "ScanCompletionStatus",
+    "categorize_error",
+    "get_error_aggregator",
+    "get_recovery_recommendation",
+    "is_retryable",
+    "reset_error_aggregator",
     # Configuration (Level 2-5)
     "ConfigLoader",
     "RepliMapConfig",
