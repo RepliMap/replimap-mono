@@ -721,3 +721,342 @@ def check_output_format_allowed(output_format: str) -> GateResult:
     prompt_key = f"{output_format.lower()}_not_available"
     prompt = get_upgrade_prompt(prompt_key)
     return GateResult(allowed=False, prompt=prompt)
+
+
+# =============================================================================
+# STORAGE LAYER GATES (Solo+)
+# =============================================================================
+
+
+def check_local_cache_allowed() -> GateResult:
+    """Check if user can use local SQLite + Zstd caching."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.local_cache_enabled:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("local_cache_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_snapshot_allowed() -> GateResult:
+    """Check if user can create and use snapshots."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.max_snapshots != 0:  # 0 = disabled
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("snapshot_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_snapshot_limit(current_count: int) -> GateResult:
+    """
+    Check if user can create another snapshot.
+
+    Args:
+        current_count: Current number of snapshots stored
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import format_snapshot_limit_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+    limit = features.max_snapshots
+
+    # -1 = unlimited, 0 = disabled
+    if limit == -1:
+        return GateResult(allowed=True)
+
+    if limit == 0:
+        prompt = format_snapshot_limit_prompt(current_count, 0)
+        return GateResult(allowed=False, prompt=prompt)
+
+    if current_count < limit:
+        return GateResult(
+            allowed=True,
+            data={"remaining": limit - current_count, "limit": limit},
+        )
+
+    prompt = format_snapshot_limit_prompt(current_count, limit)
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def get_snapshot_retention_days() -> int:
+    """Get the snapshot retention period in days (0 = disabled)."""
+    from replimap.licensing.manager import get_license_manager
+
+    manager = get_license_manager()
+    return manager.current_features.snapshot_retention_days
+
+
+# =============================================================================
+# TRUST CENTER GATES (Team+)
+# =============================================================================
+
+
+def check_trust_center_allowed() -> GateResult:
+    """Check if user can use Trust Center features."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.trust_center_enabled:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("trust_center_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_trust_export_allowed(export_format: str) -> GateResult:
+    """
+    Check if user can export Trust Center data in specified format.
+
+    Args:
+        export_format: Format string (json, csv, pdf)
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if not features.trust_center_enabled:
+        prompt = get_upgrade_prompt("trust_center_not_available")
+        return GateResult(allowed=False, prompt=prompt)
+
+    if export_format.lower() in features.trust_export_formats:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt(
+        "trust_export_format_not_available",
+        {"format": export_format.upper()},
+    )
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_trust_verify_allowed() -> GateResult:
+    """Check if user can use trust verify (digital signatures, Enterprise only)."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.digital_signatures:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("trust_verify_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_trust_compliance_allowed() -> GateResult:
+    """Check if user can use trust compliance reports (Enterprise only)."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.compliance_reports:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("trust_compliance_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+# =============================================================================
+# COST FEATURE GATES
+# =============================================================================
+
+
+def check_cost_basic_allowed() -> GateResult:
+    """Check if user can use basic cost estimation (FREE tier)."""
+    from replimap.licensing.manager import get_license_manager
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.cost_basic_enabled:
+        return GateResult(allowed=True)
+
+    # Basic cost should always be available for FREE
+    return GateResult(allowed=True)
+
+
+def check_cost_diff_allowed() -> GateResult:
+    """Check if user can use cost diff comparison (Solo+)."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.cost_diff_enabled:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("cost_diff_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+# =============================================================================
+# AUDIT EXPORT FORMAT GATES
+# =============================================================================
+
+
+def check_audit_export_format_allowed(export_format: str) -> GateResult:
+    """
+    Check if user can export audit report in specified format.
+
+    Args:
+        export_format: Format string (html, pdf, json, csv)
+    """
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if not features.audit_report_export:
+        prompt = get_upgrade_prompt("audit_export_blocked")
+        return GateResult(allowed=False, prompt=prompt)
+
+    if export_format.lower() in features.audit_export_formats:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt(
+        "audit_export_format_not_available",
+        {"format": export_format.upper()},
+    )
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def get_audit_first_critical_preview_lines() -> int | None:
+    """Get number of lines to show for first critical remediation (None = full)."""
+    from replimap.licensing.manager import get_license_manager
+
+    manager = get_license_manager()
+    return manager.current_features.audit_first_critical_preview_lines
+
+
+# =============================================================================
+# REGIONAL COMPLIANCE GATES (Enterprise only)
+# =============================================================================
+
+
+def check_compliance_apra_allowed() -> GateResult:
+    """Check if user can use APRA CPS 234 compliance mapping."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.apra_cps234_mapping:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("compliance_apra_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_compliance_essential_eight_allowed() -> GateResult:
+    """Check if user can use Essential Eight assessment."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.essential_eight_assessment:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("compliance_e8_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_compliance_rbnz_allowed() -> GateResult:
+    """Check if user can use RBNZ BS11 compliance mapping."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.rbnz_bs11_mapping:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("compliance_rbnz_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def check_compliance_nzism_allowed() -> GateResult:
+    """Check if user can use NZISM alignment."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.nzism_alignment:
+        return GateResult(allowed=True)
+
+    prompt = get_upgrade_prompt("compliance_nzism_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+# =============================================================================
+# REMEDIATE BETA GATES
+# =============================================================================
+
+
+def check_remediate_beta_allowed() -> GateResult:
+    """Check if user has access to Remediate beta."""
+    from replimap.licensing.manager import get_license_manager
+    from replimap.licensing.prompts import get_upgrade_prompt
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if features.remediate_beta_access:
+        return GateResult(
+            allowed=True,
+            data={"priority": features.remediate_priority},
+        )
+
+    prompt = get_upgrade_prompt("remediate_not_available")
+    return GateResult(allowed=False, prompt=prompt)
+
+
+def get_remediate_priority() -> str:
+    """Get user's remediate beta priority level: 'none', 'priority', or 'first'."""
+    from replimap.licensing.manager import get_license_manager
+
+    manager = get_license_manager()
+    return manager.current_features.remediate_priority
+
+
+# =============================================================================
+# SUPPORT GATES
+# =============================================================================
+
+
+def get_email_support_sla() -> int | None:
+    """Get email support SLA in hours (None = no SLA / no support)."""
+    from replimap.licensing.manager import get_license_manager
+
+    manager = get_license_manager()
+    features = manager.current_features
+
+    if not features.email_support:
+        return None
+    return features.email_sla_hours

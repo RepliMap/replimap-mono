@@ -65,43 +65,140 @@ class TestPlanFeatures:
     """Tests for plan features configuration."""
 
     def test_free_plan_limits(self) -> None:
-        """Test free plan has correct limits."""
+        """Test free plan has correct limits (v3.2 pricing)."""
         features = get_plan_features(Plan.FREE)
         # Resources per scan are unlimited - gating happens at output time
         assert features.max_resources_per_scan is None
         assert features.max_scans_per_month == 3
         assert features.max_aws_accounts == 1
         assert features.price_monthly == 0
+        assert features.price_annual == 0
+        # Audit: Show all titles + first CRITICAL with 2-line preview
+        assert features.audit_titles_visible is True
+        assert features.audit_first_critical_preview_lines == 2
+        assert features.audit_details_visible is False
+        # Clone: 100 line preview
+        assert features.clone_preview_lines == 100
+        assert features.clone_download_enabled is False
+        # Cost: Basic only
+        assert features.cost_basic_enabled is True
+        assert features.cost_enabled is False
+        assert features.cost_diff_enabled is False
+        # Storage: None
+        assert features.local_cache_enabled is False
+        assert features.max_snapshots == 0
+        # Trust Center: None
+        assert features.trust_center_enabled is False
+        # No email support
+        assert features.email_support is False
 
-    def test_solo_plan_unlimited_resources(self) -> None:
-        """Test solo plan has unlimited resources."""
+    def test_solo_plan_limits(self) -> None:
+        """Test solo plan has correct limits (v3.2 pricing: $49/mo)."""
         features = get_plan_features(Plan.SOLO)
         assert features.max_resources_per_scan is None
         assert features.max_scans_per_month is None
         assert features.max_aws_accounts == 1
-        assert features.price_monthly == 29  # Updated indie-friendly pricing
+        assert features.price_monthly == 49  # v3.2 pricing
+        assert features.price_annual == 490  # 2 months free
+        # Full clone download
+        assert features.clone_download_enabled is True
+        assert features.clone_preview_lines is None
+        # Full audit
+        assert features.audit_details_visible is True
+        assert features.audit_first_critical_preview_lines is None
+        assert features.audit_export_formats == {"html"}
+        # Cost: Full + diff
+        assert features.cost_enabled is True
+        assert features.cost_diff_enabled is True
+        # Storage layer
+        assert features.local_cache_enabled is True
+        assert features.max_snapshots == 5
+        assert features.snapshot_retention_days == 7
+        # No drift
+        assert features.drift_enabled is False
+        # Email support with 48h SLA
+        assert features.email_support is True
+        assert features.email_sla_hours == 48
 
-    def test_pro_plan_multi_account(self) -> None:
-        """Test pro plan has multi-account support."""
+    def test_pro_plan_limits(self) -> None:
+        """Test pro plan has correct limits (v3.2 pricing: $99/mo)."""
         features = get_plan_features(Plan.PRO)
         assert features.max_aws_accounts == 3
+        assert features.price_monthly == 99  # v3.2 pricing
+        assert features.price_annual == 990
         assert features.has_feature(Feature.MULTI_ACCOUNT)
         assert features.has_feature(Feature.WEB_DASHBOARD)
+        # Drift detection enabled
+        assert features.drift_enabled is True
+        assert features.drift_watch_enabled is False  # Watch is Team
+        # CI/CD mode
+        assert features.audit_ci_mode is True
+        # HTML + PDF exports
+        assert features.audit_export_formats == {"html", "pdf"}
+        # Storage layer
+        assert features.max_snapshots == 15
+        assert features.snapshot_retention_days == 30
+        # Remediate beta
+        assert features.remediate_beta_access is True
+        assert features.remediate_priority == "priority"
+        # 24h email SLA
+        assert features.email_sla_hours == 24
 
-    def test_team_plan_collaboration(self) -> None:
-        """Test team plan has collaboration features."""
+    def test_team_plan_limits(self) -> None:
+        """Test team plan has correct limits (v3.2 pricing: $199/mo)."""
         features = get_plan_features(Plan.TEAM)
         assert features.max_aws_accounts == 10
+        assert features.price_monthly == 199  # v3.2 pricing
+        assert features.price_annual == 1990
         assert features.has_feature(Feature.COLLABORATION)
         assert features.has_feature(Feature.SHARED_GRAPHS)
+        # Drift watch enabled
+        assert features.drift_watch_enabled is True
+        assert features.drift_alerts_enabled is True
+        # Trust Center basic
+        assert features.trust_center_enabled is True
+        assert features.max_recorded_calls == 100
+        assert features.max_sessions == 10
+        assert features.trust_export_formats == {"json"}
+        # No digital signatures (Enterprise)
+        assert features.digital_signatures is False
+        # All formats except CSV
+        assert features.audit_export_formats == {"html", "pdf", "json"}
+        # Storage
+        assert features.max_snapshots == 30
+        assert features.snapshot_retention_days == 90
+        # 12h email SLA
+        assert features.email_sla_hours == 12
 
-    def test_enterprise_plan_all_features(self) -> None:
-        """Test enterprise plan has all features."""
+    def test_enterprise_plan_limits(self) -> None:
+        """Test enterprise plan has all features (v3.2 pricing: from $500/mo)."""
         features = get_plan_features(Plan.ENTERPRISE)
         assert features.max_aws_accounts is None  # Unlimited
+        assert features.price_monthly == 500  # Starting price
+        assert features.price_annual == 5000
         assert features.has_feature(Feature.SSO)
         assert features.has_feature(Feature.AUDIT_LOGS)
         assert features.has_feature(Feature.PRIORITY_SUPPORT)
+        # Trust Center full
+        assert features.trust_center_enabled is True
+        assert features.max_recorded_calls is None  # Unlimited
+        assert features.max_sessions is None  # Unlimited
+        assert features.audit_log_retention_days == 365  # 1 year
+        assert features.trust_export_formats == {"json", "csv", "pdf"}
+        assert features.digital_signatures is True
+        assert features.compliance_reports is True
+        # All regional compliance
+        assert features.apra_cps234_mapping is True
+        assert features.essential_eight_assessment is True
+        assert features.rbnz_bs11_mapping is True
+        assert features.nzism_alignment is True
+        # Remediate first access
+        assert features.remediate_priority == "first"
+        # Storage unlimited
+        assert features.max_snapshots == -1  # Unlimited
+        assert features.snapshot_retention_days == 365
+        # 4h email SLA
+        assert features.email_sla_hours == 4
 
     def test_feature_check(self) -> None:
         """Test feature availability check."""
@@ -409,7 +506,7 @@ class TestFeatureGates:
         """Test upgrade prompt generation."""
         prompt = get_upgrade_prompt(Feature.ASYNC_SCANNING, Plan.FREE)
         assert "solo" in prompt.lower()
-        assert "$29" in prompt  # Updated indie-friendly pricing
+        assert "$49" in prompt  # v3.2 pricing
         assert "upgrade" in prompt.lower()
 
 
