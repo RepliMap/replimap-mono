@@ -219,6 +219,99 @@ RepliMap intelligently handles infrastructure boundaries:
 | Identity | IAM Roles, Policies | Reference existing |
 | Global | Route53, CloudFront | Create variables |
 
+## Trust Center (Enterprise Audit)
+
+The Trust Center provides enterprise-grade API call auditing for compliance and security reviews. It proves that RepliMap only performs READ-ONLY operations, which is critical for enterprise procurement, especially Australian Big 4 banks.
+
+### Quick Start
+
+```python
+from replimap.audit import TrustCenter
+
+# Get the singleton instance
+tc = TrustCenter.get_instance()
+
+# Enable auditing on your boto3 session
+tc.enable(boto3_session)
+
+# Create an audit session for related operations
+with tc.session("production_scan") as session_id:
+    # All AWS API calls are now captured
+    scanner.scan_all()
+
+# Generate a compliance report
+report = tc.generate_report()
+print(report.compliance_statement)
+# Output: "COMPLIANT: This tool performed 100% READ-ONLY operations..."
+```
+
+### CLI Usage
+
+```bash
+# Enable Trust Center auditing during scan
+replimap scan --profile prod --audit
+
+# Generate audit report
+replimap audit-report --format json --output audit.json
+replimap audit-report --format csv --output audit.csv
+replimap audit-report --format text --output compliance.txt
+```
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **Automatic Capture** | boto3 event hooks capture all API calls transparently |
+| **Operation Classification** | Categorizes as READ/WRITE/DELETE/ADMIN |
+| **Session Grouping** | Groups related API calls together |
+| **Compliance Reports** | Proves 100% Read-Only operation |
+| **Multi-Format Export** | JSON, CSV, human-readable text |
+| **Sensitive Data Redaction** | Passwords, tokens, secrets automatically redacted |
+
+### Export Formats
+
+```bash
+# JSON - Full report with optional detailed records
+tc.export_json(report, "audit.json", include_records=True)
+
+# CSV - Tabular format for spreadsheet analysis
+tc.export_csv(sessions, "records.csv")
+
+# Text - Human-readable compliance statement
+tc.save_compliance_text(report, "compliance.txt")
+```
+
+### Compliance Statement
+
+The Trust Center generates compliance statements for enterprise security reviews:
+
+```
+========================================================================
+TRUST CENTER COMPLIANCE REPORT
+========================================================================
+
+Tool: RepliMap v1.0.0
+Report ID: rpt-12345
+Generated: 2025-01-15T12:00:00
+
+------------------------------------------------------------------------
+EXECUTIVE SUMMARY
+------------------------------------------------------------------------
+
+  Total Audit Sessions:  5
+  Total AWS API Calls:   1,247
+  Total Duration:        45.3 seconds
+
+  Read-Only Operations:  100.0%
+  Fully Read-Only:       YES
+
+COMPLIANCE STATEMENT:
+  COMPLIANT: This tool performed 100% READ-ONLY operations during
+  the audit period. No AWS resources were created, modified, or
+  deleted. This confirms the tool's non-invasive, agentless
+  architecture.
+```
+
 ## Security Auditing
 
 RepliMap includes security auditing powered by Checkov for scanning your AWS infrastructure.
@@ -515,6 +608,246 @@ replimap clone --profile prod --output-dir ./staging-tf \
 
 - Solo plan or higher (Free tier does not include Right-Sizer)
 - Network access to RepliMap API for recommendations
+
+## Incremental Scanning
+
+Incremental scanning uses the AWS ResourceGroupsTaggingAPI for efficient change detection, reducing scan times from minutes to sub-seconds after the initial full scan.
+
+### How It Works
+
+```bash
+# First scan - full scan, builds baseline
+replimap scan --profile prod --incremental
+
+# Subsequent scans - only detect changes
+replimap scan --profile prod --incremental
+# Output: "Incremental scan: 3 created, 1 modified, 0 deleted, 247 unchanged"
+```
+
+### API Usage
+
+```python
+from replimap.scan.incremental import IncrementalScanner, ScanStateStore
+
+# Initialize with state store
+state_store = ScanStateStore(storage_dir=".replimap/state")
+scanner = IncrementalScanner(boto3_session, state_store)
+
+# Perform incremental scan
+change_set = scanner.scan_incremental(region="us-east-1")
+
+print(f"Created: {len(change_set.created)}")
+print(f"Modified: {len(change_set.modified)}")
+print(f"Deleted: {len(change_set.deleted)}")
+print(f"Unchanged: {len(change_set.unchanged)}")
+```
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **ResourceGroupsTaggingAPI** | Uses AWS tagging API for fast resource enumeration |
+| **Content Hashing** | Fingerprints resources to detect modifications |
+| **SQLite State Store** | Persistent state storage between scans |
+| **Sub-Second Scans** | Incremental scans complete in milliseconds |
+
+## Historical Snapshots
+
+Historical snapshots provide point-in-time captures of your infrastructure with 30-day retention, enabling infrastructure change tracking and audit trails.
+
+### Usage
+
+```bash
+# Create a snapshot
+replimap snapshot create --profile prod --name "pre-deployment"
+
+# List snapshots
+replimap snapshot list --profile prod
+
+# Compare two snapshots
+replimap snapshot compare --from "2025-01-01" --to "2025-01-15"
+
+# Export snapshot diff
+replimap snapshot compare --from snapshot-abc --to snapshot-xyz --format json
+```
+
+### API Usage
+
+```python
+from replimap.scan.snapshots import SnapshotManager
+
+manager = SnapshotManager(storage_dir=".replimap/snapshots")
+
+# Create a snapshot
+snapshot = manager.create_snapshot(
+    graph=infrastructure_graph,
+    name="pre-deployment",
+    metadata={"environment": "production"}
+)
+
+# Compare snapshots
+comparison = manager.compare(snapshot_id_1, snapshot_id_2)
+print(f"Added: {len(comparison.added)}")
+print(f"Removed: {len(comparison.removed)}")
+print(f"Modified: {len(comparison.modified)}")
+```
+
+### Features
+
+| Feature | Description |
+|---------|-------------|
+| **30-Day Retention** | Configurable retention policy with automatic cleanup |
+| **Point-in-Time Capture** | Immutable snapshots for compliance |
+| **Diff Comparison** | Compare any two snapshots |
+| **Audit Trail** | Full history of infrastructure changes |
+| **Compression** | Optional compression for storage efficiency |
+
+## Topology Constraints
+
+Topology constraints enable policy-based infrastructure validation, ensuring your infrastructure meets organizational security and compliance requirements.
+
+### Configuration
+
+Create a `constraints.yaml` file:
+
+```yaml
+topology_constraints:
+  version: "1.0"
+  constraints:
+    # Require Environment tag on all resources
+    - name: require-environment-tag
+      constraint_type: require_tag
+      severity: high
+      required_tags:
+        Environment: null  # Any value
+        Owner: null
+
+    # Require encryption on all databases
+    - name: require-rds-encryption
+      constraint_type: require_encryption
+      severity: critical
+      source_type: aws_db_instance
+
+    # Prohibit public S3 buckets
+    - name: prohibit-public-s3
+      constraint_type: prohibit_public_access
+      severity: critical
+      source_type: aws_s3_bucket
+
+    # Prohibit direct database access from internet
+    - name: prohibit-public-rds
+      constraint_type: prohibit_relationship
+      severity: critical
+      source_type: aws_internet_gateway
+      target_type: aws_db_instance
+```
+
+### CLI Usage
+
+```bash
+# Validate infrastructure against constraints
+replimap validate --config constraints.yaml --profile prod
+
+# Generate default constraints
+replimap constraints generate --output constraints.yaml
+
+# Validate with specific severity threshold
+replimap validate --config constraints.yaml --fail-on high
+```
+
+### Constraint Types
+
+| Type | Description |
+|------|-------------|
+| `require_tag` | Resources must have specified tags |
+| `require_encryption` | Resources must be encrypted |
+| `prohibit_relationship` | Certain resource connections are forbidden |
+| `prohibit_public_access` | Resources must not be publicly accessible |
+
+### Severity Levels
+
+| Severity | Exit Code | Description |
+|----------|-----------|-------------|
+| CRITICAL | 2 | Security vulnerabilities requiring immediate action |
+| HIGH | 1 | Important policy violations |
+| MEDIUM | 0 | Recommendations for improvement |
+| LOW | 0 | Informational findings |
+| INFO | 0 | Best practice suggestions |
+
+## RI/Savings Plan Aware Pricing
+
+The RI-aware pricing engine considers your Reserved Instances and Savings Plans when calculating costs and generating right-sizing recommendations.
+
+### Features
+
+- **Reservation Coverage** - Shows how much of your spend is covered by reservations
+- **Waste Detection** - Identifies underutilized reservations
+- **Constrained Right-Sizing** - Recommendations respect reservation commitments
+- **Expiration Alerts** - Warns about reservations expiring soon
+
+### CLI Usage
+
+```bash
+# Cost estimate with reservation awareness
+replimap cost --profile prod --ri-aware
+
+# Show reservation utilization
+replimap reservations --profile prod
+
+# Right-sizing with reservation constraints
+replimap clone --profile prod --dev-mode --ri-aware
+```
+
+### API Usage
+
+```python
+from replimap.cost.ri_aware import (
+    RIAwarePricingEngine,
+    ReservedInstance,
+    SavingsPlanCommitment,
+)
+
+# Create RI-aware pricing engine
+engine = RIAwarePricingEngine(
+    region="us-east-1",
+    reserved_instances=[...],  # Your RIs
+    savings_plans=[...],        # Your Savings Plans
+)
+
+# Check if resource has a reservation
+has_ri, ri_type, ri_id = engine.has_reservation_for("m5.large")
+
+# Get right-sizing impact (respects reservations)
+impact = engine.get_right_sizing_impact(
+    current_type="m5.xlarge",
+    recommended_type="m5.large"
+)
+if not impact.get("can_proceed"):
+    print("Cannot downsize: would waste reservation")
+```
+
+### Utilization Levels
+
+| Level | Percentage | Description |
+|-------|------------|-------------|
+| HIGH | 80-100% | Healthy utilization |
+| MEDIUM | 60-79% | Acceptable but room for improvement |
+| LOW | 40-59% | Significant waste, review needed |
+| CRITICAL | 0-39% | Major waste, immediate action required |
+
+### Waste Detection
+
+The engine identifies wasted reservations:
+
+```python
+# Analyze reservation waste
+analysis = engine.analyze()
+
+for waste in analysis.waste_items:
+    print(f"{waste.reservation_id}: {waste.utilization_percentage}% utilized")
+    print(f"  Monthly waste: ${waste.monthly_waste}")
+    print(f"  Recommendation: {waste.recommendation}")
+```
 
 ## Output Formats
 
@@ -941,7 +1274,8 @@ replimap/
 │   │   ├── circuit_breaker.py # Circuit breaker for API resilience
 │   │   ├── cache.py         # Credential and result caching
 │   │   ├── filters.py       # Resource filtering utilities
-│   │   └── selection.py     # Graph-based selection engine
+│   │   ├── selection.py     # Graph-based selection engine
+│   │   └── topology_constraints.py # Topology constraints validation (P3-3)
 │   ├── scanners/
 │   │   ├── base.py              # Scanner base class
 │   │   ├── async_base.py        # Async scanner support
@@ -973,14 +1307,19 @@ replimap/
 │   │   └── pulumi.py            # Pulumi Python (Pro+)
 │   ├── patterns/
 │   │   └── local_module.py  # LocalModuleExtractor - pattern detection
-│   ├── audit/               # Security auditing
+│   ├── audit/               # Security auditing & Trust Center
 │   │   ├── engine.py        # Audit orchestration
 │   │   ├── checkov_runner.py # Checkov integration
 │   │   ├── renderer.py      # Console/HTML/JSON output
 │   │   ├── soc2_mapping.py  # SOC2 compliance mapping
 │   │   ├── fix_suggestions.py # Remediation suggestions
 │   │   ├── remediation/     # Auto-remediation templates
-│   │   └── templates/       # Jinja2 HTML templates
+│   │   ├── templates/       # Jinja2 HTML templates
+│   │   ├── trust_center.py  # Trust Center singleton (P1-9)
+│   │   ├── models.py        # APICallRecord, AuditSession, TrustCenterReport
+│   │   ├── classifier.py    # OperationClassifier (READ/WRITE/DELETE/ADMIN)
+│   │   ├── hooks.py         # boto3 event hooks for API capture
+│   │   └── exporters.py     # JSON, CSV, text export utilities
 │   ├── graph/               # Infrastructure visualization
 │   │   ├── visualizer.py    # Graph building
 │   │   ├── builder.py       # Graph construction
@@ -1026,8 +1365,15 @@ replimap/
 │   ├── cost/                # Cost estimation
 │   │   ├── models.py        # ResourceCost, CostEstimate
 │   │   ├── pricing.py       # AWS pricing data
+│   │   ├── pricing_engine.py # Core pricing engine with AU support
 │   │   ├── estimator.py     # Cost calculation engine
-│   │   └── reporter.py      # Console/HTML/CSV output
+│   │   ├── reporter.py      # Console/HTML/CSV output
+│   │   ├── ri_aware.py      # RI/Savings Plan aware pricing (P3-4)
+│   │   ├── data_transfer.py # Data transfer cost analysis
+│   │   └── enterprise_pricing.py # Enterprise pricing tiers
+│   ├── scan/                # Scanning utilities
+│   │   ├── incremental.py   # Incremental scanner (P3-1)
+│   │   └── snapshots.py     # Historical snapshots (P3-2)
 │   └── licensing/
 │       ├── manager.py       # License management
 │       ├── models.py        # License models
@@ -1035,7 +1381,7 @@ replimap/
 │       ├── prompts.py       # License prompts
 │       └── tracker.py       # Usage tracking
 ├── templates/               # Jinja2 templates
-├── tests/                   # pytest test suite (825+ tests)
+├── tests/                   # pytest test suite (900+ tests)
 ├── .github/workflows/       # CI/CD
 ├── .replimap.yaml           # Project configuration (optional)
 ├── pyproject.toml

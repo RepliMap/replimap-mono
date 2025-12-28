@@ -8,6 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **Trust Center Audit System (P1-9)** - Enterprise-grade API call auditing for compliance
+  - `TrustCenter` singleton class for centralized audit management
+  - Automatic boto3 event hooks capture all AWS API calls transparently
+  - `OperationClassifier` categorizes operations as READ/WRITE/DELETE/ADMIN
+  - Session-based grouping of related API calls
+  - `TrustCenterReport` generation with compliance statements
+  - 100% Read-Only operation verification for enterprise security reviews
+  - Multi-format export: JSON, CSV, human-readable text
+  - Thread-safe operations with session isolation
+  - Sensitive parameter sanitization (passwords, tokens redacted)
+  - Designed for Australian Big 4 bank procurement requirements
+
+- **Incremental Scanning (P3-1)** - Efficient change detection using ResourceGroupsTaggingAPI
+  - `IncrementalScanner` uses AWS tagging API for fast change detection
+  - `ResourceFingerprint` model with content hashing for modification detection
+  - `ScanStateStore` with SQLite persistence for scan state
+  - `ChangeSet` model tracking created/modified/deleted/unchanged resources
+  - Sub-second incremental scans after initial full scan
+  - Configurable state storage directory
+
+- **Historical Snapshots (P3-2)** - Point-in-time infrastructure snapshots with 30-day retention
+  - `SnapshotManager` for snapshot lifecycle management
+  - `ResourceSnapshot` immutable point-in-time captures
+  - `SnapshotComparison` for diff between any two snapshots
+  - 30-day default retention with configurable policies
+  - Full audit trail of infrastructure changes
+  - SQLite storage with optional compression
+
+- **Topology Constraints (P3-3)** - Policy-based infrastructure validation
+  - `TopologyConstraint` model with multiple constraint types
+  - `ConstraintType` enum: REQUIRE_TAG, REQUIRE_ENCRYPTION, PROHIBIT_RELATIONSHIP, PROHIBIT_PUBLIC_ACCESS
+  - `TopologyValidator` validates infrastructure against constraints
+  - `ValidationResult` with severity-based violation reporting
+  - YAML configuration support for enterprise policy management
+  - Default constraint templates for common security policies
+  - Exception handling for approved deviations
+
+- **RI/Savings Plan Aware Pricing (P3-4)** - Reservation-aware cost analysis
+  - `ReservedInstance` and `SavingsPlanCommitment` models
+  - `RIAwarePricingEngine` applies reservation discounts to cost estimates
+  - `RightSizingRecommendation` considers reservation constraints
+  - `ReservationWaste` detection for underutilized reservations
+  - `UtilizationLevel` classification (HIGH/MEDIUM/LOW/CRITICAL)
+  - Right-sizing impact analysis for reservation-constrained resources
+  - Expiration warnings for reservations ending soon
+
 - **Network ACL (NACL) Support** - Complete scanning and template generation
   - `NETWORK_ACL` added to ResourceType enum
   - `NetworkingScanner._scan_network_acls()` method with ingress/egress rule processing
