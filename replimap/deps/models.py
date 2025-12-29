@@ -194,8 +194,7 @@ class DependencyAnalysis:
         return {
             "center_resource": self.center_resource.to_dict(),
             "dependencies": {
-                k.value: [d.to_dict() for d in v]
-                for k, v in self.dependencies.items()
+                k.value: [d.to_dict() for d in v] for k, v in self.dependencies.items()
             },
             "warnings": self.warnings,
             "blast_radius": self.blast_radius.to_dict() if self.blast_radius else None,

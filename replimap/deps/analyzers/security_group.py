@@ -69,9 +69,9 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
         # SG Chain - other SGs that reference this SG
         sg_chain = self._find_sg_chain(resource_id, data)
         if sg_chain.get("referenced_by"):
-            dependencies[RelationType.CONSUMER] = dependencies.get(
-                RelationType.CONSUMER, []
-            ) + sg_chain["referenced_by"]
+            dependencies[RelationType.CONSUMER] = (
+                dependencies.get(RelationType.CONSUMER, []) + sg_chain["referenced_by"]
+            )
         if sg_chain.get("references"):
             dependencies[RelationType.DEPENDENCY] = sg_chain["references"]
 
@@ -149,8 +149,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
         # Run queries in parallel
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = {
-                executor.submit(query_func, sg_id): name
-                for name, query_func in queries
+                executor.submit(query_func, sg_id): name for name, query_func in queries
             }
 
             for future in as_completed(futures):
@@ -181,9 +180,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                         if state == "terminated":
                             continue
 
-                        tags = {
-                            t["Key"]: t["Value"] for t in instance.get("Tags", [])
-                        }
+                        tags = {t["Key"]: t["Value"] for t in instance.get("Tags", [])}
                         instances.append(
                             Dependency(
                                 resource_type="aws_instance",
@@ -475,9 +472,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
             )
 
         # Check for SG chain
-        sg_refs = [
-            c for c in consumers if c.resource_type == "aws_security_group"
-        ]
+        sg_refs = [c for c in consumers if c.resource_type == "aws_security_group"]
         if sg_refs:
             warnings.append(
                 f"Deleting this SG will break {len(sg_refs)} other SGs' rules!"

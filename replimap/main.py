@@ -19,7 +19,7 @@ import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from replimap.audit.checkov_runner import CheckovResults
@@ -2956,7 +2956,7 @@ def _run_analyzer_mode(
             elasticache_client=elasticache_client,
             sts_client=sts_client,
         )
-    except ValueError as e:
+    except ValueError:
         console.print(
             Panel(
                 f"[red]Unsupported resource type:[/] {resource_id}\n\n"
@@ -2982,7 +2982,9 @@ def _run_analyzer_mode(
 
             # Update status for large queries
             consumers = analysis.dependencies.get(
-                __import__("replimap.deps.models", fromlist=["RelationType"]).RelationType.CONSUMER,
+                __import__(
+                    "replimap.deps.models", fromlist=["RelationType"]
+                ).RelationType.CONSUMER,
                 [],
             )
             if len(consumers) > 10:
@@ -2990,7 +2992,7 @@ def _run_analyzer_mode(
                     f"[bold blue]Found {len(consumers)} consumers, calculating blast radius..."
                 )
 
-        except ValueError as e:
+        except ValueError:
             console.print(
                 Panel(
                     f"[red]Resource not found:[/] {resource_id}\n\n"
@@ -3219,9 +3221,7 @@ def deps(
             progress.update(task, description="Exploring dependencies...")
 
             # Build resource configs map for ASG detection
-            resource_configs = {
-                res.id: res.config for res in graph.get_all_resources()
-            }
+            resource_configs = {res.id: res.config for res in graph.get_all_resources()}
 
             # Explore dependencies
             calculator = ImpactCalculator(

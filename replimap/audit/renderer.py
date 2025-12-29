@@ -299,7 +299,9 @@ class AuditRenderer:
                 lines.append(f"# - Traffic: {traffic_type}, Destination: {dest_type}")
         else:
             lines.append("# AUDIT WARNING: VPC Flow Logs NOT ENABLED")
-            lines.append("# Flow logs are required for CC7.2 (Monitoring and Detection)")
+            lines.append(
+                "# Flow logs are required for CC7.2 (Monitoring and Detection)"
+            )
 
         return lines
 
@@ -472,7 +474,9 @@ class AuditRenderer:
             lines.append("}")
         else:
             lines.append("")
-            lines.append("# AUDIT: No root_block_device info - encryption status unknown")
+            lines.append(
+                "# AUDIT: No root_block_device info - encryption status unknown"
+            )
 
         # CC6.1 (Access Control) - Metadata options (IMDSv2)
         if metadata := config.get("metadata_options"):
@@ -934,9 +938,7 @@ class AuditRenderer:
         if config.get("auth_token_enabled"):
             lines.append("auth_token_enabled = true")
         else:
-            lines.append(
-                "# AUDIT WARNING: Auth token (password) not enabled for Redis"
-            )
+            lines.append("# AUDIT WARNING: Auth token (password) not enabled for Redis")
 
         # A1.2 (Availability) - Replication and snapshots
         lines.append("")
@@ -1058,7 +1060,9 @@ class AuditRenderer:
                 if kms_key := ebs.get("KmsKeyId"):
                     lines.append(f'    kms_key_id = "{kms_key}"')
                 if delete_on_term := ebs.get("DeleteOnTermination"):
-                    lines.append(f"    delete_on_termination = {str(delete_on_term).lower()}")
+                    lines.append(
+                        f"    delete_on_termination = {str(delete_on_term).lower()}"
+                    )
                 if iops := ebs.get("Iops"):
                     lines.append(f"    iops = {iops}")
                 lines.append("  }")
@@ -1066,7 +1070,9 @@ class AuditRenderer:
 
         if not block_devices:
             lines.append("")
-            lines.append("# AUDIT: No block device mappings defined - may use unencrypted AMI defaults")
+            lines.append(
+                "# AUDIT: No block device mappings defined - may use unencrypted AMI defaults"
+            )
 
         # CC6.1 (Access Control) - Metadata options (IMDSv2)
         if metadata := config.get("metadata_options"):

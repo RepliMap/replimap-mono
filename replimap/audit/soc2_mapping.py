@@ -40,21 +40,33 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_26": SOC2Control("CC6.1", "Access Control", "SNS Topic Encryption"),
     # Additional CC6.1 - Access Control
     "CKV_AWS_1": SOC2Control("CC6.1", "Access Control", "S3 Bucket ACL Not Public"),
-    "CKV_AWS_53": SOC2Control("CC6.1", "Access Control", "S3 Public Access Block Account"),
+    "CKV_AWS_53": SOC2Control(
+        "CC6.1", "Access Control", "S3 Public Access Block Account"
+    ),
     "CKV_AWS_54": SOC2Control("CC6.1", "Access Control", "S3 Block Public ACLs"),
     "CKV_AWS_55": SOC2Control("CC6.1", "Access Control", "S3 Block Public Policy"),
     "CKV_AWS_56": SOC2Control("CC6.1", "Access Control", "S3 Ignore Public ACLs"),
     "CKV_AWS_57": SOC2Control("CC6.1", "Access Control", "S3 Restrict Public Buckets"),
-    "CKV_AWS_70": SOC2Control("CC6.1", "Access Control", "Sagemaker Endpoint Config Encryption"),
+    "CKV_AWS_70": SOC2Control(
+        "CC6.1", "Access Control", "Sagemaker Endpoint Config Encryption"
+    ),
     "CKV_AWS_79": SOC2Control("CC6.1", "Access Control", "EC2 IMDSv2 Required"),
     "CKV_AWS_8": SOC2Control("CC6.1", "Access Control", "Launch Config Public IP"),
     "CKV_AWS_88": SOC2Control("CC6.1", "Access Control", "EC2 in VPC"),
     "CKV_AWS_92": SOC2Control("CC6.1", "Access Control", "ELB v2 Listener TLS"),
     "CKV_AWS_97": SOC2Control("CC6.1", "Access Control", "ECS Task Definition User"),
-    "CKV_AWS_107": SOC2Control("CC6.1", "Access Control", "IAM Policy Wildcard Actions"),
-    "CKV_AWS_108": SOC2Control("CC6.1", "Access Control", "IAM Policy Wildcard Resources"),
-    "CKV_AWS_109": SOC2Control("CC6.1", "Access Control", "IAM Policy Permissions Boundary"),
-    "CKV_AWS_110": SOC2Control("CC6.1", "Access Control", "IAM Policy Allow Privilege Escalation"),
+    "CKV_AWS_107": SOC2Control(
+        "CC6.1", "Access Control", "IAM Policy Wildcard Actions"
+    ),
+    "CKV_AWS_108": SOC2Control(
+        "CC6.1", "Access Control", "IAM Policy Wildcard Resources"
+    ),
+    "CKV_AWS_109": SOC2Control(
+        "CC6.1", "Access Control", "IAM Policy Permissions Boundary"
+    ),
+    "CKV_AWS_110": SOC2Control(
+        "CC6.1", "Access Control", "IAM Policy Allow Privilege Escalation"
+    ),
     "CKV_AWS_111": SOC2Control("CC6.1", "Access Control", "IAM Policy Write Access"),
     "CKV_AWS_130": SOC2Control("CC6.1", "Access Control", "VPC Subnet Public IP"),
     "CKV_AWS_142": SOC2Control("CC6.1", "Access Control", "RDS IAM Auth Enabled"),
@@ -78,14 +90,18 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_37": SOC2Control("CC6.6", "Encryption", "ECS Task Definition Encryption"),
     "CKV_AWS_47": SOC2Control("CC6.6", "Encryption", "DAX Cluster Encryption"),
     "CKV_AWS_58": SOC2Control("CC6.6", "Encryption", "EKS Secrets Encryption"),
-    "CKV_AWS_63": SOC2Control("CC6.6", "Encryption", "CloudWatch Log Group Encryption v2"),
+    "CKV_AWS_63": SOC2Control(
+        "CC6.6", "Encryption", "CloudWatch Log Group Encryption v2"
+    ),
     "CKV_AWS_68": SOC2Control("CC6.6", "Encryption", "Neptune Cluster Encryption"),
     "CKV_AWS_69": SOC2Control("CC6.6", "Encryption", "OpenSearch Domain Encryption"),
     "CKV_AWS_74": SOC2Control("CC6.6", "Encryption", "DocumentDB Cluster Encryption"),
     "CKV_AWS_77": SOC2Control("CC6.6", "Encryption", "OpenSearch Fine-Grained Access"),
     "CKV_AWS_85": SOC2Control("CC6.6", "Encryption", "DocDB TLS Enabled"),
     "CKV_AWS_87": SOC2Control("CC6.6", "Encryption", "Redshift Enhanced VPC Routing"),
-    "CKV_AWS_89": SOC2Control("CC6.6", "Encryption", "DMS Replication Instance Encryption"),
+    "CKV_AWS_89": SOC2Control(
+        "CC6.6", "Encryption", "DMS Replication Instance Encryption"
+    ),
     "CKV_AWS_90": SOC2Control("CC6.6", "Encryption", "OpenSearch Encryption at Rest"),
     "CKV_AWS_99": SOC2Control("CC6.6", "Encryption", "Glue Data Catalog Encryption"),
     "CKV_AWS_100": SOC2Control("CC6.6", "Encryption", "Glue Connection SSL"),
@@ -114,13 +130,21 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_39": SOC2Control("CC6.7", "Encryption", "EKS Control Plane Logging"),
     "CKV_AWS_46": SOC2Control("CC6.7", "Encryption", "Secrets Manager Rotation"),
     "CKV_AWS_59": SOC2Control("CC6.7", "Encryption", "API Gateway Authorizer"),
-    "CKV_AWS_86": SOC2Control("CC6.7", "Encryption", "CloudFront Origin Access Identity"),
+    "CKV_AWS_86": SOC2Control(
+        "CC6.7", "Encryption", "CloudFront Origin Access Identity"
+    ),
     "CKV_AWS_93": SOC2Control("CC6.7", "Encryption", "CloudFront Viewer TLS 1.2"),
-    "CKV_AWS_94": SOC2Control("CC6.7", "Encryption", "CloudFront Encryption in Transit"),
+    "CKV_AWS_94": SOC2Control(
+        "CC6.7", "Encryption", "CloudFront Encryption in Transit"
+    ),
     "CKV_AWS_96": SOC2Control("CC6.7", "Encryption", "EMR Security Configuration"),
-    "CKV_AWS_102": SOC2Control("CC6.7", "Encryption", "CloudFront Field Level Encryption"),
+    "CKV_AWS_102": SOC2Control(
+        "CC6.7", "Encryption", "CloudFront Field Level Encryption"
+    ),
     "CKV_AWS_105": SOC2Control("CC6.7", "Encryption", "RDS TLS Enforcement"),
-    "CKV_AWS_106": SOC2Control("CC6.7", "Encryption", "OpenSearch Node-to-Node Encryption"),
+    "CKV_AWS_106": SOC2Control(
+        "CC6.7", "Encryption", "OpenSearch Node-to-Node Encryption"
+    ),
     "CKV_AWS_172": SOC2Control("CC6.7", "Encryption", "CloudFront SSL Protocol"),
     "CKV_AWS_173": SOC2Control("CC6.7", "Encryption", "API Gateway TLS 1.2"),
     "CKV_AWS_174": SOC2Control("CC6.7", "Encryption", "CloudWatch Log Group TLS"),
@@ -199,19 +223,29 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_45": SOC2Control("C1.2", "Confidentiality", "Lambda Env Encryption"),
     "CKV_AWS_60": SOC2Control("C1.2", "Confidentiality", "Lambda VPC Config"),
     "CKV_AWS_61": SOC2Control("C1.2", "Confidentiality", "Lambda DLQ Configured"),
-    "CKV_AWS_98": SOC2Control("C1.2", "Confidentiality", "Sagemaker Notebook Root Access"),
-    "CKV_AWS_115": SOC2Control("C1.2", "Confidentiality", "Lambda Reserved Concurrency"),
+    "CKV_AWS_98": SOC2Control(
+        "C1.2", "Confidentiality", "Sagemaker Notebook Root Access"
+    ),
+    "CKV_AWS_115": SOC2Control(
+        "C1.2", "Confidentiality", "Lambda Reserved Concurrency"
+    ),
     "CKV_AWS_116": SOC2Control("C1.2", "Confidentiality", "Lambda DLQ or OnFailure"),
     "CKV_AWS_117": SOC2Control("C1.2", "Confidentiality", "Lambda in VPC"),
     "CKV_AWS_138": SOC2Control("C1.2", "Confidentiality", "EKS Private Endpoint"),
-    "CKV_AWS_150": SOC2Control("C1.2", "Confidentiality", "EKS Endpoint Private Access"),
+    "CKV_AWS_150": SOC2Control(
+        "C1.2", "Confidentiality", "EKS Endpoint Private Access"
+    ),
     # =========================================================================
     # P1.1 - Processing Integrity
     # =========================================================================
     "CKV_AWS_9": SOC2Control("P1.1", "Processing Integrity", "IAM CloudShell Access"),
     "CKV_AWS_12": SOC2Control("P1.1", "Processing Integrity", "Default VPC Not Used"),
-    "CKV_AWS_13": SOC2Control("P1.1", "Processing Integrity", "Root Account Hardware MFA"),
-    "CKV_AWS_14": SOC2Control("P1.1", "Processing Integrity", "Root Account Virtual MFA"),
+    "CKV_AWS_13": SOC2Control(
+        "P1.1", "Processing Integrity", "Root Account Hardware MFA"
+    ),
+    "CKV_AWS_14": SOC2Control(
+        "P1.1", "Processing Integrity", "Root Account Virtual MFA"
+    ),
     "CKV_AWS_51": SOC2Control("P1.1", "Processing Integrity", "ECR Lifecycle Policy"),
     "CKV_AWS_134": SOC2Control("P1.1", "Processing Integrity", "VPC Internet Gateway"),
     # =========================================================================
@@ -219,8 +253,12 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     # =========================================================================
     # CC6.1 - Access Control (200-250 Range)
     "CKV_AWS_200": SOC2Control("CC6.1", "Access Control", "MSK Cluster Encryption"),
-    "CKV_AWS_201": SOC2Control("CC6.1", "Access Control", "SageMaker Notebook Encryption"),
-    "CKV_AWS_202": SOC2Control("CC6.1", "Access Control", "SageMaker Endpoint Encryption"),
+    "CKV_AWS_201": SOC2Control(
+        "CC6.1", "Access Control", "SageMaker Notebook Encryption"
+    ),
+    "CKV_AWS_202": SOC2Control(
+        "CC6.1", "Access Control", "SageMaker Endpoint Encryption"
+    ),
     "CKV_AWS_203": SOC2Control("CC6.1", "Access Control", "AppSync Field Logging"),
     "CKV_AWS_204": SOC2Control("CC6.7", "Encryption", "AppSync TLS"),
     "CKV_AWS_205": SOC2Control("CC6.6", "Encryption", "Backup Vault Encryption"),
@@ -238,9 +276,13 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_217": SOC2Control("A1.2", "Availability", "DynamoDB Autoscaling"),
     "CKV_AWS_218": SOC2Control("CC6.6", "Encryption", "EBS Snapshot Encryption"),
     "CKV_AWS_219": SOC2Control("CC7.2", "Monitoring", "ECR Pull Through Cache"),
-    "CKV_AWS_220": SOC2Control("CC6.1", "Access Control", "ECS Fargate Latest Platform"),
+    "CKV_AWS_220": SOC2Control(
+        "CC6.1", "Access Control", "ECS Fargate Latest Platform"
+    ),
     "CKV_AWS_221": SOC2Control("CC6.6", "Encryption", "EFS Mount Target Encryption"),
-    "CKV_AWS_222": SOC2Control("CC6.1", "Access Control", "EKS Cluster Secrets Encryption"),
+    "CKV_AWS_222": SOC2Control(
+        "CC6.1", "Access Control", "EKS Cluster Secrets Encryption"
+    ),
     "CKV_AWS_223": SOC2Control("CC7.2", "Monitoring", "EKS Control Plane Audit"),
     "CKV_AWS_224": SOC2Control("CC6.1", "Access Control", "EKS Service Account Token"),
     "CKV_AWS_225": SOC2Control("CC6.7", "Encryption", "Elasticsearch HTTPS Required"),
@@ -283,7 +325,9 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_262": SOC2Control("C1.2", "Confidentiality", "SageMaker VPC Config"),
     "CKV_AWS_263": SOC2Control("CC6.6", "Encryption", "Secrets Manager CMK"),
     "CKV_AWS_264": SOC2Control("CC8.1", "Change Mgmt", "Secrets Manager Rotation Days"),
-    "CKV_AWS_265": SOC2Control("CC7.3", "Incident Response", "SecurityHub Standard ARN"),
+    "CKV_AWS_265": SOC2Control(
+        "CC7.3", "Incident Response", "SecurityHub Standard ARN"
+    ),
     "CKV_AWS_266": SOC2Control("CC6.6", "Encryption", "SES Configuration Set TLS"),
     "CKV_AWS_267": SOC2Control("CC7.2", "Monitoring", "SNS Topic Logging"),
     "CKV_AWS_268": SOC2Control("CC6.1", "Access Control", "SQS Queue Policy"),
@@ -300,7 +344,9 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_278": SOC2Control("CC6.6", "Encryption", "X-Ray Encryption"),
     "CKV_AWS_279": SOC2Control("CC7.2", "Monitoring", "API GW V2 Access Logging"),
     "CKV_AWS_280": SOC2Control("CC6.7", "Encryption", "API GW V2 TLS"),
-    "CKV_AWS_281": SOC2Control("CC6.1", "Access Control", "AppConfig Deletion Protection"),
+    "CKV_AWS_281": SOC2Control(
+        "CC6.1", "Access Control", "AppConfig Deletion Protection"
+    ),
     "CKV_AWS_282": SOC2Control("CC6.6", "Encryption", "AppFlow Connector Encryption"),
     "CKV_AWS_283": SOC2Control("CC7.2", "Monitoring", "AppRunner Observability"),
     "CKV_AWS_284": SOC2Control("CC6.6", "Encryption", "AppRunner Encryption"),
@@ -317,22 +363,34 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_295": SOC2Control("CC7.2", "Monitoring", "CodeGuru Profiler Enabled"),
     "CKV_AWS_296": SOC2Control("CC6.6", "Encryption", "Comprehend Encryption"),
     "CKV_AWS_297": SOC2Control("C1.2", "Confidentiality", "Comprehend VPC Config"),
-    "CKV_AWS_298": SOC2Control("CC7.3", "Incident Response", "Config Aggregator All Regions"),
+    "CKV_AWS_298": SOC2Control(
+        "CC7.3", "Incident Response", "Config Aggregator All Regions"
+    ),
     "CKV_AWS_299": SOC2Control("CC6.6", "Encryption", "Connect Instance Encryption"),
     "CKV_AWS_300": SOC2Control("CC7.2", "Monitoring", "Connect Instance Logging"),
     # Additional High-Value Security Checks
-    "CKV_AWS_301": SOC2Control("CC6.1", "Access Control", "DataSync Agent Private Link"),
+    "CKV_AWS_301": SOC2Control(
+        "CC6.1", "Access Control", "DataSync Agent Private Link"
+    ),
     "CKV_AWS_302": SOC2Control("CC6.6", "Encryption", "DMS Endpoint SSL Mode"),
     "CKV_AWS_303": SOC2Control("CC7.2", "Monitoring", "DMS Replication Logging"),
     "CKV_AWS_304": SOC2Control("A1.2", "Availability", "DocDB Global Cluster"),
-    "CKV_AWS_305": SOC2Control("CC6.1", "Access Control", "EC2 Serial Console Disabled"),
+    "CKV_AWS_305": SOC2Control(
+        "CC6.1", "Access Control", "EC2 Serial Console Disabled"
+    ),
     "CKV_AWS_306": SOC2Control("CC6.6", "Encryption", "ECR Replication Encryption"),
-    "CKV_AWS_307": SOC2Control("CC6.1", "Access Control", "ECS Execute Command Logging"),
+    "CKV_AWS_307": SOC2Control(
+        "CC6.1", "Access Control", "ECS Execute Command Logging"
+    ),
     "CKV_AWS_308": SOC2Control("CC7.2", "Monitoring", "ECS Container Insights"),
     "CKV_AWS_309": SOC2Control("CC6.6", "Encryption", "EKS Node Group Encryption"),
     "CKV_AWS_310": SOC2Control("CC6.1", "Access Control", "Elasticsearch VPC Endpoint"),
-    "CKV_AWS_311": SOC2Control("CC7.2", "Monitoring", "ElasticBeanstalk Enhanced Health"),
-    "CKV_AWS_312": SOC2Control("CC6.6", "Encryption", "ElasticBeanstalk Managed Updates"),
+    "CKV_AWS_311": SOC2Control(
+        "CC7.2", "Monitoring", "ElasticBeanstalk Enhanced Health"
+    ),
+    "CKV_AWS_312": SOC2Control(
+        "CC6.6", "Encryption", "ElasticBeanstalk Managed Updates"
+    ),
     "CKV_AWS_313": SOC2Control("CC6.1", "Access Control", "EMR Security Configuration"),
     "CKV_AWS_314": SOC2Control("CC6.6", "Encryption", "Forecast Dataset Encryption"),
     "CKV_AWS_315": SOC2Control("CC7.2", "Monitoring", "GameLift Fleet Metrics"),
@@ -345,15 +403,21 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_322": SOC2Control("CC6.6", "Encryption", "Kendra Index Encryption"),
     "CKV_AWS_323": SOC2Control("CC6.1", "Access Control", "Keyspaces Table Encryption"),
     "CKV_AWS_324": SOC2Control("A1.2", "Availability", "Kinesis Data Firehose Backup"),
-    "CKV_AWS_325": SOC2Control("CC6.6", "Encryption", "Kinesis Video Stream Encryption"),
+    "CKV_AWS_325": SOC2Control(
+        "CC6.6", "Encryption", "Kinesis Video Stream Encryption"
+    ),
     "CKV_AWS_326": SOC2Control("CC6.1", "Access Control", "KMS Key Policy"),
     "CKV_AWS_327": SOC2Control("CC8.1", "Change Mgmt", "KMS Key Deletion Window"),
-    "CKV_AWS_328": SOC2Control("CC6.6", "Encryption", "Lake Formation Resource Encryption"),
+    "CKV_AWS_328": SOC2Control(
+        "CC6.6", "Encryption", "Lake Formation Resource Encryption"
+    ),
     "CKV_AWS_329": SOC2Control("C1.2", "Confidentiality", "Lambda Env Vars Encrypted"),
     "CKV_AWS_330": SOC2Control("CC7.2", "Monitoring", "Lex Bot Logging"),
     "CKV_AWS_331": SOC2Control("CC6.6", "Encryption", "Lightsail Instance Encryption"),
     "CKV_AWS_332": SOC2Control("A1.2", "Availability", "Lightsail Instance Backup"),
-    "CKV_AWS_333": SOC2Control("CC6.1", "Access Control", "Location Tracker Encryption"),
+    "CKV_AWS_333": SOC2Control(
+        "CC6.1", "Access Control", "Location Tracker Encryption"
+    ),
     "CKV_AWS_334": SOC2Control("CC7.2", "Monitoring", "Lookout Metrics Alert"),
     "CKV_AWS_335": SOC2Control("CC6.6", "Encryption", "MemoryDB Encryption"),
     "CKV_AWS_336": SOC2Control("CC6.7", "Encryption", "MemoryDB TLS Enabled"),
@@ -369,7 +433,9 @@ SOC2_MAPPING: dict[str, SOC2Control] = {
     "CKV_AWS_346": SOC2Control("A1.2", "Availability", "S3 Bucket Replication"),
     "CKV_AWS_347": SOC2Control("CC6.6", "Encryption", "S3 Inventory Encryption"),
     "CKV_AWS_348": SOC2Control("CC6.6", "Encryption", "SageMaker Domain Encryption"),
-    "CKV_AWS_349": SOC2Control("C1.2", "Confidentiality", "SageMaker Notebook Direct Internet"),
+    "CKV_AWS_349": SOC2Control(
+        "C1.2", "Confidentiality", "SageMaker Notebook Direct Internet"
+    ),
     "CKV_AWS_350": SOC2Control("CC6.6", "Encryption", "SES Identity DKIM"),
     "CKV_AWS_351": SOC2Control("CC6.7", "Encryption", "SES Configuration TLS Required"),
     "CKV_AWS_352": SOC2Control("CC7.2", "Monitoring", "Shield Advanced Protection"),

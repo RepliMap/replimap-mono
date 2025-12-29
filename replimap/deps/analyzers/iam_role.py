@@ -325,8 +325,7 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
                                 continue
 
                             tags = {
-                                t["Key"]: t["Value"]
-                                for t in instance.get("Tags", [])
+                                t["Key"]: t["Value"] for t in instance.get("Tags", [])
                             }
                             consumers.append(
                                 Dependency(
@@ -393,9 +392,7 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
             paginator = self.iam.get_paginator("list_attached_role_policies")
             for page in paginator.paginate(RoleName=role_name):
                 for policy in page.get("AttachedPolicies", []):
-                    is_aws_managed = policy["PolicyArn"].startswith(
-                        "arn:aws:iam::aws:"
-                    )
+                    is_aws_managed = policy["PolicyArn"].startswith("arn:aws:iam::aws:")
                     policies.append(
                         Dependency(
                             resource_type="aws_iam_policy",
@@ -404,7 +401,9 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
                             relation_type=RelationType.DEPENDENCY,
                             severity=Severity.MEDIUM,
                             metadata={
-                                "type": "aws_managed" if is_aws_managed else "customer_managed"
+                                "type": "aws_managed"
+                                if is_aws_managed
+                                else "customer_managed"
                             },
                         )
                     )

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -21,11 +20,11 @@ from rich.tree import Tree
 from replimap.dependencies.models import (
     DISCLAIMER_FULL,
     DISCLAIMER_SHORT,
+    RESOURCE_CATEGORY_MAP,
     DependencyExplorerResult,
     ImpactLevel,
     RelationshipCategory,
     ResourceNode,
-    RESOURCE_CATEGORY_MAP,
 )
 
 console = Console()
@@ -228,9 +227,7 @@ class DependencyExplorerReporter:
             label = cfg["label"]
             desc = cfg["description"]
 
-            console.print(
-                f"\n  [{color}][{label}][/{color}] [dim]({desc})[/dim]"
-            )
+            console.print(f"\n  [{color}][{label}][/{color}] [dim]({desc})[/dim]")
 
             for r in cat_resources:
                 impact_color = self._get_impact_color(r.impact_level)
@@ -298,7 +295,9 @@ class DependencyExplorerReporter:
         # Add upstream dependencies (what this resource uses)
         upstream = [r for r in result.affected_resources if r.depth < 0]
         if upstream:
-            upstream_branch = tree.add("[magenta]Uses (upstream dependencies)[/magenta]")
+            upstream_branch = tree.add(
+                "[magenta]Uses (upstream dependencies)[/magenta]"
+            )
             self._build_categorized_tree(upstream_branch, upstream)
 
         # Add context info for EC2

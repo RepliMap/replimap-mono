@@ -37,7 +37,11 @@ DEPENDENCY_PATTERNS: list[tuple[str, str, str]] = [
     ("aws_instance", "aws_key_pair", "key_name"),
     ("aws_instance", "aws_ami", "ami"),
     ("aws_instance", "aws_ebs_volume", "block_device_mappings.volume_id"),
-    ("aws_instance", "aws_network_interface", "network_interfaces.network_interface_id"),
+    (
+        "aws_instance",
+        "aws_network_interface",
+        "network_interfaces.network_interface_id",
+    ),
     # EBS volume dependencies
     ("aws_ebs_volume", "aws_kms_key", "kms_key_id"),
     ("aws_volume_attachment", "aws_ebs_volume", "volume_id"),
@@ -113,7 +117,11 @@ DEPENDENCY_PATTERNS: list[tuple[str, str, str]] = [
     ("aws_launch_template", "aws_key_pair", "key_name"),
     # ElastiCache dependencies
     ("aws_elasticache_cluster", "aws_elasticache_subnet_group", "subnet_group_name"),
-    ("aws_elasticache_cluster", "aws_elasticache_subnet_group", "cache_subnet_group_name"),
+    (
+        "aws_elasticache_cluster",
+        "aws_elasticache_subnet_group",
+        "cache_subnet_group_name",
+    ),
     ("aws_elasticache_cluster", "aws_security_group", "security_group_ids"),
     ("aws_elasticache_subnet_group", "aws_subnet", "subnet_ids"),
     # SQS/SNS dependencies

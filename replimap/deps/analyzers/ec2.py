@@ -380,7 +380,9 @@ class EC2Analyzer(ResourceDependencyAnalyzer):
         iam_profile = data.get("IamInstanceProfile", {})
         profile_arn = iam_profile.get("Arn")
         if profile_arn:
-            profile_name = profile_arn.split("/")[-1] if "/" in profile_arn else profile_arn
+            profile_name = (
+                profile_arn.split("/")[-1] if "/" in profile_arn else profile_arn
+            )
 
             # Get the role from the profile
             role_dep = Dependency(

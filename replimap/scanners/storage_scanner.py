@@ -96,13 +96,16 @@ class EBSScanner(BaseScanner):
 
                 graph.add_resource(node)
 
-                # Add dependency on attached instances
-                for att in attachments:
-                    instance_id = att.get("instance_id")
-                    if instance_id and graph.get_resource(instance_id):
-                        graph.add_dependency(
-                            vol_id, instance_id, DependencyType.BELONGS_TO
-                        )
+                # Note: The EC2 scanner already adds instance → volume dependency
+                # We don't add volume → instance here as that would create a
+                # bidirectional relationship causing EBS to appear as both
+                # upstream (dependency) and downstream (dependent) of EC2.
+                # The correct relationship is: EC2 depends on EBS (not vice versa).
+                #
+                # For KMS encryption, add the dependency:
+                kms_key_id = volume.get("KmsKeyId")
+                if kms_key_id and graph.get_resource(kms_key_id):
+                    graph.add_dependency(vol_id, kms_key_id, DependencyType.USES)
 
                 logger.debug(
                     f"Added EBS Volume: {vol_id} ({volume.get('Size')}GB {volume.get('VolumeType')})"

@@ -77,7 +77,9 @@ class VPCScanner(BaseScanner):
                             {
                                 "flow_log_id": flow_log.get("FlowLogId"),
                                 "traffic_type": flow_log.get("TrafficType"),
-                                "log_destination_type": flow_log.get("LogDestinationType"),
+                                "log_destination_type": flow_log.get(
+                                    "LogDestinationType"
+                                ),
                                 "log_destination": flow_log.get("LogDestination"),
                                 "log_group_name": flow_log.get("LogGroupName"),
                                 "status": flow_log.get("FlowLogStatus"),

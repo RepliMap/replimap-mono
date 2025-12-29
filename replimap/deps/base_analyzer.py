@@ -9,13 +9,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
+from replimap.deps.blast_radius import calculate_blast_radius
 from replimap.deps.models import (
     Dependency,
     DependencyAnalysis,
     RelationType,
     Severity,
 )
-from replimap.deps.blast_radius import calculate_blast_radius
 
 
 class ResourceDependencyAnalyzer(ABC):

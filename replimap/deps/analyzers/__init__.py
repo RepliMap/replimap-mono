@@ -13,19 +13,17 @@ if TYPE_CHECKING:
 
 # Import analyzers
 from replimap.deps.analyzers.ec2 import EC2Analyzer
-from replimap.deps.analyzers.security_group import SecurityGroupAnalyzer
 from replimap.deps.analyzers.iam_role import IAMRoleAnalyzer
+from replimap.deps.analyzers.security_group import SecurityGroupAnalyzer
 
 # Analyzer registry
 ANALYZERS: dict[str, type[ResourceDependencyAnalyzer]] = {
     # EC2 Instance
     "aws_instance": EC2Analyzer,
     "i-": EC2Analyzer,  # ID prefix shortcut
-
     # Security Group
     "aws_security_group": SecurityGroupAnalyzer,
     "sg-": SecurityGroupAnalyzer,
-
     # IAM Role
     "aws_iam_role": IAMRoleAnalyzer,
 }

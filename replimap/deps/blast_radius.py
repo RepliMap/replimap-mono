@@ -7,16 +7,16 @@ Provides weighted blast radius scoring based on resource criticality.
 from __future__ import annotations
 
 from replimap.deps.models import (
+    RESOURCE_WEIGHTS,
     BlastRadiusScore,
     Dependency,
     RelationType,
     ResourceCriticality,
-    RESOURCE_WEIGHTS,
 )
 
 
 def calculate_blast_radius(
-    dependencies: dict[RelationType, list[Dependency]]
+    dependencies: dict[RelationType, list[Dependency]],
 ) -> BlastRadiusScore:
     """
     Calculate blast radius score from dependencies.
@@ -46,9 +46,7 @@ def calculate_blast_radius(
 
     for dep in all_affected:
         resource_type = dep.resource_type
-        weight = RESOURCE_WEIGHTS.get(
-            resource_type, ResourceCriticality.DEFAULT
-        ).value
+        weight = RESOURCE_WEIGHTS.get(resource_type, ResourceCriticality.DEFAULT).value
 
         # Count the dependency itself
         count = 1

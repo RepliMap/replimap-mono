@@ -9,15 +9,15 @@ Provides comprehensive dependency analysis for AWS resources with:
 - IDENTITY: Permission context (IAM Role, KMS Key)
 """
 
+from replimap.deps.analyzers import ANALYZERS, get_analyzer
+from replimap.deps.blast_radius import calculate_blast_radius
 from replimap.deps.models import (
-    RelationType,
-    Severity,
+    BlastRadiusScore,
     Dependency,
     DependencyAnalysis,
-    BlastRadiusScore,
+    RelationType,
+    Severity,
 )
-from replimap.deps.analyzers import get_analyzer, ANALYZERS
-from replimap.deps.blast_radius import calculate_blast_radius
 
 __all__ = [
     "RelationType",

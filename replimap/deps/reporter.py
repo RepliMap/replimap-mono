@@ -19,13 +19,12 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
+from replimap.deps.blast_radius import get_risk_color, get_severity_color
 from replimap.deps.models import (
     Dependency,
     DependencyAnalysis,
     RelationType,
-    Severity,
 )
-from replimap.deps.blast_radius import get_risk_color, get_severity_color
 
 console = Console()
 
@@ -170,7 +169,9 @@ class DependencyAnalysisReporter:
                 f"  {rt_short}: {info['count']} (weight: {info['weight']}) = {info['impact']} impact"
             )
 
-        breakdown_text = "\n".join(breakdown_lines) if breakdown_lines else "  No consumers found"
+        breakdown_text = (
+            "\n".join(breakdown_lines) if breakdown_lines else "  No consumers found"
+        )
 
         panel_content = f"""[{color}]Impact Score: {br.score}/100 [{br.level}][/{color}]
 
@@ -242,9 +243,7 @@ class DependencyAnalysisReporter:
             desc = config.get("description", "")
             icon = config.get("icon", "•")
 
-            console.print(
-                f"[{color}][{label}][/{color}] [dim]({desc})[/dim]"
-            )
+            console.print(f"[{color}][{label}][/{color}] [dim]({desc})[/dim]")
 
             for dep in deps:
                 self._print_dependency(dep, color, icon, indent=2)
@@ -319,7 +318,10 @@ class DependencyAnalysisReporter:
                 )
 
         # High blast radius actions
-        if analysis.blast_radius and analysis.blast_radius.level in ("CRITICAL", "HIGH"):
+        if analysis.blast_radius and analysis.blast_radius.level in (
+            "CRITICAL",
+            "HIGH",
+        ):
             actions.append(
                 f"Review all {analysis.blast_radius.affected_count} affected resources before changes"
             )
@@ -362,7 +364,9 @@ class DependencyAnalysisReporter:
         center = analysis.center_resource
 
         # Build center label
-        center_label = f"[bold cyan]{center.resource_type}[/bold cyan]: {center.resource_id}"
+        center_label = (
+            f"[bold cyan]{center.resource_type}[/bold cyan]: {center.resource_id}"
+        )
         if center.resource_name and center.resource_name != center.resource_id:
             center_label += f" ({center.resource_name})"
 
