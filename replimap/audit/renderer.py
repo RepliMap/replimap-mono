@@ -710,6 +710,73 @@ class AuditRenderer:
             lines.append(f'ssl_policy = "{ssl_policy}"')
         if cert_arn := config.get("certificate_arn"):
             lines.append(f'certificate_arn = "{cert_arn}"')
+
+        # Render default_action blocks - critical for Checkov to detect redirects
+        for action in config.get("default_actions", []):
+            lines.append("")
+            lines.append("default_action {")
+            action_type = action.get("type")
+            if action_type:
+                lines.append(f'  type = "{action_type}"')
+
+            # Redirect action (HTTP to HTTPS)
+            if redirect := action.get("redirect"):
+                lines.append("  redirect {")
+                if redirect.get("Protocol"):
+                    lines.append(f'    protocol = "{redirect["Protocol"]}"')
+                if redirect.get("Port"):
+                    lines.append(f'    port = "{redirect["Port"]}"')
+                if redirect.get("Host"):
+                    lines.append(f'    host = "{redirect["Host"]}"')
+                if redirect.get("Path"):
+                    lines.append(f'    path = "{redirect["Path"]}"')
+                if redirect.get("Query"):
+                    lines.append(f'    query = "{redirect["Query"]}"')
+                if redirect.get("StatusCode"):
+                    lines.append(f'    status_code = "{redirect["StatusCode"]}"')
+                lines.append("  }")
+
+            # Forward action (to target group)
+            if tg_arn := action.get("target_group_arn"):
+                lines.append(f'  target_group_arn = "{tg_arn}"')
+
+            # Forward config with weighted target groups
+            if forward := action.get("forward"):
+                lines.append("  forward {")
+                for tg in forward.get("TargetGroups", []):
+                    lines.append("    target_group {")
+                    if tg.get("TargetGroupArn"):
+                        lines.append(f'      arn = "{tg["TargetGroupArn"]}"')
+                    if tg.get("Weight") is not None:
+                        lines.append(f"      weight = {tg['Weight']}")
+                    lines.append("    }")
+                if stickiness := forward.get("TargetGroupStickinessConfig"):
+                    lines.append("    stickiness {")
+                    if stickiness.get("Enabled") is not None:
+                        lines.append(
+                            f"      enabled = {str(stickiness['Enabled']).lower()}"
+                        )
+                    if stickiness.get("DurationSeconds"):
+                        lines.append(
+                            f"      duration = {stickiness['DurationSeconds']}"
+                        )
+                    lines.append("    }")
+                lines.append("  }")
+
+            # Fixed response action
+            if fixed := action.get("fixed_response"):
+                lines.append("  fixed_response {")
+                if fixed.get("ContentType"):
+                    lines.append(f'    content_type = "{fixed["ContentType"]}"')
+                if fixed.get("MessageBody"):
+                    body = fixed["MessageBody"].replace('"', '\\"')
+                    lines.append(f'    message_body = "{body}"')
+                if fixed.get("StatusCode"):
+                    lines.append(f'    status_code = "{fixed["StatusCode"]}"')
+                lines.append("  }")
+
+            lines.append("}")
+
         return lines
 
     def _render_lb_target_group(self, config: dict, graph: GraphEngine) -> list[str]:
