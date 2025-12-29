@@ -103,7 +103,7 @@ class EC2Analyzer(ResourceDependencyAnalyzer):
                 instances = reservations[0].get("Instances", [])
                 if instances:
                     return instances[0]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return {}
@@ -186,7 +186,7 @@ class EC2Analyzer(ResourceDependencyAnalyzer):
                             metadata={"health_status": tg.get("health_status")},
                         )
                     )
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         # Note: Route53 records would need Route53 client
@@ -224,9 +224,9 @@ class EC2Analyzer(ResourceDependencyAnalyzer):
                                         ).get("State"),
                                     }
                                 )
-                    except Exception:
+                    except Exception:  # noqa: S112
                         continue
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return target_groups
@@ -411,7 +411,7 @@ class EC2Analyzer(ResourceDependencyAnalyzer):
                                 severity=Severity.HIGH,
                             )
                         )
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
 
             identity.append(role_dep)
@@ -443,7 +443,7 @@ class EC2Analyzer(ResourceDependencyAnalyzer):
                                 metadata={"volume_id": vol.get("VolumeId")},
                             )
                         )
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         return identity

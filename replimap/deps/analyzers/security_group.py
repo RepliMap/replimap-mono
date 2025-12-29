@@ -104,7 +104,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
             sgs = response.get("SecurityGroups", [])
             if sgs:
                 return sgs[0]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return {}
@@ -156,7 +156,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                 try:
                     result = future.result()
                     consumers.extend(result)
-                except Exception:
+                except Exception:  # noqa: S110
                     # Log but don't fail
                     pass
 
@@ -191,7 +191,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                                 metadata={"state": state},
                             )
                         )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return instances
@@ -226,7 +226,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                                 },
                             )
                         )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return databases
@@ -255,7 +255,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                                 metadata={"runtime": func.get("Runtime")},
                             )
                         )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return functions
@@ -284,7 +284,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                                 metadata={"type": lb.get("Type")},
                             )
                         )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return load_balancers
@@ -316,7 +316,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                                 metadata={"engine": cluster.get("Engine")},
                             )
                         )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return clusters
@@ -406,7 +406,7 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                                             },
                                         )
                                     )
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         return {

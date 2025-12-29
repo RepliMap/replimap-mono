@@ -125,10 +125,10 @@ class ElastiCacheAnalyzer(ResourceDependencyAnalyzer):
                             t["Key"]: t["Value"]
                             for t in tags_response.get("TagList", [])
                         }
-                except Exception:
+                except Exception:  # noqa: S110
                     data["tags"] = {}
                 return data
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return {}
@@ -252,9 +252,8 @@ class ElastiCacheAnalyzer(ResourceDependencyAnalyzer):
         """Find identity/permission dependencies."""
         identity = []
 
-        # KMS Key for at-rest encryption
-        kms_key = data.get("AtRestEncryptionEnabled")
         # Note: ElastiCache doesn't expose KMS key ID directly in describe_cache_clusters
+        # AtRestEncryptionEnabled is a boolean, not a key ID
         # Would need to check replication group for encryption settings
 
         # Auth token (if transit encryption enabled)

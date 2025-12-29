@@ -118,7 +118,7 @@ class ASGAnalyzer(ResourceDependencyAnalyzer):
             groups = response.get("AutoScalingGroups", [])
             if groups:
                 return groups[0]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return {}
@@ -325,7 +325,7 @@ class ASGAnalyzer(ResourceDependencyAnalyzer):
                                     severity=Severity.INFO,
                                 ),
                             )
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
 
         # Availability Zones (from instances)

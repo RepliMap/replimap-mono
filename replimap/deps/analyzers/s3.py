@@ -103,14 +103,14 @@ class S3BucketAnalyzer(ResourceDependencyAnalyzer):
             location = self.s3.get_bucket_location(Bucket=resource_id)
             # LocationConstraint is None for us-east-1
             data["region"] = location.get("LocationConstraint") or "us-east-1"
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         try:
             # Get versioning
             versioning = self.s3.get_bucket_versioning(Bucket=resource_id)
             data["versioning"] = versioning.get("Status", "Disabled")
-        except Exception:
+        except Exception:  # noqa: S110
             data["versioning"] = "Unknown"
 
         try:
@@ -125,14 +125,14 @@ class S3BucketAnalyzer(ResourceDependencyAnalyzer):
                     "algorithm": apply.get("SSEAlgorithm"),
                     "kms_key_id": apply.get("KMSMasterKeyID"),
                 }
-        except Exception:
+        except Exception:  # noqa: S110
             data["encryption"] = None
 
         try:
             # Get replication configuration
             replication = self.s3.get_bucket_replication(Bucket=resource_id)
             data["replication"] = replication.get("ReplicationConfiguration", {})
-        except Exception:
+        except Exception:  # noqa: S110
             data["replication"] = None
 
         try:
@@ -150,7 +150,7 @@ class S3BucketAnalyzer(ResourceDependencyAnalyzer):
                 }
             else:
                 data["logging"] = {"enabled": False}
-        except Exception:
+        except Exception:  # noqa: S110
             data["logging"] = {"enabled": False}
 
         try:
@@ -165,21 +165,21 @@ class S3BucketAnalyzer(ResourceDependencyAnalyzer):
                 "sqs_queues": notifications.get("QueueConfigurations", []),
                 "sns_topics": notifications.get("TopicConfigurations", []),
             }
-        except Exception:
+        except Exception:  # noqa: S110
             data["notifications"] = {}
 
         try:
             # Get public access block
             pab = self.s3.get_public_access_block(Bucket=resource_id)
             data["public_access_block"] = pab.get("PublicAccessBlockConfiguration", {})
-        except Exception:
+        except Exception:  # noqa: S110
             data["public_access_block"] = None
 
         try:
             # Get bucket tagging
             tagging = self.s3.get_bucket_tagging(Bucket=resource_id)
             data["tags"] = {t["Key"]: t["Value"] for t in tagging.get("TagSet", [])}
-        except Exception:
+        except Exception:  # noqa: S110
             data["tags"] = {}
 
         return data

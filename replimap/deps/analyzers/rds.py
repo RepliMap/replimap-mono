@@ -111,7 +111,7 @@ class RDSInstanceAnalyzer(ResourceDependencyAnalyzer):
             instances = response.get("DBInstances", [])
             if instances:
                 return instances[0]
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return {}

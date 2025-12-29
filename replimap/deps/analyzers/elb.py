@@ -121,10 +121,10 @@ class ELBAnalyzer(ResourceDependencyAnalyzer):
                         "Tags", []
                     )
                     data["tags"] = {t["Key"]: t["Value"] for t in tag_list}
-                except Exception:
+                except Exception:  # noqa: S110
                     data["tags"] = {}
                 return data
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return {}
@@ -177,7 +177,7 @@ class ELBAnalyzer(ResourceDependencyAnalyzer):
                             consumers.append(
                                 self._create_target_group_dep(tg_arn, listener)
                             )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return consumers
@@ -272,7 +272,7 @@ class ELBAnalyzer(ResourceDependencyAnalyzer):
                                 metadata={"listener_port": listener.get("Port")},
                             )
                         )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return identity

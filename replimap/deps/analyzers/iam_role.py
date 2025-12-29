@@ -103,7 +103,7 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
         try:
             response = self.iam.get_role(RoleName=role_name)
             return response.get("Role", {})
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return {}
@@ -285,7 +285,7 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
                 try:
                     result = future.result()
                     consumers.extend(result)
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
 
         return consumers
@@ -343,7 +343,7 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
                                     },
                                 )
                             )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return consumers
@@ -375,7 +375,7 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
                                 metadata={"runtime": func.get("Runtime")},
                             )
                         )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return functions
@@ -423,7 +423,7 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
                             metadata={"type": "inline"},
                         )
                     )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return policies

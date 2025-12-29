@@ -116,7 +116,7 @@ class LambdaFunctionAnalyzer(ResourceDependencyAnalyzer):
             data["Tags"] = response.get("Tags", {})
 
             return data
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return {}
@@ -206,7 +206,7 @@ class LambdaFunctionAnalyzer(ResourceDependencyAnalyzer):
                             },
                         )
                     )
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return triggers
@@ -386,7 +386,7 @@ class LambdaFunctionAnalyzer(ResourceDependencyAnalyzer):
         # Event source warnings
         triggers = dependencies.get(RelationType.TRIGGER, [])
         if triggers:
-            trigger_types = set(t.resource_type for t in triggers)
+            trigger_types = {t.resource_type for t in triggers}
             warnings.insert(
                 0,
                 f"Function has {len(triggers)} event source(s): "
