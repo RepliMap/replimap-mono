@@ -2915,6 +2915,120 @@ def drift(
 # =============================================================================
 
 
+def _run_analyzer_mode(
+    resource_id: str,
+    session: Any,
+    region: str,
+    output_format: str,
+    output: Path | None,
+) -> None:
+    """Run deep analyzer mode for deps command."""
+    from pathlib import Path as PathLib
+
+    from rich.status import Status
+
+    from replimap.deps import get_analyzer
+    from replimap.deps.reporter import DependencyAnalysisReporter
+
+    console.print()
+
+    # Create AWS clients
+    with Status("[bold blue]Creating AWS clients...", console=console):
+        ec2_client = session.client("ec2", region_name=region)
+        rds_client = session.client("rds", region_name=region)
+        iam_client = session.client("iam")  # IAM is global
+        lambda_client = session.client("lambda", region_name=region)
+        elbv2_client = session.client("elbv2", region_name=region)
+        autoscaling_client = session.client("autoscaling", region_name=region)
+        elasticache_client = session.client("elasticache", region_name=region)
+        sts_client = session.client("sts")
+
+    # Get the appropriate analyzer
+    try:
+        analyzer = get_analyzer(
+            resource_id,
+            ec2_client=ec2_client,
+            rds_client=rds_client,
+            iam_client=iam_client,
+            lambda_client=lambda_client,
+            elbv2_client=elbv2_client,
+            autoscaling_client=autoscaling_client,
+            elasticache_client=elasticache_client,
+            sts_client=sts_client,
+        )
+    except ValueError as e:
+        console.print(
+            Panel(
+                f"[red]Unsupported resource type:[/] {resource_id}\n\n"
+                f"Analyzer mode currently supports:\n"
+                f"  • EC2 instances (i-xxx)\n"
+                f"  • Security Groups (sg-xxx)\n"
+                f"  • IAM Roles\n\n"
+                f"Use without --analyze flag for graph-based analysis.",
+                title="Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
+
+    # Run analysis with progress feedback
+    with Status(
+        f"[bold blue]Analyzing {analyzer.resource_type}...",
+        console=console,
+    ) as status:
+        try:
+            status.update(f"[bold blue]Analyzing {resource_id}...")
+            analysis = analyzer.analyze(resource_id, region)
+
+            # Update status for large queries
+            consumers = analysis.dependencies.get(
+                __import__("replimap.deps.models", fromlist=["RelationType"]).RelationType.CONSUMER,
+                [],
+            )
+            if len(consumers) > 10:
+                status.update(
+                    f"[bold blue]Found {len(consumers)} consumers, calculating blast radius..."
+                )
+
+        except ValueError as e:
+            console.print(
+                Panel(
+                    f"[red]Resource not found:[/] {resource_id}\n\n"
+                    f"Make sure the resource ID is correct and exists in region {region}.",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            raise typer.Exit(1)
+        except Exception as e:
+            console.print(
+                Panel(
+                    f"[red]Analysis failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
+                )
+            )
+            logger.exception("Analyzer mode failed")
+            raise typer.Exit(1)
+
+    # Report results
+    reporter = DependencyAnalysisReporter()
+    console.print()
+
+    if output_format == "tree":
+        reporter.to_tree(analysis)
+    elif output_format == "table":
+        reporter.to_table(analysis)
+    elif output_format == "json":
+        output_path = output or PathLib("./deps.json")
+        reporter.to_json(analysis, output_path)
+    else:
+        # Default: console output
+        reporter.to_console(analysis)
+
+    console.print()
+
+
 @app.command()
 def deps(
     resource_id: str = typer.Argument(
@@ -2971,6 +3085,12 @@ def deps(
         False,
         "--no-cache",
         help="Don't use cached credentials",
+    ),
+    analyze: bool = typer.Option(
+        False,
+        "--analyze",
+        "-a",
+        help="Use deep analyzer mode with categorized output (EC2, SG, IAM Role)",
     ),
 ) -> None:
     """
@@ -3051,7 +3171,18 @@ def deps(
     # Get AWS session
     session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
-    # Scan resources
+    # Use analyzer mode if requested (deep analysis with categorized output)
+    if analyze:
+        _run_analyzer_mode(
+            resource_id=resource_id,
+            session=session,
+            region=effective_region,
+            output_format=output_format,
+            output=output,
+        )
+        return
+
+    # Graph-based mode (default)
     console.print()
     with Progress(
         SpinnerColumn(),
