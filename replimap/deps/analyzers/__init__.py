@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 # Import analyzers
 from replimap.deps.analyzers.asg import ASGAnalyzer
 from replimap.deps.analyzers.ec2 import EC2Analyzer
+from replimap.deps.analyzers.elasticache import ElastiCacheAnalyzer
+from replimap.deps.analyzers.elb import ELBAnalyzer
 from replimap.deps.analyzers.iam_role import IAMRoleAnalyzer
 from replimap.deps.analyzers.lambda_func import LambdaFunctionAnalyzer
 from replimap.deps.analyzers.rds import RDSInstanceAnalyzer
@@ -38,6 +40,11 @@ ANALYZERS: dict[str, type[ResourceDependencyAnalyzer]] = {
     "aws_s3_bucket": S3BucketAnalyzer,
     # Lambda Function
     "aws_lambda_function": LambdaFunctionAnalyzer,
+    # Load Balancer (ALB/NLB)
+    "aws_lb": ELBAnalyzer,
+    "aws_alb": ELBAnalyzer,
+    # ElastiCache
+    "aws_elasticache_cluster": ElastiCacheAnalyzer,
 }
 
 
@@ -75,6 +82,8 @@ __all__ = [
     "get_analyzer",
     "ASGAnalyzer",
     "EC2Analyzer",
+    "ElastiCacheAnalyzer",
+    "ELBAnalyzer",
     "IAMRoleAnalyzer",
     "LambdaFunctionAnalyzer",
     "RDSInstanceAnalyzer",

@@ -2969,7 +2969,9 @@ def _run_analyzer_mode(
                 f"  • RDS Instances\n"
                 f"  • Auto Scaling Groups\n"
                 f"  • S3 Buckets\n"
-                f"  • Lambda Functions\n\n"
+                f"  • Lambda Functions\n"
+                f"  • Load Balancers (ALB/NLB)\n"
+                f"  • ElastiCache Clusters\n\n"
                 f"Use without --analyze flag for graph-based analysis.",
                 title="Error",
                 border_style="red",

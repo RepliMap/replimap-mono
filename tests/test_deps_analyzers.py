@@ -720,3 +720,180 @@ class TestAnalyzerRegistry:
         assert "aws_autoscaling_group" in ANALYZERS
         assert "aws_s3_bucket" in ANALYZERS
         assert "aws_lambda_function" in ANALYZERS
+
+        # P2 analyzers
+        assert "aws_lb" in ANALYZERS
+        assert "aws_elasticache_cluster" in ANALYZERS
+
+
+# =============================================================================
+# ELB ANALYZER TESTS (P2)
+# =============================================================================
+
+
+class TestELBAnalyzer:
+    """Test ELB/ALB analyzer."""
+
+    def test_analyzer_resource_type(self):
+        """ELB analyzer has correct resource type."""
+        from replimap.deps.analyzers.elb import ELBAnalyzer
+
+        analyzer = ELBAnalyzer()
+        assert analyzer.resource_type == "aws_lb"
+
+    def test_find_vpc_network(self):
+        """Finds VPC network dependency."""
+        from replimap.deps.analyzers.elb import ELBAnalyzer
+
+        analyzer = ELBAnalyzer()
+        data = {
+            "VpcId": "vpc-123",
+            "AvailabilityZones": [
+                {"SubnetId": "subnet-1", "ZoneName": "us-east-1a"},
+                {"SubnetId": "subnet-2", "ZoneName": "us-east-1b"},
+            ],
+            "SecurityGroups": ["sg-123"],
+        }
+
+        network = analyzer._find_network(data, "application")
+
+        vpc = [n for n in network if n.resource_type == "aws_vpc"]
+        subnets = [n for n in network if n.resource_type == "aws_subnet"]
+        sgs = [n for n in network if n.resource_type == "aws_security_group"]
+
+        assert len(vpc) == 1
+        assert len(subnets) == 2
+        assert len(sgs) == 1  # ALB has SGs
+
+    def test_nlb_no_security_groups(self):
+        """NLB doesn't have security groups in network deps."""
+        from replimap.deps.analyzers.elb import ELBAnalyzer
+
+        analyzer = ELBAnalyzer()
+        data = {
+            "VpcId": "vpc-123",
+            "AvailabilityZones": [],
+            "SecurityGroups": ["sg-123"],
+        }
+
+        network = analyzer._find_network(data, "network")
+
+        sgs = [n for n in network if n.resource_type == "aws_security_group"]
+        assert len(sgs) == 0  # NLB doesn't use SGs
+
+    def test_create_target_group_dep(self):
+        """Creates target group dependency correctly."""
+        from replimap.deps.analyzers.elb import ELBAnalyzer
+
+        analyzer = ELBAnalyzer()
+        listener = {"Port": 443, "Protocol": "HTTPS"}
+        tg_arn = "arn:aws:elasticloadbalancing:us-east-1:123:targetgroup/my-tg/abc"
+
+        dep = analyzer._create_target_group_dep(tg_arn, listener)
+
+        assert dep.resource_type == "aws_lb_target_group"
+        assert dep.resource_name == "my-tg"
+        assert dep.relation_type == RelationType.CONSUMER
+        assert "HTTPS:443" in dep.warning
+
+
+# =============================================================================
+# ELASTICACHE ANALYZER TESTS (P2)
+# =============================================================================
+
+
+class TestElastiCacheAnalyzer:
+    """Test ElastiCache analyzer."""
+
+    def test_analyzer_resource_type(self):
+        """ElastiCache analyzer has correct resource type."""
+        from replimap.deps.analyzers.elasticache import ElastiCacheAnalyzer
+
+        analyzer = ElastiCacheAnalyzer()
+        assert analyzer.resource_type == "aws_elasticache_cluster"
+
+    def test_find_replication_group(self):
+        """Finds replication group membership."""
+        from replimap.deps.analyzers.elasticache import ElastiCacheAnalyzer
+
+        analyzer = ElastiCacheAnalyzer()
+        data = {"ReplicationGroupId": "my-repl-group"}
+
+        replication = analyzer._find_replication(data)
+
+        assert len(replication) == 1
+        assert replication[0].resource_type == "aws_elasticache_replication_group"
+        assert replication[0].relation_type == RelationType.REPLICATION
+
+    def test_find_parameter_group(self):
+        """Finds parameter group dependency."""
+        from replimap.deps.analyzers.elasticache import ElastiCacheAnalyzer
+
+        analyzer = ElastiCacheAnalyzer()
+        data = {
+            "CacheParameterGroup": {
+                "CacheParameterGroupName": "my-param-group",
+                "ParameterApplyStatus": "in-sync",
+            }
+        }
+
+        deps = analyzer._find_dependencies(data)
+
+        pg = [d for d in deps if d.resource_type == "aws_elasticache_parameter_group"]
+        assert len(pg) == 1
+        assert pg[0].resource_id == "my-param-group"
+
+    def test_find_security_groups(self):
+        """Finds security group network deps."""
+        from replimap.deps.analyzers.elasticache import ElastiCacheAnalyzer
+
+        analyzer = ElastiCacheAnalyzer()
+        data = {
+            "SecurityGroups": [
+                {"SecurityGroupId": "sg-123", "Status": "active"},
+                {"SecurityGroupId": "sg-456", "Status": "active"},
+            ]
+        }
+
+        network = analyzer._find_network(data)
+
+        sgs = [n for n in network if n.resource_type == "aws_security_group"]
+        assert len(sgs) == 2
+
+    def test_get_endpoint_redis(self):
+        """Gets Redis configuration endpoint."""
+        from replimap.deps.analyzers.elasticache import ElastiCacheAnalyzer
+
+        analyzer = ElastiCacheAnalyzer()
+        data = {
+            "ConfigurationEndpoint": {
+                "Address": "my-cluster.abc123.clustercfg.use1.cache.amazonaws.com",
+                "Port": 6379,
+            }
+        }
+
+        endpoint = analyzer._get_endpoint(data)
+
+        assert "my-cluster" in endpoint
+        assert "6379" in endpoint
+
+    def test_get_endpoint_memcached(self):
+        """Gets Memcached node endpoint."""
+        from replimap.deps.analyzers.elasticache import ElastiCacheAnalyzer
+
+        analyzer = ElastiCacheAnalyzer()
+        data = {
+            "CacheNodes": [
+                {
+                    "Endpoint": {
+                        "Address": "my-node.abc123.0001.use1.cache.amazonaws.com",
+                        "Port": 11211,
+                    }
+                }
+            ]
+        }
+
+        endpoint = analyzer._get_endpoint(data)
+
+        assert "my-node" in endpoint
+        assert "11211" in endpoint
