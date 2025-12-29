@@ -416,19 +416,34 @@ class EC2Analyzer(ResourceDependencyAnalyzer):
 
             identity.append(role_dep)
 
-        # KMS Keys for EBS encryption
+        # KMS Keys for EBS encryption - need to query volumes for KmsKeyId
+        volume_ids = []
         for bd in data.get("BlockDeviceMappings", []):
             ebs = bd.get("Ebs", {})
-            kms_key_id = ebs.get("KmsKeyId")
-            if kms_key_id:
-                identity.append(
-                    Dependency(
-                        resource_type="aws_kms_key",
-                        resource_id=kms_key_id,
-                        relation_type=RelationType.IDENTITY,
-                        severity=Severity.HIGH,
-                        metadata={"device_name": bd.get("DeviceName")},
-                    )
-                )
+            vol_id = ebs.get("VolumeId")
+            if vol_id:
+                volume_ids.append(vol_id)
+
+        # Query volume details to get KMS key info
+        if volume_ids and self.ec2:
+            try:
+                volumes_response = self.ec2.describe_volumes(VolumeIds=volume_ids)
+                seen_kms_keys: set[str] = set()
+                for vol in volumes_response.get("Volumes", []):
+                    kms_key_id = vol.get("KmsKeyId")
+                    if kms_key_id and kms_key_id not in seen_kms_keys:
+                        seen_kms_keys.add(kms_key_id)
+                        identity.append(
+                            Dependency(
+                                resource_type="aws_kms_key",
+                                resource_id=kms_key_id,
+                                relation_type=RelationType.IDENTITY,
+                                severity=Severity.HIGH,
+                                warning="EBS encryption key - do not delete!",
+                                metadata={"volume_id": vol.get("VolumeId")},
+                            )
+                        )
+            except Exception:
+                pass
 
         return identity
