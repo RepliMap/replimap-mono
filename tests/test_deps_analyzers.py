@@ -7,20 +7,16 @@ Tests the new analyzer framework including:
 - EC2, Security Group, RDS, ASG, S3, Lambda analyzers
 """
 
-from unittest.mock import MagicMock, patch
 
 import pytest
 
+from replimap.deps.blast_radius import calculate_blast_radius
 from replimap.deps.models import (
-    BlastRadiusScore,
     Dependency,
     DependencyAnalysis,
     RelationType,
-    ResourceCriticality,
     Severity,
 )
-from replimap.deps.blast_radius import calculate_blast_radius
-
 
 # =============================================================================
 # MODEL TESTS

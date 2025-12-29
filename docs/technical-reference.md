@@ -486,6 +486,82 @@ replimap deps sg-12345 -r us-east-1 --vpc vpc-abc123
 | NONE | 0 | No downstream impact detected |
 | UNKNOWN | - | Impact cannot be determined |
 
+### Resource Analyzer Mode
+
+The `--analyze` flag provides deep dependency analysis for individual resources using specialized analyzers. This mode provides:
+
+- **Relationship Classification**: Dependencies organized by relationship type (MANAGER, CONSUMER, DEPENDENCY, NETWORK, IDENTITY)
+- **Blast Radius Scoring**: Weighted impact calculation based on resource criticality
+- **IaC Detection**: Detects CloudFormation, Terraform, and other IaC management
+- **Contextual Warnings**: Actionable warnings about resource dependencies
+
+```bash
+# Analyze EC2 instance dependencies
+replimap deps i-abc123 -r us-east-1 --analyze
+
+# Analyze Security Group dependencies
+replimap deps sg-12345 -r us-east-1 --analyze
+
+# Analyze IAM Role trust relationships
+replimap deps my-role-name -r us-east-1 --analyze
+
+# Analyze RDS instance dependencies
+replimap deps my-db-instance -r us-east-1 --analyze
+
+# Analyze S3 bucket dependencies (replication, notifications)
+replimap deps my-bucket-name -r us-east-1 --analyze
+
+# Analyze Lambda function dependencies
+replimap deps my-function-name -r us-east-1 --analyze
+
+# Analyze Load Balancer dependencies
+replimap deps arn:aws:elasticloadbalancing:... -r us-east-1 --analyze
+```
+
+### Supported Analyzers
+
+| Resource Type | Analyzer | Relationships Detected |
+|---------------|----------|------------------------|
+| EC2 Instance | `EC2Analyzer` | ASG manager, Target Groups, EBS, AMI, VPC/Subnet, Security Groups, IAM Profile, KMS keys |
+| Security Group | `SecurityGroupAnalyzer` | EC2/RDS/Lambda consumers, VPC, rule references, cross-account access |
+| IAM Role | `IAMRoleAnalyzer` | Trusted entities, attached policies, consumers (Lambda/EC2), KMS grants |
+| RDS Instance | `RDSInstanceAnalyzer` | Read replicas, subnet groups, parameter groups, KMS encryption, monitoring role |
+| Auto Scaling Group | `ASGAnalyzer` | Managed instances, launch templates, target groups, VPC/Subnets |
+| S3 Bucket | `S3BucketAnalyzer` | Replication targets, Lambda/SQS/SNS notifications, KMS encryption |
+| Lambda Function | `LambdaFunctionAnalyzer` | Layers, event sources (SQS/Kinesis/DynamoDB), VPC config, execution role |
+| Load Balancer (ALB/NLB) | `ELBAnalyzer` | Target groups, VPC/Subnets, Security Groups (ALB), SSL certificates |
+| ElastiCache Cluster | `ElastiCacheAnalyzer` | Replication groups, parameter groups, Security Groups |
+
+### Relationship Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `MANAGER` | Controls resource lifecycle | ASG → EC2, CloudFormation → any |
+| `CONSUMER` | Depends on this resource | Target Group → EC2, Lambda → S3 |
+| `DEPENDENCY` | Resource depends on this | EC2 → AMI, EC2 → EBS |
+| `NETWORK` | Network context | EC2 → VPC, EC2 → Security Group |
+| `IDENTITY` | Permission/encryption context | EC2 → IAM Profile, RDS → KMS Key |
+| `TRUST` | Trust relationship | IAM Role → AWS Account |
+| `REPLICATION` | Data replication | S3 → S3 (cross-region) |
+
+### Blast Radius Scoring
+
+Blast radius is calculated using weighted resource criticality:
+
+| Resource Type | Weight | Rationale |
+|---------------|--------|-----------|
+| Database (RDS) | 10 | Data loss risk, many dependents |
+| KMS Key | 9 | Encryption dependency, cannot be recovered |
+| Load Balancer | 8 | Traffic entry point, many backends |
+| IAM Role | 8 | Permission boundary, many consumers |
+| Compute (EC2) | 5 | Standard compute resource |
+
+The blast radius level is determined by:
+- **CRITICAL** (score 90+): Core infrastructure, high consumer count
+- **HIGH** (score 60-89): Important resources with dependencies
+- **MEDIUM** (score 30-59): Supporting resources
+- **LOW** (score 1-29): Peripheral resources
+
 ## Cost Estimation
 
 Estimate monthly AWS costs for your infrastructure with optimization recommendations.
@@ -1305,6 +1381,7 @@ replimap deps RESOURCE_ID [OPTIONS]
   --format, -f TEXT        Output format: console, tree, table, html, json [default: console]
   --output, -o PATH        Output file path
   --open/--no-open         Open HTML report in browser [default: open]
+  --analyze                Deep analysis mode using resource-specific analyzers
 
 # Cost estimation command (Pro+)
 replimap cost [OPTIONS]
@@ -1699,6 +1776,21 @@ replimap/
 │   │   ├── graph_builder.py # Dependency graph building
 │   │   ├── impact_calculator.py # Impact score estimation
 │   │   └── reporter.py      # Console/HTML/JSON output
+│   ├── deps/                # Resource-specific dependency analyzers
+│   │   ├── models.py        # Dependency, DependencyAnalysis, BlastRadius
+│   │   ├── base_analyzer.py # ResourceDependencyAnalyzer base class
+│   │   ├── blast_radius.py  # Weighted blast radius calculator
+│   │   ├── reporter.py      # Analyzer output formatter
+│   │   └── analyzers/       # Resource-specific analyzers
+│   │       ├── ec2.py       # EC2 Instance analyzer
+│   │       ├── security_group.py # Security Group analyzer
+│   │       ├── iam_role.py  # IAM Role analyzer
+│   │       ├── rds.py       # RDS Instance analyzer
+│   │       ├── asg.py       # Auto Scaling Group analyzer
+│   │       ├── s3.py        # S3 Bucket analyzer
+│   │       ├── lambda_func.py # Lambda Function analyzer
+│   │       ├── elb.py       # ELB/ALB analyzer
+│   │       └── elasticache.py # ElastiCache analyzer
 │   ├── blast/               # Blast radius analysis
 │   │   ├── models.py        # Impact models
 │   │   ├── graph_builder.py # Blast graph construction
