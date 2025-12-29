@@ -761,10 +761,20 @@ class AuditRenderer:
         lines = []
         if bucket := config.get("bucket"):
             lines.append(f'bucket = "{bucket}"')
-        # Policy is usually JSON, we'll include it as a comment
-        if policy := config.get("policy"):
+        # Policy is stored as dict (parsed JSON), policy_json is the string
+        policy_json = config.get("policy_json")
+        if not policy_json:
+            # Fallback: convert policy dict to JSON string
+            policy = config.get("policy")
+            if policy:
+                import json
+
+                policy_json = json.dumps(policy)
+        if policy_json:
             lines.append("# Policy document (JSON):")
-            lines.append(f'policy = "{policy[:100]}..."  # AUDIT: Policy truncated')
+            # Truncate for display, escape quotes
+            truncated = policy_json[:100].replace('"', '\\"')
+            lines.append(f'policy = "{truncated}..."  # AUDIT: Policy truncated')
         return lines
 
     def _render_generic(self, config: dict) -> list[str]:
