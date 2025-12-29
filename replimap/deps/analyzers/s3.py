@@ -27,11 +27,6 @@ from replimap.deps.models import (
 class S3BucketAnalyzer(ResourceDependencyAnalyzer):
     """Analyzer for S3 Buckets."""
 
-    def __init__(self, **kwargs):
-        """Initialize with AWS clients."""
-        super().__init__(**kwargs)
-        self.s3 = kwargs.get("s3_client")
-
     @property
     def resource_type(self) -> str:
         return "aws_s3_bucket"

@@ -35,6 +35,7 @@ class ResourceDependencyAnalyzer(ABC):
         elbv2_client: Any = None,
         autoscaling_client: Any = None,
         elasticache_client: Any = None,
+        s3_client: Any = None,
         sts_client: Any = None,
     ):
         """Initialize with AWS clients."""
@@ -45,6 +46,7 @@ class ResourceDependencyAnalyzer(ABC):
         self.elbv2 = elbv2_client
         self.autoscaling = autoscaling_client
         self.elasticache = elasticache_client
+        self.s3 = s3_client
         self.sts = sts_client
         self._current_account_id: str | None = None
 
