@@ -37,6 +37,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from replimap import __version__
+
 from .classifier import classifier
 from .hooks import AuditHooks
 from .models import APICallRecord, APICategory, AuditSession, TrustCenterReport
@@ -66,7 +68,7 @@ class TrustCenter:
     _lock = threading.Lock()
 
     # Version info
-    VERSION = "1.0.0"
+    VERSION = __version__
     TOOL_NAME = "RepliMap"
 
     # Default storage location
