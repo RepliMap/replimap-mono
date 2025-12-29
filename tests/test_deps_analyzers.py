@@ -7,7 +7,6 @@ Tests the new analyzer framework including:
 - EC2, Security Group, RDS, ASG, S3, Lambda analyzers
 """
 
-
 import pytest
 
 from replimap.deps.blast_radius import calculate_blast_radius
