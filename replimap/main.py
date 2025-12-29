@@ -2941,6 +2941,7 @@ def _run_analyzer_mode(
         elbv2_client = session.client("elbv2", region_name=region)
         autoscaling_client = session.client("autoscaling", region_name=region)
         elasticache_client = session.client("elasticache", region_name=region)
+        s3_client = session.client("s3", region_name=region)
         sts_client = session.client("sts")
 
     # Get the appropriate analyzer
@@ -2954,6 +2955,7 @@ def _run_analyzer_mode(
             elbv2_client=elbv2_client,
             autoscaling_client=autoscaling_client,
             elasticache_client=elasticache_client,
+            s3_client=s3_client,
             sts_client=sts_client,
         )
     except ValueError:
@@ -2963,7 +2965,11 @@ def _run_analyzer_mode(
                 f"Analyzer mode currently supports:\n"
                 f"  • EC2 instances (i-xxx)\n"
                 f"  • Security Groups (sg-xxx)\n"
-                f"  • IAM Roles\n\n"
+                f"  • IAM Roles\n"
+                f"  • RDS Instances\n"
+                f"  • Auto Scaling Groups\n"
+                f"  • S3 Buckets\n"
+                f"  • Lambda Functions\n\n"
                 f"Use without --analyze flag for graph-based analysis.",
                 title="Error",
                 border_style="red",

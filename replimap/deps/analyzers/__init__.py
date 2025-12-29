@@ -12,8 +12,12 @@ if TYPE_CHECKING:
     from replimap.deps.base_analyzer import ResourceDependencyAnalyzer
 
 # Import analyzers
+from replimap.deps.analyzers.asg import ASGAnalyzer
 from replimap.deps.analyzers.ec2 import EC2Analyzer
 from replimap.deps.analyzers.iam_role import IAMRoleAnalyzer
+from replimap.deps.analyzers.lambda_func import LambdaFunctionAnalyzer
+from replimap.deps.analyzers.rds import RDSInstanceAnalyzer
+from replimap.deps.analyzers.s3 import S3BucketAnalyzer
 from replimap.deps.analyzers.security_group import SecurityGroupAnalyzer
 
 # Analyzer registry
@@ -26,6 +30,14 @@ ANALYZERS: dict[str, type[ResourceDependencyAnalyzer]] = {
     "sg-": SecurityGroupAnalyzer,
     # IAM Role
     "aws_iam_role": IAMRoleAnalyzer,
+    # RDS Instance
+    "aws_db_instance": RDSInstanceAnalyzer,
+    # Auto Scaling Group
+    "aws_autoscaling_group": ASGAnalyzer,
+    # S3 Bucket
+    "aws_s3_bucket": S3BucketAnalyzer,
+    # Lambda Function
+    "aws_lambda_function": LambdaFunctionAnalyzer,
 }
 
 
@@ -61,7 +73,11 @@ def get_analyzer(
 __all__ = [
     "ANALYZERS",
     "get_analyzer",
+    "ASGAnalyzer",
     "EC2Analyzer",
-    "SecurityGroupAnalyzer",
     "IAMRoleAnalyzer",
+    "LambdaFunctionAnalyzer",
+    "RDSInstanceAnalyzer",
+    "S3BucketAnalyzer",
+    "SecurityGroupAnalyzer",
 ]
