@@ -244,6 +244,71 @@ class TrustCenter:
 
         return sorted(sessions, key=lambda s: s.start_time, reverse=True)
 
+    @property
+    def session_count(self) -> int:
+        """Get the number of audit sessions."""
+        return len(self._sessions)
+
+    def start_session(
+        self,
+        name: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """
+        Start a new audit session (non-context-manager version).
+
+        Use this when you need to manually control session lifecycle
+        instead of using the `session()` context manager.
+
+        Args:
+            name: Human-readable session name
+            metadata: Additional metadata to attach
+
+        Returns:
+            Session ID
+
+        Example:
+            session_id = trust_center.start_session("production_scan")
+            try:
+                scanner.scan_all()
+            finally:
+                trust_center.end_session(session_id)
+        """
+        session_id = str(uuid.uuid4())[:8]
+
+        audit_session = AuditSession(
+            session_id=session_id,
+            session_name=name,
+            start_time=datetime.utcnow(),
+            metadata=metadata or {},
+        )
+
+        with self._session_lock:
+            self._sessions[session_id] = audit_session
+            self._current_session_id = session_id
+
+        logger.debug(f"Started audit session: {session_id} ({name})")
+        return session_id
+
+    def end_session(self, session_id: str) -> None:
+        """
+        End an audit session started with start_session().
+
+        Args:
+            session_id: Session ID returned from start_session()
+        """
+        with self._session_lock:
+            session = self._sessions.get(session_id)
+            if session:
+                session.close()
+                if self._current_session_id == session_id:
+                    self._current_session_id = None
+
+        # Auto-save session
+        if session:
+            self._save_session(session_id)
+            logger.debug(f"Closed audit session: {session_id}")
+
     # =========================================================================
     # Recording
     # =========================================================================
