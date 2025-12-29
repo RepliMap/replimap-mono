@@ -4387,6 +4387,7 @@ def trust_center_report(
     from replimap.audit import TrustCenter
 
     tc = TrustCenter.get_instance()
+    tc.load_sessions_from_disk()  # Load previously saved sessions
 
     if tc.session_count == 0:
         console.print(
@@ -4435,6 +4436,7 @@ def trust_center_status() -> None:
     from replimap.audit import TrustCenter
 
     tc = TrustCenter.get_instance()
+    tc.load_sessions_from_disk()  # Load previously saved sessions
 
     console.print("[bold]Trust Center Status[/bold]\n")
     console.print(f"Active Sessions: {tc.session_count}")
@@ -4486,6 +4488,7 @@ def trust_center_clear(
     from replimap.audit import TrustCenter
 
     tc = TrustCenter.get_instance()
+    tc.load_sessions_from_disk()  # Load previously saved sessions
 
     if tc.session_count == 0:
         console.print("[dim]No sessions to clear.[/]")
@@ -4496,8 +4499,17 @@ def trust_center_clear(
             console.print("[dim]Cancelled[/]")
             raise typer.Exit(0)
 
+    # Clear in-memory sessions
     tc.clear_sessions()
-    console.print("[green]✓ Cleared all audit sessions[/]")
+
+    # Also clear session files from disk
+    session_files = list(tc._storage_dir.glob("session_*.json"))
+    for f in session_files:
+        f.unlink()
+
+    console.print(
+        f"[green]✓ Cleared all audit sessions ({len(session_files)} files removed)[/]"
+    )
 
 
 # Register trust-center command group
