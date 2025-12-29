@@ -182,8 +182,20 @@ class SmartAggregator:
                 for n in type_nodes:
                     id_mapping[n["id"]] = n["id"]
 
-        # Update links
-        updated_links = self._update_links(links, id_mapping)
+        # Update links with validation against output nodes
+        output_node_ids = {n["id"] for n in result_nodes}
+        updated_links, dropped_links = self._update_links(
+            links, id_mapping, output_node_ids
+        )
+
+        if dropped_links:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.debug(
+                f"SmartAggregator: Dropped {len(dropped_links)} links with "
+                f"invalid targets during aggregation"
+            )
 
         return result_nodes, updated_links
 
@@ -477,9 +489,24 @@ class SmartAggregator:
         self,
         links: list[dict[str, Any]],
         id_mapping: dict[str, str],
-    ) -> list[dict[str, Any]]:
-        """Update links to point to aggregated nodes."""
+        output_node_ids: set[str],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """
+        Update links to point to aggregated nodes.
+
+        Validates that both source and target exist in the output nodes
+        to prevent D3.js 'node not found' errors.
+
+        Args:
+            links: Original links to update
+            id_mapping: Mapping from old node IDs to new (aggregated) IDs
+            output_node_ids: Set of valid node IDs in the output
+
+        Returns:
+            Tuple of (valid_links, dropped_links)
+        """
         updated: list[dict[str, Any]] = []
+        dropped: list[dict[str, Any]] = []
         seen: set[tuple[str, str]] = set()
 
         for link in links:
@@ -492,12 +519,28 @@ class SmartAggregator:
             if isinstance(target, dict):
                 target = target.get("id", "")
 
-            # Map to new IDs
+            # Map to new IDs (with fallback to original)
             new_source = id_mapping.get(source, source)
             new_target = id_mapping.get(target, target)
 
             # Skip self-links
             if new_source == new_target:
+                continue
+
+            # Validate both source and target exist in output nodes
+            # This is the root cause fix - don't rely on fallback IDs that may not exist
+            if new_source not in output_node_ids or new_target not in output_node_ids:
+                dropped.append(
+                    {
+                        **link,
+                        "source": new_source,
+                        "target": new_target,
+                        "_drop_reason": (
+                            f"source={new_source in output_node_ids}, "
+                            f"target={new_target in output_node_ids}"
+                        ),
+                    }
+                )
                 continue
 
             # Deduplicate
@@ -514,7 +557,7 @@ class SmartAggregator:
                 }
             )
 
-        return updated
+        return updated, dropped
 
     def get_aggregation_summary(
         self,
