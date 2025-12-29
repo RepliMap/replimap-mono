@@ -751,49 +751,170 @@ class AuditRenderer:
     def _render_sqs(self, config: dict) -> list[str]:
         """Render SQS queue attributes."""
         lines = []
-        if name := config.get("queue_name"):
+        # Handle both naming conventions
+        name = config.get("name") or config.get("queue_name")
+        if name:
             lines.append(f'name = "{name}"')
+
+        # FIFO queue
+        if config.get("fifo_queue"):
+            lines.append("fifo_queue = true")
+            if config.get("content_based_deduplication"):
+                lines.append("content_based_deduplication = true")
+            if dedup_scope := config.get("deduplication_scope"):
+                lines.append(f'deduplication_scope = "{dedup_scope}"')
+            if fifo_limit := config.get("fifo_throughput_limit"):
+                lines.append(f'fifo_throughput_limit = "{fifo_limit}"')
+
+        # Queue settings
+        if visibility := config.get("visibility_timeout_seconds"):
+            lines.append(f"visibility_timeout_seconds = {visibility}")
         if delay := config.get("delay_seconds"):
             lines.append(f"delay_seconds = {delay}")
         if max_size := config.get("max_message_size"):
             lines.append(f"max_message_size = {max_size}")
         if retention := config.get("message_retention_seconds"):
             lines.append(f"message_retention_seconds = {retention}")
+        if receive_wait := config.get("receive_wait_time_seconds"):
+            lines.append(f"receive_message_wait_time_seconds = {receive_wait}")
 
-        # Encryption
+        # CC6.6 (Encryption at Rest)
+        lines.append("")
         if kms_key := config.get("kms_master_key_id"):
             lines.append(f'kms_master_key_id = "{kms_key}"')
+            if kms_reuse := config.get("kms_data_key_reuse_period_seconds"):
+                lines.append(f"kms_data_key_reuse_period_seconds = {kms_reuse}")
         elif config.get("sqs_managed_sse_enabled"):
             lines.append("sqs_managed_sse_enabled = true")
         else:
-            lines.append("# AUDIT: No encryption configured")
+            lines.append("# AUDIT WARNING: No encryption configured (CC6.6)")
+
+        # C1.2 (Confidentiality) - Dead letter queue
+        lines.append("")
+        redrive = config.get("redrive_policy", {})
+        if redrive and redrive.get("deadLetterTargetArn"):
+            lines.append("redrive_policy = jsonencode({")
+            lines.append(f'  deadLetterTargetArn = "{redrive["deadLetterTargetArn"]}"')
+            if max_receive := redrive.get("maxReceiveCount"):
+                lines.append(f"  maxReceiveCount = {max_receive}")
+            lines.append("})")
+        else:
+            lines.append("# AUDIT WARNING: No dead letter queue configured (C1.2)")
+            lines.append("# Failed messages will be lost after retention period")
+
+        # Policy (for audit visibility)
+        policy = config.get("policy", {})
+        if policy:
+            lines.append("")
+            lines.append("# Queue policy configured (see policy document for details)")
+            # Check for overly permissive policies
+            statements = policy.get("Statement", [])
+            for stmt in statements:
+                principal = stmt.get("Principal", {})
+                if principal == "*" or principal.get("AWS") == "*":
+                    lines.append(
+                        "# AUDIT WARNING: Policy allows access from any AWS principal"
+                    )
+                    break
 
         return lines
 
     def _render_sns(self, config: dict) -> list[str]:
         """Render SNS topic attributes."""
         lines = []
-        if name := config.get("topic_name"):
+        # Handle both naming conventions
+        name = config.get("name") or config.get("topic_name")
+        if name:
             lines.append(f'name = "{name}"')
+
+        # Display name
+        if display_name := config.get("display_name"):
+            lines.append(f'display_name = "{display_name}"')
+
+        # FIFO topic
+        if config.get("fifo_topic"):
+            lines.append("fifo_topic = true")
+            if config.get("content_based_deduplication"):
+                lines.append("content_based_deduplication = true")
+
+        # CC6.6 (Encryption at Rest)
+        lines.append("")
         if kms_key := config.get("kms_master_key_id"):
             lines.append(f'kms_master_key_id = "{kms_key}"')
         else:
-            lines.append("# AUDIT: No encryption configured")
+            lines.append("# AUDIT WARNING: No encryption configured (CC6.6)")
+
+        # Subscription summary for visibility
+        lines.append("")
+        confirmed = config.get("subscriptions_confirmed", 0)
+        pending = config.get("subscriptions_pending", 0)
+        lines.append(f"# Subscriptions: {confirmed} confirmed, {pending} pending")
+
+        # Policy (for audit visibility)
+        policy = config.get("policy", {})
+        if policy:
+            lines.append("")
+            lines.append("# Topic policy configured")
+            # Check for overly permissive policies
+            statements = policy.get("Statement", [])
+            for stmt in statements:
+                principal = stmt.get("Principal", {})
+                effect = stmt.get("Effect", "")
+                action = stmt.get("Action", [])
+                if isinstance(action, str):
+                    action = [action]
+
+                if principal == "*" or principal.get("AWS") == "*":
+                    if effect == "Allow" and any(
+                        "Publish" in a or "*" in a for a in action
+                    ):
+                        lines.append(
+                            "# AUDIT WARNING: Policy allows publish from any principal"
+                        )
+                        break
+        else:
+            lines.append("")
+            lines.append("# AUDIT: No topic policy configured")
+
+        # Delivery policy
+        if config.get("delivery_policy"):
+            lines.append("# Custom delivery policy configured")
+
         return lines
 
     def _render_elasticache(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render ElastiCache cluster attributes."""
         lines = []
-        if cluster_id := config.get("cache_cluster_id"):
+        # Handle both naming conventions
+        cluster_id = config.get("cluster_id") or config.get("cache_cluster_id")
+        if cluster_id:
             lines.append(f'cluster_id = "{cluster_id}"')
         if engine := config.get("engine"):
             lines.append(f'engine = "{engine}"')
-        if node_type := config.get("cache_node_type"):
+        if engine_version := config.get("engine_version"):
+            lines.append(f'engine_version = "{engine_version}"')
+        # Handle both naming conventions
+        node_type = config.get("node_type") or config.get("cache_node_type")
+        if node_type:
             lines.append(f'node_type = "{node_type}"')
         if num_nodes := config.get("num_cache_nodes"):
             lines.append(f"num_cache_nodes = {num_nodes}")
 
-        # Encryption
+        # Subnet group
+        if subnet_group := config.get("cache_subnet_group_name"):
+            lines.append(f'subnet_group_name = "{subnet_group}"')
+
+        # Security groups
+        if sgs := config.get("security_group_ids"):
+            sg_list = ", ".join(f'"{sg}"' for sg in sgs)
+            lines.append(f"security_group_ids = [{sg_list}]")
+
+        # Parameter group
+        if param_group := config.get("parameter_group_name"):
+            lines.append(f'parameter_group_name = "{param_group}"')
+
+        # CC6.6 (Encryption at Rest)
+        lines.append("")
         if config.get("at_rest_encryption_enabled"):
             lines.append("at_rest_encryption_enabled = true")
         else:
@@ -801,12 +922,51 @@ class AuditRenderer:
                 "at_rest_encryption_enabled = false  # AUDIT: Not encrypted at rest"
             )
 
+        # CC6.7 (Encryption in Transit)
         if config.get("transit_encryption_enabled"):
             lines.append("transit_encryption_enabled = true")
         else:
             lines.append(
                 "transit_encryption_enabled = false  # AUDIT: Not encrypted in transit"
             )
+
+        # CC6.1 (Access Control) - Auth token
+        if config.get("auth_token_enabled"):
+            lines.append("auth_token_enabled = true")
+        else:
+            lines.append(
+                "# AUDIT WARNING: Auth token (password) not enabled for Redis"
+            )
+
+        # A1.2 (Availability) - Replication and snapshots
+        lines.append("")
+        if repl_group := config.get("replication_group_id"):
+            lines.append(f'# Replication Group: "{repl_group}"')
+        else:
+            lines.append("# AUDIT: Not part of a replication group (no HA)")
+
+        snapshot_retention = config.get("snapshot_retention_limit")
+        if snapshot_retention is not None:
+            lines.append(f"snapshot_retention_limit = {snapshot_retention}")
+            if snapshot_retention == 0:
+                lines.append("# AUDIT WARNING: No automatic snapshots configured")
+        else:
+            lines.append("# AUDIT: Snapshot retention not configured")
+
+        if snapshot_window := config.get("snapshot_window"):
+            lines.append(f'snapshot_window = "{snapshot_window}"')
+
+        # CC8.1 (Change Management) - Auto minor version upgrade
+        if config.get("auto_minor_version_upgrade"):
+            lines.append("auto_minor_version_upgrade = true")
+        else:
+            lines.append(
+                "auto_minor_version_upgrade = false  # AUDIT: Auto patching disabled"
+            )
+
+        # CC7.2 (Monitoring) - Notification
+        if notification_arn := config.get("notification_arn"):
+            lines.append(f'notification_topic_arn = "{notification_arn}"')
 
         return lines
 

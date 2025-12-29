@@ -164,6 +164,25 @@ class ElastiCacheScanner(BaseScanner):
                         "auto_minor_version_upgrade": cluster.get(
                             "AutoMinorVersionUpgrade"
                         ),
+                        # CC6.6 (Encryption at Rest) - Security attributes
+                        "at_rest_encryption_enabled": cluster.get(
+                            "AtRestEncryptionEnabled", False
+                        ),
+                        # CC6.7 (Encryption in Transit)
+                        "transit_encryption_enabled": cluster.get(
+                            "TransitEncryptionEnabled", False
+                        ),
+                        # CC6.1 (Access Control) - Auth token
+                        "auth_token_enabled": cluster.get("AuthTokenEnabled", False),
+                        "auth_token_last_modified_date": cluster.get(
+                            "AuthTokenLastModifiedDate"
+                        ),
+                        # A1.2 (Availability) - Replication
+                        "replication_group_id": cluster.get("ReplicationGroupId"),
+                        # Notification configuration
+                        "notification_arn": cluster.get(
+                            "NotificationConfiguration", {}
+                        ).get("TopicArn"),
                     },
                     arn=cluster.get("ARN"),
                     tags={},  # Would need separate tag lookup
