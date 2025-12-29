@@ -26,12 +26,22 @@ logger = logging.getLogger(__name__)
 
 # Dependency patterns: (source_type, target_type, attribute_path)
 DEPENDENCY_PATTERNS: list[tuple[str, str, str]] = [
-    # EC2 dependencies
+    # EC2 dependencies - comprehensive
     ("aws_instance", "aws_security_group", "vpc_security_group_ids"),
     ("aws_instance", "aws_security_group", "security_groups"),
+    ("aws_instance", "aws_security_group", "security_group_ids"),
     ("aws_instance", "aws_subnet", "subnet_id"),
-    ("aws_instance", "aws_iam_instance_profile", "iam_instance_profile"),
+    ("aws_instance", "aws_vpc", "vpc_id"),
+    ("aws_instance", "aws_iam_instance_profile", "iam_instance_profile.name"),
+    ("aws_instance", "aws_iam_instance_profile", "iam_instance_profile.arn"),
     ("aws_instance", "aws_key_pair", "key_name"),
+    ("aws_instance", "aws_ami", "ami"),
+    ("aws_instance", "aws_ebs_volume", "block_device_mappings.volume_id"),
+    ("aws_instance", "aws_network_interface", "network_interfaces.network_interface_id"),
+    # EBS volume dependencies
+    ("aws_ebs_volume", "aws_kms_key", "kms_key_id"),
+    ("aws_volume_attachment", "aws_ebs_volume", "volume_id"),
+    ("aws_volume_attachment", "aws_instance", "instance_id"),
     # Security Group dependencies
     ("aws_security_group", "aws_vpc", "vpc_id"),
     ("aws_security_group_rule", "aws_security_group", "security_group_id"),
@@ -47,14 +57,24 @@ DEPENDENCY_PATTERNS: list[tuple[str, str, str]] = [
     ("aws_route", "aws_route_table", "route_table_id"),
     ("aws_route", "aws_nat_gateway", "nat_gateway_id"),
     ("aws_route", "aws_internet_gateway", "gateway_id"),
+    # Network interface dependencies
+    ("aws_network_interface", "aws_subnet", "subnet_id"),
+    ("aws_network_interface", "aws_security_group", "security_groups"),
+    ("aws_eip", "aws_instance", "instance_id"),
+    ("aws_eip", "aws_network_interface", "network_interface_id"),
+    ("aws_eip_association", "aws_eip", "allocation_id"),
+    ("aws_eip_association", "aws_instance", "instance_id"),
     # RDS dependencies
     ("aws_db_instance", "aws_db_subnet_group", "db_subnet_group_name"),
     ("aws_db_instance", "aws_security_group", "vpc_security_group_ids"),
     ("aws_db_instance", "aws_kms_key", "kms_key_id"),
+    ("aws_db_instance", "aws_db_parameter_group", "parameter_group_name"),
     ("aws_db_subnet_group", "aws_subnet", "subnet_ids"),
     # Load Balancer dependencies
     ("aws_lb", "aws_subnet", "subnets"),
+    ("aws_lb", "aws_subnet", "subnet_ids"),
     ("aws_lb", "aws_security_group", "security_groups"),
+    ("aws_lb", "aws_security_group", "security_group_ids"),
     ("aws_lb_target_group", "aws_vpc", "vpc_id"),
     ("aws_lb_listener", "aws_lb", "load_balancer_arn"),
     ("aws_lb_target_group_attachment", "aws_lb_target_group", "target_group_arn"),
@@ -63,6 +83,7 @@ DEPENDENCY_PATTERNS: list[tuple[str, str, str]] = [
     ("aws_s3_bucket_policy", "aws_s3_bucket", "bucket"),
     ("aws_s3_bucket_versioning", "aws_s3_bucket", "bucket"),
     ("aws_s3_bucket_encryption", "aws_s3_bucket", "bucket"),
+    ("aws_s3_bucket", "aws_kms_key", "kms_master_key_id"),
     # IAM dependencies
     ("aws_iam_role_policy_attachment", "aws_iam_role", "role"),
     ("aws_iam_role_policy_attachment", "aws_iam_policy", "policy_arn"),
@@ -71,6 +92,7 @@ DEPENDENCY_PATTERNS: list[tuple[str, str, str]] = [
     ("aws_lambda_function", "aws_iam_role", "role"),
     ("aws_lambda_function", "aws_security_group", "vpc_config.security_group_ids"),
     ("aws_lambda_function", "aws_subnet", "vpc_config.subnet_ids"),
+    ("aws_lambda_function", "aws_kms_key", "kms_key_arn"),
     # CloudWatch dependencies
     ("aws_cloudwatch_metric_alarm", "aws_sns_topic", "alarm_actions"),
     (
@@ -80,18 +102,25 @@ DEPENDENCY_PATTERNS: list[tuple[str, str, str]] = [
     ),
     # Auto Scaling dependencies
     ("aws_autoscaling_group", "aws_launch_template", "launch_template.id"),
+    ("aws_autoscaling_group", "aws_launch_template", "launch_template_id"),
     ("aws_autoscaling_group", "aws_subnet", "vpc_zone_identifier"),
     ("aws_autoscaling_group", "aws_lb_target_group", "target_group_arns"),
+    ("aws_autoscaling_group", "aws_instance", "instances"),
+    # Launch template dependencies
+    ("aws_launch_template", "aws_ami", "image_id"),
+    ("aws_launch_template", "aws_security_group", "security_group_ids"),
+    ("aws_launch_template", "aws_iam_instance_profile", "iam_instance_profile.arn"),
+    ("aws_launch_template", "aws_key_pair", "key_name"),
     # ElastiCache dependencies
     ("aws_elasticache_cluster", "aws_elasticache_subnet_group", "subnet_group_name"),
+    ("aws_elasticache_cluster", "aws_elasticache_subnet_group", "cache_subnet_group_name"),
     ("aws_elasticache_cluster", "aws_security_group", "security_group_ids"),
     ("aws_elasticache_subnet_group", "aws_subnet", "subnet_ids"),
-    # EBS dependencies
-    ("aws_volume_attachment", "aws_ebs_volume", "volume_id"),
-    ("aws_volume_attachment", "aws_instance", "instance_id"),
     # SQS/SNS dependencies
     ("aws_sqs_queue_policy", "aws_sqs_queue", "queue_url"),
     ("aws_sns_topic_subscription", "aws_sns_topic", "topic_arn"),
+    ("aws_sqs_queue", "aws_kms_key", "kms_master_key_id"),
+    ("aws_sns_topic", "aws_kms_key", "kms_master_key_id"),
 ]
 
 
@@ -272,16 +301,34 @@ class DependencyGraphBuilder:
                     self.graph.add_edge(resource_id, actual_target)
 
     def _get_attribute(self, config: dict[str, Any], path: str) -> Any | None:
-        """Get nested attribute from config."""
+        """
+        Get nested attribute from config.
+
+        Handles:
+        - Simple paths: "vpc_id"
+        - Nested dicts: "iam_instance_profile.name"
+        - Lists with extraction: "block_device_mappings.volume_id" extracts
+          volume_id from each item in block_device_mappings list
+        """
         parts = path.split(".")
         value: Any = config
 
-        for part in parts:
+        for i, part in enumerate(parts):
             if isinstance(value, dict):
                 value = value.get(part)
-            elif isinstance(value, list) and part.isdigit():
-                idx = int(part)
-                value = value[idx] if idx < len(value) else None
+            elif isinstance(value, list):
+                # If current value is a list, extract the remaining path from each item
+                remaining_path = ".".join(parts[i:])
+                results = []
+                for item in value:
+                    if isinstance(item, dict):
+                        extracted = self._get_attribute(item, remaining_path)
+                        if extracted:
+                            if isinstance(extracted, list):
+                                results.extend(extracted)
+                            else:
+                                results.append(extracted)
+                return results if results else None
             else:
                 return None
 

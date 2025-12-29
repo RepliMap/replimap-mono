@@ -99,6 +99,7 @@ class ImpactCalculator:
         self,
         center_id: str,
         max_depth: int = 10,
+        include_upstream: bool = True,
     ) -> DependencyExplorerResult:
         """
         Explore dependencies from a center resource.
@@ -106,6 +107,7 @@ class ImpactCalculator:
         Args:
             center_id: ID of the resource to analyze
             max_depth: Maximum depth to traverse
+            include_upstream: If True, also show resources the center depends on
 
         Returns:
             DependencyExplorerResult with all potentially affected resources
@@ -119,8 +121,16 @@ class ImpactCalculator:
 
         center = self.nodes[center_id]
 
-        # Find all resources that depend on the center (reverse traversal)
+        # Find all resources that depend on the center (downstream - reverse traversal)
         affected = self._find_dependents(center_id, max_depth)
+
+        # Also find upstream dependencies (what the center depends on)
+        if include_upstream:
+            upstream = self._find_upstream_dependencies(center_id, max_depth)
+            # Merge upstream into affected (with negative depth for visual distinction)
+            for uid, unode in upstream.items():
+                if uid not in affected:
+                    affected[uid] = unode
 
         # Organize into zones by depth
         zones = self._organize_into_zones(affected)
@@ -162,7 +172,7 @@ class ImpactCalculator:
         center_id: str,
         max_depth: int,
     ) -> dict[str, ResourceNode]:
-        """Find all resources that depend on the center."""
+        """Find all resources that depend on the center (downstream)."""
         affected: dict[str, ResourceNode] = {}
         visited: set[str] = set()
         queue: list[tuple[str, int]] = [(center_id, 0)]  # (resource_id, depth)
@@ -196,6 +206,55 @@ class ImpactCalculator:
                         queue.append((dependent_id, depth + 1))
 
         return affected
+
+    def _find_upstream_dependencies(
+        self,
+        center_id: str,
+        max_depth: int,
+    ) -> dict[str, ResourceNode]:
+        """
+        Find all resources that the center depends on (upstream).
+
+        These are resources like VPC, Subnet, Security Groups, IAM roles
+        that the center resource references.
+        """
+        upstream: dict[str, ResourceNode] = {}
+        visited: set[str] = set()
+        # Use negative depth to distinguish upstream from downstream
+        queue: list[tuple[str, int]] = [(center_id, 0)]
+
+        while queue:
+            current_id, depth = queue.pop(0)
+
+            if current_id in visited or abs(depth) > max_depth:
+                continue
+
+            visited.add(current_id)
+
+            if current_id in self.nodes:
+                original = self.nodes[current_id]
+
+                # Skip the center itself (depth 0) - we'll add it separately
+                if depth != 0:
+                    node = ResourceNode(
+                        id=original.id,
+                        type=original.type,
+                        name=original.name,
+                        arn=original.arn,
+                        region=original.region,
+                        depends_on=list(original.depends_on),
+                        depended_by=list(original.depended_by),
+                    )
+                    # Use negative depth to indicate upstream dependency
+                    node.depth = depth
+                    upstream[current_id] = node
+
+                # Find resources this one depends on (upstream traversal)
+                for dep_id in original.depends_on:
+                    if dep_id not in visited:
+                        queue.append((dep_id, depth - 1))
+
+        return upstream
 
     def _organize_into_zones(
         self,

@@ -59,31 +59,69 @@ class DependencyExplorerReporter:
             for warning in result.warnings:
                 console.print(f"  [yellow]![/yellow] {warning}")
 
-        # Impact zones
-        console.print("\n[bold]Dependency Zones:[/bold]\n")
+        # Impact zones - separate upstream (depends on) from downstream (depended by)
+        upstream_zones = [z for z in result.zones if z.depth < 0]
+        center_zone = [z for z in result.zones if z.depth == 0]
+        downstream_zones = [z for z in result.zones if z.depth > 0]
 
-        for zone in result.zones:
-            if zone.depth == 0:
-                zone_label = "[cyan]Center Resource[/cyan]"
-            else:
+        # Show upstream dependencies (what the center depends on)
+        if upstream_zones:
+            console.print("\n[bold magenta]Upstream Dependencies[/bold magenta]")
+            console.print("[dim](Resources this resource depends on)[/dim]\n")
+
+            for zone in sorted(upstream_zones, key=lambda z: z.depth):
                 zone_label = f"Depth {zone.depth}"
+                console.print(
+                    f"[bold]{zone_label}[/bold] ({len(zone.resources)} resources, "
+                    f"estimated score: {zone.total_impact_score})"
+                )
 
-            console.print(
-                f"[bold]{zone_label}[/bold] ({len(zone.resources)} resources, "
-                f"estimated score: {zone.total_impact_score})"
-            )
+                for resource in zone.resources[:10]:
+                    color = self._get_impact_color(resource.impact_level)
+                    console.print(
+                        f"  [{color}]{resource.impact_level.value:8}[/{color}] "
+                        f"{resource.type}: {resource.id}"
+                    )
 
-            for resource in zone.resources[:10]:  # Limit display
+                if len(zone.resources) > 10:
+                    console.print(f"  [dim]... and {len(zone.resources) - 10} more[/dim]")
+
+                console.print()
+
+        # Show center resource
+        console.print("\n[bold cyan]Center Resource[/bold cyan]\n")
+        for zone in center_zone:
+            for resource in zone.resources:
                 color = self._get_impact_color(resource.impact_level)
                 console.print(
                     f"  [{color}]{resource.impact_level.value:8}[/{color}] "
                     f"{resource.type}: {resource.id}"
                 )
-
-            if len(zone.resources) > 10:
-                console.print(f"  [dim]... and {len(zone.resources) - 10} more[/dim]")
-
             console.print()
+
+        # Show downstream dependencies (what depends on the center)
+        if downstream_zones:
+            console.print("[bold yellow]Downstream Dependencies[/bold yellow]")
+            console.print("[dim](Resources that depend on this resource)[/dim]\n")
+
+            for zone in downstream_zones:
+                zone_label = f"Depth {zone.depth}"
+                console.print(
+                    f"[bold]{zone_label}[/bold] ({len(zone.resources)} resources, "
+                    f"estimated score: {zone.total_impact_score})"
+                )
+
+                for resource in zone.resources[:10]:
+                    color = self._get_impact_color(resource.impact_level)
+                    console.print(
+                        f"  [{color}]{resource.impact_level.value:8}[/{color}] "
+                        f"{resource.type}: {resource.id}"
+                    )
+
+                if len(zone.resources) > 10:
+                    console.print(f"  [dim]... and {len(zone.resources) - 10} more[/dim]")
+
+                console.print()
 
         # Suggested review order (NOT "Safe Deletion Order")
         if result.suggested_review_order:
