@@ -22,8 +22,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from replimap.licensing.gates import get_plan_features
-from replimap.licensing.models import Plan
+from replimap.licensing.manager import get_license_manager
+from replimap.licensing.models import Plan, get_plan_features
 
 if TYPE_CHECKING:
     from replimap.audit.checkov_runner import CheckovFinding, CheckovResults
@@ -233,7 +233,8 @@ def print_audit_findings_fomo(
         console_out: Optional console override (for testing)
     """
     output = console_out or console
-    plan_features = get_plan_features()
+    manager = get_license_manager()
+    plan_features = get_plan_features(manager.current_plan)
 
     # Determine what to show based on plan
     show_full_remediation = plan_features.audit_details_visible

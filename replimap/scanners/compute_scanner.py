@@ -229,6 +229,17 @@ class ComputeScanner(BaseScanner):
                     if tag_desc["ResourceArn"] == lb_arn:
                         tags = self._extract_tags(tag_desc.get("Tags"))
 
+                # Get LB attributes (access_logs, deletion_protection, etc.)
+                lb_attributes: dict[str, Any] = {}
+                try:
+                    attrs_resp = elbv2.describe_load_balancer_attributes(
+                        LoadBalancerArn=lb_arn
+                    )
+                    for attr in attrs_resp.get("Attributes", []):
+                        lb_attributes[attr["Key"]] = attr["Value"]
+                except ClientError as e:
+                    logger.debug(f"Could not get LB attributes for {lb_name}: {e}")
+
                 # Extract subnet IDs and security groups
                 subnet_ids = [az["SubnetId"] for az in lb.get("AvailabilityZones", [])]
                 sg_ids = lb.get("SecurityGroups", [])
@@ -253,6 +264,28 @@ class ComputeScanner(BaseScanner):
                             }
                             for az in lb.get("AvailabilityZones", [])
                         ],
+                        # Security-relevant attributes
+                        "access_logs_enabled": lb_attributes.get(
+                            "access_logs.s3.enabled", "false"
+                        )
+                        == "true",
+                        "access_logs_bucket": lb_attributes.get(
+                            "access_logs.s3.bucket", ""
+                        ),
+                        "access_logs_prefix": lb_attributes.get(
+                            "access_logs.s3.prefix", ""
+                        ),
+                        "deletion_protection_enabled": lb_attributes.get(
+                            "deletion_protection.enabled", "false"
+                        )
+                        == "true",
+                        "drop_invalid_header_fields": lb_attributes.get(
+                            "routing.http.drop_invalid_header_fields.enabled", "false"
+                        )
+                        == "true",
+                        "idle_timeout": lb_attributes.get(
+                            "idle_timeout.timeout_seconds", "60"
+                        ),
                     },
                     arn=lb_arn,
                     tags=tags,

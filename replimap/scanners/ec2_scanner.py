@@ -114,6 +114,15 @@ class EC2Scanner(BaseScanner):
                 }
             )
 
+        # Extract ASG name from tags (critical for deps command)
+        asg_name = tags.get("aws:autoscaling:groupName")
+
+        # Collect all security groups (from instance + all ENIs)
+        all_security_groups = set(security_groups)
+        for eni in network_interfaces:
+            for sg_id in eni.get("security_groups", []):
+                all_security_groups.add(sg_id)
+
         # Build config dictionary
         config = {
             "ami": instance["ImageId"],
@@ -121,7 +130,7 @@ class EC2Scanner(BaseScanner):
             "key_name": instance.get("KeyName"),
             "subnet_id": subnet_id,
             "vpc_id": vpc_id,
-            "security_group_ids": security_groups,
+            "security_group_ids": list(all_security_groups),
             "private_ip_address": instance.get("PrivateIpAddress"),
             "public_ip_address": instance.get("PublicIpAddress"),
             "availability_zone": instance.get("Placement", {}).get("AvailabilityZone"),
@@ -137,6 +146,9 @@ class EC2Scanner(BaseScanner):
                 instance.get("MetadataOptions", {})
             ),
             "state": state,
+            # ASG detection (P0 for deps command)
+            "asg_name": asg_name,
+            "is_asg_managed": asg_name is not None,
         }
 
         # Get root volume info
@@ -168,11 +180,18 @@ class EC2Scanner(BaseScanner):
         Add dependency edges for an EC2 instance.
 
         Dependencies:
+        - EC2 -> VPC (belongs_to)
         - EC2 -> Subnet (belongs_to)
         - EC2 -> Security Groups (uses)
+        - EC2 -> EBS Volumes (uses)
         """
         instance_id = node.id
         config = node.config
+
+        # VPC dependency
+        vpc_id = config.get("vpc_id")
+        if vpc_id and graph.get_resource(vpc_id):
+            graph.add_dependency(instance_id, vpc_id, DependencyType.BELONGS_TO)
 
         # Subnet dependency
         subnet_id = config.get("subnet_id")
@@ -183,6 +202,12 @@ class EC2Scanner(BaseScanner):
         for sg_id in config.get("security_group_ids", []):
             if graph.get_resource(sg_id):
                 graph.add_dependency(instance_id, sg_id, DependencyType.USES)
+
+        # EBS volume dependencies (from block device mappings)
+        for bd in config.get("block_device_mappings", []):
+            volume_id = bd.get("volume_id")
+            if volume_id and graph.get_resource(volume_id):
+                graph.add_dependency(instance_id, volume_id, DependencyType.USES)
 
     def _extract_iam_profile(
         self, profile: dict[str, Any] | None

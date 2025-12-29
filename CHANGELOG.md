@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Resource Dependency Analyzers** - Deep dependency analysis for AWS resources
+  - `deps --analyze` mode for comprehensive resource dependency analysis
+  - 9 specialized analyzers: EC2, Security Group, IAM Role, RDS, ASG, S3, Lambda, ELB, ElastiCache
+  - Relationship classification: MANAGER, CONSUMER, DEPENDENCY, NETWORK, IDENTITY, TRUST, REPLICATION
+  - Weighted blast radius scoring based on resource criticality
+  - IaC detection (CloudFormation, Terraform, manual)
+  - Contextual warnings for cross-account access, encryption keys, managed resources
+  - EC2 analyzer detects: ASG managers, Target Group consumers, EBS/AMI dependencies, KMS encryption keys
+  - Security Group analyzer detects: EC2/RDS/Lambda consumers, cross-account rules
+  - IAM Role analyzer detects: trust relationships, attached policies, consumer services
+  - RDS analyzer detects: read replicas, subnet groups, parameter groups, KMS keys
+  - S3 analyzer detects: replication targets, Lambda/SQS/SNS notifications, encryption
+  - Lambda analyzer detects: layers, event sources (SQS/Kinesis/DynamoDB), VPC config
+  - ELB/ALB analyzer detects: target groups, SSL certificates, security groups
+  - ElastiCache analyzer detects: replication groups, parameter groups
+
 - **FOMO Design for Audit CLI Output** - Rich-based output with plan-based gating
   - New `replimap/ui/` module with FOMO design functions
   - `print_audit_findings_fomo()` - Shows ALL issue titles (even for FREE users)

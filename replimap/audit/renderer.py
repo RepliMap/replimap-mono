@@ -287,6 +287,22 @@ class AuditRenderer:
             lines.append("enable_dns_support = true")
         if instance_tenancy := config.get("instance_tenancy"):
             lines.append(f'instance_tenancy = "{instance_tenancy}"')
+
+        # CC7.2 (Monitoring) - VPC Flow Logs
+        lines.append("")
+        if config.get("flow_logs_enabled"):
+            lines.append("# VPC Flow Logs: ENABLED")
+            flow_logs = config.get("flow_logs", [])
+            for fl in flow_logs:
+                traffic_type = fl.get("traffic_type", "ALL")
+                dest_type = fl.get("log_destination_type", "cloud-watch-logs")
+                lines.append(f"# - Traffic: {traffic_type}, Destination: {dest_type}")
+        else:
+            lines.append("# AUDIT WARNING: VPC Flow Logs NOT ENABLED")
+            lines.append(
+                "# Flow logs are required for CC7.2 (Monitoring and Detection)"
+            )
+
         return lines
 
     def _render_subnet(self, config: dict, graph: GraphEngine) -> list[str]:
@@ -410,36 +426,74 @@ class AuditRenderer:
             else:
                 lines.append(f'subnet_id = "{subnet_id}"')
 
-        # Security groups
-        if sgs := config.get("security_groups"):
+        # Security groups - handle both naming conventions
+        sgs = config.get("security_group_ids") or config.get("security_groups")
+        if sgs:
             sg_list = ", ".join(f'"{sg}"' for sg in sgs)
             lines.append(f"vpc_security_group_ids = [{sg_list}]")
 
-        # Private IP
-        if private_ip := config.get("private_ip"):
+        # Private IP - handle both naming conventions
+        private_ip = config.get("private_ip_address") or config.get("private_ip")
+        if private_ip:
             lines.append(f'private_ip = "{private_ip}"')
 
         # IAM instance profile
         if iam_profile := config.get("iam_instance_profile"):
+            if isinstance(iam_profile, dict):
+                iam_profile = iam_profile.get("name") or iam_profile.get("arn", "")
             lines.append(f'iam_instance_profile = "{iam_profile}"')
 
-        # Monitoring
+        # CC7.2 (Monitoring)
         if config.get("monitoring"):
             lines.append("monitoring = true")
+        else:
+            lines.append("monitoring = false  # AUDIT: Detailed monitoring disabled")
 
         # EBS optimized
         if config.get("ebs_optimized"):
             lines.append("ebs_optimized = true")
 
-        # Metadata options (IMDSv2)
+        # CC6.6 (Encryption) - Root block device
+        if root_device := config.get("root_block_device"):
+            lines.append("")
+            lines.append("root_block_device {")
+            if vol_size := root_device.get("volume_size"):
+                lines.append(f"  volume_size = {vol_size}")
+            if vol_type := root_device.get("volume_type"):
+                lines.append(f'  volume_type = "{vol_type}"')
+            if root_device.get("encrypted"):
+                lines.append("  encrypted = true")
+            else:
+                lines.append("  encrypted = false  # AUDIT: Root volume not encrypted")
+            if kms_key := root_device.get("kms_key_id"):
+                lines.append(f'  kms_key_id = "{kms_key}"')
+            if root_device.get("delete_on_termination") is not None:
+                lines.append(
+                    f"  delete_on_termination = {str(root_device['delete_on_termination']).lower()}"
+                )
+            lines.append("}")
+        else:
+            lines.append("")
+            lines.append(
+                "# AUDIT: No root_block_device info - encryption status unknown"
+            )
+
+        # CC6.1 (Access Control) - Metadata options (IMDSv2)
         if metadata := config.get("metadata_options"):
             lines.append("")
             lines.append("metadata_options {")
             if http_tokens := metadata.get("http_tokens"):
                 lines.append(f'  http_tokens = "{http_tokens}"')
+                if http_tokens != "required":
+                    lines.append("  # AUDIT WARNING: IMDSv2 not enforced")
             if http_endpoint := metadata.get("http_endpoint"):
                 lines.append(f'  http_endpoint = "{http_endpoint}"')
+            if hop_limit := metadata.get("http_put_response_hop_limit"):
+                lines.append(f"  http_put_response_hop_limit = {hop_limit}")
             lines.append("}")
+        else:
+            lines.append("")
+            lines.append("# AUDIT: No metadata_options - IMDSv1 may be enabled")
 
         return lines
 
@@ -448,36 +502,107 @@ class AuditRenderer:
         lines = []
         if bucket := config.get("bucket"):
             lines.append(f'bucket = "{bucket}"')
+
+        # Versioning - critical for CC8.1 (Change Management)
+        if versioning := config.get("versioning"):
+            lines.append("")
+            lines.append("versioning {")
+            if versioning.get("enabled"):
+                lines.append("  enabled = true")
+            else:
+                lines.append("  enabled = false  # AUDIT: Versioning disabled")
+            if versioning.get("mfa_delete"):
+                lines.append("  mfa_delete = true")
+            lines.append("}")
+
+        # Server-side encryption - critical for CC6.6 (Encryption at Rest)
+        if sse := config.get("server_side_encryption_configuration"):
+            lines.append("")
+            lines.append("server_side_encryption_configuration {")
+            lines.append("  rule {")
+            lines.append("    apply_server_side_encryption_by_default {")
+            if algo := sse.get("sse_algorithm"):
+                lines.append(f'      sse_algorithm = "{algo}"')
+            if kms_key := sse.get("kms_master_key_id"):
+                lines.append(f'      kms_master_key_id = "{kms_key}"')
+            lines.append("    }")
+            lines.append("  }")
+            lines.append("}")
+        else:
+            lines.append("")
+            lines.append("# AUDIT: No server-side encryption configured")
+
+        # Public access block - critical for CC6.1 (Access Control)
+        if pab := config.get("public_access_block"):
+            lines.append("")
+            # Note: In TF this is a separate resource, but for audit we inline it
+            lines.append("# Public Access Block Configuration")
+            block_acls = pab.get("block_public_acls", False)
+            block_policy = pab.get("block_public_policy", False)
+            ignore_acls = pab.get("ignore_public_acls", False)
+            restrict = pab.get("restrict_public_buckets", False)
+
+            if not all([block_acls, block_policy, ignore_acls, restrict]):
+                lines.append("# AUDIT WARNING: Public access not fully blocked")
+            lines.append(f"# block_public_acls = {str(block_acls).lower()}")
+            lines.append(f"# block_public_policy = {str(block_policy).lower()}")
+            lines.append(f"# ignore_public_acls = {str(ignore_acls).lower()}")
+            lines.append(f"# restrict_public_buckets = {str(restrict).lower()}")
+        else:
+            lines.append("")
+            lines.append("# AUDIT WARNING: No public access block configured")
+
+        # Logging - for CC7.2 (Monitoring)
+        if logging := config.get("logging"):
+            lines.append("")
+            lines.append("logging {")
+            if target := logging.get("target_bucket"):
+                lines.append(f'  target_bucket = "{target}"')
+            if prefix := logging.get("target_prefix"):
+                lines.append(f'  target_prefix = "{prefix}"')
+            lines.append("}")
+        else:
+            lines.append("")
+            lines.append("# AUDIT: No access logging configured")
+
         return lines
 
     def _render_rds(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render RDS instance attributes."""
         lines = []
 
-        if identifier := config.get("db_instance_identifier"):
+        # Handle both scanner formats (identifier vs db_instance_identifier)
+        identifier = config.get("identifier") or config.get("db_instance_identifier")
+        if identifier:
             lines.append(f'identifier = "{identifier}"')
         if engine := config.get("engine"):
             lines.append(f'engine = "{engine}"')
         if engine_version := config.get("engine_version"):
             lines.append(f'engine_version = "{engine_version}"')
-        if instance_class := config.get("db_instance_class"):
+        instance_class = config.get("instance_class") or config.get("db_instance_class")
+        if instance_class:
             lines.append(f'instance_class = "{instance_class}"')
         if storage := config.get("allocated_storage"):
             lines.append(f"allocated_storage = {storage}")
         if storage_type := config.get("storage_type"):
             lines.append(f'storage_type = "{storage_type}"')
 
-        # Security - this is what Checkov will scan
+        # Security - CC6.6 (Encryption at Rest)
         if config.get("storage_encrypted"):
             lines.append("storage_encrypted = true")
         else:
             lines.append("storage_encrypted = false  # AUDIT: Not encrypted")
 
+        if kms_key := config.get("kms_key_id"):
+            lines.append(f'kms_key_id = "{kms_key}"')
+
+        # CC6.1 (Access Control)
         if config.get("publicly_accessible"):
             lines.append("publicly_accessible = true  # AUDIT: Public access")
         else:
             lines.append("publicly_accessible = false")
 
+        # A1.2 (Availability)
         if config.get("multi_az"):
             lines.append("multi_az = true")
         else:
@@ -487,6 +612,46 @@ class AuditRenderer:
             lines.append("deletion_protection = true")
         else:
             lines.append("deletion_protection = false  # AUDIT: No deletion protection")
+
+        # A1.2 (Availability) - Backup retention
+        backup_retention = config.get("backup_retention_period", 0)
+        lines.append(f"backup_retention_period = {backup_retention}")
+        if backup_retention == 0:
+            lines.append("# AUDIT WARNING: No automated backups configured")
+        elif backup_retention < 7:
+            lines.append("# AUDIT WARNING: Backup retention less than 7 days")
+
+        # CC8.1 (Change Management) - Auto minor version upgrade
+        if config.get("auto_minor_version_upgrade"):
+            lines.append("auto_minor_version_upgrade = true")
+        else:
+            lines.append(
+                "auto_minor_version_upgrade = false  # AUDIT: Auto patching disabled"
+            )
+
+        # CC6.1 (Access Control) - IAM Database Authentication
+        if config.get("iam_database_authentication_enabled"):
+            lines.append("iam_database_authentication_enabled = true")
+        else:
+            lines.append(
+                "iam_database_authentication_enabled = false  # AUDIT: IAM auth disabled"
+            )
+
+        # CC7.2 (Monitoring) - Performance Insights
+        if config.get("performance_insights_enabled"):
+            lines.append("performance_insights_enabled = true")
+        else:
+            lines.append(
+                "performance_insights_enabled = false  # AUDIT: No performance insights"
+            )
+
+        # CC7.2 (Monitoring) - CloudWatch Logs
+        log_exports = config.get("enabled_cloudwatch_logs_exports", [])
+        if log_exports:
+            exports_str = ", ".join(f'"{e}"' for e in log_exports)
+            lines.append(f"enabled_cloudwatch_logs_exports = [{exports_str}]")
+        else:
+            lines.append("# AUDIT: No CloudWatch log exports configured")
 
         # Password placeholder
         lines.append('password = "REDACTED"  # AUDIT: Sensitive value redacted')
@@ -526,68 +691,234 @@ class AuditRenderer:
     def _render_lb(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Load Balancer attributes."""
         lines = []
-        if name := config.get("load_balancer_name"):
+        # Handle both naming conventions
+        name = config.get("name") or config.get("load_balancer_name")
+        if name:
             lines.append(f'name = "{name}"')
-        if config.get("internal"):
+
+        # Internal/External
+        scheme = config.get("scheme")
+        if scheme == "internal" or config.get("internal"):
             lines.append("internal = true")
         else:
             lines.append("internal = false")
+
         if lb_type := config.get("type"):
             lines.append(f'load_balancer_type = "{lb_type}"')
-        if subnets := config.get("subnets"):
+
+        # Subnets
+        subnets = config.get("subnet_ids") or config.get("subnets")
+        if subnets:
             subnet_list = ", ".join(f'"{s}"' for s in subnets)
             lines.append(f"subnets = [{subnet_list}]")
-        if sgs := config.get("security_groups"):
+
+        # Security groups
+        sgs = config.get("security_group_ids") or config.get("security_groups")
+        if sgs:
             sg_list = ", ".join(f'"{sg}"' for sg in sgs)
             lines.append(f"security_groups = [{sg_list}]")
+
+        # CC7.2 (Monitoring) - Access Logs
+        if config.get("access_logs_enabled"):
+            lines.append("")
+            lines.append("access_logs {")
+            lines.append("  enabled = true")
+            if bucket := config.get("access_logs_bucket"):
+                lines.append(f'  bucket = "{bucket}"')
+            if prefix := config.get("access_logs_prefix"):
+                lines.append(f'  prefix = "{prefix}"')
+            lines.append("}")
+        else:
+            lines.append("")
+            lines.append("access_logs {")
+            lines.append("  enabled = false  # AUDIT: Access logging disabled")
+            lines.append("}")
+
+        # A1.2 (Availability) - Deletion Protection
+        if config.get("deletion_protection_enabled"):
+            lines.append("enable_deletion_protection = true")
+        else:
+            lines.append(
+                "enable_deletion_protection = false  # AUDIT: No deletion protection"
+            )
+
+        # CC6.1 (Access Control) - Drop Invalid Headers (prevents HTTP smuggling)
+        if config.get("drop_invalid_header_fields"):
+            lines.append("drop_invalid_header_fields = true")
+        else:
+            lines.append(
+                "drop_invalid_header_fields = false  # AUDIT: May be vulnerable to HTTP smuggling"
+            )
+
         return lines
 
     def _render_sqs(self, config: dict) -> list[str]:
         """Render SQS queue attributes."""
         lines = []
-        if name := config.get("queue_name"):
+        # Handle both naming conventions
+        name = config.get("name") or config.get("queue_name")
+        if name:
             lines.append(f'name = "{name}"')
+
+        # FIFO queue
+        if config.get("fifo_queue"):
+            lines.append("fifo_queue = true")
+            if config.get("content_based_deduplication"):
+                lines.append("content_based_deduplication = true")
+            if dedup_scope := config.get("deduplication_scope"):
+                lines.append(f'deduplication_scope = "{dedup_scope}"')
+            if fifo_limit := config.get("fifo_throughput_limit"):
+                lines.append(f'fifo_throughput_limit = "{fifo_limit}"')
+
+        # Queue settings
+        if visibility := config.get("visibility_timeout_seconds"):
+            lines.append(f"visibility_timeout_seconds = {visibility}")
         if delay := config.get("delay_seconds"):
             lines.append(f"delay_seconds = {delay}")
         if max_size := config.get("max_message_size"):
             lines.append(f"max_message_size = {max_size}")
         if retention := config.get("message_retention_seconds"):
             lines.append(f"message_retention_seconds = {retention}")
+        if receive_wait := config.get("receive_wait_time_seconds"):
+            lines.append(f"receive_message_wait_time_seconds = {receive_wait}")
 
-        # Encryption
+        # CC6.6 (Encryption at Rest)
+        lines.append("")
         if kms_key := config.get("kms_master_key_id"):
             lines.append(f'kms_master_key_id = "{kms_key}"')
+            if kms_reuse := config.get("kms_data_key_reuse_period_seconds"):
+                lines.append(f"kms_data_key_reuse_period_seconds = {kms_reuse}")
         elif config.get("sqs_managed_sse_enabled"):
             lines.append("sqs_managed_sse_enabled = true")
         else:
-            lines.append("# AUDIT: No encryption configured")
+            lines.append("# AUDIT WARNING: No encryption configured (CC6.6)")
+
+        # C1.2 (Confidentiality) - Dead letter queue
+        lines.append("")
+        redrive = config.get("redrive_policy", {})
+        if redrive and redrive.get("deadLetterTargetArn"):
+            lines.append("redrive_policy = jsonencode({")
+            lines.append(f'  deadLetterTargetArn = "{redrive["deadLetterTargetArn"]}"')
+            if max_receive := redrive.get("maxReceiveCount"):
+                lines.append(f"  maxReceiveCount = {max_receive}")
+            lines.append("})")
+        else:
+            lines.append("# AUDIT WARNING: No dead letter queue configured (C1.2)")
+            lines.append("# Failed messages will be lost after retention period")
+
+        # Policy (for audit visibility)
+        policy = config.get("policy", {})
+        if policy:
+            lines.append("")
+            lines.append("# Queue policy configured (see policy document for details)")
+            # Check for overly permissive policies
+            statements = policy.get("Statement", [])
+            for stmt in statements:
+                principal = stmt.get("Principal", {})
+                if principal == "*" or principal.get("AWS") == "*":
+                    lines.append(
+                        "# AUDIT WARNING: Policy allows access from any AWS principal"
+                    )
+                    break
 
         return lines
 
     def _render_sns(self, config: dict) -> list[str]:
         """Render SNS topic attributes."""
         lines = []
-        if name := config.get("topic_name"):
+        # Handle both naming conventions
+        name = config.get("name") or config.get("topic_name")
+        if name:
             lines.append(f'name = "{name}"')
+
+        # Display name
+        if display_name := config.get("display_name"):
+            lines.append(f'display_name = "{display_name}"')
+
+        # FIFO topic
+        if config.get("fifo_topic"):
+            lines.append("fifo_topic = true")
+            if config.get("content_based_deduplication"):
+                lines.append("content_based_deduplication = true")
+
+        # CC6.6 (Encryption at Rest)
+        lines.append("")
         if kms_key := config.get("kms_master_key_id"):
             lines.append(f'kms_master_key_id = "{kms_key}"')
         else:
-            lines.append("# AUDIT: No encryption configured")
+            lines.append("# AUDIT WARNING: No encryption configured (CC6.6)")
+
+        # Subscription summary for visibility
+        lines.append("")
+        confirmed = config.get("subscriptions_confirmed", 0)
+        pending = config.get("subscriptions_pending", 0)
+        lines.append(f"# Subscriptions: {confirmed} confirmed, {pending} pending")
+
+        # Policy (for audit visibility)
+        policy = config.get("policy", {})
+        if policy:
+            lines.append("")
+            lines.append("# Topic policy configured")
+            # Check for overly permissive policies
+            statements = policy.get("Statement", [])
+            for stmt in statements:
+                principal = stmt.get("Principal", {})
+                effect = stmt.get("Effect", "")
+                action = stmt.get("Action", [])
+                if isinstance(action, str):
+                    action = [action]
+
+                if principal == "*" or principal.get("AWS") == "*":
+                    if effect == "Allow" and any(
+                        "Publish" in a or "*" in a for a in action
+                    ):
+                        lines.append(
+                            "# AUDIT WARNING: Policy allows publish from any principal"
+                        )
+                        break
+        else:
+            lines.append("")
+            lines.append("# AUDIT: No topic policy configured")
+
+        # Delivery policy
+        if config.get("delivery_policy"):
+            lines.append("# Custom delivery policy configured")
+
         return lines
 
     def _render_elasticache(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render ElastiCache cluster attributes."""
         lines = []
-        if cluster_id := config.get("cache_cluster_id"):
+        # Handle both naming conventions
+        cluster_id = config.get("cluster_id") or config.get("cache_cluster_id")
+        if cluster_id:
             lines.append(f'cluster_id = "{cluster_id}"')
         if engine := config.get("engine"):
             lines.append(f'engine = "{engine}"')
-        if node_type := config.get("cache_node_type"):
+        if engine_version := config.get("engine_version"):
+            lines.append(f'engine_version = "{engine_version}"')
+        # Handle both naming conventions
+        node_type = config.get("node_type") or config.get("cache_node_type")
+        if node_type:
             lines.append(f'node_type = "{node_type}"')
         if num_nodes := config.get("num_cache_nodes"):
             lines.append(f"num_cache_nodes = {num_nodes}")
 
-        # Encryption
+        # Subnet group
+        if subnet_group := config.get("cache_subnet_group_name"):
+            lines.append(f'subnet_group_name = "{subnet_group}"')
+
+        # Security groups
+        if sgs := config.get("security_group_ids"):
+            sg_list = ", ".join(f'"{sg}"' for sg in sgs)
+            lines.append(f"security_group_ids = [{sg_list}]")
+
+        # Parameter group
+        if param_group := config.get("parameter_group_name"):
+            lines.append(f'parameter_group_name = "{param_group}"')
+
+        # CC6.6 (Encryption at Rest)
+        lines.append("")
         if config.get("at_rest_encryption_enabled"):
             lines.append("at_rest_encryption_enabled = true")
         else:
@@ -595,12 +926,49 @@ class AuditRenderer:
                 "at_rest_encryption_enabled = false  # AUDIT: Not encrypted at rest"
             )
 
+        # CC6.7 (Encryption in Transit)
         if config.get("transit_encryption_enabled"):
             lines.append("transit_encryption_enabled = true")
         else:
             lines.append(
                 "transit_encryption_enabled = false  # AUDIT: Not encrypted in transit"
             )
+
+        # CC6.1 (Access Control) - Auth token
+        if config.get("auth_token_enabled"):
+            lines.append("auth_token_enabled = true")
+        else:
+            lines.append("# AUDIT WARNING: Auth token (password) not enabled for Redis")
+
+        # A1.2 (Availability) - Replication and snapshots
+        lines.append("")
+        if repl_group := config.get("replication_group_id"):
+            lines.append(f'# Replication Group: "{repl_group}"')
+        else:
+            lines.append("# AUDIT: Not part of a replication group (no HA)")
+
+        snapshot_retention = config.get("snapshot_retention_limit")
+        if snapshot_retention is not None:
+            lines.append(f"snapshot_retention_limit = {snapshot_retention}")
+            if snapshot_retention == 0:
+                lines.append("# AUDIT WARNING: No automatic snapshots configured")
+        else:
+            lines.append("# AUDIT: Snapshot retention not configured")
+
+        if snapshot_window := config.get("snapshot_window"):
+            lines.append(f'snapshot_window = "{snapshot_window}"')
+
+        # CC8.1 (Change Management) - Auto minor version upgrade
+        if config.get("auto_minor_version_upgrade"):
+            lines.append("auto_minor_version_upgrade = true")
+        else:
+            lines.append(
+                "auto_minor_version_upgrade = false  # AUDIT: Auto patching disabled"
+            )
+
+        # CC7.2 (Monitoring) - Notification
+        if notification_arn := config.get("notification_arn"):
+            lines.append(f'notification_topic_arn = "{notification_arn}"')
 
         return lines
 
@@ -661,7 +1029,9 @@ class AuditRenderer:
     def _render_launch_template(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Launch Template attributes."""
         lines = []
-        if name := config.get("launch_template_name"):
+        # Handle both naming conventions
+        name = config.get("name") or config.get("launch_template_name")
+        if name:
             lines.append(f'name = "{name}"')
         if image_id := config.get("image_id"):
             lines.append(f'image_id = "{image_id}"')
@@ -670,15 +1040,62 @@ class AuditRenderer:
         if key_name := config.get("key_name"):
             lines.append(f'key_name = "{key_name}"')
 
-        # Metadata options (IMDSv2)
+        # CC6.6 (Encryption) - Block device mappings with encryption
+        block_devices = config.get("block_device_mappings", [])
+        for bd in block_devices:
+            lines.append("")
+            lines.append("block_device_mappings {")
+            if device_name := bd.get("DeviceName"):
+                lines.append(f'  device_name = "{device_name}"')
+            if ebs := bd.get("Ebs"):
+                lines.append("  ebs {")
+                if vol_size := ebs.get("VolumeSize"):
+                    lines.append(f"    volume_size = {vol_size}")
+                if vol_type := ebs.get("VolumeType"):
+                    lines.append(f'    volume_type = "{vol_type}"')
+                if ebs.get("Encrypted"):
+                    lines.append("    encrypted = true")
+                else:
+                    lines.append("    encrypted = false  # AUDIT: EBS not encrypted")
+                if kms_key := ebs.get("KmsKeyId"):
+                    lines.append(f'    kms_key_id = "{kms_key}"')
+                if delete_on_term := ebs.get("DeleteOnTermination"):
+                    lines.append(
+                        f"    delete_on_termination = {str(delete_on_term).lower()}"
+                    )
+                if iops := ebs.get("Iops"):
+                    lines.append(f"    iops = {iops}")
+                lines.append("  }")
+            lines.append("}")
+
+        if not block_devices:
+            lines.append("")
+            lines.append(
+                "# AUDIT: No block device mappings defined - may use unencrypted AMI defaults"
+            )
+
+        # CC6.1 (Access Control) - Metadata options (IMDSv2)
         if metadata := config.get("metadata_options"):
             lines.append("")
             lines.append("metadata_options {")
             if http_tokens := metadata.get("http_tokens"):
                 lines.append(f'  http_tokens = "{http_tokens}"')
+                if http_tokens != "required":
+                    lines.append("  # AUDIT WARNING: IMDSv2 not required")
             if http_endpoint := metadata.get("http_endpoint"):
                 lines.append(f'  http_endpoint = "{http_endpoint}"')
             lines.append("}")
+        else:
+            lines.append("")
+            lines.append("# AUDIT: No metadata_options - IMDSv1 may be enabled")
+
+        # CC7.2 (Monitoring)
+        if monitoring := config.get("monitoring"):
+            if monitoring.get("Enabled"):
+                lines.append("")
+                lines.append("monitoring {")
+                lines.append("  enabled = true")
+                lines.append("}")
 
         return lines
 
@@ -710,12 +1127,81 @@ class AuditRenderer:
             lines.append(f'ssl_policy = "{ssl_policy}"')
         if cert_arn := config.get("certificate_arn"):
             lines.append(f'certificate_arn = "{cert_arn}"')
+
+        # Render default_action blocks - critical for Checkov to detect redirects
+        for action in config.get("default_actions", []):
+            lines.append("")
+            lines.append("default_action {")
+            action_type = action.get("type")
+            if action_type:
+                lines.append(f'  type = "{action_type}"')
+
+            # Redirect action (HTTP to HTTPS)
+            if redirect := action.get("redirect"):
+                lines.append("  redirect {")
+                if redirect.get("Protocol"):
+                    lines.append(f'    protocol = "{redirect["Protocol"]}"')
+                if redirect.get("Port"):
+                    lines.append(f'    port = "{redirect["Port"]}"')
+                if redirect.get("Host"):
+                    lines.append(f'    host = "{redirect["Host"]}"')
+                if redirect.get("Path"):
+                    lines.append(f'    path = "{redirect["Path"]}"')
+                if redirect.get("Query"):
+                    lines.append(f'    query = "{redirect["Query"]}"')
+                if redirect.get("StatusCode"):
+                    lines.append(f'    status_code = "{redirect["StatusCode"]}"')
+                lines.append("  }")
+
+            # Forward action (to target group)
+            if tg_arn := action.get("target_group_arn"):
+                lines.append(f'  target_group_arn = "{tg_arn}"')
+
+            # Forward config with weighted target groups
+            if forward := action.get("forward"):
+                lines.append("  forward {")
+                for tg in forward.get("TargetGroups", []):
+                    lines.append("    target_group {")
+                    if tg.get("TargetGroupArn"):
+                        lines.append(f'      arn = "{tg["TargetGroupArn"]}"')
+                    if tg.get("Weight") is not None:
+                        lines.append(f"      weight = {tg['Weight']}")
+                    lines.append("    }")
+                if stickiness := forward.get("TargetGroupStickinessConfig"):
+                    lines.append("    stickiness {")
+                    if stickiness.get("Enabled") is not None:
+                        lines.append(
+                            f"      enabled = {str(stickiness['Enabled']).lower()}"
+                        )
+                    if stickiness.get("DurationSeconds"):
+                        lines.append(
+                            f"      duration = {stickiness['DurationSeconds']}"
+                        )
+                    lines.append("    }")
+                lines.append("  }")
+
+            # Fixed response action
+            if fixed := action.get("fixed_response"):
+                lines.append("  fixed_response {")
+                if fixed.get("ContentType"):
+                    lines.append(f'    content_type = "{fixed["ContentType"]}"')
+                if fixed.get("MessageBody"):
+                    body = fixed["MessageBody"].replace('"', '\\"')
+                    lines.append(f'    message_body = "{body}"')
+                if fixed.get("StatusCode"):
+                    lines.append(f'    status_code = "{fixed["StatusCode"]}"')
+                lines.append("  }")
+
+            lines.append("}")
+
         return lines
 
     def _render_lb_target_group(self, config: dict, graph: GraphEngine) -> list[str]:
         """Render Load Balancer Target Group attributes."""
         lines = []
-        if name := config.get("target_group_name"):
+        # Handle both naming conventions
+        name = config.get("name") or config.get("target_group_name")
+        if name:
             lines.append(f'name = "{name}"')
         if port := config.get("port"):
             lines.append(f"port = {port}")
@@ -729,6 +1215,34 @@ class AuditRenderer:
                 lines.append(f'vpc_id = "{vpc_id}"')
         if target_type := config.get("target_type"):
             lines.append(f'target_type = "{target_type}"')
+
+        # Health check configuration - important for A1.2 (Availability)
+        if health_check := config.get("health_check"):
+            lines.append("")
+            lines.append("health_check {")
+            if health_check.get("enabled") is not None:
+                lines.append(f"  enabled = {str(health_check['enabled']).lower()}")
+            if hc_protocol := health_check.get("protocol"):
+                lines.append(f'  protocol = "{hc_protocol}"')
+            if hc_port := health_check.get("port"):
+                lines.append(f'  port = "{hc_port}"')
+            if hc_path := health_check.get("path"):
+                lines.append(f'  path = "{hc_path}"')
+            if hc_interval := health_check.get("interval_seconds"):
+                lines.append(f"  interval = {hc_interval}")
+            if hc_timeout := health_check.get("timeout_seconds"):
+                lines.append(f"  timeout = {hc_timeout}")
+            if hc_healthy := health_check.get("healthy_threshold"):
+                lines.append(f"  healthy_threshold = {hc_healthy}")
+            if hc_unhealthy := health_check.get("unhealthy_threshold"):
+                lines.append(f"  unhealthy_threshold = {hc_unhealthy}")
+            if matcher := health_check.get("matcher"):
+                if isinstance(matcher, dict) and matcher.get("HttpCode"):
+                    lines.append(f'  matcher = "{matcher["HttpCode"]}"')
+                elif isinstance(matcher, str):
+                    lines.append(f'  matcher = "{matcher}"')
+            lines.append("}")
+
         return lines
 
     def _render_db_parameter_group(self, config: dict) -> list[str]:
@@ -761,10 +1275,20 @@ class AuditRenderer:
         lines = []
         if bucket := config.get("bucket"):
             lines.append(f'bucket = "{bucket}"')
-        # Policy is usually JSON, we'll include it as a comment
-        if policy := config.get("policy"):
+        # Policy is stored as dict (parsed JSON), policy_json is the string
+        policy_json = config.get("policy_json")
+        if not policy_json:
+            # Fallback: convert policy dict to JSON string
+            policy = config.get("policy")
+            if policy:
+                import json
+
+                policy_json = json.dumps(policy)
+        if policy_json:
             lines.append("# Policy document (JSON):")
-            lines.append(f'policy = "{policy[:100]}..."  # AUDIT: Policy truncated')
+            # Truncate for display, escape quotes
+            truncated = policy_json[:100].replace('"', '\\"')
+            lines.append(f'policy = "{truncated}..."  # AUDIT: Policy truncated')
         return lines
 
     def _render_generic(self, config: dict) -> list[str]:

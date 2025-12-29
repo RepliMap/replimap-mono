@@ -20,93 +20,166 @@ from rich.tree import Tree
 from replimap.dependencies.models import (
     DISCLAIMER_FULL,
     DISCLAIMER_SHORT,
+    RESOURCE_CATEGORY_MAP,
     DependencyExplorerResult,
     ImpactLevel,
+    RelationshipCategory,
+    ResourceNode,
 )
 
 console = Console()
+
+
+# Category display configuration
+CATEGORY_CONFIG: dict[RelationshipCategory, dict[str, str]] = {
+    RelationshipCategory.MANAGER: {
+        "label": "MANAGER",
+        "color": "red bold",
+        "icon": "!",
+        "description": "Controls lifecycle (changes here override this resource)",
+    },
+    RelationshipCategory.IDENTITY: {
+        "label": "IDENTITY",
+        "color": "magenta",
+        "icon": "I",
+        "description": "IAM roles and permissions",
+    },
+    RelationshipCategory.NETWORK: {
+        "label": "NETWORK",
+        "color": "cyan",
+        "icon": "N",
+        "description": "Networking context (VPC, Subnet, Security Groups)",
+    },
+    RelationshipCategory.STORAGE: {
+        "label": "STORAGE",
+        "color": "yellow",
+        "icon": "S",
+        "description": "Attached storage and encryption",
+    },
+    RelationshipCategory.SOURCE: {
+        "label": "SOURCE",
+        "color": "blue",
+        "icon": "A",
+        "description": "Base image/template",
+    },
+    RelationshipCategory.ATTACHED: {
+        "label": "ATTACHED",
+        "color": "green",
+        "icon": "D",
+        "description": "Resources depending on this one",
+    },
+    RelationshipCategory.OTHER: {
+        "label": "OTHER",
+        "color": "dim",
+        "icon": "?",
+        "description": "Miscellaneous dependencies",
+    },
+}
+
+
+def get_category(resource_type: str) -> RelationshipCategory:
+    """Get the relationship category for a resource type."""
+    return RESOURCE_CATEGORY_MAP.get(resource_type, RelationshipCategory.OTHER)
 
 
 class DependencyExplorerReporter:
     """Generate dependency exploration reports in various formats."""
 
     def to_console(self, result: DependencyExplorerResult) -> None:
-        """Print dependency exploration to console."""
-        # Header with warning
-        impact_color = self._get_impact_color(result.estimated_impact)
-
+        """Print dependency exploration to console with grouped dependencies."""
         console.print("\n[bold blue]Dependency Explorer[/bold blue]")
         console.print(f"[dim]{DISCLAIMER_SHORT}[/dim]\n")
 
-        # Summary panel
-        summary = f"""
-[bold]Center Resource:[/bold] {result.center_resource.id}
+        # Show ASG warning FIRST if applicable (P0 - most important)
+        if result.asg_info:
+            console.print(
+                Panel(
+                    f"[red bold]WARNING: This instance is managed by Auto Scaling Group![/red bold]\n\n"
+                    f"[yellow]ASG Name:[/yellow] {result.asg_info.name}\n\n"
+                    f"[red]Any manual changes to this instance may be overwritten by the ASG![/red]\n"
+                    f"[red]To make persistent changes, modify the Launch Template instead.[/red]\n\n"
+                    f"[bold]Next Best Action:[/bold]\n"
+                    f"  1. Find the Launch Template for ASG '{result.asg_info.name}'\n"
+                    f"  2. Modify the Launch Template configuration\n"
+                    f"  3. Trigger an instance refresh on the ASG",
+                    title="[red bold]! ASG-MANAGED INSTANCE ![/red bold]",
+                    border_style="red",
+                )
+            )
+            console.print()
+
+        # Resource context panel
+        config = result.center_config
+        context_lines = []
+
+        # Build context info for EC2 instances
+        if result.center_resource.type == "aws_instance":
+            if config.get("vpc_id"):
+                context_lines.append(f"[cyan]VPC:[/cyan] {config['vpc_id']}")
+            if config.get("subnet_id"):
+                context_lines.append(f"[cyan]Subnet:[/cyan] {config['subnet_id']}")
+            if config.get("availability_zone"):
+                context_lines.append(f"[cyan]AZ:[/cyan] {config['availability_zone']}")
+            if config.get("instance_type"):
+                context_lines.append(
+                    f"[cyan]Instance Type:[/cyan] {config['instance_type']}"
+                )
+            if config.get("iam_instance_profile"):
+                profile = config["iam_instance_profile"]
+                if isinstance(profile, dict):
+                    context_lines.append(
+                        f"[magenta]IAM Profile:[/magenta] {profile.get('name', 'N/A')}"
+                    )
+
+        # Summary panel with context
+        impact_color = self._get_impact_color(result.estimated_impact)
+        summary = f"""[bold]Center Resource:[/bold] {result.center_resource.id}
 [bold]Type:[/bold] {result.center_resource.type}
 [bold]Name:[/bold] {result.center_resource.name}
 
 [{impact_color}]Estimated Impact: {result.estimated_impact.value} ({result.estimated_score}/100)[/{impact_color}]
-[dim](Impact estimates are based on AWS API metadata only)[/dim]
 [bold]Resources Found:[/bold] {result.total_affected}
-[bold]Max Depth:[/bold] {result.max_depth} levels
 """
+        if context_lines:
+            summary += "\n[bold]Context:[/bold]\n  " + "\n  ".join(context_lines)
+
         console.print(
             Panel(summary.strip(), title="Summary", border_style=impact_color)
         )
 
-        # Warnings
+        # Categorize resources
+        upstream = [r for r in result.affected_resources if r.depth < 0]
+        downstream = [r for r in result.affected_resources if r.depth > 0]
+
+        # Group upstream by category
+        if upstream:
+            self._print_categorized_dependencies(
+                upstream,
+                "Dependencies (Resources This Resource Uses)",
+                is_upstream=True,
+            )
+
+        # Group downstream by category
+        if downstream:
+            self._print_categorized_dependencies(
+                downstream,
+                "Dependents (Resources That Use This Resource)",
+                is_upstream=False,
+            )
+
+        # Warnings section
         if result.warnings:
             console.print("\n[bold yellow]Warnings:[/bold yellow]")
             for warning in result.warnings:
-                console.print(f"  [yellow]![/yellow] {warning}")
+                if "ASG" in warning or "CRITICAL" in warning:
+                    console.print(f"  [red bold]![/red bold] [red]{warning}[/red]")
+                else:
+                    console.print(f"  [yellow]![/yellow] {warning}")
 
-        # Impact zones
-        console.print("\n[bold]Dependency Zones:[/bold]\n")
+        # Next Best Actions
+        self._print_next_actions(result)
 
-        for zone in result.zones:
-            if zone.depth == 0:
-                zone_label = "[cyan]Center Resource[/cyan]"
-            else:
-                zone_label = f"Depth {zone.depth}"
-
-            console.print(
-                f"[bold]{zone_label}[/bold] ({len(zone.resources)} resources, "
-                f"estimated score: {zone.total_impact_score})"
-            )
-
-            for resource in zone.resources[:10]:  # Limit display
-                color = self._get_impact_color(resource.impact_level)
-                console.print(
-                    f"  [{color}]{resource.impact_level.value:8}[/{color}] "
-                    f"{resource.type}: {resource.id}"
-                )
-
-            if len(zone.resources) > 10:
-                console.print(f"  [dim]... and {len(zone.resources) - 10} more[/dim]")
-
-            console.print()
-
-        # Suggested review order (NOT "Safe Deletion Order")
-        if result.suggested_review_order:
-            console.print("[bold]Suggested Review Order:[/bold]")
-            console.print(
-                "[dim](Review these resources in this order before making changes)[/dim]\n"
-            )
-
-            for i, resource_id in enumerate(result.suggested_review_order[:15], 1):
-                console.print(f"  {i:2}. {resource_id}")
-
-            if len(result.suggested_review_order) > 15:
-                remaining = len(result.suggested_review_order) - 15
-                console.print(f"  [dim]... and {remaining} more[/dim]")
-
-            # Warning after the list
-            console.print()
-            console.print("[yellow]This order is a SUGGESTION only.[/yellow]")
-            console.print(
-                "[yellow]Validate all dependencies before making any changes.[/yellow]"
-            )
-
-        # Always end with full disclaimer
+        # Always end with disclaimer
         console.print()
         console.print(
             Panel(
@@ -116,20 +189,144 @@ class DependencyExplorerReporter:
             )
         )
 
+    def _print_categorized_dependencies(
+        self,
+        resources: list[ResourceNode],
+        title: str,
+        is_upstream: bool,
+    ) -> None:
+        """Print dependencies grouped by relationship category."""
+        # Group by category
+        by_category: dict[RelationshipCategory, list[ResourceNode]] = {}
+        for r in resources:
+            cat = get_category(r.type)
+            if cat not in by_category:
+                by_category[cat] = []
+            by_category[cat].append(r)
+
+        console.print(f"\n[bold]{title}[/bold]")
+
+        # Priority order for categories
+        category_order = [
+            RelationshipCategory.MANAGER,
+            RelationshipCategory.IDENTITY,
+            RelationshipCategory.NETWORK,
+            RelationshipCategory.STORAGE,
+            RelationshipCategory.SOURCE,
+            RelationshipCategory.ATTACHED,
+            RelationshipCategory.OTHER,
+        ]
+
+        for cat in category_order:
+            if cat not in by_category:
+                continue
+
+            cat_resources = by_category[cat]
+            cfg = CATEGORY_CONFIG[cat]
+            color = cfg["color"]
+            label = cfg["label"]
+            desc = cfg["description"]
+
+            console.print(f"\n  [{color}][{label}][/{color}] [dim]({desc})[/dim]")
+
+            for r in cat_resources:
+                impact_color = self._get_impact_color(r.impact_level)
+                # Show resource type in a more readable format
+                type_short = r.type.replace("aws_", "")
+                console.print(
+                    f"    [{color}]{cfg['icon']}[/{color}] "
+                    f"[{impact_color}]{type_short}[/{impact_color}]: {r.id}"
+                )
+
+    def _print_next_actions(self, result: DependencyExplorerResult) -> None:
+        """Print suggested next actions based on the analysis."""
+        console.print("\n[bold green]Next Best Actions:[/bold green]")
+
+        actions = []
+
+        # ASG-specific actions
+        if result.asg_info:
+            actions.append(
+                f"Review ASG '{result.asg_info.name}' and its Launch Template"
+            )
+            actions.append("Modify Launch Template instead of this instance directly")
+
+        # Security Group actions
+        sg_resources = [
+            r for r in result.affected_resources if r.type == "aws_security_group"
+        ]
+        if sg_resources:
+            sg_count = len(sg_resources)
+            actions.append(
+                f"Review {sg_count} Security Group(s) for blast radius implications"
+            )
+
+        # General actions
+        if result.total_affected > 1:
+            actions.append(
+                f"Validate all {result.total_affected} affected resources before changes"
+            )
+
+        actions.append("Check application logs and configs for hidden dependencies")
+
+        for i, action in enumerate(actions, 1):
+            console.print(f"  {i}. {action}")
+
     def to_tree(self, result: DependencyExplorerResult) -> None:
-        """Print dependency exploration as a tree."""
-        # Show disclaimer first
+        """Print dependency exploration as a hierarchical tree."""
+        # Show ASG warning first
+        if result.asg_info:
+            console.print(
+                f"\n[red bold]! ASG-MANAGED: {result.asg_info.name}[/red bold]"
+            )
+
         console.print(f"\n[dim]{DISCLAIMER_SHORT}[/dim]")
 
         center = result.center_resource
-        tree = Tree(
-            f"[bold cyan]{center.type}[/bold cyan]: {center.id} ({center.name})"
-        )
+        config = result.center_config
 
-        self._build_tree(tree, center.id, result, visited=set())
+        # Build center label with context
+        center_label = f"[bold cyan]{center.type}[/bold cyan]: {center.id}"
+        if center.name and center.name != center.id:
+            center_label += f" ({center.name})"
+
+        tree = Tree(center_label)
+
+        # Add upstream dependencies (what this resource uses)
+        upstream = [r for r in result.affected_resources if r.depth < 0]
+        if upstream:
+            upstream_branch = tree.add(
+                "[magenta]Uses (upstream dependencies)[/magenta]"
+            )
+            self._build_categorized_tree(upstream_branch, upstream)
+
+        # Add context info for EC2
+        if center.type == "aws_instance" and config:
+            context_branch = tree.add("[dim]Context[/dim]")
+            if config.get("vpc_id"):
+                context_branch.add(f"[cyan]VPC:[/cyan] {config['vpc_id']}")
+            if config.get("subnet_id"):
+                context_branch.add(f"[cyan]Subnet:[/cyan] {config['subnet_id']}")
+            if config.get("availability_zone"):
+                context_branch.add(f"[cyan]AZ:[/cyan] {config['availability_zone']}")
+            if config.get("asg_name"):
+                context_branch.add(
+                    f"[red bold]ASG:[/red bold] {config['asg_name']} [red](manages this instance)[/red]"
+                )
+
+        # Add downstream dependencies (what uses this resource)
+        downstream = [r for r in result.affected_resources if r.depth > 0]
+        if downstream:
+            downstream_branch = tree.add(
+                "[yellow]Used by (downstream dependencies)[/yellow]"
+            )
+            self._build_categorized_tree(downstream_branch, downstream)
 
         console.print("\n[bold]Dependency Tree:[/bold]\n")
         console.print(tree)
+
+        # Next actions
+        self._print_next_actions(result)
 
         # Disclaimer at end
         console.print()
@@ -138,6 +335,45 @@ class DependencyExplorerReporter:
         )
         console.print("[yellow]Application-level dependencies are NOT shown.[/yellow]")
 
+    def _build_categorized_tree(
+        self,
+        parent: Tree,
+        resources: list[ResourceNode],
+    ) -> None:
+        """Build tree branches organized by category."""
+        # Group by category
+        by_category: dict[RelationshipCategory, list[ResourceNode]] = {}
+        for r in resources:
+            cat = get_category(r.type)
+            if cat not in by_category:
+                by_category[cat] = []
+            by_category[cat].append(r)
+
+        # Priority order for categories
+        category_order = [
+            RelationshipCategory.MANAGER,
+            RelationshipCategory.IDENTITY,
+            RelationshipCategory.NETWORK,
+            RelationshipCategory.STORAGE,
+            RelationshipCategory.SOURCE,
+            RelationshipCategory.ATTACHED,
+            RelationshipCategory.OTHER,
+        ]
+
+        for cat in category_order:
+            if cat not in by_category:
+                continue
+
+            cat_resources = by_category[cat]
+            cfg = CATEGORY_CONFIG[cat]
+            color = cfg["color"]
+            label = cfg["label"]
+
+            cat_branch = parent.add(f"[{color}][{label}][/{color}]")
+            for r in cat_resources:
+                type_short = r.type.replace("aws_", "")
+                cat_branch.add(f"[{color}]{type_short}[/{color}]: {r.id}")
+
     def _build_tree(
         self,
         parent: Tree,
@@ -145,7 +381,7 @@ class DependencyExplorerReporter:
         result: DependencyExplorerResult,
         visited: set[str],
     ) -> None:
-        """Recursively build tree."""
+        """Recursively build tree (legacy method for backward compatibility)."""
         if resource_id in visited:
             return
         visited.add(resource_id)

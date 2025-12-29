@@ -37,6 +37,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from replimap import __version__
+
 from .classifier import classifier
 from .hooks import AuditHooks
 from .models import APICallRecord, APICategory, AuditSession, TrustCenterReport
@@ -66,7 +68,7 @@ class TrustCenter:
     _lock = threading.Lock()
 
     # Version info
-    VERSION = "1.0.0"
+    VERSION = __version__
     TOOL_NAME = "RepliMap"
 
     # Default storage location
@@ -243,6 +245,71 @@ class TrustCenter:
             sessions.append(session)
 
         return sorted(sessions, key=lambda s: s.start_time, reverse=True)
+
+    @property
+    def session_count(self) -> int:
+        """Get the number of audit sessions."""
+        return len(self._sessions)
+
+    def start_session(
+        self,
+        name: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """
+        Start a new audit session (non-context-manager version).
+
+        Use this when you need to manually control session lifecycle
+        instead of using the `session()` context manager.
+
+        Args:
+            name: Human-readable session name
+            metadata: Additional metadata to attach
+
+        Returns:
+            Session ID
+
+        Example:
+            session_id = trust_center.start_session("production_scan")
+            try:
+                scanner.scan_all()
+            finally:
+                trust_center.end_session(session_id)
+        """
+        session_id = str(uuid.uuid4())[:8]
+
+        audit_session = AuditSession(
+            session_id=session_id,
+            session_name=name,
+            start_time=datetime.utcnow(),
+            metadata=metadata or {},
+        )
+
+        with self._session_lock:
+            self._sessions[session_id] = audit_session
+            self._current_session_id = session_id
+
+        logger.debug(f"Started audit session: {session_id} ({name})")
+        return session_id
+
+    def end_session(self, session_id: str) -> None:
+        """
+        End an audit session started with start_session().
+
+        Args:
+            session_id: Session ID returned from start_session()
+        """
+        with self._session_lock:
+            session = self._sessions.get(session_id)
+            if session:
+                session.close()
+                if self._current_session_id == session_id:
+                    self._current_session_id = None
+
+        # Auto-save session
+        if session:
+            self._save_session(session_id)
+            logger.debug(f"Closed audit session: {session_id}")
 
     # =========================================================================
     # Recording
@@ -441,6 +508,220 @@ class TrustCenter:
                 and self._total_admin_calls == 0
             ),
         }
+
+    # =========================================================================
+    # Export Methods
+    # =========================================================================
+
+    def export_json(
+        self,
+        report: TrustCenterReport,
+        output_path: Path | str,
+        include_records: bool = False,
+    ) -> Path:
+        """
+        Export report as JSON.
+
+        Args:
+            report: TrustCenterReport to export
+            output_path: Path to save JSON file
+            include_records: Include individual API call records
+
+        Returns:
+            Path to saved file
+        """
+        output_path = Path(output_path)
+
+        data = report.to_dict()
+
+        if include_records:
+            # Add detailed records from all sessions
+            all_records = []
+            for session_id in [s["session_id"] for s in report.session_summaries]:
+                session = self._sessions.get(session_id)
+                if session:
+                    all_records.extend([r.to_dict() for r in session.records])
+            data["records"] = all_records
+
+        with open(output_path, "w") as f:
+            json.dump(data, f, indent=2)
+
+        return output_path
+
+    def export_csv(
+        self,
+        sessions: list[AuditSession],
+        output_path: Path | str,
+    ) -> Path:
+        """
+        Export all API call records as CSV.
+
+        Args:
+            sessions: List of sessions to export
+            output_path: Path to save CSV file
+
+        Returns:
+            Path to saved file
+        """
+        import csv
+
+        output_path = Path(output_path)
+
+        with open(output_path, "w", newline="") as f:
+            writer = csv.writer(f)
+
+            # Header
+            writer.writerow(
+                [
+                    "timestamp",
+                    "session_id",
+                    "session_name",
+                    "service",
+                    "operation",
+                    "region",
+                    "category",
+                    "duration_ms",
+                    "http_status",
+                    "is_read_only",
+                    "is_success",
+                    "error_code",
+                    "account_id",
+                    "request_id",
+                ]
+            )
+
+            # Rows
+            for session in sessions:
+                for record in session.records:
+                    writer.writerow(
+                        [
+                            record.timestamp.isoformat(),
+                            session.session_id,
+                            session.session_name or "",
+                            record.service,
+                            record.operation,
+                            record.region,
+                            record.category.value,
+                            record.duration_ms,
+                            record.http_status,
+                            record.is_read_only,
+                            record.is_success,
+                            record.error_code or "",
+                            record.account_id or "",
+                            record.request_id,
+                        ]
+                    )
+
+        return output_path
+
+    def generate_compliance_text(self, report: TrustCenterReport) -> str:
+        """
+        Generate human-readable compliance report text.
+
+        Args:
+            report: TrustCenterReport to format
+
+        Returns:
+            Formatted text string
+        """
+        lines = [
+            "=" * 60,
+            "TRUST CENTER COMPLIANCE REPORT",
+            "=" * 60,
+            "",
+            f"Report ID: {report.report_id}",
+            f"Generated: {report.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC')}",
+            f"Period: {report.report_period_start.strftime('%Y-%m-%d')} to "
+            f"{report.report_period_end.strftime('%Y-%m-%d')}",
+            "",
+            "-" * 60,
+            "SUMMARY",
+            "-" * 60,
+            f"Tool: {report.tool_name} v{report.tool_version}",
+            f"Sessions: {report.total_sessions}",
+            f"Total API Calls: {report.total_api_calls}",
+            f"Total Duration: {report.total_duration_seconds:.1f} seconds",
+            "",
+            "-" * 60,
+            "READ-ONLY COMPLIANCE",
+            "-" * 60,
+            f"Read-Only Percentage: {report.read_only_percentage:.1f}%",
+            f"Fully Read-Only: {'YES ✓' if report.is_fully_read_only else 'NO ⚠'}",
+            "",
+            report.compliance_statement,
+            "",
+            "-" * 60,
+            "API CALL BREAKDOWN",
+            "-" * 60,
+        ]
+
+        for category, count in sorted(report.calls_by_category.items()):
+            pct = count / report.total_api_calls * 100 if report.total_api_calls else 0
+            lines.append(f"  {category.upper()}: {count} ({pct:.1f}%)")
+
+        lines.extend(
+            [
+                "",
+                "-" * 60,
+                "SERVICES ACCESSED",
+                "-" * 60,
+            ]
+        )
+
+        for service in report.unique_services[:20]:
+            count = report.calls_by_service.get(service, 0)
+            lines.append(f"  {service}: {count} calls")
+
+        if len(report.unique_services) > 20:
+            lines.append(f"  ... and {len(report.unique_services) - 20} more services")
+
+        if report.write_operations:
+            lines.extend(
+                [
+                    "",
+                    "-" * 60,
+                    "⚠ NON-READ OPERATIONS DETECTED",
+                    "-" * 60,
+                ]
+            )
+            for op in report.write_operations[:10]:
+                lines.append(f"  - {op}")
+            if len(report.write_operations) > 10:
+                lines.append(f"  ... and {len(report.write_operations) - 10} more")
+
+        lines.extend(
+            [
+                "",
+                "=" * 60,
+                "END OF REPORT",
+                "=" * 60,
+            ]
+        )
+
+        return "\n".join(lines)
+
+    def save_compliance_text(
+        self,
+        report: TrustCenterReport,
+        output_path: Path | str,
+    ) -> Path:
+        """
+        Save compliance report as text file.
+
+        Args:
+            report: TrustCenterReport to format
+            output_path: Path to save text file
+
+        Returns:
+            Path to saved file
+        """
+        output_path = Path(output_path)
+        text = self.generate_compliance_text(report)
+
+        with open(output_path, "w") as f:
+            f.write(text)
+
+        return output_path
 
     # =========================================================================
     # Storage

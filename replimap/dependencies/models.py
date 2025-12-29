@@ -47,6 +47,50 @@ class DependencyType(str, Enum):
         return self.value
 
 
+class RelationshipCategory(str, Enum):
+    """Categories for grouping dependencies in display."""
+
+    MANAGER = "MANAGER"  # ASG, Launch Template (controls lifecycle)
+    IDENTITY = "IDENTITY"  # IAM Role, Instance Profile
+    NETWORK = "NETWORK"  # VPC, Subnet, Security Group, ENI, EIP
+    STORAGE = "STORAGE"  # EBS Volume, KMS Key
+    SOURCE = "SOURCE"  # AMI
+    ATTACHED = "ATTACHED"  # Resources attached to this one
+    OTHER = "OTHER"  # Misc dependencies
+
+    def __str__(self) -> str:
+        return self.value
+
+
+# Resource type to relationship category mapping
+RESOURCE_CATEGORY_MAP: dict[str, RelationshipCategory] = {
+    # MANAGER - controls lifecycle
+    "aws_autoscaling_group": RelationshipCategory.MANAGER,
+    "aws_launch_template": RelationshipCategory.MANAGER,
+    # IDENTITY - IAM resources
+    "aws_iam_role": RelationshipCategory.IDENTITY,
+    "aws_iam_policy": RelationshipCategory.IDENTITY,
+    "aws_iam_instance_profile": RelationshipCategory.IDENTITY,
+    # NETWORK - networking resources
+    "aws_vpc": RelationshipCategory.NETWORK,
+    "aws_subnet": RelationshipCategory.NETWORK,
+    "aws_security_group": RelationshipCategory.NETWORK,
+    "aws_network_interface": RelationshipCategory.NETWORK,
+    "aws_eip": RelationshipCategory.NETWORK,
+    "aws_internet_gateway": RelationshipCategory.NETWORK,
+    "aws_nat_gateway": RelationshipCategory.NETWORK,
+    "aws_route_table": RelationshipCategory.NETWORK,
+    "aws_vpc_endpoint": RelationshipCategory.NETWORK,
+    # STORAGE - storage and encryption
+    "aws_ebs_volume": RelationshipCategory.STORAGE,
+    "aws_kms_key": RelationshipCategory.STORAGE,
+    "aws_s3_bucket": RelationshipCategory.STORAGE,
+    # SOURCE - image/template sources
+    "aws_ami": RelationshipCategory.SOURCE,
+    "aws_snapshot": RelationshipCategory.SOURCE,
+}
+
+
 @dataclass
 class ResourceNode:
     """A resource in the dependency exploration analysis."""
@@ -167,6 +211,22 @@ STANDARD_LIMITATIONS = [
 
 
 @dataclass
+class ASGInfo:
+    """Auto Scaling Group information for managed EC2 instances."""
+
+    name: str
+    is_managed: bool = True
+    warning: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "is_managed": self.is_managed,
+            "warning": self.warning,
+        }
+
+
+@dataclass
 class DependencyExplorerResult:
     """
     Complete dependency exploration result.
@@ -207,6 +267,12 @@ class DependencyExplorerResult:
     # Disclaimer text for display
     disclaimer: str = field(default_factory=lambda: DISCLAIMER_FULL.strip())
 
+    # ASG info (critical for EC2 instances)
+    asg_info: ASGInfo | None = None
+
+    # Original resource config (for extracting context info)
+    center_config: dict[str, Any] = field(default_factory=dict)
+
     def __post_init__(self) -> None:
         """Ensure disclaimer warning is always present."""
         main_warning = (
@@ -218,7 +284,7 @@ class DependencyExplorerResult:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON output."""
-        return {
+        result = {
             "disclaimer": self.disclaimer,
             "limitations": self.limitations,
             "center": {
@@ -239,6 +305,11 @@ class DependencyExplorerResult:
             "suggested_review_order": self.suggested_review_order,
             "warnings": self.warnings,
         }
+        if self.asg_info:
+            result["asg_info"] = self.asg_info.to_dict()
+        if self.center_config:
+            result["center_config"] = self.center_config
+        return result
 
 
 # Alias for backward compatibility
