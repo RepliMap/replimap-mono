@@ -3087,11 +3087,17 @@ def deps(
 
             progress.update(task, description="Exploring dependencies...")
 
+            # Build resource configs map for ASG detection
+            resource_configs = {
+                res.id: res.config for res in graph.get_all_resources()
+            }
+
             # Explore dependencies
             calculator = ImpactCalculator(
                 dep_graph,
                 builder.get_nodes(),
                 builder.get_edges(),
+                resource_configs=resource_configs,
             )
 
             try:

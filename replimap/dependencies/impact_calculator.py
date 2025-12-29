@@ -15,6 +15,7 @@ import logging
 import networkx as nx
 
 from replimap.dependencies.models import (
+    ASGInfo,
     DependencyEdge,
     DependencyExplorerResult,
     DependencyZone,
@@ -90,10 +91,13 @@ class ImpactCalculator:
         graph: nx.DiGraph,
         nodes: dict[str, ResourceNode],
         edges: list[DependencyEdge] | None = None,
+        resource_configs: dict[str, dict] | None = None,
     ) -> None:
         self.graph = graph
         self.nodes = nodes
         self.edges = edges or []
+        # Store original resource configs for context extraction
+        self.resource_configs = resource_configs or {}
 
     def calculate_blast_radius(
         self,
@@ -154,6 +158,28 @@ class ImpactCalculator:
         # Generate warnings
         warnings = self._generate_warnings(center, affected)
 
+        # Extract ASG info and center config for EC2 instances
+        asg_info = None
+        center_config = self.resource_configs.get(center_id, {})
+
+        if center.type == "aws_instance":
+            asg_name = center_config.get("asg_name")
+            if asg_name:
+                asg_info = ASGInfo(
+                    name=asg_name,
+                    is_managed=True,
+                    warning=(
+                        f"This instance is managed by ASG '{asg_name}'. "
+                        "Manual changes will be overwritten by the ASG!"
+                    ),
+                )
+                # Add ASG warning to warnings list
+                warnings.insert(
+                    0,
+                    f"CRITICAL: Instance managed by ASG '{asg_name}' - "
+                    "changes may be overwritten!",
+                )
+
         return DependencyExplorerResult(
             center_resource=center,
             zones=zones,
@@ -165,6 +191,8 @@ class ImpactCalculator:
             estimated_score=estimated_score,
             suggested_review_order=suggested_order,
             warnings=warnings,
+            asg_info=asg_info,
+            center_config=center_config,
         )
 
     def _find_dependents(

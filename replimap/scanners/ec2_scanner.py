@@ -114,6 +114,15 @@ class EC2Scanner(BaseScanner):
                 }
             )
 
+        # Extract ASG name from tags (critical for deps command)
+        asg_name = tags.get("aws:autoscaling:groupName")
+
+        # Collect all security groups (from instance + all ENIs)
+        all_security_groups = set(security_groups)
+        for eni in network_interfaces:
+            for sg_id in eni.get("security_groups", []):
+                all_security_groups.add(sg_id)
+
         # Build config dictionary
         config = {
             "ami": instance["ImageId"],
@@ -121,7 +130,7 @@ class EC2Scanner(BaseScanner):
             "key_name": instance.get("KeyName"),
             "subnet_id": subnet_id,
             "vpc_id": vpc_id,
-            "security_group_ids": security_groups,
+            "security_group_ids": list(all_security_groups),
             "private_ip_address": instance.get("PrivateIpAddress"),
             "public_ip_address": instance.get("PublicIpAddress"),
             "availability_zone": instance.get("Placement", {}).get("AvailabilityZone"),
@@ -137,6 +146,9 @@ class EC2Scanner(BaseScanner):
                 instance.get("MetadataOptions", {})
             ),
             "state": state,
+            # ASG detection (P0 for deps command)
+            "asg_name": asg_name,
+            "is_asg_managed": asg_name is not None,
         }
 
         # Get root volume info
