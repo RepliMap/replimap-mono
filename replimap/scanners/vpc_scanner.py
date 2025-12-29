@@ -63,11 +63,37 @@ class VPCScanner(BaseScanner):
         """Scan all VPCs in the region."""
         logger.debug("Scanning VPCs...")
 
+        # First, get all flow logs to check which VPCs have them
+        vpc_flow_logs: dict[str, list[dict[str, Any]]] = {}
+        try:
+            fl_paginator = ec2.get_paginator("describe_flow_logs")
+            for fl_page in fl_paginator.paginate():
+                for flow_log in fl_page.get("FlowLogs", []):
+                    resource_id = flow_log.get("ResourceId", "")
+                    if resource_id.startswith("vpc-"):
+                        if resource_id not in vpc_flow_logs:
+                            vpc_flow_logs[resource_id] = []
+                        vpc_flow_logs[resource_id].append(
+                            {
+                                "flow_log_id": flow_log.get("FlowLogId"),
+                                "traffic_type": flow_log.get("TrafficType"),
+                                "log_destination_type": flow_log.get("LogDestinationType"),
+                                "log_destination": flow_log.get("LogDestination"),
+                                "log_group_name": flow_log.get("LogGroupName"),
+                                "status": flow_log.get("FlowLogStatus"),
+                            }
+                        )
+        except ClientError as e:
+            logger.debug(f"Could not describe flow logs: {e}")
+
         paginator = ec2.get_paginator("describe_vpcs")
         for page in paginator.paginate():
             for vpc in page.get("Vpcs", []):
                 vpc_id = vpc["VpcId"]
                 tags = self._extract_tags(vpc.get("Tags"))
+
+                # Check if VPC has flow logs
+                flow_logs = vpc_flow_logs.get(vpc_id, [])
 
                 node = ResourceNode(
                     id=vpc_id,
@@ -85,6 +111,8 @@ class VPCScanner(BaseScanner):
                             }
                             for assoc in vpc.get("CidrBlockAssociationSet", [])
                         ],
+                        "flow_logs_enabled": len(flow_logs) > 0,
+                        "flow_logs": flow_logs,
                     },
                     arn=f"arn:aws:ec2:{self.region}:{self._get_account_id(vpc)}:vpc/{vpc_id}",
                     tags=tags,
