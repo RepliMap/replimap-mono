@@ -8,7 +8,6 @@ Tests cover:
 - Edge cases and error handling
 """
 
-
 from replimap.drift.models import DriftType, ResourceDrift
 from replimap.drift.reporter import (
     _generate_remediation_cmd,

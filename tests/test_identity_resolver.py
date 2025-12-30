@@ -1,6 +1,5 @@
 """Tests for the Identity Resolver."""
 
-
 from replimap.core.identity_resolver import (
     IDENTITY_REGISTRY,
     STRATEGIES,
