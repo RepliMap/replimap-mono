@@ -603,9 +603,13 @@ class PricingLookup:
         """Get monthly cost for SNS topic."""
         # First 1M publishes free
         billable_publishes = max(0, publishes_per_month - 1000000)
-        publish_cost = (billable_publishes / 1000000) * SNS_PRICING["publish_per_million"]
+        publish_cost = (billable_publishes / 1000000) * SNS_PRICING[
+            "publish_per_million"
+        ]
         # HTTP notifications
-        notify_cost = (notifications_per_month / 1000000) * SNS_PRICING["http_per_million"]
+        notify_cost = (notifications_per_month / 1000000) * SNS_PRICING[
+            "http_per_million"
+        ]
         return (publish_cost + notify_cost) * self.region_multiplier
 
     def get_route53_monthly_cost(
@@ -620,7 +624,9 @@ class PricingLookup:
         if hosted_zones > 25:
             zone_cost += (hosted_zones - 25) * 0.10
         # Queries (first 1B at $0.40/M)
-        query_cost = (queries_per_month / 1000000) * ROUTE53_PRICING["queries_per_million"]
+        query_cost = (queries_per_month / 1000000) * ROUTE53_PRICING[
+            "queries_per_million"
+        ]
         # Health checks
         health_cost = health_checks * ROUTE53_PRICING["health_check_basic"]
         return zone_cost + query_cost + health_cost
@@ -644,7 +650,9 @@ class PricingLookup:
     ) -> float:
         """Get monthly cost for Secrets Manager."""
         secret_cost = secrets_count * SECRETS_MANAGER_PRICING["secret_per_month"]
-        request_cost = (api_calls_per_month / 10000) * SECRETS_MANAGER_PRICING["api_calls_per_10k"]
+        request_cost = (api_calls_per_month / 10000) * SECRETS_MANAGER_PRICING[
+            "api_calls_per_10k"
+        ]
         return (secret_cost + request_cost) * self.region_multiplier
 
     def get_ecr_monthly_cost(
@@ -661,7 +669,9 @@ class PricingLookup:
     ) -> float:
         """Get monthly cost for CloudFront distribution."""
         transfer_cost = data_transfer_gb * CLOUDFRONT_PRICING["data_transfer_per_gb"]
-        request_cost = (requests_per_month / 10000) * CLOUDFRONT_PRICING["requests_https_per_10k"]
+        request_cost = (requests_per_month / 10000) * CLOUDFRONT_PRICING[
+            "requests_https_per_10k"
+        ]
         return (transfer_cost + request_cost) * self.region_multiplier
 
     def get_guardduty_monthly_cost(
@@ -671,7 +681,9 @@ class PricingLookup:
     ) -> float:
         """Get monthly cost for GuardDuty."""
         # CloudTrail analysis
-        ct_cost = (cloudtrail_events_per_month / 1000000) * GUARDDUTY_PRICING["cloudtrail_per_million"]
+        ct_cost = (cloudtrail_events_per_month / 1000000) * GUARDDUTY_PRICING[
+            "cloudtrail_per_million"
+        ]
         # VPC Flow Logs analysis
         flow_cost = vpc_flow_gb * GUARDDUTY_PRICING["vpc_flow_per_gb"]
         return (ct_cost + flow_cost) * self.region_multiplier
@@ -698,7 +710,9 @@ class PricingLookup:
         billable_ingestion = max(0, logs_ingestion_gb - 5)
         logs_cost = billable_ingestion * CLOUDWATCH_PRICING["logs_ingestion_per_gb"]
         storage_cost = logs_storage_gb * CLOUDWATCH_PRICING["logs_storage_per_gb"]
-        return (metrics_cost + alarms_cost + dashboard_cost + logs_cost + storage_cost) * self.region_multiplier
+        return (
+            metrics_cost + alarms_cost + dashboard_cost + logs_cost + storage_cost
+        ) * self.region_multiplier
 
     def get_cloudtrail_monthly_cost(
         self,
@@ -707,8 +721,12 @@ class PricingLookup:
     ) -> float:
         """Get monthly cost for CloudTrail."""
         # First trail's management events free
-        mgmt_cost = (management_events_per_month / 100000) * CLOUDTRAIL_PRICING["management_events_per_100k"]
-        data_cost = (data_events_per_month / 100000) * CLOUDTRAIL_PRICING["data_events_per_100k"]
+        mgmt_cost = (management_events_per_month / 100000) * CLOUDTRAIL_PRICING[
+            "management_events_per_100k"
+        ]
+        data_cost = (data_events_per_month / 100000) * CLOUDTRAIL_PRICING[
+            "data_events_per_100k"
+        ]
         return (mgmt_cost + data_cost) * self.region_multiplier
 
     def get_resource_category(self, resource_type: str) -> CostCategory:

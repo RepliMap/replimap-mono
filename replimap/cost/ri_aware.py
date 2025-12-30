@@ -728,7 +728,7 @@ class RIAwareAnalyzer:
             await self._client.close()
             self._client = None
 
-    async def __aenter__(self) -> "RIAwareAnalyzer":
+    async def __aenter__(self) -> RIAwareAnalyzer:
         """Async context manager entry."""
         return self
 

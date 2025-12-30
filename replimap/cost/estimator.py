@@ -500,10 +500,14 @@ class CostEstimator:
         is_fifo = config.get("fifo_queue", False)
         # Estimate requests based on queue type
         estimated_requests = config.get("estimated_requests_per_month", 10_000_000)
-        cost.monthly_cost = self.pricing.get_sqs_monthly_cost(estimated_requests, is_fifo)
+        cost.monthly_cost = self.pricing.get_sqs_monthly_cost(
+            estimated_requests, is_fifo
+        )
         cost.confidence = CostConfidence.LOW
         queue_type = "FIFO" if is_fifo else "Standard"
-        cost.assumptions.append(f"SQS {queue_type} ~{estimated_requests/1_000_000:.1f}M requests/month")
+        cost.assumptions.append(
+            f"SQS {queue_type} ~{estimated_requests / 1_000_000:.1f}M requests/month"
+        )
 
     def _estimate_sns(
         self,
@@ -513,12 +517,16 @@ class CostEstimator:
         """Estimate SNS topic cost."""
         # Estimate based on typical usage
         estimated_publishes = config.get("estimated_publishes_per_month", 1_000_000)
-        estimated_notifications = config.get("estimated_notifications_per_month", 1_000_000)
+        estimated_notifications = config.get(
+            "estimated_notifications_per_month", 1_000_000
+        )
         cost.monthly_cost = self.pricing.get_sns_monthly_cost(
             estimated_publishes, estimated_notifications
         )
         cost.confidence = CostConfidence.LOW
-        cost.assumptions.append(f"SNS ~{estimated_publishes/1_000_000:.1f}M publishes/month")
+        cost.assumptions.append(
+            f"SNS ~{estimated_publishes / 1_000_000:.1f}M publishes/month"
+        )
 
     def _estimate_route53(
         self,

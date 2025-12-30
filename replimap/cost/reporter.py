@@ -1115,12 +1115,15 @@ The following cost factors are **NOT** included and may significantly increase y
 
     <div id="header">
         <h1>💰 Cost Estimate Report</h1>
-        <div class="subtitle">Confidence: {estimate.confidence.value} ({estimate.accuracy_range})</div>
+        <div class="subtitle">Confidence: {estimate.confidence.value} ({
+            estimate.accuracy_range
+        })</div>
         <div class="stats">
             <div class="stat">
                 <div class="stat-value">${estimate.monthly_total:,.2f}</div>
                 <div class="stat-label">Monthly Estimate</div>
-                <div class="stat-range">${estimate.estimated_range_low:,.2f} - ${estimate.estimated_range_high:,.2f}</div>
+                <div class="stat-range">${estimate.estimated_range_low:,.2f} - ${
+            estimate.estimated_range_high:,.2f}</div>
             </div>
             <div class="stat">
                 <div class="stat-value">${estimate.annual_total:,.2f}</div>
@@ -1130,13 +1133,17 @@ The following cost factors are **NOT** included and may significantly increase y
                 <div class="stat-value">{estimate.resource_count}</div>
                 <div class="stat-label">Resources</div>
             </div>
-            {f'''
+            {
+            f'''
             <div class="stat savings-highlight">
                 <div class="stat-value">${estimate.total_optimization_potential:,.2f}</div>
                 <div class="stat-label">Potential Savings</div>
                 <div class="stat-range">{estimate.optimization_percentage:.1f}% of monthly cost</div>
             </div>
-            ''' if estimate.total_optimization_potential > 0 else ''}
+            '''
+            if estimate.total_optimization_potential > 0
+            else ""
+        }
         </div>
     </div>
 
@@ -1156,7 +1163,11 @@ The following cost factors are **NOT** included and may significantly increase y
                     <div class="env-label">Non-Production</div>
                     <div class="env-value">${env_costs["NON-PRODUCTION"]:,.2f}</div>
                     <div class="env-percent">{nonprod_pct:.1f}% of total</div>
-                    {'<div class="env-warning">⚠️ High non-prod spend - review for waste</div>' if nonprod_pct > 20 else ''}
+                    {
+            '<div class="env-warning">⚠️ High non-prod spend - review for waste</div>'
+            if nonprod_pct > 20
+            else ""
+        }
                 </div>
             </div>
         </div>
@@ -1168,18 +1179,27 @@ The following cost factors are **NOT** included and may significantly increase y
             </div>
             <div class="card">
                 <h2>🎯 Optimization Recommendations</h2>
-                {recommendations_html if recommendations_html else "<p>No optimization recommendations at this time.</p>"}
-                {f'''
+                {
+            recommendations_html
+            if recommendations_html
+            else "<p>No optimization recommendations at this time.</p>"
+        }
+                {
+            f'''
                 <div class="total-savings" style="margin-top: 15px">
                     <div class="value">${estimate.total_optimization_potential:,.2f}</div>
                     <div class="label">Total Potential Savings ({estimate.optimization_percentage:.1f}%)</div>
                 </div>
-                ''' if estimate.total_optimization_potential > 0 else ''}
+                '''
+            if estimate.total_optimization_potential > 0
+            else ""
+        }
             </div>
         </div>
 
         <!-- NAT Gateway Calculator (if applicable) -->
-        {f'''
+        {
+            f'''
         <div class="calculator-box">
             <h3>💡 NAT Gateway Data Processing Cost Estimator</h3>
             <p>Your infrastructure has <strong>{nat_count} NAT Gateway(s)</strong> at ${nat_hourly_total:,.2f}/mo (hourly charge only).</p>
@@ -1194,7 +1214,10 @@ The following cost factors are **NOT** included and may significantly increase y
                 <p class="calc-total">Total estimated NAT cost: <strong>$<span id="natTotalCost">{nat_hourly_total + 5.90:,.2f}</span>/mo</strong></p>
             </div>
         </div>
-        ''' if nat_count > 0 else ''}
+        '''
+            if nat_count > 0
+            else ""
+        }
 
         <div class="exclusions">
             <h2>⚠️ NOT Included in This Estimate</h2>
