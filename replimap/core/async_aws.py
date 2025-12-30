@@ -250,11 +250,24 @@ class AsyncAWSClient:
         self._circuit_registry = circuit_registry or get_circuit_breaker_registry()
         self._rate_registry = rate_registry or get_rate_limiter_registry()
 
+        # Get credentials from boto3 if profile specified (boto3 handles assume-role)
+        self._credentials: dict[str, str] | None = None
+        if profile:
+            import boto3
+
+            boto3_session = boto3.Session(profile_name=profile, region_name=region)
+            creds = boto3_session.get_credentials()
+            if creds:
+                frozen_creds = creds.get_frozen_credentials()
+                self._credentials = {
+                    "aws_access_key_id": frozen_creds.access_key,
+                    "aws_secret_access_key": frozen_creds.secret_key,
+                }
+                if frozen_creds.token:
+                    self._credentials["aws_session_token"] = frozen_creds.token
+
         # aiobotocore session and config
         self._session = get_session()
-        # Set profile if specified (must be done before creating clients)
-        if profile:
-            self._session.set_config_variable("profile", profile)
         self._config = AioConfig(
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
@@ -305,11 +318,14 @@ class AsyncAWSClient:
         if service not in self._clients:
             async with self._client_locks[service]:
                 if service not in self._clients:
-                    client_ctx = self._session.create_client(
-                        service,
-                        region_name=self.region,
-                        config=self._config,
-                    )
+                    # Pass credentials if we have them (from profile)
+                    client_kwargs: dict[str, Any] = {
+                        "region_name": self.region,
+                        "config": self._config,
+                    }
+                    if self._credentials:
+                        client_kwargs.update(self._credentials)
+                    client_ctx = self._session.create_client(service, **client_kwargs)
                     self._clients[service] = await client_ctx.__aenter__()
 
         yield self._clients[service]
