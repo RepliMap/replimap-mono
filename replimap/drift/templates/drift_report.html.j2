@@ -10,6 +10,42 @@
             font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
             font-size: 12px;
         }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .accordion-content.open {
+            max-height: none;
+        }
+        .drift-card.semantic {
+            border-left: 4px solid #ef4444;
+        }
+        .drift-card.cosmetic {
+            border-left: 4px solid #9ca3af;
+        }
+        .drift-card.none {
+            border-left: 4px solid #3b82f6;
+        }
+        .diff-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+        }
+        .diff-content.open {
+            max-height: 2000px;
+        }
+        .copy-btn:hover {
+            background-color: #e5e7eb;
+        }
+        .copy-btn.copied {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        /* Hide empty accordion groups */
+        .accordion-group.hidden-by-filter {
+            display: none;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -39,7 +75,7 @@
     <main class="max-w-6xl mx-auto px-4 py-8">
 
         <!-- Summary Cards -->
-        <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <section class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
             <div class="bg-white rounded-lg shadow p-4 text-center">
                 <div class="text-3xl font-bold text-gray-800">{{ report.total_resources }}</div>
                 <div class="text-sm text-gray-500">Total Resources</div>
@@ -60,190 +96,327 @@
                 <div class="text-3xl font-bold text-yellow-600">{{ report.modified_resources }}</div>
                 <div class="text-sm text-gray-500">Modified</div>
             </div>
+            <div class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-3xl font-bold text-gray-400">{{ report.unscanned_resources }}</div>
+                <div class="text-sm text-gray-500">Unscanned</div>
+            </div>
         </section>
 
-        <!-- Critical/High Priority Drifts -->
-        {% set critical_high = report.critical_drifts + report.high_drifts %}
-        {% if critical_high %}
-        <section class="bg-white rounded-lg shadow-lg p-6 mb-8 border-l-4 border-red-500">
-            <h2 class="text-xl font-bold text-red-700 mb-4">
-                High Priority Drifts ({{ critical_high|length }})
-            </h2>
-            <p class="text-gray-600 mb-4">These changes may impact security or production stability.</p>
-
-            <div class="space-y-4">
-                {% for drift in critical_high %}
-                <div class="border rounded-lg overflow-hidden">
-                    <div class="bg-red-50 px-4 py-3 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">
-                                {% if drift.drift_type == DriftType.ADDED %}+
-                                {% elif drift.drift_type == DriftType.REMOVED %}-
-                                {% else %}~{% endif %}
-                            </span>
-                            <div>
-                                <span class="font-mono text-sm bg-gray-200 px-2 py-1 rounded">
-                                    {{ drift.resource_type }}
-                                </span>
-                                <span class="ml-2 font-medium">{{ drift.resource_id }}</span>
-                            </div>
+        {% if report.has_drift %}
+        <!-- Filter Controls -->
+        <section class="bg-white rounded-lg shadow-lg p-4 mb-6">
+            <div class="flex flex-wrap gap-4 items-center">
+                <!-- Search Box -->
+                <div class="flex-1 min-w-64">
+                    <label for="search-input" class="sr-only">Search</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
                         </div>
-                        <span class="px-2 py-1 text-xs font-bold rounded
-                            {% if drift.severity == DriftSeverity.CRITICAL %}bg-purple-100 text-purple-800
-                            {% else %}bg-red-100 text-red-800{% endif %}">
-                            {{ drift.severity.value|upper }}
+                        <input type="text" id="search-input"
+                               class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                               placeholder="Search by ID, name, TF address, or tags..."
+                               onkeyup="filterDrifts()">
+                    </div>
+                </div>
+
+                <!-- Status Filter -->
+                <div>
+                    <label for="status-filter" class="sr-only">Status</label>
+                    <select id="status-filter"
+                            class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                            onchange="filterDrifts()">
+                        <option value="all">All Status</option>
+                        <option value="modified">Modified</option>
+                        <option value="added">Added</option>
+                        <option value="removed">Removed</option>
+                    </select>
+                </div>
+
+                <!-- Classification Filter -->
+                <div>
+                    <label for="classification-filter" class="sr-only">Classification</label>
+                    <select id="classification-filter"
+                            class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                            onchange="filterDrifts()">
+                        <option value="all">All Changes</option>
+                        <option value="semantic">Action Required</option>
+                        <option value="cosmetic">Cosmetic Only</option>
+                    </select>
+                </div>
+
+                <!-- Expand/Collapse All -->
+                <div class="flex gap-2">
+                    <button onclick="expandAll()" class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md">
+                        Expand All
+                    </button>
+                    <button onclick="collapseAll()" class="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md">
+                        Collapse All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Stats -->
+            <div id="filter-stats" class="mt-3 text-sm text-gray-500">
+                Showing <span id="visible-count">{{ report.drifted_resources }}</span> of {{ report.drifted_resources }} drifts
+            </div>
+        </section>
+
+        <!-- Drifts by Resource Type (Accordion) -->
+        <section class="space-y-4 mb-8" id="drifts-container">
+            {% for resource_type, drifts in drifts_by_type %}
+            {% set semantic_in_group = drifts | selectattr('_classification', 'equalto', 'semantic') | list | length %}
+            <div class="accordion-group bg-white rounded-lg shadow-lg overflow-hidden" data-type="{{ resource_type }}">
+                <!-- Accordion Header -->
+                <button class="accordion-header w-full px-6 py-4 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                        onclick="toggleAccordion(this)">
+                    <div class="flex items-center gap-4">
+                        <svg class="accordion-icon w-5 h-5 text-gray-500 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                        <span class="font-mono text-sm bg-gray-200 px-2 py-1 rounded">{{ resource_type }}</span>
+                        <span class="text-gray-700 font-medium">
+                            (<span class="group-visible-count">{{ drifts | length }}</span>)
                         </span>
                     </div>
-
-                    {% if drift.tf_address %}
-                    <div class="px-4 py-2 bg-gray-50 text-sm text-gray-600">
-                        TF Address: <code>{{ drift.tf_address }}</code>
+                    <div class="flex items-center gap-2">
+                        <span class="group-semantic-badge px-2 py-1 text-xs font-bold bg-red-100 text-red-800 rounded {% if semantic_in_group == 0 %}hidden{% endif %}"
+                              data-original-count="{{ semantic_in_group }}">
+                            <span class="group-semantic-count">{{ semantic_in_group }}</span> Action Required
+                        </span>
                     </div>
-                    {% endif %}
+                </button>
 
-                    {% if drift.diffs %}
-                    <div class="p-4">
-                        <table class="w-full text-sm">
-                            <thead class="text-left text-gray-500">
-                                <tr>
-                                    <th class="pb-2">Attribute</th>
-                                    <th class="pb-2">Expected (TF)</th>
-                                    <th class="pb-2">Actual (AWS)</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y">
-                                {% for diff in drift.diffs %}
-                                <tr>
-                                    <td class="py-2 font-medium">{{ diff.attribute }}</td>
-                                    <td class="py-2">
-                                        <code class="bg-red-50 text-red-700 px-1 rounded code-block">
-                                            {{ diff.expected | truncate(50) }}
-                                        </code>
-                                    </td>
-                                    <td class="py-2">
-                                        <code class="bg-green-50 text-green-700 px-1 rounded code-block">
-                                            {{ diff.actual | truncate(50) }}
-                                        </code>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <!-- Accordion Content -->
+                <div class="accordion-content">
+                    <div class="p-4 space-y-4">
+                        {% for drift in drifts %}
+                        <div class="drift-card {{ drift._classification }} bg-white border rounded-lg overflow-hidden"
+                             data-id="{{ drift.resource_id }}"
+                             data-name="{{ drift.resource_name }}"
+                             data-tf-address="{{ drift.tf_address }}"
+                             data-status="{{ drift.drift_type.value }}"
+                             data-classification="{{ drift._classification }}"
+                             data-type="{{ drift.resource_type }}">
+
+                            <!-- Drift Header -->
+                            <div class="px-4 py-3 flex items-center justify-between
+                                {% if drift._classification == 'semantic' %}bg-red-50{% else %}bg-gray-50{% endif %}">
+                                <div class="flex items-center gap-3">
+                                    <!-- Drift Type Icon -->
+                                    <span class="text-xl font-bold
+                                        {% if drift.drift_type == DriftType.ADDED %}text-green-600
+                                        {% elif drift.drift_type == DriftType.REMOVED %}text-red-600
+                                        {% else %}text-yellow-600{% endif %}">
+                                        {% if drift.drift_type == DriftType.ADDED %}+
+                                        {% elif drift.drift_type == DriftType.REMOVED %}-
+                                        {% else %}~{% endif %}
+                                    </span>
+                                    <div>
+                                        <span class="font-medium">{{ drift.resource_id }}</span>
+                                        {% if drift.tf_address %}
+                                        <span class="text-sm text-gray-500 ml-2">({{ drift.tf_address }})</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <!-- Classification Badge -->
+                                    {% if drift._classification == 'semantic' %}
+                                    <span class="px-2 py-1 text-xs font-bold bg-red-100 text-red-800 rounded">
+                                        Action Required
+                                    </span>
+                                    {% elif drift._classification == 'cosmetic' %}
+                                    <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">
+                                        Cosmetic
+                                    </span>
+                                    {% endif %}
+
+                                    <!-- Severity Badge -->
+                                    <span class="px-2 py-1 text-xs font-bold rounded
+                                        {% if drift.severity == DriftSeverity.CRITICAL %}bg-purple-100 text-purple-800
+                                        {% elif drift.severity == DriftSeverity.HIGH %}bg-red-100 text-red-800
+                                        {% elif drift.severity == DriftSeverity.MEDIUM %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                        {{ drift.severity.value|upper }}
+                                    </span>
+
+                                    <!-- Drift Type Badge -->
+                                    <span class="px-2 py-1 text-xs font-medium rounded
+                                        {% if drift.drift_type == DriftType.ADDED %}bg-green-100 text-green-800
+                                        {% elif drift.drift_type == DriftType.REMOVED %}bg-red-100 text-red-800
+                                        {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                        {{ drift.drift_type.value|upper }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Diff Summary (clickable to expand) -->
+                            {% if drift.diffs %}
+                            <div class="px-4 py-2 bg-white border-t cursor-pointer hover:bg-gray-50"
+                                 onclick="toggleDiff(this)">
+                                <div class="flex items-center justify-between">
+                                    <div class="text-sm text-gray-600">
+                                        {% if drift._semantic_count > 0 %}
+                                        <span class="text-red-600 font-medium">{{ drift._semantic_count }} semantic change{% if drift._semantic_count > 1 %}s{% endif %}</span>
+                                        {% endif %}
+                                        {% if drift._tag_count > 0 %}
+                                        {% if drift._semantic_count > 0 %}, {% endif %}
+                                        <span class="text-blue-600">{{ drift._tag_count }} tag change{% if drift._tag_count > 1 %}s{% endif %}</span>
+                                        {% endif %}
+                                        {% if drift._semantic_count == 0 and drift._tag_count == 0 %}
+                                        {{ drift.diffs | length }} change(s)
+                                        {% endif %}
+                                    </div>
+                                    <svg class="diff-icon w-5 h-5 text-gray-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Diff Details (collapsible) -->
+                            <div class="diff-content">
+                                <div class="p-4 bg-gray-50 border-t">
+                                    <table class="w-full text-sm">
+                                        <thead class="text-left text-gray-500">
+                                            <tr>
+                                                <th class="pb-2 pr-4">Attribute</th>
+                                                <th class="pb-2 pr-4">Expected (TF)</th>
+                                                <th class="pb-2 pr-4">Actual (AWS)</th>
+                                                <th class="pb-2">Reason</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y">
+                                            {% for diff in drift.diffs %}
+                                            <tr class="{% if diff.is_noise %}opacity-50{% endif %}">
+                                                <td class="py-2 pr-4 font-medium align-top">{{ diff.attribute }}</td>
+                                                <td class="py-2 pr-4 align-top">
+                                                    <code class="bg-red-50 text-red-700 px-1 rounded code-block break-all">
+                                                        {{ Markup(diff.expected | format_diff_expected(diff.actual)) }}
+                                                    </code>
+                                                </td>
+                                                <td class="py-2 pr-4 align-top">
+                                                    <code class="bg-green-50 text-green-700 px-1 rounded code-block break-all">
+                                                        {{ Markup(diff.actual | format_diff_actual(diff.expected)) }}
+                                                    </code>
+                                                </td>
+                                                <td class="py-2 align-top">
+                                                    <span class="px-2 py-1 rounded text-xs font-medium whitespace-nowrap
+                                                        {% if diff.reason == DriftReason.SEMANTIC %}bg-red-100 text-red-800
+                                                        {% elif diff.reason == DriftReason.TAG_ONLY %}bg-blue-100 text-blue-800
+                                                        {% elif diff.reason == DriftReason.ORDERING %}bg-gray-100 text-gray-600
+                                                        {% elif diff.reason == DriftReason.DEFAULT_VALUE %}bg-gray-100 text-gray-600
+                                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                        {{ diff.reason.value | replace('_', ' ') | title }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Remediation Command -->
+                            {% if drift._remediation_cmd %}
+                            <div class="px-4 py-3 bg-indigo-50 border-t flex items-center justify-between">
+                                <div class="flex-1">
+                                    <span class="text-xs text-indigo-600 font-medium">Remediation:</span>
+                                    <code id="cmd-{{ loop.index }}-{{ drift.resource_id | replace('.', '-') | replace('/', '-') }}"
+                                          class="ml-2 text-sm font-mono text-indigo-800">{{ drift._remediation_cmd }}</code>
+                                </div>
+                                <button onclick="copyCommand(this)"
+                                        data-cmd="{{ drift._remediation_cmd }}"
+                                        class="copy-btn px-3 py-1 text-xs bg-white border border-indigo-200 rounded hover:bg-indigo-100 transition-colors">
+                                    Copy
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endif %}
                 </div>
-                {% endfor %}
             </div>
+            {% endfor %}
+        </section>
+        {% else %}
+        <!-- No Drift Message -->
+        <section class="bg-white rounded-lg shadow-lg p-8 mb-8 text-center">
+            <div class="text-6xl mb-4">OK</div>
+            <p class="text-xl text-gray-600">No infrastructure drift detected!</p>
+            <p class="text-sm text-gray-500 mt-2">Your AWS resources match your Terraform state.</p>
         </section>
         {% endif %}
 
-        <!-- All Drifts -->
-        <section class="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">
-                All Drifts ({{ report.drifted_resources }})
+        <!-- Unscanned Resources -->
+        {% if report.unscanned_resources > 0 %}
+        <section class="bg-white rounded-lg shadow-lg p-6 mb-8 border-l-4 border-gray-400">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">
+                Unscanned Resources ({{ report.unscanned_resources }})
             </h2>
+            <p class="text-gray-600 mb-4">
+                These resource types don't have scanner coverage yet. They exist in your Terraform state
+                but cannot be verified against AWS.
+            </p>
 
-            {% if not report.has_drift %}
-            <div class="text-center py-8">
-                <span class="text-6xl">OK</span>
-                <p class="mt-4 text-gray-600">No infrastructure drift detected!</p>
-                <p class="text-sm text-gray-500">Your AWS resources match your Terraform state.</p>
-            </div>
-            {% else %}
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-4 py-2 text-left">Type</th>
-                            <th class="px-4 py-2 text-left">Resource</th>
-                            <th class="px-4 py-2 text-left">Drift</th>
-                            <th class="px-4 py-2 text-left">Severity</th>
-                            <th class="px-4 py-2 text-left">Changes</th>
+                            <th class="px-4 py-2 text-left">Resource Type</th>
+                            <th class="px-4 py-2 text-left">Resource ID</th>
+                            <th class="px-4 py-2 text-left">TF Address</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y">
                         {% for drift in report.drifts %}
-                        {% if drift.is_drifted %}
+                        {% if drift.drift_type == DriftType.UNSCANNED %}
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-2 font-mono text-xs">{{ drift.resource_type }}</td>
-                            <td class="px-4 py-2">
-                                <div class="font-medium">{{ drift.resource_id }}</div>
-                                {% if drift.tf_address %}
-                                <div class="text-xs text-gray-500">{{ drift.tf_address }}</div>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-2">
-                                <span class="px-2 py-1 rounded text-xs font-medium
-                                    {% if drift.drift_type == DriftType.ADDED %}bg-green-100 text-green-800
-                                    {% elif drift.drift_type == DriftType.REMOVED %}bg-red-100 text-red-800
-                                    {% else %}bg-yellow-100 text-yellow-800{% endif %}">
-                                    {{ drift.drift_type.value|upper }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-2">
-                                <span class="px-2 py-1 rounded text-xs font-medium
-                                    {% if drift.severity == DriftSeverity.CRITICAL %}bg-purple-100 text-purple-800
-                                    {% elif drift.severity == DriftSeverity.HIGH %}bg-red-100 text-red-800
-                                    {% elif drift.severity == DriftSeverity.MEDIUM %}bg-yellow-100 text-yellow-800
-                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
-                                    {{ drift.severity.value|upper }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-2 text-gray-600">
-                                {{ drift.diff_count }} change(s)
-                            </td>
+                            <td class="px-4 py-2 font-medium">{{ drift.resource_id }}</td>
+                            <td class="px-4 py-2 text-gray-500">{{ drift.tf_address }}</td>
                         </tr>
                         {% endif %}
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% endif %}
         </section>
+        {% endif %}
 
-        <!-- Remediation Suggestions -->
+        <!-- Remediation Guide -->
         {% if report.has_drift %}
         <section class="bg-indigo-50 rounded-lg p-6 mb-8">
-            <h2 class="text-xl font-bold text-indigo-800 mb-4">Remediation Options</h2>
+            <h2 class="text-xl font-bold text-indigo-800 mb-4">Remediation Guide</h2>
             <div class="space-y-3 text-indigo-900">
                 <div class="flex items-start gap-3">
-                    <span class="text-indigo-600 font-bold">1.</span>
+                    <span class="px-2 py-1 text-xs font-bold bg-yellow-100 text-yellow-800 rounded">MODIFIED</span>
                     <div>
-                        <strong>Accept the drift:</strong>
-                        Run <code class="bg-indigo-100 px-2 py-1 rounded">terraform apply -refresh-only</code>
-                        to update state to match AWS.
+                        Run <code class="bg-indigo-100 px-2 py-1 rounded">terraform apply -target=&lt;resource&gt;</code>
+                        to revert AWS to match your code, or update your code to reflect the desired state.
                     </div>
                 </div>
                 <div class="flex items-start gap-3">
-                    <span class="text-indigo-600 font-bold">2.</span>
+                    <span class="px-2 py-1 text-xs font-bold bg-green-100 text-green-800 rounded">ADDED</span>
                     <div>
-                        <strong>Revert to Terraform:</strong>
-                        Run <code class="bg-indigo-100 px-2 py-1 rounded">terraform apply</code>
-                        to change AWS back to match your code.
+                        Resource exists in AWS but not in Terraform. Use
+                        <code class="bg-indigo-100 px-2 py-1 rounded">terraform import</code>
+                        to add it to state, or delete it from AWS if unneeded.
                     </div>
                 </div>
                 <div class="flex items-start gap-3">
-                    <span class="text-indigo-600 font-bold">3.</span>
+                    <span class="px-2 py-1 text-xs font-bold bg-red-100 text-red-800 rounded">REMOVED</span>
                     <div>
-                        <strong>Update your code:</strong>
-                        Modify your Terraform files to match the desired state, then apply.
+                        Resource was deleted from AWS. Run
+                        <code class="bg-indigo-100 px-2 py-1 rounded">terraform apply</code>
+                        to recreate it, or remove it from your code.
                     </div>
                 </div>
             </div>
         </section>
         {% endif %}
-
-        <!-- CTA -->
-        <section class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg p-8 text-white text-center">
-            <h2 class="text-2xl font-bold mb-4">Need Help Managing Infrastructure Drift?</h2>
-            <p class="text-indigo-100 mb-6">
-                We can help you set up automated drift detection, alerting, and remediation workflows.
-            </p>
-            <a href="mailto:hello@comply.sh?subject=Drift%20Management%20Help"
-               class="inline-block px-6 py-3 bg-white text-indigo-600 font-bold rounded-lg hover:bg-indigo-50">
-                Contact Us
-            </a>
-        </section>
 
     </main>
 
@@ -254,6 +427,147 @@
             <p class="mt-1">Scan duration: {{ report.scan_duration_seconds }}s | State: {{ report.state_file }}</p>
         </div>
     </footer>
+
+    <script>
+    // Accordion toggle
+    function toggleAccordion(button) {
+        const content = button.nextElementSibling;
+        const icon = button.querySelector('.accordion-icon');
+
+        if (content.classList.contains('open')) {
+            content.classList.remove('open');
+            icon.classList.remove('rotate-90');
+        } else {
+            content.classList.add('open');
+            icon.classList.add('rotate-90');
+        }
+    }
+
+    // Diff details toggle
+    function toggleDiff(element) {
+        const diffContent = element.nextElementSibling;
+        const icon = element.querySelector('.diff-icon');
+
+        if (diffContent.classList.contains('open')) {
+            diffContent.classList.remove('open');
+            icon.classList.remove('rotate-180');
+        } else {
+            diffContent.classList.add('open');
+            icon.classList.add('rotate-180');
+        }
+    }
+
+    // Expand all accordions
+    function expandAll() {
+        document.querySelectorAll('.accordion-content').forEach(content => {
+            content.classList.add('open');
+            const icon = content.previousElementSibling.querySelector('.accordion-icon');
+            if (icon) icon.classList.add('rotate-90');
+        });
+    }
+
+    // Collapse all accordions
+    function collapseAll() {
+        document.querySelectorAll('.accordion-content').forEach(content => {
+            content.classList.remove('open');
+            const icon = content.previousElementSibling.querySelector('.accordion-icon');
+            if (icon) icon.classList.remove('rotate-90');
+        });
+        // Also collapse all diff details
+        document.querySelectorAll('.diff-content').forEach(content => {
+            content.classList.remove('open');
+            const icon = content.previousElementSibling?.querySelector('.diff-icon');
+            if (icon) icon.classList.remove('rotate-180');
+        });
+    }
+
+    // Copy command to clipboard
+    function copyCommand(button) {
+        const cmd = button.dataset.cmd;
+        navigator.clipboard.writeText(cmd).then(() => {
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            button.classList.add('copied');
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('copied');
+            }, 2000);
+        });
+    }
+
+    // Multi-dimensional filter
+    function filterDrifts() {
+        const searchTerm = document.getElementById('search-input').value.toLowerCase();
+        const statusFilter = document.getElementById('status-filter').value;
+        const classificationFilter = document.getElementById('classification-filter').value;
+
+        let visibleCount = 0;
+
+        // Filter each drift card
+        document.querySelectorAll('.drift-card').forEach(card => {
+            const id = (card.dataset.id || '').toLowerCase();
+            const name = (card.dataset.name || '').toLowerCase();
+            const tfAddress = (card.dataset.tfAddress || '').toLowerCase();
+            const status = card.dataset.status;
+            const classification = card.dataset.classification;
+
+            // Search match (across multiple fields)
+            const matchesSearch = !searchTerm ||
+                id.includes(searchTerm) ||
+                name.includes(searchTerm) ||
+                tfAddress.includes(searchTerm);
+
+            // Status filter (AND logic)
+            const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+            // Classification filter (AND logic)
+            const matchesClassification = classificationFilter === 'all' ||
+                classification === classificationFilter;
+
+            // Show/hide card
+            const isVisible = matchesSearch && matchesStatus && matchesClassification;
+            card.style.display = isVisible ? '' : 'none';
+
+            if (isVisible) visibleCount++;
+        });
+
+        // Update accordion group visibility and counts
+        document.querySelectorAll('.accordion-group').forEach(group => {
+            const visibleCards = group.querySelectorAll('.drift-card:not([style*="display: none"])');
+            const countSpan = group.querySelector('.group-visible-count');
+            const semanticBadge = group.querySelector('.group-semantic-badge');
+            const semanticCountSpan = group.querySelector('.group-semantic-count');
+
+            if (visibleCards.length === 0) {
+                group.classList.add('hidden-by-filter');
+            } else {
+                group.classList.remove('hidden-by-filter');
+                if (countSpan) countSpan.textContent = visibleCards.length;
+
+                // Count visible semantic drifts and update badge
+                if (semanticBadge && semanticCountSpan) {
+                    const visibleSemanticCount = Array.from(visibleCards)
+                        .filter(card => card.dataset.classification === 'semantic').length;
+                    semanticCountSpan.textContent = visibleSemanticCount;
+                    // Hide badge if no semantic drifts visible
+                    if (visibleSemanticCount === 0) {
+                        semanticBadge.classList.add('hidden');
+                    } else {
+                        semanticBadge.classList.remove('hidden');
+                    }
+                }
+            }
+        });
+
+        // Update visible count display
+        document.getElementById('visible-count').textContent = visibleCount;
+    }
+
+    // Initialize: collapse all accordions by default
+    document.addEventListener('DOMContentLoaded', function() {
+        collapseAll();
+    });
+    </script>
 
 </body>
 </html>

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Drift Report Remediation Command Tests** - Comprehensive test suite for terraform command generation
+  - 44 new tests in `test_drift_reporter.py` covering all edge cases
+  - `TestSanitizeTfResourceName` - 15 tests for TF resource name sanitization
+  - `TestShellQuote` - 11 tests for shell quoting safety
+  - `TestGenerateRemediationCmd` - 11 tests for all drift types
+  - `TestGetDriftClassification` - 7 tests for classification logic
+
 - **Resource Dependency Analyzers** - Deep dependency analysis for AWS resources
   - `deps --analyze` mode for comprehensive resource dependency analysis
   - 9 specialized analyzers: EC2, Security Group, IAM Role, RDS, ASG, S3, Lambda, ELB, ElastiCache
@@ -148,6 +155,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - PRO: $99/mo ($66/mo annual - 2 months free)
   - TEAM: $199/mo ($133/mo annual - 2 months free)
   - ENTERPRISE: From $500/mo (custom pricing)
+
+### Fixed
+- **Drift Report Terraform Command Generation** - Comprehensive fixes for remediation commands
+  - Empty resource IDs now use fallback names (`unknown` or `imported`) instead of generating invalid TF addresses
+  - Resource IDs starting with digits now get `r_` prefix (e.g., `123-bucket` → `r_123_bucket`) for valid TF names
+  - Consecutive special characters collapsed to single underscore (e.g., `foo///bar` → `foo_bar`)
+  - Extended special character sanitization: handles `@#$%^&*()[]{}|\\'"<>,?!=+~\`` in addition to `-./: `
+  - Shell quoting for resource IDs with spaces or shell metacharacters in `terraform import` commands
+  - Resource IDs with only special characters (e.g., `///`) now use `imported` fallback name
 
 ### Added (previous)
 - **Sovereign Engineer Protocol (Level 2-5)** - Complete Terraform renderer refactoring

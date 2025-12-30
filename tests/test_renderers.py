@@ -1035,3 +1035,364 @@ class TestTerraformRendererAdvanced:
 
             # Should return True (not an error, just skipped)
             assert result is True
+
+
+class TestUnmappedVariableGeneration:
+    """Tests for automatic generation of unmapped variable declarations."""
+
+    def test_unmapped_target_group_variables_generated(self) -> None:
+        """Test that unmapped target group variables are declared in variables.tf."""
+        graph = GraphEngine()
+
+        # Add VPC for the ASG to reference
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        # Add a Launch Template (required for ASG)
+        lt = ResourceNode(
+            id="lt-12345",
+            resource_type=ResourceType.LAUNCH_TEMPLATE,
+            region="us-east-1",
+            config={
+                "name": "test-lt",
+                "image_id": "ami-12345",
+                "instance_type": "t3.micro",
+            },
+            tags={"Name": "test-lt"},
+        )
+        graph.add_resource(lt)
+
+        # Add an ASG that references a target group NOT in the graph
+        asg = ResourceNode(
+            id="asg-12345",
+            resource_type=ResourceType.AUTOSCALING_GROUP,
+            region="us-east-1",
+            config={
+                "name": "test-asg",
+                "min_size": 1,
+                "max_size": 3,
+                "desired_capacity": 2,
+                "launch_template": {"id": "lt-12345", "version": "$Latest"},
+                # This target group ARN won't be found in the graph
+                "target_group_arns": [
+                    "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/my-target-group/abc123"
+                ],
+            },
+            tags={"Name": "test-asg"},
+        )
+        graph.add_resource(asg)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # Should contain unmapped target group variable declaration
+            assert "unmapped_tg_my_target_group" in variables_content
+            assert "Cross-Account Target Group" in variables_content
+            assert "type        = string" in variables_content
+
+    def test_unmapped_security_group_variables_generated(self) -> None:
+        """Test that unmapped security group variables are declared in variables.tf."""
+        graph = GraphEngine()
+
+        # Add VPC
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        # Add a security group that references another SG not in the graph
+        sg = ResourceNode(
+            id="sg-12345",
+            resource_type=ResourceType.SECURITY_GROUP,
+            region="us-east-1",
+            config={
+                "description": "Test security group",
+                "ingress": [
+                    {
+                        "protocol": "tcp",
+                        "from_port": 443,
+                        "to_port": 443,
+                        # This security group reference won't be found
+                        "security_groups": [{"security_group_id": "sg-external-99999"}],
+                    }
+                ],
+            },
+            tags={"Name": "test-sg"},
+        )
+        sg.add_dependency("vpc-12345")
+        graph.add_resource(sg)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # Should contain unmapped security group variable declaration
+            assert "unmapped_sg_sg_external_99999" in variables_content
+            assert "Cross-Account Security Group" in variables_content
+
+    def test_unmapped_subnet_variables_generated(self) -> None:
+        """Test that unmapped subnet variables are declared in variables.tf."""
+        graph = GraphEngine()
+
+        # Add VPC
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        # Add EC2 instance that references a subnet not in the graph
+        ec2 = ResourceNode(
+            id="i-12345",
+            resource_type=ResourceType.EC2_INSTANCE,
+            region="us-east-1",
+            config={
+                "instance_type": "t3.micro",
+                "ami": "ami-12345",
+                # This subnet won't be found in the graph
+                "subnet_id": "subnet-external-99999",
+            },
+            tags={"Name": "test-ec2"},
+        )
+        graph.add_resource(ec2)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # Should contain unmapped subnet variable declaration
+            assert "unmapped_subnet_subnet_external_99999" in variables_content
+            assert "Cross-Account Subnet" in variables_content
+
+    def test_s3_bucket_name_variables_generated_for_long_names(self) -> None:
+        """Test that S3 bucket name variables are generated for buckets exceeding length limits."""
+        graph = GraphEngine()
+
+        # Create a bucket with a very long name (> 53 chars, so env suffix won't fit)
+        long_bucket_name = (
+            "stackset-check-aws-ri-in-pipelinebuiltartifactbuc-15f1th9a68wi0"
+        )
+        assert len(long_bucket_name) > 53  # Verify our test setup
+
+        s3 = ResourceNode(
+            id=long_bucket_name,
+            resource_type=ResourceType.S3_BUCKET,
+            region="us-east-1",
+            config={
+                "bucket": long_bucket_name,
+                "versioning": {"enabled": True},
+            },
+            tags={"Name": long_bucket_name},
+        )
+        graph.add_resource(s3)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # Should contain bucket_name variable declaration
+            assert "bucket_name_" in variables_content
+            assert "S3 Bucket Name Variables" in variables_content
+            assert "max 63 chars" in variables_content
+
+    def test_unmapped_vpc_variables_generated(self) -> None:
+        """Test that unmapped VPC variables are declared in variables.tf."""
+        graph = GraphEngine()
+
+        # Add a VPC endpoint that references a VPC not in the graph
+        vpc_endpoint = ResourceNode(
+            id="vpce-12345",
+            resource_type=ResourceType.VPC_ENDPOINT,
+            region="us-east-1",
+            config={
+                "service_name": "com.amazonaws.us-east-1.s3",
+                # This VPC won't be found in the graph
+                "vpc_id": "vpc-external-99999",
+                "vpc_endpoint_type": "Gateway",
+            },
+            tags={"Name": "test-vpce"},
+        )
+        graph.add_resource(vpc_endpoint)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # Should contain unmapped VPC variable declaration
+            assert "unmapped_vpc_vpc_external_99999" in variables_content
+            assert "Cross-Account VPC" in variables_content
+
+    def test_unmapped_launch_template_variables_generated(self) -> None:
+        """Test that unmapped launch template variables are declared in variables.tf."""
+        graph = GraphEngine()
+
+        # Add an ASG that references a launch template NOT in the graph
+        asg = ResourceNode(
+            id="asg-12345",
+            resource_type=ResourceType.AUTOSCALING_GROUP,
+            region="us-east-1",
+            config={
+                "name": "test-asg",
+                "min_size": 1,
+                "max_size": 3,
+                "desired_capacity": 2,
+                # This launch template won't be found in the graph
+                "launch_template": {"id": "lt-external-99999", "version": "$Latest"},
+            },
+            tags={"Name": "test-asg"},
+        )
+        graph.add_resource(asg)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # Should contain unmapped launch template variable declaration
+            assert "unmapped_lt_lt_external_99999" in variables_content
+            assert "Cross-Account Launch Template" in variables_content
+
+    def test_multiple_unmapped_variables_all_generated(self) -> None:
+        """Test that multiple types of unmapped variables are all properly generated."""
+        graph = GraphEngine()
+
+        # Add ASG with unmapped target group and launch template
+        asg = ResourceNode(
+            id="asg-12345",
+            resource_type=ResourceType.AUTOSCALING_GROUP,
+            region="us-east-1",
+            config={
+                "name": "test-asg",
+                "min_size": 1,
+                "max_size": 3,
+                "desired_capacity": 2,
+                "launch_template": {"id": "lt-external-111", "version": "$Latest"},
+                "subnet_ids": ["subnet-external-222", "subnet-external-333"],
+                "target_group_arns": [
+                    "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/tg-one/abc",
+                    "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/tg-two/def",
+                ],
+            },
+            tags={"Name": "test-asg"},
+        )
+        graph.add_resource(asg)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # All unmapped variables should be declared
+            assert "unmapped_lt_lt_external_111" in variables_content
+            assert "unmapped_subnet_subnet_external_222" in variables_content
+            assert "unmapped_subnet_subnet_external_333" in variables_content
+            assert "unmapped_tg_tg_one" in variables_content
+            assert "unmapped_tg_tg_two" in variables_content
+
+    def test_no_duplicate_variable_declarations(self) -> None:
+        """Test that variables are not declared multiple times."""
+        graph = GraphEngine()
+
+        # Add VPC
+        vpc = ResourceNode(
+            id="vpc-12345",
+            resource_type=ResourceType.VPC,
+            region="us-east-1",
+            config={"cidr_block": "10.0.0.0/16"},
+            tags={"Name": "test-vpc"},
+        )
+        graph.add_resource(vpc)
+
+        # Add EC2 with normal instance_type variable
+        ec2 = ResourceNode(
+            id="i-12345",
+            resource_type=ResourceType.EC2_INSTANCE,
+            region="us-east-1",
+            config={
+                "instance_type": "t3.micro",
+                "ami": "ami-12345",
+            },
+            tags={"Name": "test-ec2"},
+        )
+        graph.add_resource(ec2)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # Count occurrences of 'variable "environment"' - should only appear once
+            env_count = variables_content.count('variable "environment"')
+            assert env_count == 1, f"'environment' variable declared {env_count} times"
+
+            # Common variables should each appear exactly once
+            assert variables_content.count('variable "aws_account_id"') == 1
+            assert variables_content.count('variable "aws_region"') == 1
+
+    def test_unmapped_variables_have_empty_defaults(self) -> None:
+        """Test that unmapped variables have empty string defaults for terraform plan."""
+        graph = GraphEngine()
+
+        # Add ASG with unmapped target group
+        asg = ResourceNode(
+            id="asg-12345",
+            resource_type=ResourceType.AUTOSCALING_GROUP,
+            region="us-east-1",
+            config={
+                "name": "test-asg",
+                "min_size": 1,
+                "max_size": 3,
+                "launch_template": {"id": "lt-external-111", "version": "$Latest"},
+                "target_group_arns": [
+                    "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/my-tg/abc"
+                ],
+            },
+            tags={"Name": "test-asg"},
+        )
+        graph.add_resource(asg)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_dir = Path(tmpdir) / "terraform"
+            renderer = TerraformRenderer()
+            files = renderer.render(graph, output_dir)
+
+            variables_content = files["variables.tf"].read_text()
+
+            # Unmapped variables should have default = "" for terraform plan to work
+            # Look for the pattern in the unmapped sections
+            assert 'default     = ""' in variables_content

@@ -18,6 +18,9 @@ from .compute_scanner import ComputeScanner
 from .ec2_scanner import EC2Scanner
 from .elasticache_scanner import DBParameterGroupScanner, ElastiCacheScanner
 
+# Phase 2 Scanners
+from .iam_scanner import IAMInstanceProfileScanner, IAMRoleScanner
+
 # Incremental scanning (P3-1)
 from .incremental import (
     ChangeType,
@@ -31,9 +34,8 @@ from .incremental import (
     get_change_summary,
 )
 from .messaging_scanner import SNSScanner, SQSScanner
-
-# Phase 2 Scanners
-from .networking_scanner import NetworkingScanner
+from .monitoring_scanner import CloudWatchLogGroupScanner, CloudWatchMetricAlarmScanner
+from .networking_scanner import EIPScanner, NetworkingScanner
 from .rds_scanner import RDSScanner
 from .s3_scanner import S3Scanner
 from .storage_scanner import EBSScanner, S3PolicyScanner
@@ -69,6 +71,12 @@ __all__ = [
     "S3PolicyScanner",
     "SQSScanner",
     "SNSScanner",
+    # Phase 3 Sync scanners
+    "CloudWatchLogGroupScanner",
+    "CloudWatchMetricAlarmScanner",
+    "EIPScanner",
+    "IAMRoleScanner",
+    "IAMInstanceProfileScanner",
     # Async scanners (legacy)
     "AsyncBaseScanner",
     "AsyncScannerRegistry",

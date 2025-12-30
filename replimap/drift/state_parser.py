@@ -6,7 +6,10 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import boto3
 
 logger = logging.getLogger(__name__)
 
@@ -183,11 +186,16 @@ class TerraformStateParser:
 
         return resources
 
-    def parse_remote_state(self, backend_config: dict[str, str]) -> TFState:
+    def parse_remote_state(
+        self,
+        backend_config: dict[str, str],
+        session: boto3.Session | None = None,
+    ) -> TFState:
         """Parse state from remote backend (S3, etc).
 
         Args:
             backend_config: Backend configuration with bucket, key, region
+            session: Optional boto3 session with credentials (uses default if not provided)
 
         Returns:
             Parsed TFState
@@ -198,7 +206,12 @@ class TerraformStateParser:
         key = backend_config["key"]
         region = backend_config.get("region", "us-east-1")
 
-        s3 = boto3.client("s3", region_name=region)
+        # Use provided session for credentials (respects --profile flag)
+        # Fall back to default credentials if no session provided
+        if session:
+            s3 = session.client("s3", region_name=region)
+        else:
+            s3 = boto3.client("s3", region_name=region)
 
         response = s3.get_object(Bucket=bucket, Key=key)
         raw_state = json.loads(response["Body"].read().decode("utf-8"))

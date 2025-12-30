@@ -438,6 +438,30 @@ replimap drift --profile prod --state ./terraform.tfstate \
 | 1 | Drift detected (or critical/high severity drift) |
 | 2 | Error during detection |
 
+### HTML Report Features
+
+The HTML drift report includes an interactive workbench with:
+
+- **Accordion Layout** - Resources grouped by type with expandable sections
+- **Multi-dimensional Filtering** - Search by ID, name, TF address; filter by status and classification
+- **Drift Classification** - "Action Required" (semantic) vs "Cosmetic" (tag-only) changes
+- **Remediation Commands** - Copy-to-clipboard terraform commands for each drift
+
+### Remediation Commands
+
+The report generates appropriate terraform commands for each drift type:
+
+| Drift Type | Command | Description |
+|------------|---------|-------------|
+| **MODIFIED** | `terraform apply -target=<resource>` | Revert AWS to match Terraform |
+| **ADDED** | `terraform import <resource> <id>` | Import unmanaged resource to state |
+| **REMOVED** | `terraform apply -target=<resource>` | Recreate deleted resource |
+
+Resource IDs are automatically sanitized for valid Terraform names:
+- Special characters (`/`, `-`, `.`, `:`, etc.) → underscores
+- Leading digits → prefixed with `r_` (e.g., `123-bucket` → `r_123_bucket`)
+- Shell special characters in IDs are properly quoted
+
 ## Dependency Explorer
 
 Explore what resources may be affected before modifying or deleting a resource.

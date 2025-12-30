@@ -8,11 +8,11 @@
 resource "aws_s3_bucket" "{{ resource.terraform_name }}" {
   bucket = "{{ bucket_name }}-${var.environment}"
 {% else %}
-# CROSS-ACCOUNT: Bucket name too long for auto-suffix - define var.bucket_name_{{ resource.terraform_name }}
+# CROSS-ACCOUNT: Bucket name too long for auto-suffix - define var.bucket_name_{{ resource.terraform_name | sanitize }}
 # Original bucket: {{ bucket_name }} ({{ bucket_name | length }} chars, max 63)
 # Suggested: Truncate or use a shorter unique name for the target environment
 resource "aws_s3_bucket" "{{ resource.terraform_name }}" {
-  bucket = var.bucket_name_{{ resource.terraform_name }}
+  bucket = var.bucket_name_{{ resource.terraform_name | sanitize }}
 {% endif %}
 
   tags = {
