@@ -17,7 +17,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from replimap.core.async_aws import AsyncAWSClient
+from replimap.core.async_aws import AsyncAWSClient, RateLimiterRegistry
 from replimap.cost.models import PricingTier
 from replimap.cost.pricing_engine import (
     BasePricingEngine,
@@ -735,7 +735,13 @@ class RIAwareAnalyzer:
     async def _get_client(self) -> AsyncAWSClient:
         """Get AWS client."""
         if self._client is None:
-            self._client = AsyncAWSClient(region=self.region, profile=self.profile)
+            # Create a fresh RateLimiterRegistry to avoid asyncio.Lock event loop issues
+            # (global registry may have locks bound to a different event loop)
+            self._client = AsyncAWSClient(
+                region=self.region,
+                profile=self.profile,
+                rate_registry=RateLimiterRegistry(),
+            )
         return self._client
 
     async def get_reserved_instances(self) -> list[ReservedInstance]:
