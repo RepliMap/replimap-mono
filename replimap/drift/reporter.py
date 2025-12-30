@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import Environment, PackageLoader
 from markupsafe import Markup
 
 from replimap.drift.models import (
@@ -216,7 +216,7 @@ class DriftReporter:
         """Initialize the reporter with Jinja2 environment."""
         self.env = Environment(
             loader=PackageLoader("replimap.drift", "templates"),
-            autoescape=select_autoescape(["html", "xml"]),
+            autoescape=True,  # Always autoescape for XSS prevention
             trim_blocks=True,
             lstrip_blocks=True,
         )
