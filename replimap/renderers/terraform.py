@@ -754,7 +754,7 @@ locals {
             # Scan rendered content for all var.xxx references
             # Include hyphens in pattern to catch malformed variable names from templates
             # and sanitize them to valid HCL identifiers
-            var_ref_pattern = re.compile(r'\bvar\.([a-zA-Z_][a-zA-Z0-9_-]*)')
+            var_ref_pattern = re.compile(r"\bvar\.([a-zA-Z_][a-zA-Z0-9_-]*)")
             referenced_variables: set[str] = set()
             for content in rendered_content:
                 for match in var_ref_pattern.finditer(content):
@@ -799,193 +799,247 @@ locals {
 
                 # Generate declarations for unmapped Target Groups
                 if unmapped_tg:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# Cross-Account Target Group Variables",
-                        "# These Target Groups were referenced but not found in the scanned resources.",
-                        "# Provide the ARN of the target group in the target environment.",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
+                    lines.extend(
+                        [
+                            "",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# Cross-Account Target Group Variables",
+                            "# These Target Groups were referenced but not found in the scanned resources.",
+                            "# Provide the ARN of the target group in the target environment.",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
                     for var_name in unmapped_tg:
                         # Extract readable name from variable
-                        readable_name = var_name.replace("unmapped_tg_", "").replace("_", "-")
-                        lines.extend([
-                            "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "ARN of Target Group {readable_name} (cross-account reference)"',
-                            "  type        = string",
-                            '  default     = ""  # Provide target group ARN in terraform.tfvars',
-                            "}",
-                        ])
+                        readable_name = var_name.replace("unmapped_tg_", "").replace(
+                            "_", "-"
+                        )
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "ARN of Target Group {readable_name} (cross-account reference)"',
+                                "  type        = string",
+                                '  default     = ""  # Provide target group ARN in terraform.tfvars',
+                                "}",
+                            ]
+                        )
 
                 # Generate declarations for unmapped Security Groups
                 if unmapped_sg:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# Cross-Account Security Group Variables",
-                        "# These Security Groups were referenced but not found in the scanned resources.",
-                        "# Provide the ID of the security group in the target environment.",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
-                    for var_name in unmapped_sg:
-                        readable_name = var_name.replace("unmapped_sg_", "").replace("_", "-")
-                        lines.extend([
+                    lines.extend(
+                        [
                             "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "ID of Security Group {readable_name} (cross-account reference)"',
-                            "  type        = string",
-                            '  default     = ""  # Provide security group ID in terraform.tfvars',
-                            "}",
-                        ])
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# Cross-Account Security Group Variables",
+                            "# These Security Groups were referenced but not found in the scanned resources.",
+                            "# Provide the ID of the security group in the target environment.",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
+                    for var_name in unmapped_sg:
+                        readable_name = var_name.replace("unmapped_sg_", "").replace(
+                            "_", "-"
+                        )
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "ID of Security Group {readable_name} (cross-account reference)"',
+                                "  type        = string",
+                                '  default     = ""  # Provide security group ID in terraform.tfvars',
+                                "}",
+                            ]
+                        )
 
                 # Generate declarations for unmapped Subnets
                 if unmapped_subnet:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# Cross-Account Subnet Variables",
-                        "# These Subnets were referenced but not found in the scanned resources.",
-                        "# Provide the ID of the subnet in the target environment.",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
-                    for var_name in unmapped_subnet:
-                        readable_name = var_name.replace("unmapped_subnet_", "").replace("_", "-")
-                        lines.extend([
+                    lines.extend(
+                        [
                             "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "ID of Subnet {readable_name} (cross-account reference)"',
-                            "  type        = string",
-                            '  default     = ""  # Provide subnet ID in terraform.tfvars',
-                            "}",
-                        ])
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# Cross-Account Subnet Variables",
+                            "# These Subnets were referenced but not found in the scanned resources.",
+                            "# Provide the ID of the subnet in the target environment.",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
+                    for var_name in unmapped_subnet:
+                        readable_name = var_name.replace(
+                            "unmapped_subnet_", ""
+                        ).replace("_", "-")
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "ID of Subnet {readable_name} (cross-account reference)"',
+                                "  type        = string",
+                                '  default     = ""  # Provide subnet ID in terraform.tfvars',
+                                "}",
+                            ]
+                        )
 
                 # Generate declarations for unmapped VPCs
                 if unmapped_vpc:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# Cross-Account VPC Variables",
-                        "# These VPCs were referenced but not found in the scanned resources.",
-                        "# Provide the ID of the VPC in the target environment.",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
-                    for var_name in unmapped_vpc:
-                        readable_name = var_name.replace("unmapped_vpc_", "").replace("_", "-")
-                        lines.extend([
+                    lines.extend(
+                        [
                             "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "ID of VPC {readable_name} (cross-account reference)"',
-                            "  type        = string",
-                            '  default     = ""  # Provide VPC ID in terraform.tfvars',
-                            "}",
-                        ])
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# Cross-Account VPC Variables",
+                            "# These VPCs were referenced but not found in the scanned resources.",
+                            "# Provide the ID of the VPC in the target environment.",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
+                    for var_name in unmapped_vpc:
+                        readable_name = var_name.replace("unmapped_vpc_", "").replace(
+                            "_", "-"
+                        )
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "ID of VPC {readable_name} (cross-account reference)"',
+                                "  type        = string",
+                                '  default     = ""  # Provide VPC ID in terraform.tfvars',
+                                "}",
+                            ]
+                        )
 
                 # Generate declarations for unmapped Launch Templates
                 if unmapped_lt:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# Cross-Account Launch Template Variables",
-                        "# These Launch Templates were referenced but not found in the scanned resources.",
-                        "# Provide the ID of the launch template in the target environment.",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
-                    for var_name in unmapped_lt:
-                        readable_name = var_name.replace("unmapped_lt_", "").replace("_", "-")
-                        lines.extend([
+                    lines.extend(
+                        [
                             "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "ID of Launch Template {readable_name} (cross-account reference)"',
-                            "  type        = string",
-                            '  default     = ""  # Provide launch template ID in terraform.tfvars',
-                            "}",
-                        ])
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# Cross-Account Launch Template Variables",
+                            "# These Launch Templates were referenced but not found in the scanned resources.",
+                            "# Provide the ID of the launch template in the target environment.",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
+                    for var_name in unmapped_lt:
+                        readable_name = var_name.replace("unmapped_lt_", "").replace(
+                            "_", "-"
+                        )
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "ID of Launch Template {readable_name} (cross-account reference)"',
+                                "  type        = string",
+                                '  default     = ""  # Provide launch template ID in terraform.tfvars',
+                                "}",
+                            ]
+                        )
 
                 # Generate declarations for unmapped Route Tables
                 if unmapped_rt:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# Cross-Account Route Table Variables",
-                        "# These Route Tables were referenced but not found in the scanned resources.",
-                        "# Provide the ID of the route table in the target environment.",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
-                    for var_name in unmapped_rt:
-                        readable_name = var_name.replace("unmapped_rt_", "").replace("_", "-")
-                        lines.extend([
+                    lines.extend(
+                        [
                             "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "ID of Route Table {readable_name} (cross-account reference)"',
-                            "  type        = string",
-                            '  default     = ""  # Provide route table ID in terraform.tfvars',
-                            "}",
-                        ])
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# Cross-Account Route Table Variables",
+                            "# These Route Tables were referenced but not found in the scanned resources.",
+                            "# Provide the ID of the route table in the target environment.",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
+                    for var_name in unmapped_rt:
+                        readable_name = var_name.replace("unmapped_rt_", "").replace(
+                            "_", "-"
+                        )
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "ID of Route Table {readable_name} (cross-account reference)"',
+                                "  type        = string",
+                                '  default     = ""  # Provide route table ID in terraform.tfvars',
+                                "}",
+                            ]
+                        )
 
                 # Generate declarations for unmapped ElastiCache Subnet Groups
                 if unmapped_cache_subnet_group:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# Cross-Account ElastiCache Subnet Group Variables",
-                        "# These subnet groups were referenced but not found in the scanned resources.",
-                        "# Provide the name of the subnet group in the target environment.",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
-                    for var_name in unmapped_cache_subnet_group:
-                        readable_name = var_name.replace("unmapped_cache_subnet_group_", "").replace("_", "-")
-                        lines.extend([
+                    lines.extend(
+                        [
                             "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "Name of ElastiCache Subnet Group {readable_name} (cross-account reference)"',
-                            "  type        = string",
-                            '  default     = ""  # Provide subnet group name in terraform.tfvars',
-                            "}",
-                        ])
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# Cross-Account ElastiCache Subnet Group Variables",
+                            "# These subnet groups were referenced but not found in the scanned resources.",
+                            "# Provide the name of the subnet group in the target environment.",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
+                    for var_name in unmapped_cache_subnet_group:
+                        readable_name = var_name.replace(
+                            "unmapped_cache_subnet_group_", ""
+                        ).replace("_", "-")
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "Name of ElastiCache Subnet Group {readable_name} (cross-account reference)"',
+                                "  type        = string",
+                                '  default     = ""  # Provide subnet group name in terraform.tfvars',
+                                "}",
+                            ]
+                        )
 
                 # Generate declarations for S3 bucket name variables
                 if bucket_name:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# S3 Bucket Name Variables",
-                        "# These buckets have names too long to append environment suffix.",
-                        "# Provide unique bucket names for the target environment (max 63 characters).",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
-                    for var_name in bucket_name:
-                        readable_name = var_name.replace("bucket_name_", "").replace("_", "-")
-                        lines.extend([
+                    lines.extend(
+                        [
                             "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "Bucket name for S3 bucket {readable_name} (max 63 chars)"',
-                            "  type        = string",
-                            '  default     = ""  # Provide unique bucket name in terraform.tfvars',
-                            "}",
-                        ])
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# S3 Bucket Name Variables",
+                            "# These buckets have names too long to append environment suffix.",
+                            "# Provide unique bucket names for the target environment (max 63 characters).",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
+                    for var_name in bucket_name:
+                        readable_name = var_name.replace("bucket_name_", "").replace(
+                            "_", "-"
+                        )
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "Bucket name for S3 bucket {readable_name} (max 63 chars)"',
+                                "  type        = string",
+                                '  default     = ""  # Provide unique bucket name in terraform.tfvars',
+                                "}",
+                            ]
+                        )
 
                 # Generate declarations for any other undeclared variables
                 if other:
-                    lines.extend([
-                        "",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                        "# Other Variables",
-                        "# These variables were referenced in templates but not explicitly declared.",
-                        "# ─────────────────────────────────────────────────────────────────────────────",
-                    ])
-                    for var_name in other:
-                        lines.extend([
+                    lines.extend(
+                        [
                             "",
-                            f'variable "{var_name}" {{',
-                            f'  description = "Variable {var_name}"',
-                            "  type        = string",
-                            '  default     = ""',
-                            "}",
-                        ])
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                            "# Other Variables",
+                            "# These variables were referenced in templates but not explicitly declared.",
+                            "# ─────────────────────────────────────────────────────────────────────────────",
+                        ]
+                    )
+                    for var_name in other:
+                        lines.extend(
+                            [
+                                "",
+                                f'variable "{var_name}" {{',
+                                f'  description = "Variable {var_name}"',
+                                "  type        = string",
+                                '  default     = ""',
+                                "}",
+                            ]
+                        )
 
-                logger.info(f"Generated {len(undeclared)} unmapped variable declarations")
+                logger.info(
+                    f"Generated {len(undeclared)} unmapped variable declarations"
+                )
 
         lines.append("")  # Trailing newline
         file_path = output_dir / "variables.tf"

@@ -1098,7 +1098,7 @@ class TestUnmappedVariableGeneration:
             # Should contain unmapped target group variable declaration
             assert "unmapped_tg_my_target_group" in variables_content
             assert "Cross-Account Target Group" in variables_content
-            assert 'type        = string' in variables_content
+            assert "type        = string" in variables_content
 
     def test_unmapped_security_group_variables_generated(self) -> None:
         """Test that unmapped security group variables are declared in variables.tf."""
@@ -1192,7 +1192,9 @@ class TestUnmappedVariableGeneration:
         graph = GraphEngine()
 
         # Create a bucket with a very long name (> 53 chars, so env suffix won't fit)
-        long_bucket_name = "stackset-check-aws-ri-in-pipelinebuiltartifactbuc-15f1th9a68wi0"
+        long_bucket_name = (
+            "stackset-check-aws-ri-in-pipelinebuiltartifactbuc-15f1th9a68wi0"
+        )
         assert len(long_bucket_name) > 53  # Verify our test setup
 
         s3 = ResourceNode(

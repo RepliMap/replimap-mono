@@ -66,7 +66,10 @@ class DriftEngine:
             tf_state = self.parser.parse(state_path)
             state_source = str(state_path)
         elif remote_backend:
-            tf_state = self.parser.parse_remote_state(remote_backend)
+            # Pass session to use profile credentials for S3 access
+            tf_state = self.parser.parse_remote_state(
+                remote_backend, session=self.session
+            )
             state_source = f"s3://{remote_backend['bucket']}/{remote_backend['key']}"
         else:
             raise ValueError("Either state_path or remote_backend must be provided")
