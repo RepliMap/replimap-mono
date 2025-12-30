@@ -760,11 +760,15 @@ locals {
                     declared_variables.add(match.group(1))
 
             # Scan rendered content for all var.xxx references
-            var_ref_pattern = re.compile(r'\bvar\.([a-zA-Z_][a-zA-Z0-9_]*)')
+            # Include hyphens in pattern to catch malformed variable names from templates
+            # and sanitize them to valid HCL identifiers
+            var_ref_pattern = re.compile(r'\bvar\.([a-zA-Z_][a-zA-Z0-9_-]*)')
             referenced_variables: set[str] = set()
             for content in rendered_content:
                 for match in var_ref_pattern.finditer(content):
-                    referenced_variables.add(match.group(1))
+                    # Sanitize variable name: replace hyphens with underscores
+                    var_name = match.group(1).replace("-", "_")
+                    referenced_variables.add(var_name)
 
             # Find undeclared variables
             undeclared = referenced_variables - declared_variables
