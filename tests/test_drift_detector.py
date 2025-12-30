@@ -1076,34 +1076,50 @@ class TestDriftEngineIdExtraction:
         assert engine._extract_base_id("123456789012:us-east-1:i-abc123") == "i-abc123"
 
     def test_extract_base_id_arn(self):
-        """Test ARN IDs are properly extracted to base resource ID."""
+        """Test ARN IDs are properly extracted to base resource ID.
+
+        NOTE: The IdentityResolver now requires resource_type to apply
+        the correct normalization strategy. Without resource_type, it
+        returns the literal value after stripping any account:region prefix.
+        """
         from unittest.mock import MagicMock
 
         from replimap.drift.engine import DriftEngine
 
         engine = DriftEngine(session=MagicMock(), region="us-east-1")
 
-        # SQS ARN -> extract queue name (since TF uses URL with queue name)
+        # SQS ARN -> extract queue name (requires resource_type)
         sqs_arn = "arn:aws:sqs:ap-southeast-2:542859091916:etime-14si-prod-broadcasts"
-        assert engine._extract_base_id(sqs_arn) == "etime-14si-prod-broadcasts"
+        assert (
+            engine._extract_base_id(sqs_arn, "aws_sqs_queue")
+            == "etime-14si-prod-broadcasts"
+        )
 
         # Account-prefixed SQS ARN should also extract queue name
         prefixed_arn = f"542859091916:ap-southeast-2:{sqs_arn}"
-        assert engine._extract_base_id(prefixed_arn) == "etime-14si-prod-broadcasts"
+        assert (
+            engine._extract_base_id(prefixed_arn, "aws_sqs_queue")
+            == "etime-14si-prod-broadcasts"
+        )
 
         # ASG ARN -> extract ASG name
         asg_arn = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:abc-123:autoScalingGroupName/asg-etime-test-b-14si"
-        assert engine._extract_base_id(asg_arn) == "asg-etime-test-b-14si"
-
-        # CloudWatch Log Group ARN -> extract log group name
-        logs_arn = (
-            "arn:aws:logs:ap-southeast-2:542859091916:log-group:etime/14si/prod/debug:*"
+        assert (
+            engine._extract_base_id(asg_arn, "aws_autoscaling_group")
+            == "asg-etime-test-b-14si"
         )
-        assert engine._extract_base_id(logs_arn) == "etime/14si/prod/debug"
 
-        # Unknown ARN format should be preserved as-is
+        # CloudWatch Log Group - now uses literal strategy (name-based)
+        # Log groups use names directly, not ARNs
+        logs_name = "etime/14si/prod/debug"
+        assert (
+            engine._extract_base_id(logs_name, "aws_cloudwatch_log_group")
+            == "etime/14si/prod/debug"
+        )
+
+        # Without resource_type, unknown ARNs are preserved as-is
         unknown_arn = "arn:aws:unknown:region:account:resource"
-        assert engine._extract_base_id(unknown_arn) == unknown_arn
+        assert engine._extract_base_id(unknown_arn, "") == unknown_arn
 
     def test_extract_base_id_with_colons_in_resource(self):
         """Test IDs with colons in the resource part."""

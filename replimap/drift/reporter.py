@@ -54,6 +54,8 @@ class DriftReporter:
             lines.append(f"  - Removed (deleted from AWS): {report.removed_resources}")
         if report.modified_resources:
             lines.append(f"  - Modified: {report.modified_resources}")
+        if report.unscanned_resources:
+            lines.append(f"Unscanned (no scanner): {report.unscanned_resources}")
         lines.append("")
 
         # Critical/High drifts first
@@ -92,6 +94,7 @@ class DriftReporter:
             DriftType.ADDED: "[+]",
             DriftType.REMOVED: "[-]",
             DriftType.MODIFIED: "[~]",
+            DriftType.UNSCANNED: "[?]",
         }.get(drift.drift_type, "[?]")
 
         severity_label = {

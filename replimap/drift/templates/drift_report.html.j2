@@ -39,7 +39,7 @@
     <main class="max-w-6xl mx-auto px-4 py-8">
 
         <!-- Summary Cards -->
-        <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <section class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
             <div class="bg-white rounded-lg shadow p-4 text-center">
                 <div class="text-3xl font-bold text-gray-800">{{ report.total_resources }}</div>
                 <div class="text-sm text-gray-500">Total Resources</div>
@@ -60,6 +60,10 @@
                 <div class="text-3xl font-bold text-yellow-600">{{ report.modified_resources }}</div>
                 <div class="text-sm text-gray-500">Modified</div>
             </div>
+            <div class="bg-white rounded-lg shadow p-4 text-center">
+                <div class="text-3xl font-bold text-gray-400">{{ report.unscanned_resources }}</div>
+                <div class="text-sm text-gray-500">Unscanned</div>
+            </div>
         </section>
 
         <!-- Critical/High Priority Drifts -->
@@ -79,6 +83,7 @@
                             <span class="text-xl">
                                 {% if drift.drift_type == DriftType.ADDED %}+
                                 {% elif drift.drift_type == DriftType.REMOVED %}-
+                                {% elif drift.drift_type == DriftType.UNSCANNED %}?
                                 {% else %}~{% endif %}
                             </span>
                             <div>
@@ -189,6 +194,7 @@
                                 <span class="px-2 py-1 rounded text-xs font-medium
                                     {% if drift.drift_type == DriftType.ADDED %}bg-green-100 text-green-800
                                     {% elif drift.drift_type == DriftType.REMOVED %}bg-red-100 text-red-800
+                                    {% elif drift.drift_type == DriftType.UNSCANNED %}bg-gray-100 text-gray-600
                                     {% else %}bg-yellow-100 text-yellow-800{% endif %}">
                                     {{ drift.drift_type.value|upper }}
                                 </span>
@@ -221,6 +227,42 @@
             </div>
             {% endif %}
         </section>
+
+        <!-- Unscanned Resources -->
+        {% if report.unscanned_resources > 0 %}
+        <section class="bg-white rounded-lg shadow-lg p-6 mb-8 border-l-4 border-gray-400">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">
+                Unscanned Resources ({{ report.unscanned_resources }})
+            </h2>
+            <p class="text-gray-600 mb-4">
+                These resource types don't have scanner coverage yet. They exist in your Terraform state
+                but cannot be verified against AWS.
+            </p>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Resource Type</th>
+                            <th class="px-4 py-2 text-left">Resource ID</th>
+                            <th class="px-4 py-2 text-left">TF Address</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        {% for drift in report.drifts %}
+                        {% if drift.drift_type == DriftType.UNSCANNED %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-2 font-mono text-xs">{{ drift.resource_type }}</td>
+                            <td class="px-4 py-2 font-medium">{{ drift.resource_id }}</td>
+                            <td class="px-4 py-2 text-gray-500">{{ drift.tf_address }}</td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
 
         <!-- Remediation Suggestions -->
         {% if report.has_drift %}
