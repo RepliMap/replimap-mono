@@ -1723,7 +1723,9 @@ replimap/
 │   │   ├── cache.py         # Credential and result caching
 │   │   ├── filters.py       # Resource filtering utilities
 │   │   ├── selection.py     # Graph-based selection engine
-│   │   └── topology_constraints.py # Topology constraints validation (P3-3)
+│   │   ├── topology_constraints.py # Topology constraints validation (P3-3)
+│   │   ├── logging.py       # Structured logging with structlog
+│   │   └── graph_tracer.py  # Graph processing phase tracer
 │   ├── scanners/
 │   │   ├── base.py              # Scanner base class
 │   │   ├── async_base.py        # Async scanner support
@@ -1851,6 +1853,104 @@ replimap/
 ├── CHANGELOG.md             # Version history
 └── README.md
 ```
+
+## Observability
+
+RepliMap includes built-in observability infrastructure for debugging, performance analysis, and graph processing inspection.
+
+### Structured Logging
+
+Structured logging with `structlog` provides consistent, machine-parseable logs.
+
+```python
+from replimap.core.logging import (
+    configure_logging,
+    get_logger,
+    LogContext,
+    Timer,
+    ScanMetrics,
+)
+
+# Configure logging (call once at startup)
+configure_logging(json_output=False, level="DEBUG")
+
+# Get a logger
+logger = get_logger("my_component")
+logger.info("starting scan", region="us-east-1", vpc_count=5)
+
+# Temporary context binding
+with LogContext(request_id="abc123", user="admin"):
+    logger.info("processing request")  # includes request_id and user
+
+# Time operations automatically
+with Timer("api_call", logger=logger):
+    result = expensive_operation()
+# Logs: "api_call completed" with duration_ms
+
+# Collect scan metrics
+metrics = ScanMetrics()
+metrics.record_api_call("DescribeInstances", 0.045, success=True)
+metrics.record_api_call("DescribeVpcs", 0.032, success=True)
+metrics.record_resource("aws_instance", 15)
+
+summary = metrics.summary()
+# Returns: {total_api_calls, failed_api_calls, p95_latency_ms, resources_by_type}
+```
+
+**Features:**
+- JSON output for production, human-readable for development
+- Automatic sensitive data redaction (passwords, tokens, API keys)
+- Context binding for request tracing
+- Built-in timing utilities
+- Scan metrics collection with p95 latency
+
+### Graph Tracer
+
+Debug graph processing by capturing snapshots at each phase.
+
+```python
+from replimap.core.graph_tracer import (
+    init_tracer,
+    get_tracer,
+    GraphPhase,
+)
+
+# Initialize tracer (creates output directory)
+tracer = init_tracer(output_dir=".replimap/traces")
+
+# Capture snapshots at each processing phase
+tracer.snapshot(GraphPhase.DISCOVERY, graph, "Initial resource discovery")
+# ... process graph ...
+tracer.snapshot(GraphPhase.LINKING, graph, "After edge linking")
+# ... more processing ...
+tracer.snapshot(GraphPhase.FINAL, graph, "Final optimized graph")
+
+# Compare two phases
+diff = tracer.diff(GraphPhase.DISCOVERY, GraphPhase.FINAL)
+print(f"Nodes added: {diff.nodes_added}")
+print(f"Nodes removed: {diff.nodes_removed}")
+print(f"Edges added: {diff.edges_added}")
+
+# Export for visualization
+tracer.export_summary()  # Creates summary.json
+# Individual phases exported as .graphml (Gephi/Cytoscape compatible)
+```
+
+**Processing Phases:**
+
+| Phase | Description |
+|-------|-------------|
+| `DISCOVERY` | Initial resource scan results |
+| `LINKING` | Edge creation between resources |
+| `PHANTOM_RESOLUTION` | Cross-account/region reference resolution |
+| `SANITIZATION` | Sensitive data removal |
+| `OPTIMIZATION` | Graph simplification |
+| `VARIABLE_INJECTION` | Terraform variable extraction |
+| `FINAL` | Ready for rendering |
+
+**Export Formats:**
+- `.graphml` - Open in Gephi or Cytoscape for visual analysis
+- `.json` - Machine-readable snapshot with metadata
 
 ## Support
 
