@@ -3523,8 +3523,12 @@ def cost(
 
                     from replimap.cost.ri_aware import RIAwareAnalyzer
 
-                    analyzer = RIAwareAnalyzer(region=effective_region)
-                    ri_analysis = asyncio.run(analyzer.analyze())
+                    async def run_ri_analysis() -> Any:
+                        """Run RI analysis with proper cleanup."""
+                        async with RIAwareAnalyzer(region=effective_region) as analyzer:
+                            return await analyzer.analyze()
+
+                    ri_analysis = asyncio.run(run_ri_analysis())
 
                     # Adjust costs based on reservations
                     if ri_analysis and ri_analysis.total_potential_savings > 0:

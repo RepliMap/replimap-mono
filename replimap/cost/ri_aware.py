@@ -715,6 +715,20 @@ class RIAwareAnalyzer:
         self.account_id = account_id
         self._client: AsyncAWSClient | None = None
 
+    async def close(self) -> None:
+        """Close the AWS client and release resources."""
+        if self._client is not None:
+            await self._client.close()
+            self._client = None
+
+    async def __aenter__(self) -> "RIAwareAnalyzer":
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit."""
+        await self.close()
+
     async def _get_client(self) -> AsyncAWSClient:
         """Get AWS client."""
         if self._client is None:
@@ -753,7 +767,7 @@ class RIAwareAnalyzer:
                 )
 
         except Exception as e:
-            logger.error(f"Failed to fetch Reserved Instances: {e}")
+            logger.warning(f"Failed to fetch Reserved Instances: {e}")
 
         return ris
 
@@ -792,7 +806,7 @@ class RIAwareAnalyzer:
                 )
 
         except Exception as e:
-            logger.error(f"Failed to fetch Savings Plans: {e}")
+            logger.warning(f"Failed to fetch Savings Plans: {e}")
 
         return sps
 
@@ -823,7 +837,7 @@ class RIAwareAnalyzer:
             return utilization
 
         except Exception as e:
-            logger.error(f"Failed to fetch RI utilization: {e}")
+            logger.warning(f"Failed to fetch RI utilization: {e}")
             return {"overall": 0.0}
 
     async def get_sp_utilization(
@@ -859,7 +873,7 @@ class RIAwareAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"Failed to fetch SP utilization: {e}")
+            logger.warning(f"Failed to fetch SP utilization: {e}")
             return {
                 "utilization_percentage": 0.0,
                 "used_commitment": Decimal("0"),
