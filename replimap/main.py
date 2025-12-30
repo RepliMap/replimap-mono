@@ -3519,16 +3519,18 @@ def cost(
             if ri_aware:
                 progress.update(task, description="Analyzing reservations...")
                 try:
-                    from replimap.cost.ri_aware import RIAwarePricingEngine
+                    import asyncio
 
-                    ri_engine = RIAwarePricingEngine(session, effective_region)
-                    ri_analysis = ri_engine.analyze()
+                    from replimap.cost.ri_aware import RIAwareAnalyzer
+
+                    analyzer = RIAwareAnalyzer(region=effective_region)
+                    ri_analysis = asyncio.run(analyzer.analyze())
 
                     # Adjust costs based on reservations
-                    if ri_analysis and ri_analysis.total_savings > 0:
+                    if ri_analysis and ri_analysis.total_potential_savings > 0:
                         console.print(
                             f"\n[dim]RI/Savings Plans coverage: "
-                            f"${ri_analysis.total_savings:.2f}/month savings[/]"
+                            f"${ri_analysis.total_potential_savings:.2f}/month savings[/]"
                         )
                 except Exception as e:
                     logger.warning(f"Could not analyze reservations: {e}")
