@@ -208,6 +208,11 @@ IDENTITY_REGISTRY: dict[str, dict[str, Any]] = {
         "scanner_id": {"strategy": "literal"},
         "tf_state_id": {"strategy": "literal"},
     },
+    # CloudWatch: Name-based
+    "aws_cloudwatch_metric_alarm": {
+        "scanner_id": {"strategy": "literal"},  # Scanner uses alarm name
+        "tf_state_id": {"strategy": "literal"},  # TF uses alarm name
+    },
 }
 
 

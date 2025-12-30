@@ -33,7 +33,8 @@ from .incremental import (
 from .messaging_scanner import SNSScanner, SQSScanner
 
 # Phase 2 Scanners
-from .monitoring_scanner import CloudWatchLogGroupScanner
+from .iam_scanner import IAMInstanceProfileScanner, IAMRoleScanner
+from .monitoring_scanner import CloudWatchLogGroupScanner, CloudWatchMetricAlarmScanner
 from .networking_scanner import EIPScanner, NetworkingScanner
 from .rds_scanner import RDSScanner
 from .s3_scanner import S3Scanner
@@ -72,7 +73,10 @@ __all__ = [
     "SNSScanner",
     # Phase 3 Sync scanners
     "CloudWatchLogGroupScanner",
+    "CloudWatchMetricAlarmScanner",
     "EIPScanner",
+    "IAMRoleScanner",
+    "IAMInstanceProfileScanner",
     # Async scanners (legacy)
     "AsyncBaseScanner",
     "AsyncScannerRegistry",

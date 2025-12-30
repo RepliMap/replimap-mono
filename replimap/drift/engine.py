@@ -138,9 +138,7 @@ class DriftEngine:
         added = self.comparator.identify_added_resources(
             actual_resources,
             tf_normalized_ids,
-            id_extractor=lambda rid: self._extract_base_id(
-                rid, ""
-            ),  # Type determined from resource
+            id_extractor=lambda rid, rtype: self._extract_base_id(rid, rtype),
         )
         drifts.extend(added)
 

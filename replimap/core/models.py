@@ -83,6 +83,7 @@ class ResourceType(str, Enum):
 
     # Phase 3 - Monitoring
     CLOUDWATCH_LOG_GROUP = "aws_cloudwatch_log_group"
+    CLOUDWATCH_METRIC_ALARM = "aws_cloudwatch_metric_alarm"
 
     # Phase 3 - Networking (additional)
     EIP = "aws_eip"

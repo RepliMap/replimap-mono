@@ -252,20 +252,23 @@ class DriftComparator:
         Args:
             actual_resources: List of resources from AWS
             tf_state_ids: Set of resource IDs from Terraform state
-            id_extractor: Optional function to extract base ID from resource.id
-                         (used when scanner IDs have account:region: prefix)
+            id_extractor: Optional function(resource_id, resource_type) -> base_id
+                         (used when scanner IDs need normalization based on type)
         """
         added = []
 
         for resource in actual_resources:
+            # Get terraform type from resource
+            terraform_type = getattr(
+                resource, "terraform_type", str(resource.resource_type)
+            )
             # Extract base ID for comparison if extractor provided
-            base_id = id_extractor(resource.id) if id_extractor else resource.id
+            if id_extractor:
+                base_id = id_extractor(resource.id, terraform_type)
+            else:
+                base_id = resource.id
 
             if base_id not in tf_state_ids:
-                # Get terraform type from resource
-                terraform_type = getattr(
-                    resource, "terraform_type", str(resource.resource_type)
-                )
                 resource_name = getattr(resource, "original_name", None) or base_id
 
                 drift = ResourceDrift(
