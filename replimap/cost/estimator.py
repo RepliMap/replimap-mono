@@ -193,11 +193,14 @@ class CostEstimator:
         cost.compute_cost = hourly * HOURS_PER_MONTH
 
         # EBS root volume
-        root_volume = (
-            config.get("root_block_device", [{}])[0]
-            if config.get("root_block_device")
-            else {}
-        )
+        # Handle both list and dict formats - GraphEngine may flatten single-element lists
+        rbd_raw = config.get("root_block_device")
+        if isinstance(rbd_raw, list) and len(rbd_raw) > 0:
+            root_volume = rbd_raw[0]
+        elif isinstance(rbd_raw, dict):
+            root_volume = rbd_raw
+        else:
+            root_volume = {}
         volume_size = root_volume.get("volume_size", 8)
         volume_type = root_volume.get("volume_type", "gp2")
         cost.storage_cost = self.pricing.get_ebs_monthly_cost(volume_size, volume_type)

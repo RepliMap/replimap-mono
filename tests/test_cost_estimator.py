@@ -450,6 +450,103 @@ class TestCostEstimator:
         assert estimate.resource_costs[0].category == CostCategory.COMPUTE
         assert estimate.resource_costs[0].instance_type == "t3.medium"
 
+    def test_estimate_ec2_with_root_block_device_as_dict(self):
+        """Test EC2 estimation when root_block_device is a dict (flattened by GraphEngine)."""
+        resources = [
+            {
+                "id": "i-dict-rbd",
+                "type": "aws_instance",
+                "name": "web-server",
+                "config": {
+                    "instance_type": "t3.medium",
+                    # Dict format - happens when GraphEngine flattens single-element lists
+                    "root_block_device": {"volume_size": 50, "volume_type": "gp3"},
+                },
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        cost = estimate.resource_costs[0]
+        # Verify storage cost uses the dict values (50GB gp3)
+        assert cost.storage_cost > 0
+        # gp3 is $0.08/GB, so 50GB should be $4
+        assert cost.storage_cost == pytest.approx(4.0, rel=0.1)
+
+    def test_estimate_ec2_with_root_block_device_as_list(self):
+        """Test EC2 estimation when root_block_device is a list (standard format)."""
+        resources = [
+            {
+                "id": "i-list-rbd",
+                "type": "aws_instance",
+                "name": "web-server",
+                "config": {
+                    "instance_type": "t3.medium",
+                    # List format - standard Terraform-style
+                    "root_block_device": [{"volume_size": 100, "volume_type": "gp2"}],
+                },
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        cost = estimate.resource_costs[0]
+        # gp2 is $0.10/GB, so 100GB should be $10
+        assert cost.storage_cost == pytest.approx(10.0, rel=0.1)
+
+    def test_estimate_ec2_with_empty_root_block_device(self):
+        """Test EC2 estimation with empty/missing root_block_device uses defaults."""
+        resources = [
+            {
+                "id": "i-no-rbd",
+                "type": "aws_instance",
+                "name": "web-server",
+                "config": {
+                    "instance_type": "t3.medium",
+                    # No root_block_device specified
+                },
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        cost = estimate.resource_costs[0]
+        # Default is 8GB gp2, so $0.80
+        assert cost.storage_cost == pytest.approx(0.8, rel=0.1)
+
+    def test_estimate_ec2_with_empty_list_root_block_device(self):
+        """Test EC2 estimation with empty list root_block_device uses defaults."""
+        resources = [
+            {
+                "id": "i-empty-list-rbd",
+                "type": "aws_instance",
+                "name": "web-server",
+                "config": {
+                    "instance_type": "t3.medium",
+                    "root_block_device": [],  # Empty list
+                },
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        cost = estimate.resource_costs[0]
+        # Default is 8GB gp2, so $0.80
+        assert cost.storage_cost == pytest.approx(0.8, rel=0.1)
+
     def test_estimate_rds_instance(self):
         """Test RDS instance cost estimation."""
         resources = [
