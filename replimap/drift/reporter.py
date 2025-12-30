@@ -55,8 +55,13 @@ def _generate_remediation_cmd(drift: ResourceDrift) -> str:
     if drift.tf_address:
         resource_addr = drift.tf_address
     else:
-        # Generate a reasonable name from the ID
-        safe_name = drift.resource_id.replace("-", "_").replace(".", "_")[:50]
+        # Generate a valid TF resource name from the ID
+        # Replace all invalid characters: - . / : with _
+        # Strip leading underscores (from IDs starting with /)
+        safe_name = drift.resource_id
+        for char in ["-", ".", "/", ":", " "]:
+            safe_name = safe_name.replace(char, "_")
+        safe_name = safe_name.strip("_")[:50]  # Remove leading/trailing _, limit length
         resource_addr = f"{drift.resource_type}.{safe_name}"
 
     if drift.drift_type == DriftType.MODIFIED:
