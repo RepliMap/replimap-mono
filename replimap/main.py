@@ -3525,7 +3525,9 @@ def cost(
 
                     async def run_ri_analysis() -> Any:
                         """Run RI analysis with proper cleanup."""
-                        async with RIAwareAnalyzer(region=effective_region) as analyzer:
+                        async with RIAwareAnalyzer(
+                            region=effective_region, profile=profile
+                        ) as analyzer:
                             return await analyzer.analyze()
 
                     ri_analysis = asyncio.run(run_ri_analysis())

@@ -703,6 +703,7 @@ class RIAwareAnalyzer:
         self,
         region: str = "us-east-1",
         account_id: str = "",
+        profile: str | None = None,
     ) -> None:
         """
         Initialize analyzer.
@@ -710,9 +711,11 @@ class RIAwareAnalyzer:
         Args:
             region: AWS region
             account_id: AWS account ID
+            profile: AWS profile name for credentials
         """
         self.region = region
         self.account_id = account_id
+        self.profile = profile
         self._client: AsyncAWSClient | None = None
 
     async def close(self) -> None:
@@ -732,7 +735,7 @@ class RIAwareAnalyzer:
     async def _get_client(self) -> AsyncAWSClient:
         """Get AWS client."""
         if self._client is None:
-            self._client = AsyncAWSClient(region=self.region)
+            self._client = AsyncAWSClient(region=self.region, profile=self.profile)
         return self._client
 
     async def get_reserved_instances(self) -> list[ReservedInstance]:
@@ -1197,6 +1200,7 @@ def get_utilization_level(percentage: float) -> UtilizationLevel:
 async def analyze_ri_sp_coverage(
     region: str = "us-east-1",
     resources: list[dict[str, Any]] | None = None,
+    profile: str | None = None,
 ) -> RIAwareAnalysis:
     """
     Convenience function to analyze RI/SP coverage.
@@ -1204,9 +1208,10 @@ async def analyze_ri_sp_coverage(
     Args:
         region: AWS region
         resources: Optional resources for right-sizing analysis
+        profile: AWS profile name for credentials
 
     Returns:
         RIAwareAnalysis with complete results
     """
-    analyzer = RIAwareAnalyzer(region=region)
-    return await analyzer.analyze(resources=resources)
+    async with RIAwareAnalyzer(region=region, profile=profile) as analyzer:
+        return await analyzer.analyze(resources=resources)
