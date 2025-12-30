@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Observability Infrastructure** - Structured logging and graph tracing for debugging
+  - `replimap/core/logging.py` - Structured logging with `structlog`
+    - `configure_logging()` - Environment-aware formatters (JSON for prod, human-readable for dev)
+    - `LogContext` - Context manager for request/operation binding
+    - `Timer` - Context manager for timing operations with auto-logging
+    - `ScanMetrics` - API call statistics, p95 latency, error counts
+    - Automatic redaction of sensitive fields (passwords, tokens, keys)
+  - `replimap/core/graph_tracer.py` - Graph processing debugger
+    - 7 processing phases: DISCOVERY → LINKING → PHANTOM_RESOLUTION → SANITIZATION → OPTIMIZATION → VARIABLE_INJECTION → FINAL
+    - `GraphSnapshot` - Captures node/edge state at any phase
+    - `GraphDiff` - Calculates changes between phases
+    - Export to GraphML (Gephi/Cytoscape) and JSON formats
+    - Global singleton pattern with `init_tracer()`/`get_tracer()`
+  - HTML structural validation tests (BeautifulSoup-based)
+    - DOM structure, JavaScript function, CSS class validation
+    - XSS prevention and accessibility testing
+
+### Fixed
+
+- **XSS Vulnerability in Drift Report** - Jinja2 autoescape wasn't working for `.html.j2` files
+  - Changed from `select_autoescape(["html", "xml"])` to `autoescape=True`
+
 - **Drift Report Remediation Command Tests** - Comprehensive test suite for terraform command generation
   - 44 new tests in `test_drift_reporter.py` covering all edge cases
   - `TestSanitizeTfResourceName` - 15 tests for TF resource name sanitization
