@@ -27,10 +27,17 @@ def _get_drift_classification(drift: ResourceDrift) -> str:
     """Classify drift as semantic or cosmetic for UI styling.
 
     Returns:
-        'semantic' if any diff is functional/semantic
+        'semantic' if any diff is functional/semantic OR if ADDED/REMOVED
         'cosmetic' if all diffs are tag/ordering/default changes
-        'none' if no diffs (added/removed)
+        'none' if UNSCANNED (no action possible)
     """
+    # ADDED and REMOVED always require action
+    if drift.drift_type in (DriftType.ADDED, DriftType.REMOVED):
+        return "semantic"
+    # UNSCANNED has no action
+    if drift.drift_type == DriftType.UNSCANNED:
+        return "none"
+    # MODIFIED - check the diffs
     if not drift.diffs:
         return "none"
     # If ANY diff is semantic, the whole drift is semantic

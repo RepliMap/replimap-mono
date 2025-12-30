@@ -182,11 +182,10 @@
                         </span>
                     </div>
                     <div class="flex items-center gap-2">
-                        {% if semantic_in_group > 0 %}
-                        <span class="px-2 py-1 text-xs font-bold bg-red-100 text-red-800 rounded">
-                            {{ semantic_in_group }} Action Required
+                        <span class="group-semantic-badge px-2 py-1 text-xs font-bold bg-red-100 text-red-800 rounded {% if semantic_in_group == 0 %}hidden{% endif %}"
+                              data-original-count="{{ semantic_in_group }}">
+                            <span class="group-semantic-count">{{ semantic_in_group }}</span> Action Required
                         </span>
-                        {% endif %}
                     </div>
                 </button>
 
@@ -536,12 +535,27 @@
         document.querySelectorAll('.accordion-group').forEach(group => {
             const visibleCards = group.querySelectorAll('.drift-card:not([style*="display: none"])');
             const countSpan = group.querySelector('.group-visible-count');
+            const semanticBadge = group.querySelector('.group-semantic-badge');
+            const semanticCountSpan = group.querySelector('.group-semantic-count');
 
             if (visibleCards.length === 0) {
                 group.classList.add('hidden-by-filter');
             } else {
                 group.classList.remove('hidden-by-filter');
                 if (countSpan) countSpan.textContent = visibleCards.length;
+
+                // Count visible semantic drifts and update badge
+                if (semanticBadge && semanticCountSpan) {
+                    const visibleSemanticCount = Array.from(visibleCards)
+                        .filter(card => card.dataset.classification === 'semantic').length;
+                    semanticCountSpan.textContent = visibleSemanticCount;
+                    // Hide badge if no semantic drifts visible
+                    if (visibleSemanticCount === 0) {
+                        semanticBadge.classList.add('hidden');
+                    } else {
+                        semanticBadge.classList.remove('hidden');
+                    }
+                }
             }
         });
 
