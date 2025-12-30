@@ -704,6 +704,7 @@ class RIAwareAnalyzer:
         region: str = "us-east-1",
         account_id: str = "",
         profile: str | None = None,
+        credentials: dict[str, str] | None = None,
     ) -> None:
         """
         Initialize analyzer.
@@ -711,11 +712,14 @@ class RIAwareAnalyzer:
         Args:
             region: AWS region
             account_id: AWS account ID
-            profile: AWS profile name for credentials
+            profile: AWS profile name for credentials (deprecated, use credentials)
+            credentials: Pre-resolved AWS credentials dict with keys:
+                         aws_access_key_id, aws_secret_access_key, aws_session_token
         """
         self.region = region
         self.account_id = account_id
         self.profile = profile
+        self._credentials = credentials
         self._client: AsyncAWSClient | None = None
 
     async def close(self) -> None:
@@ -739,7 +743,7 @@ class RIAwareAnalyzer:
             # (global registry may have locks bound to a different event loop)
             self._client = AsyncAWSClient(
                 region=self.region,
-                profile=self.profile,
+                credentials=self._credentials,
                 rate_registry=RateLimiterRegistry(),
             )
         return self._client
@@ -1207,6 +1211,7 @@ async def analyze_ri_sp_coverage(
     region: str = "us-east-1",
     resources: list[dict[str, Any]] | None = None,
     profile: str | None = None,
+    credentials: dict[str, str] | None = None,
 ) -> RIAwareAnalysis:
     """
     Convenience function to analyze RI/SP coverage.
@@ -1214,10 +1219,13 @@ async def analyze_ri_sp_coverage(
     Args:
         region: AWS region
         resources: Optional resources for right-sizing analysis
-        profile: AWS profile name for credentials
+        profile: AWS profile name for credentials (deprecated, use credentials)
+        credentials: Pre-resolved AWS credentials dict
 
     Returns:
         RIAwareAnalysis with complete results
     """
-    async with RIAwareAnalyzer(region=region, profile=profile) as analyzer:
+    async with RIAwareAnalyzer(
+        region=region, profile=profile, credentials=credentials
+    ) as analyzer:
         return await analyzer.analyze(resources=resources)

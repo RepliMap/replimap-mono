@@ -224,6 +224,7 @@ class AsyncAWSClient:
         self,
         region: str,
         profile: str | None = None,
+        credentials: dict[str, str] | None = None,
         circuit_registry: CircuitBreakerRegistry | None = None,
         rate_registry: RateLimiterRegistry | None = None,
         max_retries: int = MAX_RETRIES,
@@ -235,7 +236,9 @@ class AsyncAWSClient:
 
         Args:
             region: AWS region
-            profile: AWS profile name (optional)
+            profile: AWS profile name (optional, deprecated - use credentials)
+            credentials: Pre-resolved AWS credentials dict with keys:
+                         aws_access_key_id, aws_secret_access_key, aws_session_token
             circuit_registry: Circuit breaker registry (uses global if None)
             rate_registry: Rate limiter registry (uses global if None)
             max_retries: Maximum retry attempts
@@ -250,21 +253,8 @@ class AsyncAWSClient:
         self._circuit_registry = circuit_registry or get_circuit_breaker_registry()
         self._rate_registry = rate_registry or get_rate_limiter_registry()
 
-        # Get credentials from boto3 if profile specified (boto3 handles assume-role)
-        self._credentials: dict[str, str] | None = None
-        if profile:
-            import boto3
-
-            boto3_session = boto3.Session(profile_name=profile, region_name=region)
-            creds = boto3_session.get_credentials()
-            if creds:
-                frozen_creds = creds.get_frozen_credentials()
-                self._credentials = {
-                    "aws_access_key_id": frozen_creds.access_key,
-                    "aws_secret_access_key": frozen_creds.secret_key,
-                }
-                if frozen_creds.token:
-                    self._credentials["aws_session_token"] = frozen_creds.token
+        # Use provided credentials directly (avoids MFA/assume-role issues in async context)
+        self._credentials = credentials
 
         # aiobotocore session and config
         self._session = get_session()

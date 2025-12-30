@@ -3523,10 +3523,23 @@ def cost(
 
                     from replimap.cost.ri_aware import RIAwareAnalyzer
 
+                    # Get credentials from the already-authenticated session
+                    # (avoids MFA re-prompt and assume-role hang in async context)
+                    ri_credentials: dict[str, str] | None = None
+                    session_creds = session.get_credentials()
+                    if session_creds:
+                        frozen = session_creds.get_frozen_credentials()
+                        ri_credentials = {
+                            "aws_access_key_id": frozen.access_key,
+                            "aws_secret_access_key": frozen.secret_key,
+                        }
+                        if frozen.token:
+                            ri_credentials["aws_session_token"] = frozen.token
+
                     async def run_ri_analysis() -> Any:
                         """Run RI analysis with proper cleanup."""
                         async with RIAwareAnalyzer(
-                            region=effective_region, profile=profile
+                            region=effective_region, credentials=ri_credentials
                         ) as analyzer:
                             return await analyzer.analyze()
 
