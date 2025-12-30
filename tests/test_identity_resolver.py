@@ -1,6 +1,5 @@
 """Tests for the Identity Resolver."""
 
-import pytest
 
 from replimap.core.identity_resolver import (
     IDENTITY_REGISTRY,
@@ -131,8 +130,7 @@ class TestIdentityResolverStripAccountPrefix:
         """Preserves colons in the resource part after stripping prefix."""
         raw_id = "123456789012:us-east-1:some:resource:with:colons"
         assert (
-            IdentityResolver.strip_account_prefix(raw_id)
-            == "some:resource:with:colons"
+            IdentityResolver.strip_account_prefix(raw_id) == "some:resource:with:colons"
         )
 
 
@@ -141,13 +139,12 @@ class TestIdentityResolverSafeExecute:
 
     def test_safe_execute_success(self):
         """Safe execute returns result on success."""
-        result = IdentityResolver.safe_execute(
-            lambda x, _: x.upper(), "test", None
-        )
+        result = IdentityResolver.safe_execute(lambda x, _: x.upper(), "test", None)
         assert result == "TEST"
 
     def test_safe_execute_catches_exception(self):
         """Safe execute catches exception and returns original."""
+
         def bad_func(x, _):
             raise ValueError("Intentional error")
 
@@ -156,6 +153,7 @@ class TestIdentityResolverSafeExecute:
 
     def test_safe_execute_catches_index_error(self):
         """Safe execute catches index errors."""
+
         def index_error_func(x, _):
             return x.split("/")[99]  # Out of bounds
 
@@ -277,9 +275,7 @@ class TestIdentityResolverIntegration:
         scanner_canonical = IdentityResolver.normalize_scanner_id(
             scanner_arn, "aws_sqs_queue"
         )
-        tf_canonical = IdentityResolver.normalize_tf_state_id(
-            tf_url, "aws_sqs_queue"
-        )
+        tf_canonical = IdentityResolver.normalize_tf_state_id(tf_url, "aws_sqs_queue")
 
         assert scanner_canonical == tf_canonical == "my-queue"
 
@@ -304,9 +300,7 @@ class TestIdentityResolverIntegration:
         # TF state uses vpc-xxx format
         tf_id = "vpc-12345"
 
-        scanner_canonical = IdentityResolver.normalize_scanner_id(
-            scanner_id, "aws_vpc"
-        )
+        scanner_canonical = IdentityResolver.normalize_scanner_id(scanner_id, "aws_vpc")
         tf_canonical = IdentityResolver.normalize_tf_state_id(tf_id, "aws_vpc")
 
         assert scanner_canonical == tf_canonical == "vpc-12345"

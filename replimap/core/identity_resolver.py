@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 # STRATEGY FUNCTIONS
 # =============================================================================
 
+
 def _literal(value: str, _pattern: str | None = None) -> str:
     """Return value as-is."""
     return value
@@ -133,7 +134,9 @@ IDENTITY_REGISTRY: dict[str, dict[str, Any]] = {
     },
     # SQS: Scanner uses ARN, TF state uses URL
     "aws_sqs_queue": {
-        "scanner_id": {"strategy": "arn_tail"},  # arn:aws:sqs:region:account:name -> name
+        "scanner_id": {
+            "strategy": "arn_tail"
+        },  # arn:aws:sqs:region:account:name -> name
         "tf_state_id": {"strategy": "url_tail"},  # https://sqs.../account/name -> name
     },
     # SNS: Both use ARN
@@ -219,6 +222,7 @@ IDENTITY_REGISTRY: dict[str, dict[str, Any]] = {
 # =============================================================================
 # IDENTITY RESOLVER
 # =============================================================================
+
 
 class IdentityResolver:
     """
@@ -354,6 +358,7 @@ class IdentityResolver:
 # =============================================================================
 # SCANNER COVERAGE
 # =============================================================================
+
 
 def get_scanner_coverage() -> set[str]:
     """

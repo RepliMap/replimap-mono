@@ -11,7 +11,6 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from markupsafe import Markup
 
 from replimap.drift.models import (
-    AttributeDiff,
     DriftReason,
     DriftReport,
     DriftSeverity,
@@ -46,6 +45,99 @@ def _get_drift_classification(drift: ResourceDrift) -> str:
     return "cosmetic"
 
 
+def _sanitize_tf_resource_name(resource_id: str) -> str:
+    """Sanitize a resource ID to create a valid Terraform resource name.
+
+    Terraform resource names must:
+    - Start with a letter or underscore
+    - Contain only letters, digits, underscores, and dashes
+    - Not be empty
+
+    Args:
+        resource_id: The raw resource ID to sanitize
+
+    Returns:
+        A valid Terraform resource name
+    """
+    import re
+
+    if not resource_id:
+        return "unknown"
+
+    # Replace all invalid characters with underscore
+    safe_name = resource_id
+    for char in [
+        "-",
+        ".",
+        "/",
+        ":",
+        " ",
+        "@",
+        "#",
+        "$",
+        "%",
+        "^",
+        "&",
+        "*",
+        "(",
+        ")",
+        "[",
+        "]",
+        "{",
+        "}",
+        "|",
+        "\\",
+        "'",
+        '"',
+        "<",
+        ">",
+        ",",
+        "?",
+        "!",
+        "=",
+        "+",
+        "~",
+        "`",
+    ]:
+        safe_name = safe_name.replace(char, "_")
+
+    # Collapse consecutive underscores into single underscore
+    safe_name = re.sub(r"_+", "_", safe_name)
+
+    # Strip leading/trailing underscores
+    safe_name = safe_name.strip("_")
+
+    # If empty after sanitization, use fallback
+    if not safe_name:
+        return "imported"
+
+    # Terraform names can't start with a digit - prefix with 'r_'
+    if safe_name[0].isdigit():
+        safe_name = f"r_{safe_name}"
+
+    # Limit length (TF has no hard limit but keep it reasonable)
+    return safe_name[:60]
+
+
+def _shell_quote(value: str) -> str:
+    """Quote a value for safe shell usage if it contains special characters.
+
+    Args:
+        value: The value to potentially quote
+
+    Returns:
+        The value, quoted with single quotes if necessary
+    """
+    # Characters that need quoting in shell
+    needs_quoting = set(" \t\n'\"\\$`!&|;<>(){}[]#*?~")
+
+    if any(c in needs_quoting for c in value):
+        # Use single quotes, escaping any single quotes in the value
+        escaped = value.replace("'", "'\"'\"'")
+        return f"'{escaped}'"
+    return value
+
+
 def _generate_remediation_cmd(drift: ResourceDrift) -> str:
     """Generate a remediation command for the drift.
 
@@ -56,21 +148,19 @@ def _generate_remediation_cmd(drift: ResourceDrift) -> str:
         resource_addr = drift.tf_address
     else:
         # Generate a valid TF resource name from the ID
-        # Replace all invalid characters: - . / : with _
-        # Strip leading underscores (from IDs starting with /)
-        safe_name = drift.resource_id
-        for char in ["-", ".", "/", ":", " "]:
-            safe_name = safe_name.replace(char, "_")
-        safe_name = safe_name.strip("_")[:50]  # Remove leading/trailing _, limit length
+        safe_name = _sanitize_tf_resource_name(drift.resource_id)
         resource_addr = f"{drift.resource_type}.{safe_name}"
 
     if drift.drift_type == DriftType.MODIFIED:
         return f"terraform apply -target={resource_addr}"
     elif drift.drift_type == DriftType.ADDED:
         # Resource exists in AWS but not in TF - import it
-        return f"terraform import {resource_addr} {drift.resource_id}"
+        # Quote the resource ID for shell safety
+        quoted_id = _shell_quote(drift.resource_id)
+        return f"terraform import {resource_addr} {quoted_id}"
     elif drift.drift_type == DriftType.REMOVED:
-        # Resource in TF but deleted from AWS
+        # Resource in TF but deleted from AWS - recreate it
+        # Alternative: terraform state rm {resource_addr} (to accept deletion)
         return f"terraform apply -target={resource_addr}"
     elif drift.drift_type == DriftType.UNSCANNED:
         return ""  # No command for unscanned
