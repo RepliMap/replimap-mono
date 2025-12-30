@@ -3519,16 +3519,37 @@ def cost(
             if ri_aware:
                 progress.update(task, description="Analyzing reservations...")
                 try:
-                    from replimap.cost.ri_aware import RIAwarePricingEngine
+                    import asyncio
 
-                    ri_engine = RIAwarePricingEngine(session, effective_region)
-                    ri_analysis = ri_engine.analyze()
+                    from replimap.cost.ri_aware import RIAwareAnalyzer
+
+                    # Get credentials from the already-authenticated session
+                    # (avoids MFA re-prompt and assume-role hang in async context)
+                    ri_credentials: dict[str, str] | None = None
+                    session_creds = session.get_credentials()
+                    if session_creds:
+                        frozen = session_creds.get_frozen_credentials()
+                        ri_credentials = {
+                            "aws_access_key_id": frozen.access_key,
+                            "aws_secret_access_key": frozen.secret_key,
+                        }
+                        if frozen.token:
+                            ri_credentials["aws_session_token"] = frozen.token
+
+                    async def run_ri_analysis() -> Any:
+                        """Run RI analysis with proper cleanup."""
+                        async with RIAwareAnalyzer(
+                            region=effective_region, credentials=ri_credentials
+                        ) as analyzer:
+                            return await analyzer.analyze()
+
+                    ri_analysis = asyncio.run(run_ri_analysis())
 
                     # Adjust costs based on reservations
-                    if ri_analysis and ri_analysis.total_savings > 0:
+                    if ri_analysis and ri_analysis.total_potential_savings > 0:
                         console.print(
                             f"\n[dim]RI/Savings Plans coverage: "
-                            f"${ri_analysis.total_savings:.2f}/month savings[/]"
+                            f"${ri_analysis.total_potential_savings:.2f}/month savings[/]"
                         )
                 except Exception as e:
                     logger.warning(f"Could not analyze reservations: {e}")

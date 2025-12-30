@@ -17,7 +17,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from replimap.core.async_aws import AsyncAWSClient
+from replimap.core.async_aws import AsyncAWSClient, RateLimiterRegistry
 from replimap.cost.models import PricingTier
 from replimap.cost.pricing_engine import (
     BasePricingEngine,
@@ -703,6 +703,8 @@ class RIAwareAnalyzer:
         self,
         region: str = "us-east-1",
         account_id: str = "",
+        profile: str | None = None,
+        credentials: dict[str, str] | None = None,
     ) -> None:
         """
         Initialize analyzer.
@@ -710,15 +712,40 @@ class RIAwareAnalyzer:
         Args:
             region: AWS region
             account_id: AWS account ID
+            profile: AWS profile name for credentials (deprecated, use credentials)
+            credentials: Pre-resolved AWS credentials dict with keys:
+                         aws_access_key_id, aws_secret_access_key, aws_session_token
         """
         self.region = region
         self.account_id = account_id
+        self.profile = profile
+        self._credentials = credentials
         self._client: AsyncAWSClient | None = None
+
+    async def close(self) -> None:
+        """Close the AWS client and release resources."""
+        if self._client is not None:
+            await self._client.close()
+            self._client = None
+
+    async def __aenter__(self) -> RIAwareAnalyzer:
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Async context manager exit."""
+        await self.close()
 
     async def _get_client(self) -> AsyncAWSClient:
         """Get AWS client."""
         if self._client is None:
-            self._client = AsyncAWSClient(region=self.region)
+            # Create a fresh RateLimiterRegistry to avoid asyncio.Lock event loop issues
+            # (global registry may have locks bound to a different event loop)
+            self._client = AsyncAWSClient(
+                region=self.region,
+                credentials=self._credentials,
+                rate_registry=RateLimiterRegistry(),
+            )
         return self._client
 
     async def get_reserved_instances(self) -> list[ReservedInstance]:
@@ -753,7 +780,7 @@ class RIAwareAnalyzer:
                 )
 
         except Exception as e:
-            logger.error(f"Failed to fetch Reserved Instances: {e}")
+            logger.warning(f"Failed to fetch Reserved Instances: {e}")
 
         return ris
 
@@ -792,7 +819,7 @@ class RIAwareAnalyzer:
                 )
 
         except Exception as e:
-            logger.error(f"Failed to fetch Savings Plans: {e}")
+            logger.warning(f"Failed to fetch Savings Plans: {e}")
 
         return sps
 
@@ -823,7 +850,7 @@ class RIAwareAnalyzer:
             return utilization
 
         except Exception as e:
-            logger.error(f"Failed to fetch RI utilization: {e}")
+            logger.warning(f"Failed to fetch RI utilization: {e}")
             return {"overall": 0.0}
 
     async def get_sp_utilization(
@@ -859,7 +886,7 @@ class RIAwareAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"Failed to fetch SP utilization: {e}")
+            logger.warning(f"Failed to fetch SP utilization: {e}")
             return {
                 "utilization_percentage": 0.0,
                 "used_commitment": Decimal("0"),
@@ -1183,6 +1210,8 @@ def get_utilization_level(percentage: float) -> UtilizationLevel:
 async def analyze_ri_sp_coverage(
     region: str = "us-east-1",
     resources: list[dict[str, Any]] | None = None,
+    profile: str | None = None,
+    credentials: dict[str, str] | None = None,
 ) -> RIAwareAnalysis:
     """
     Convenience function to analyze RI/SP coverage.
@@ -1190,9 +1219,13 @@ async def analyze_ri_sp_coverage(
     Args:
         region: AWS region
         resources: Optional resources for right-sizing analysis
+        profile: AWS profile name for credentials (deprecated, use credentials)
+        credentials: Pre-resolved AWS credentials dict
 
     Returns:
         RIAwareAnalysis with complete results
     """
-    analyzer = RIAwareAnalyzer(region=region)
-    return await analyzer.analyze(resources=resources)
+    async with RIAwareAnalyzer(
+        region=region, profile=profile, credentials=credentials
+    ) as analyzer:
+        return await analyzer.analyze(resources=resources)

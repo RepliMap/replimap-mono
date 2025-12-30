@@ -450,6 +450,103 @@ class TestCostEstimator:
         assert estimate.resource_costs[0].category == CostCategory.COMPUTE
         assert estimate.resource_costs[0].instance_type == "t3.medium"
 
+    def test_estimate_ec2_with_root_block_device_as_dict(self):
+        """Test EC2 estimation when root_block_device is a dict (flattened by GraphEngine)."""
+        resources = [
+            {
+                "id": "i-dict-rbd",
+                "type": "aws_instance",
+                "name": "web-server",
+                "config": {
+                    "instance_type": "t3.medium",
+                    # Dict format - happens when GraphEngine flattens single-element lists
+                    "root_block_device": {"volume_size": 50, "volume_type": "gp3"},
+                },
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        cost = estimate.resource_costs[0]
+        # Verify storage cost uses the dict values (50GB gp3)
+        assert cost.storage_cost > 0
+        # gp3 is $0.08/GB, so 50GB should be $4
+        assert cost.storage_cost == pytest.approx(4.0, rel=0.1)
+
+    def test_estimate_ec2_with_root_block_device_as_list(self):
+        """Test EC2 estimation when root_block_device is a list (standard format)."""
+        resources = [
+            {
+                "id": "i-list-rbd",
+                "type": "aws_instance",
+                "name": "web-server",
+                "config": {
+                    "instance_type": "t3.medium",
+                    # List format - standard Terraform-style
+                    "root_block_device": [{"volume_size": 100, "volume_type": "gp2"}],
+                },
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        cost = estimate.resource_costs[0]
+        # gp2 is $0.10/GB, so 100GB should be $10
+        assert cost.storage_cost == pytest.approx(10.0, rel=0.1)
+
+    def test_estimate_ec2_with_empty_root_block_device(self):
+        """Test EC2 estimation with empty/missing root_block_device uses defaults."""
+        resources = [
+            {
+                "id": "i-no-rbd",
+                "type": "aws_instance",
+                "name": "web-server",
+                "config": {
+                    "instance_type": "t3.medium",
+                    # No root_block_device specified
+                },
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        cost = estimate.resource_costs[0]
+        # Default is 8GB gp2, so $0.80
+        assert cost.storage_cost == pytest.approx(0.8, rel=0.1)
+
+    def test_estimate_ec2_with_empty_list_root_block_device(self):
+        """Test EC2 estimation with empty list root_block_device uses defaults."""
+        resources = [
+            {
+                "id": "i-empty-list-rbd",
+                "type": "aws_instance",
+                "name": "web-server",
+                "config": {
+                    "instance_type": "t3.medium",
+                    "root_block_device": [],  # Empty list
+                },
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        cost = estimate.resource_costs[0]
+        # Default is 8GB gp2, so $0.80
+        assert cost.storage_cost == pytest.approx(0.8, rel=0.1)
+
     def test_estimate_rds_instance(self):
         """Test RDS instance cost estimation."""
         resources = [
@@ -753,6 +850,224 @@ class TestCostEstimator:
             estimate.monthly_total / 30, rel=0.01
         )
 
+    def test_estimate_documentdb(self):
+        """Test DocumentDB cost estimation."""
+        resources = [
+            {
+                "id": "docdb-12345",
+                "type": "aws_docdb_cluster_instance",
+                "name": "docdb-instance",
+                "config": {"instance_class": "db.r5.large"},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        assert estimate.resource_costs[0].category == CostCategory.DATABASE
+        # DocumentDB db.r5.large should be around $200+/month
+        assert estimate.resource_costs[0].monthly_cost > 200
+
+    def test_estimate_sqs(self):
+        """Test SQS queue cost estimation."""
+        resources = [
+            {
+                "id": "queue-12345",
+                "type": "aws_sqs_queue",
+                "name": "my-queue",
+                "config": {"fifo_queue": False},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total >= 0
+        assert len(estimate.resource_costs) == 1
+        assert estimate.resource_costs[0].category == CostCategory.MONITORING
+
+    def test_estimate_sns(self):
+        """Test SNS topic cost estimation."""
+        resources = [
+            {
+                "id": "topic-12345",
+                "type": "aws_sns_topic",
+                "name": "my-topic",
+                "config": {},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total >= 0
+        assert len(estimate.resource_costs) == 1
+        assert estimate.resource_costs[0].category == CostCategory.MONITORING
+
+    def test_estimate_route53(self):
+        """Test Route 53 hosted zone cost estimation."""
+        resources = [
+            {
+                "id": "zone-12345",
+                "type": "aws_route53_zone",
+                "name": "example.com",
+                "config": {},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        # Hosted zone is at least $0.50/month
+        assert estimate.resource_costs[0].monthly_cost >= 0.50
+
+    def test_estimate_kms(self):
+        """Test KMS key cost estimation."""
+        resources = [
+            {
+                "id": "key-12345",
+                "type": "aws_kms_key",
+                "name": "my-key",
+                "config": {"customer_master_key_spec": "SYMMETRIC_DEFAULT"},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        # Customer managed key is $1/month
+        assert estimate.resource_costs[0].monthly_cost >= 1.0
+
+    def test_estimate_secrets_manager(self):
+        """Test Secrets Manager cost estimation."""
+        resources = [
+            {
+                "id": "secret-12345",
+                "type": "aws_secretsmanager_secret",
+                "name": "my-secret",
+                "config": {},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        # Secret is $0.40/month
+        assert estimate.resource_costs[0].monthly_cost >= 0.40
+
+    def test_estimate_ecr(self):
+        """Test ECR repository cost estimation."""
+        resources = [
+            {
+                "id": "repo-12345",
+                "type": "aws_ecr_repository",
+                "name": "my-repo",
+                "config": {"estimated_storage_gb": 5.0},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        # 5GB storage at $0.10/GB = $0.50
+        assert estimate.resource_costs[0].monthly_cost >= 0.50
+
+    def test_estimate_cloudfront(self):
+        """Test CloudFront distribution cost estimation."""
+        resources = [
+            {
+                "id": "dist-12345",
+                "type": "aws_cloudfront_distribution",
+                "name": "my-cdn",
+                "config": {"estimated_transfer_gb": 100.0},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        # 100GB transfer at ~$0.085/GB = ~$8.50
+        assert estimate.resource_costs[0].monthly_cost > 5.0
+
+    def test_estimate_guardduty(self):
+        """Test GuardDuty detector cost estimation."""
+        resources = [
+            {
+                "id": "detector-12345",
+                "type": "aws_guardduty_detector",
+                "name": "main-detector",
+                "config": {},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        assert estimate.resource_costs[0].category == CostCategory.SECURITY
+
+    def test_estimate_cloudwatch_alarm(self):
+        """Test CloudWatch alarm cost estimation."""
+        resources = [
+            {
+                "id": "alarm-12345",
+                "type": "aws_cloudwatch_metric_alarm",
+                "name": "cpu-alarm",
+                "config": {"period": 60},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        # Standard alarm is $0.10/month
+        assert estimate.resource_costs[0].monthly_cost == pytest.approx(0.10, rel=0.01)
+
+    def test_estimate_cloudwatch_dashboard(self):
+        """Test CloudWatch dashboard cost estimation."""
+        resources = [
+            {
+                "id": "dashboard-12345",
+                "type": "aws_cloudwatch_dashboard",
+                "name": "my-dashboard",
+                "config": {},
+                "region": "us-east-1",
+            }
+        ]
+
+        estimator = CostEstimator("us-east-1")
+        estimate = estimator.estimate_from_resources(resources)
+
+        assert estimate.monthly_total > 0
+        assert len(estimate.resource_costs) == 1
+        # Dashboard is $3/month
+        assert estimate.resource_costs[0].monthly_cost == pytest.approx(3.0, rel=0.01)
+
 
 class TestCostReporter:
     """Tests for CostReporter output."""
@@ -884,7 +1199,8 @@ class TestCostReporter:
             content = output_path.read_text()
             assert "<!DOCTYPE html>" in content
             assert "$350" in content
-            assert "Chart.js" in content or "chart.js" in content
+            # Uses ECharts for treemap visualization
+            assert "echarts" in content.lower()
 
     def test_to_csv(self):
         """Test CSV export."""

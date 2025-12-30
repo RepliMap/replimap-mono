@@ -162,6 +162,31 @@ class CostEstimator:
             self._estimate_eks(cost, config)
         elif resource_type == "aws_cloudwatch_log_group":
             self._estimate_cloudwatch_logs(cost, config)
+        # New services
+        elif resource_type in ("aws_docdb_cluster", "aws_docdb_cluster_instance"):
+            self._estimate_documentdb(cost, config, pricing_tier)
+        elif resource_type == "aws_sqs_queue":
+            self._estimate_sqs(cost, config)
+        elif resource_type == "aws_sns_topic":
+            self._estimate_sns(cost, config)
+        elif resource_type == "aws_route53_zone":
+            self._estimate_route53(cost, config)
+        elif resource_type == "aws_kms_key":
+            self._estimate_kms(cost, config)
+        elif resource_type == "aws_secretsmanager_secret":
+            self._estimate_secrets_manager(cost, config)
+        elif resource_type == "aws_ecr_repository":
+            self._estimate_ecr(cost, config)
+        elif resource_type == "aws_cloudfront_distribution":
+            self._estimate_cloudfront(cost, config)
+        elif resource_type == "aws_guardduty_detector":
+            self._estimate_guardduty(cost, config)
+        elif resource_type == "aws_cloudwatch_metric_alarm":
+            self._estimate_cloudwatch_alarm(cost, config)
+        elif resource_type == "aws_cloudwatch_dashboard":
+            self._estimate_cloudwatch_dashboard(cost, config)
+        elif resource_type in ("aws_cloudtrail", "aws_cloudtrail_trail"):
+            self._estimate_cloudtrail(cost, config)
         elif resource_type in self._free_resources():
             cost.monthly_cost = 0.0
             cost.confidence = CostConfidence.HIGH
@@ -193,11 +218,14 @@ class CostEstimator:
         cost.compute_cost = hourly * HOURS_PER_MONTH
 
         # EBS root volume
-        root_volume = (
-            config.get("root_block_device", [{}])[0]
-            if config.get("root_block_device")
-            else {}
-        )
+        # Handle both list and dict formats - GraphEngine may flatten single-element lists
+        rbd_raw = config.get("root_block_device")
+        if isinstance(rbd_raw, list) and len(rbd_raw) > 0:
+            root_volume = rbd_raw[0]
+        elif isinstance(rbd_raw, dict):
+            root_volume = rbd_raw
+        else:
+            root_volume = {}
         volume_size = root_volume.get("volume_size", 8)
         volume_type = root_volume.get("volume_type", "gp2")
         cost.storage_cost = self.pricing.get_ebs_monthly_cost(volume_size, volume_type)
@@ -437,6 +465,205 @@ class CostEstimator:
         cost.confidence = CostConfidence.LOW
         cost.assumptions.append(f"CloudWatch ~{estimated_gb}GB/month ingestion")
 
+    def _estimate_documentdb(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+        pricing_tier: PricingTier,
+    ) -> None:
+        """Estimate DocumentDB cost."""
+        instance_class = config.get("instance_class", "db.r5.large")
+        cost.instance_type = instance_class
+
+        hourly = self.pricing.get_documentdb_hourly_cost(instance_class, pricing_tier)
+        cost.compute_cost = hourly * HOURS_PER_MONTH
+
+        # Storage: $0.10 per GB-month
+        storage_gb = config.get("storage_encrypted", 10)
+        if isinstance(storage_gb, bool):
+            storage_gb = 10  # Default if storage_encrypted is bool flag
+        cost.storage_cost = storage_gb * 0.10
+
+        # I/O: estimate based on typical usage
+        io_cost = 5.0  # Estimate $5/month I/O
+
+        cost.monthly_cost = cost.compute_cost + cost.storage_cost + io_cost
+        cost.confidence = CostConfidence.MEDIUM
+        cost.assumptions.append(f"DocumentDB {instance_class}, ~{storage_gb}GB storage")
+
+    def _estimate_sqs(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate SQS queue cost."""
+        is_fifo = config.get("fifo_queue", False)
+        # Estimate requests based on queue type
+        estimated_requests = config.get("estimated_requests_per_month", 10_000_000)
+        cost.monthly_cost = self.pricing.get_sqs_monthly_cost(
+            estimated_requests, is_fifo
+        )
+        cost.confidence = CostConfidence.LOW
+        queue_type = "FIFO" if is_fifo else "Standard"
+        cost.assumptions.append(
+            f"SQS {queue_type} ~{estimated_requests / 1_000_000:.1f}M requests/month"
+        )
+
+    def _estimate_sns(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate SNS topic cost."""
+        # Estimate based on typical usage
+        estimated_publishes = config.get("estimated_publishes_per_month", 1_000_000)
+        estimated_notifications = config.get(
+            "estimated_notifications_per_month", 1_000_000
+        )
+        cost.monthly_cost = self.pricing.get_sns_monthly_cost(
+            estimated_publishes, estimated_notifications
+        )
+        cost.confidence = CostConfidence.LOW
+        cost.assumptions.append(
+            f"SNS ~{estimated_publishes / 1_000_000:.1f}M publishes/month"
+        )
+
+    def _estimate_route53(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate Route 53 hosted zone cost."""
+        # $0.50 per hosted zone
+        cost.monthly_cost = self.pricing.get_route53_monthly_cost(
+            hosted_zones=1,
+            queries_per_month=config.get("estimated_queries_per_month", 1_000_000),
+            health_checks=config.get("health_checks", 0),
+        )
+        cost.confidence = CostConfidence.MEDIUM
+        cost.assumptions.append("Route 53 hosted zone + estimated queries")
+
+    def _estimate_kms(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate KMS key cost."""
+        # Customer managed keys: $1/month
+        # AWS managed keys: free
+        is_customer_managed = config.get("customer_master_key_spec") is not None
+        if is_customer_managed:
+            cost.monthly_cost = self.pricing.get_kms_monthly_cost(
+                customer_keys=1,
+                requests_per_month=config.get("estimated_requests_per_month", 10000),
+            )
+            cost.confidence = CostConfidence.HIGH
+            cost.assumptions.append("KMS customer managed key")
+        else:
+            cost.monthly_cost = 0.0
+            cost.confidence = CostConfidence.HIGH
+            cost.assumptions.append("KMS AWS managed key (free)")
+
+    def _estimate_secrets_manager(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate Secrets Manager cost."""
+        # $0.40 per secret per month
+        cost.monthly_cost = self.pricing.get_secrets_manager_monthly_cost(
+            secrets_count=1,
+            api_calls_per_month=config.get("estimated_api_calls_per_month", 10000),
+        )
+        cost.confidence = CostConfidence.HIGH
+        cost.assumptions.append("Secrets Manager secret")
+
+    def _estimate_ecr(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate ECR repository cost."""
+        # $0.10 per GB storage
+        estimated_storage_gb = config.get("estimated_storage_gb", 1.0)
+        cost.storage_cost = self.pricing.get_ecr_monthly_cost(estimated_storage_gb)
+        cost.monthly_cost = cost.storage_cost
+        cost.confidence = CostConfidence.LOW
+        cost.assumptions.append(f"ECR ~{estimated_storage_gb}GB storage")
+
+    def _estimate_cloudfront(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate CloudFront distribution cost."""
+        estimated_transfer_gb = config.get("estimated_transfer_gb", 100.0)
+        estimated_requests = config.get("estimated_requests_per_month", 1_000_000)
+        cost.network_cost = self.pricing.get_cloudfront_monthly_cost(
+            estimated_transfer_gb, estimated_requests
+        )
+        cost.monthly_cost = cost.network_cost
+        cost.confidence = CostConfidence.LOW
+        cost.assumptions.append(f"CloudFront ~{estimated_transfer_gb}GB transfer/month")
+
+    def _estimate_guardduty(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate GuardDuty detector cost."""
+        # Cost depends on CloudTrail events and VPC Flow Logs analyzed
+        estimated_ct_events = config.get("estimated_cloudtrail_events", 1_000_000)
+        estimated_vpc_flow_gb = config.get("estimated_vpc_flow_gb", 10.0)
+        cost.monthly_cost = self.pricing.get_guardduty_monthly_cost(
+            estimated_ct_events, estimated_vpc_flow_gb
+        )
+        cost.confidence = CostConfidence.LOW
+        cost.assumptions.append("GuardDuty based on estimated event volume")
+
+    def _estimate_cloudwatch_alarm(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate CloudWatch alarm cost."""
+        # Standard alarms: $0.10/month, High-res: $0.30/month
+        period = config.get("period", 60)
+        is_high_res = period < 60
+        cost.monthly_cost = 0.30 if is_high_res else 0.10
+        cost.confidence = CostConfidence.HIGH
+        alarm_type = "high-resolution" if is_high_res else "standard"
+        cost.assumptions.append(f"CloudWatch {alarm_type} alarm")
+
+    def _estimate_cloudwatch_dashboard(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate CloudWatch dashboard cost."""
+        # First 3 dashboards free, then $3/month each
+        cost.monthly_cost = 3.00  # Assume not in free tier
+        cost.confidence = CostConfidence.HIGH
+        cost.assumptions.append("CloudWatch dashboard (if >3 total)")
+
+    def _estimate_cloudtrail(
+        self,
+        cost: ResourceCost,
+        config: dict[str, Any],
+    ) -> None:
+        """Estimate CloudTrail cost."""
+        # First management trail free, additional trails $2 per 100K events
+        is_multi_region = config.get("is_multi_region_trail", False)
+        include_data_events = config.get("include_global_service_events", False)
+        estimated_events = config.get("estimated_events_per_month", 100_000)
+
+        cost.monthly_cost = self.pricing.get_cloudtrail_monthly_cost(
+            management_events_per_month=estimated_events if is_multi_region else 0,
+            data_events_per_month=estimated_events if include_data_events else 0,
+        )
+        cost.confidence = CostConfidence.LOW
+        cost.assumptions.append("CloudTrail based on estimated events")
+
     def _free_resources(self) -> set[str]:
         """Resources that have no direct cost."""
         return {
@@ -548,14 +775,15 @@ class CostEstimator:
             resource_costs, key=lambda r: r.monthly_cost, reverse=True
         )[:10]
 
-        # Calculate optimization potential
-        total_optimization = sum(r.optimization_potential for r in resource_costs)
+        # Generate recommendations first, then calculate total from recommendations
+        recommendations = self._generate_recommendations(resource_costs, by_category)
+
+        # Calculate optimization potential from recommendations (not per-resource values)
+        # This ensures header total matches the sum of recommendation savings
+        total_optimization = sum(rec.potential_savings for rec in recommendations)
         optimization_pct = (
             (total_optimization / monthly_total * 100) if monthly_total > 0 else 0
         )
-
-        # Generate recommendations
-        recommendations = self._generate_recommendations(resource_costs, by_category)
 
         # Count estimated vs unestimated
         estimated = len(

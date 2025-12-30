@@ -202,6 +202,117 @@ LAMBDA_PRICING: dict[str, float] = {
     "per_gb_second": 0.0000166667,  # $0.0000166667 per GB-second
 }
 
+# DocumentDB pricing (same instance classes as RDS, slightly higher)
+DOCUMENTDB_PRICING: dict[str, float] = {
+    # db.t3
+    "db.t3.medium": 0.078,
+    # db.r5
+    "db.r5.large": 0.277,
+    "db.r5.xlarge": 0.554,
+    "db.r5.2xlarge": 1.108,
+    "db.r5.4xlarge": 2.216,
+    "db.r5.8xlarge": 4.432,
+    "db.r5.12xlarge": 6.648,
+    "db.r5.16xlarge": 8.864,
+    "db.r5.24xlarge": 13.296,
+    # db.r6g (Graviton)
+    "db.r6g.large": 0.2495,
+    "db.r6g.xlarge": 0.499,
+    "db.r6g.2xlarge": 0.998,
+    "db.r6g.4xlarge": 1.996,
+    "db.r6g.8xlarge": 3.992,
+    "db.r6g.12xlarge": 5.988,
+    "db.r6g.16xlarge": 7.984,
+}
+
+# CloudWatch pricing
+CLOUDWATCH_PRICING: dict[str, float] = {
+    "metric_per_month": 0.30,  # Per custom metric per month
+    "alarm_standard": 0.10,  # Per standard alarm per month
+    "alarm_high_resolution": 0.30,  # Per high-resolution alarm
+    "dashboard_per_month": 3.00,  # Per dashboard per month
+    "logs_ingestion_per_gb": 0.50,  # Per GB ingested
+    "logs_storage_per_gb": 0.03,  # Per GB stored per month
+    "logs_insights_per_gb": 0.005,  # Per GB scanned
+    "metrics_api_per_1k": 0.01,  # GetMetricData, per 1K metrics
+}
+
+# SQS pricing
+SQS_PRICING: dict[str, float] = {
+    "standard_per_million": 0.40,  # Standard queue, per 1M requests
+    "fifo_per_million": 0.50,  # FIFO queue, per 1M requests
+}
+
+# SNS pricing
+SNS_PRICING: dict[str, float] = {
+    "publish_per_million": 0.50,  # Per 1M publishes
+    "http_per_million": 0.60,  # HTTP/S notifications per 1M
+    "email_per_1k": 2.00,  # Email notifications per 1K
+    "sms_per_message": 0.00645,  # SMS (US), varies by country
+}
+
+# Route 53 pricing
+ROUTE53_PRICING: dict[str, float] = {
+    "hosted_zone_per_month": 0.50,  # Per hosted zone per month
+    "queries_per_million": 0.40,  # Standard queries per 1M
+    "queries_latency_per_million": 0.60,  # Latency-based routing
+    "queries_geo_per_million": 0.70,  # Geo DNS queries
+    "health_check_basic": 0.50,  # Basic health check per month
+    "health_check_https": 0.75,  # HTTPS health check
+    "health_check_string_match": 1.00,  # String matching
+}
+
+# KMS pricing
+KMS_PRICING: dict[str, float] = {
+    "key_per_month": 1.00,  # Customer managed key per month
+    "requests_per_10k": 0.03,  # API requests per 10K
+}
+
+# Secrets Manager pricing
+SECRETS_MANAGER_PRICING: dict[str, float] = {
+    "secret_per_month": 0.40,  # Per secret per month
+    "api_calls_per_10k": 0.05,  # API calls per 10K
+}
+
+# ECR pricing
+ECR_PRICING: dict[str, float] = {
+    "storage_per_gb": 0.10,  # Per GB per month
+    "data_transfer_per_gb": 0.09,  # Data transfer out per GB
+}
+
+# CloudFront pricing (simplified, varies by region)
+CLOUDFRONT_PRICING: dict[str, float] = {
+    "data_transfer_per_gb": 0.085,  # First 10TB
+    "requests_http_per_10k": 0.0075,  # HTTP requests per 10K
+    "requests_https_per_10k": 0.01,  # HTTPS requests per 10K
+}
+
+# GuardDuty pricing (per million events analyzed)
+GUARDDUTY_PRICING: dict[str, float] = {
+    "cloudtrail_per_million": 4.00,  # CloudTrail events
+    "vpc_flow_per_gb": 1.00,  # VPC Flow Logs per GB
+    "dns_per_million": 1.00,  # DNS queries per million
+}
+
+# CloudTrail pricing
+CLOUDTRAIL_PRICING: dict[str, float] = {
+    "management_events_per_100k": 2.00,  # Management events per 100K
+    "data_events_per_100k": 0.10,  # Data events per 100K
+}
+
+# Step Functions pricing
+STEP_FUNCTIONS_PRICING: dict[str, float] = {
+    "standard_per_transition": 0.000025,  # Per state transition
+    "express_per_million": 1.00,  # Express workflows per 1M requests
+    "express_per_gb_seconds": 0.00001667,  # Duration charge
+}
+
+# ECS/Fargate pricing
+FARGATE_PRICING: dict[str, float] = {
+    "vcpu_per_hour": 0.04048,  # Per vCPU per hour
+    "memory_per_gb_hour": 0.004445,  # Per GB per hour
+}
+
 # Resource type to category mapping
 RESOURCE_CATEGORY_MAP: dict[str, CostCategory] = {
     # Compute
@@ -222,6 +333,7 @@ RESOURCE_CATEGORY_MAP: dict[str, CostCategory] = {
     "aws_elasticache_replication_group": CostCategory.DATABASE,
     "aws_dynamodb_table": CostCategory.DATABASE,
     "aws_docdb_cluster": CostCategory.DATABASE,
+    "aws_docdb_cluster_instance": CostCategory.DATABASE,
     "aws_redshift_cluster": CostCategory.DATABASE,
     # Storage
     "aws_s3_bucket": CostCategory.STORAGE,
@@ -229,6 +341,7 @@ RESOURCE_CATEGORY_MAP: dict[str, CostCategory] = {
     "aws_efs_file_system": CostCategory.STORAGE,
     "aws_fsx_lustre_file_system": CostCategory.STORAGE,
     "aws_backup_vault": CostCategory.STORAGE,
+    "aws_ecr_repository": CostCategory.STORAGE,
     # Network
     "aws_vpc": CostCategory.NETWORK,
     "aws_subnet": CostCategory.NETWORK,
@@ -247,15 +360,23 @@ RESOURCE_CATEGORY_MAP: dict[str, CostCategory] = {
     "aws_iam_role": CostCategory.SECURITY,
     "aws_iam_policy": CostCategory.SECURITY,
     "aws_kms_key": CostCategory.SECURITY,
+    "aws_kms_alias": CostCategory.SECURITY,
     "aws_waf_web_acl": CostCategory.SECURITY,
     "aws_acm_certificate": CostCategory.SECURITY,
     "aws_secretsmanager_secret": CostCategory.SECURITY,
+    "aws_guardduty_detector": CostCategory.SECURITY,
     # Monitoring
     "aws_cloudwatch_log_group": CostCategory.MONITORING,
     "aws_cloudwatch_metric_alarm": CostCategory.MONITORING,
     "aws_cloudwatch_dashboard": CostCategory.MONITORING,
+    "aws_cloudwatch_metric_stream": CostCategory.MONITORING,
     "aws_sns_topic": CostCategory.MONITORING,
     "aws_sqs_queue": CostCategory.MONITORING,
+    "aws_cloudtrail": CostCategory.MONITORING,
+    "aws_cloudtrail_trail": CostCategory.MONITORING,
+    # Integration
+    "aws_sfn_state_machine": CostCategory.COMPUTE,
+    "aws_stepfunction_state_machine": CostCategory.COMPUTE,
 }
 
 # Regional price multipliers (relative to us-east-1)
@@ -449,6 +570,164 @@ class PricingLookup:
         hourly_cost = NETWORK_PRICING["vpc_endpoint_hourly"] * 730
         data_cost = data_processed_gb * NETWORK_PRICING["vpc_endpoint_per_gb"]
         return (hourly_cost + data_cost) * self.region_multiplier
+
+    def get_documentdb_hourly_cost(
+        self,
+        instance_class: str,
+        pricing_tier: PricingTier = PricingTier.ON_DEMAND,
+    ) -> float:
+        """Get hourly cost for DocumentDB instance."""
+        base_rate = DOCUMENTDB_PRICING.get(instance_class, 0.0)
+        if base_rate == 0.0:
+            # Fall back to RDS-like estimation with 15% premium
+            base_rate = self._estimate_rds_rate(instance_class) * 1.15
+        return self._apply_multipliers(base_rate, pricing_tier)
+
+    def get_sqs_monthly_cost(
+        self,
+        requests_per_month: int = 1000000,
+        is_fifo: bool = False,
+    ) -> float:
+        """Get monthly cost for SQS queue."""
+        rate_key = "fifo_per_million" if is_fifo else "standard_per_million"
+        rate = SQS_PRICING[rate_key]
+        # First 1M requests free
+        billable = max(0, requests_per_month - 1000000)
+        return (billable / 1000000) * rate * self.region_multiplier
+
+    def get_sns_monthly_cost(
+        self,
+        publishes_per_month: int = 1000000,
+        notifications_per_month: int = 1000000,
+    ) -> float:
+        """Get monthly cost for SNS topic."""
+        # First 1M publishes free
+        billable_publishes = max(0, publishes_per_month - 1000000)
+        publish_cost = (billable_publishes / 1000000) * SNS_PRICING[
+            "publish_per_million"
+        ]
+        # HTTP notifications
+        notify_cost = (notifications_per_month / 1000000) * SNS_PRICING[
+            "http_per_million"
+        ]
+        return (publish_cost + notify_cost) * self.region_multiplier
+
+    def get_route53_monthly_cost(
+        self,
+        hosted_zones: int = 1,
+        queries_per_month: int = 1000000,
+        health_checks: int = 0,
+    ) -> float:
+        """Get monthly cost for Route 53."""
+        # Hosted zones (first 25 at $0.50, then $0.10)
+        zone_cost = min(hosted_zones, 25) * ROUTE53_PRICING["hosted_zone_per_month"]
+        if hosted_zones > 25:
+            zone_cost += (hosted_zones - 25) * 0.10
+        # Queries (first 1B at $0.40/M)
+        query_cost = (queries_per_month / 1000000) * ROUTE53_PRICING[
+            "queries_per_million"
+        ]
+        # Health checks
+        health_cost = health_checks * ROUTE53_PRICING["health_check_basic"]
+        return zone_cost + query_cost + health_cost
+
+    def get_kms_monthly_cost(
+        self,
+        customer_keys: int = 1,
+        requests_per_month: int = 10000,
+    ) -> float:
+        """Get monthly cost for KMS."""
+        key_cost = customer_keys * KMS_PRICING["key_per_month"]
+        # First 20K requests free
+        billable_requests = max(0, requests_per_month - 20000)
+        request_cost = (billable_requests / 10000) * KMS_PRICING["requests_per_10k"]
+        return (key_cost + request_cost) * self.region_multiplier
+
+    def get_secrets_manager_monthly_cost(
+        self,
+        secrets_count: int = 1,
+        api_calls_per_month: int = 10000,
+    ) -> float:
+        """Get monthly cost for Secrets Manager."""
+        secret_cost = secrets_count * SECRETS_MANAGER_PRICING["secret_per_month"]
+        request_cost = (api_calls_per_month / 10000) * SECRETS_MANAGER_PRICING[
+            "api_calls_per_10k"
+        ]
+        return (secret_cost + request_cost) * self.region_multiplier
+
+    def get_ecr_monthly_cost(
+        self,
+        storage_gb: float = 1.0,
+    ) -> float:
+        """Get monthly cost for ECR repository."""
+        return storage_gb * ECR_PRICING["storage_per_gb"] * self.region_multiplier
+
+    def get_cloudfront_monthly_cost(
+        self,
+        data_transfer_gb: float = 100.0,
+        requests_per_month: int = 1000000,
+    ) -> float:
+        """Get monthly cost for CloudFront distribution."""
+        transfer_cost = data_transfer_gb * CLOUDFRONT_PRICING["data_transfer_per_gb"]
+        request_cost = (requests_per_month / 10000) * CLOUDFRONT_PRICING[
+            "requests_https_per_10k"
+        ]
+        return (transfer_cost + request_cost) * self.region_multiplier
+
+    def get_guardduty_monthly_cost(
+        self,
+        cloudtrail_events_per_month: int = 1000000,
+        vpc_flow_gb: float = 10.0,
+    ) -> float:
+        """Get monthly cost for GuardDuty."""
+        # CloudTrail analysis
+        ct_cost = (cloudtrail_events_per_month / 1000000) * GUARDDUTY_PRICING[
+            "cloudtrail_per_million"
+        ]
+        # VPC Flow Logs analysis
+        flow_cost = vpc_flow_gb * GUARDDUTY_PRICING["vpc_flow_per_gb"]
+        return (ct_cost + flow_cost) * self.region_multiplier
+
+    def get_cloudwatch_monthly_cost(
+        self,
+        custom_metrics: int = 0,
+        alarms: int = 0,
+        dashboards: int = 0,
+        logs_ingestion_gb: float = 0.0,
+        logs_storage_gb: float = 0.0,
+    ) -> float:
+        """Get monthly cost for CloudWatch."""
+        # First 10 custom metrics free
+        billable_metrics = max(0, custom_metrics - 10)
+        metrics_cost = billable_metrics * CLOUDWATCH_PRICING["metric_per_month"]
+        # First 10 alarms free
+        billable_alarms = max(0, alarms - 10)
+        alarms_cost = billable_alarms * CLOUDWATCH_PRICING["alarm_standard"]
+        # First 3 dashboards free
+        billable_dashboards = max(0, dashboards - 3)
+        dashboard_cost = billable_dashboards * CLOUDWATCH_PRICING["dashboard_per_month"]
+        # Logs (first 5GB ingestion free)
+        billable_ingestion = max(0, logs_ingestion_gb - 5)
+        logs_cost = billable_ingestion * CLOUDWATCH_PRICING["logs_ingestion_per_gb"]
+        storage_cost = logs_storage_gb * CLOUDWATCH_PRICING["logs_storage_per_gb"]
+        return (
+            metrics_cost + alarms_cost + dashboard_cost + logs_cost + storage_cost
+        ) * self.region_multiplier
+
+    def get_cloudtrail_monthly_cost(
+        self,
+        management_events_per_month: int = 100000,
+        data_events_per_month: int = 0,
+    ) -> float:
+        """Get monthly cost for CloudTrail."""
+        # First trail's management events free
+        mgmt_cost = (management_events_per_month / 100000) * CLOUDTRAIL_PRICING[
+            "management_events_per_100k"
+        ]
+        data_cost = (data_events_per_month / 100000) * CLOUDTRAIL_PRICING[
+            "data_events_per_100k"
+        ]
+        return (mgmt_cost + data_cost) * self.region_multiplier
 
     def get_resource_category(self, resource_type: str) -> CostCategory:
         """Get category for a resource type."""
