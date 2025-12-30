@@ -284,18 +284,30 @@ class DriftComparator:
         self,
         tf_resources: list[TFResource],
         actual_ids: set[str],
+        id_normalizer: Any | None = None,
     ) -> list[ResourceDrift]:
         """Find resources in Terraform state that no longer exist in AWS.
 
         These are resources deleted outside of Terraform.
+
+        Args:
+            tf_resources: Resources from Terraform state
+            actual_ids: Set of normalized resource IDs from AWS
+            id_normalizer: Optional function(id, type) -> normalized_id
         """
         removed = []
 
         for tf_resource in tf_resources:
-            if tf_resource.id not in actual_ids:
+            # Normalize the TF resource ID if normalizer provided
+            if id_normalizer:
+                normalized_id = id_normalizer(tf_resource.id, tf_resource.type)
+            else:
+                normalized_id = tf_resource.id
+
+            if normalized_id not in actual_ids:
                 drift = ResourceDrift(
                     resource_type=tf_resource.type,
-                    resource_id=tf_resource.id,
+                    resource_id=tf_resource.id,  # Keep original ID for display
                     resource_name=tf_resource.name,
                     tf_address=tf_resource.address,
                     drift_type=DriftType.REMOVED,

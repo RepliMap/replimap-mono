@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from replimap.drift.comparator import DriftComparator
 from replimap.drift.models import DriftReport, DriftType
-from replimap.drift.state_parser import TerraformStateParser
+from replimap.drift.state_parser import TerraformStateParser, TFResource
 
 if TYPE_CHECKING:
     import boto3
@@ -92,30 +92,37 @@ class DriftEngine:
                 f"Filtered to {len(actual_resources)} resources in VPC {vpc_id}"
             )
 
-        # 3. Build lookup maps
-        # Note: Scanner IDs use format {account}:{region}:{resource_id}
-        # while TF state uses just {resource_id}
-        # We need to extract the base resource ID for matching
-        tf_by_id = {r.id: r for r in tf_state.resources}
-        tf_ids = set(tf_by_id.keys())
+        # 3. Build lookup maps with normalized IDs
+        # Different resources use different ID formats:
+        # - Scanner IDs may have account:region: prefix or use ARNs
+        # - TF state may use URLs (SQS), names, or raw IDs
+        # We normalize both sides to a common base ID for matching
+
+        # Normalize TF state IDs
+        tf_by_normalized_id: dict[str, TFResource] = {}
+        for r in tf_state.resources:
+            normalized_id = self._normalize_tf_id(r.id, r.type)
+            tf_by_normalized_id[normalized_id] = r
+        tf_normalized_ids = set(tf_by_normalized_id.keys())
 
         # Build map from base resource ID to scanner resource
         actual_by_base_id: dict[str, Any] = {}
         for r in actual_resources:
-            base_id = self._extract_base_id(r.id)
+            resource_type = getattr(r, "terraform_type", str(r.resource_type))
+            base_id = self._extract_base_id(r.id, resource_type)
             actual_by_base_id[base_id] = r
         actual_base_ids = set(actual_by_base_id.keys())
 
-        logger.debug(f"TF IDs sample: {list(tf_ids)[:5]}")
-        logger.debug(f"AWS IDs sample: {list(actual_base_ids)[:5]}")
+        logger.debug(f"TF IDs sample (normalized): {list(tf_normalized_ids)[:5]}")
+        logger.debug(f"AWS IDs sample (normalized): {list(actual_base_ids)[:5]}")
 
         # 4. Compare resources
         logger.info("Comparing resources...")
         drifts = []
 
         # Check for modifications (resources in both TF and AWS)
-        for resource_id in tf_ids & actual_base_ids:
-            tf_resource = tf_by_id[resource_id]
+        for resource_id in tf_normalized_ids & actual_base_ids:
+            tf_resource = tf_by_normalized_id[resource_id]
             actual_resource = actual_by_base_id[resource_id]
 
             # Get actual attributes (convert from scanner format)
@@ -126,14 +133,21 @@ class DriftEngine:
                 drifts.append(drift)
 
         # Check for added resources (in AWS but not in TF)
+        # Pass the normalized TF IDs so we can properly match
         added = self.comparator.identify_added_resources(
-            actual_resources, tf_ids, id_extractor=self._extract_base_id
+            actual_resources,
+            tf_normalized_ids,
+            id_extractor=lambda rid: self._extract_base_id(
+                rid, ""
+            ),  # Type determined from resource
         )
         drifts.extend(added)
 
         # Check for removed resources (in TF but not in AWS)
         removed = self.comparator.identify_removed_resources(
-            tf_state.resources, actual_base_ids
+            tf_state.resources,
+            actual_base_ids,
+            id_normalizer=self._normalize_tf_id,
         )
         drifts.extend(removed)
 
@@ -141,7 +155,7 @@ class DriftEngine:
         end_time = time.time()
 
         report = DriftReport(
-            total_resources=len(tf_ids | actual_base_ids),
+            total_resources=len(tf_normalized_ids | actual_base_ids),
             drifted_resources=len(drifts),
             added_resources=len([d for d in drifts if d.drift_type == DriftType.ADDED]),
             removed_resources=len(
@@ -162,34 +176,84 @@ class DriftEngine:
 
         return report
 
-    def _extract_base_id(self, full_id: str) -> str:
-        """Extract base resource ID from scanner's prefixed format.
+    def _extract_base_id(self, full_id: str, resource_type: str = "") -> str:
+        """Extract base resource ID for matching with TF state.
 
-        Scanner IDs use format: {account_id}:{region}:{resource_id}
-        TF state uses just: {resource_id}
+        Different AWS resources use different ID formats:
+        - EC2/VPC/SG: Use raw AWS IDs (i-xxx, vpc-xxx, sg-xxx)
+        - ASG: Scanner uses ARN, TF uses name
+        - SQS: Scanner uses ARN, TF uses URL (both contain queue name)
+        - S3: Both use bucket name
+        - IAM: Both use resource name
 
-        Examples:
-            542859091916:ap-southeast-2:sg-072c65dfd31d69b92 -> sg-072c65dfd31d69b92
-            sg-072c65dfd31d69b92 -> sg-072c65dfd31d69b92
-            542859091916:ap-southeast-2:arn:aws:sqs:... -> arn:aws:sqs:...
+        Scanner IDs may be prefixed with: {account_id}:{region}:{resource_id}
         """
-        if ":" not in full_id:
+        if not full_id:
             return full_id
 
-        parts = full_id.split(":")
+        # Step 1: Remove account:region: prefix if present
+        base_id = full_id
+        if ":" in full_id:
+            parts = full_id.split(":")
+            # Check if first part looks like account ID (12 digits)
+            if len(parts) >= 3 and parts[0].isdigit() and len(parts[0]) == 12:
+                # Format is account:region:resource_id
+                base_id = ":".join(parts[2:])
 
-        # Check if first part looks like account ID (12 digits)
-        if len(parts) >= 3 and parts[0].isdigit() and len(parts[0]) == 12:
-            # Format is account:region:resource_id
-            # Resource ID is everything after the second colon
-            return ":".join(parts[2:])
+        # Step 2: Handle resource-type-specific ID formats
 
-        # Check for ARN format (arn:aws:service:region:account:...)
-        if full_id.startswith("arn:"):
-            return full_id
+        # ASG: ARN format -> extract name
+        # arn:aws:autoscaling:region:account:autoScalingGroup:uuid:autoScalingGroupName/name
+        if (
+            base_id.startswith("arn:aws:autoscaling:")
+            and "autoScalingGroupName/" in base_id
+        ):
+            return base_id.split("autoScalingGroupName/")[-1]
 
-        # Default: return as-is
-        return full_id
+        # SQS: ARN format -> extract queue name
+        # arn:aws:sqs:region:account:queue-name
+        if base_id.startswith("arn:aws:sqs:"):
+            return base_id.split(":")[-1]
+
+        # CloudWatch Log Group: ARN format -> extract log group name
+        # arn:aws:logs:region:account:log-group:name:*
+        if base_id.startswith("arn:aws:logs:") and ":log-group:" in base_id:
+            # Extract the log group name between :log-group: and the optional :*
+            parts = base_id.split(":log-group:")
+            if len(parts) > 1:
+                name = parts[1]
+                # Remove trailing :* if present
+                if name.endswith(":*"):
+                    name = name[:-2]
+                return name
+
+        # Lambda: ARN format -> extract function name
+        # arn:aws:lambda:region:account:function:name
+        if base_id.startswith("arn:aws:lambda:") and ":function:" in base_id:
+            return base_id.split(":function:")[-1]
+
+        # SNS: ARN format -> extract topic name
+        # arn:aws:sns:region:account:topic-name
+        if base_id.startswith("arn:aws:sns:"):
+            return base_id.split(":")[-1]
+
+        # For other ARNs, return as-is (they might match TF state format)
+        return base_id
+
+    def _normalize_tf_id(self, resource_id: str, resource_type: str) -> str:
+        """Normalize TF state ID to base resource ID.
+
+        Some TF resources use URLs or full ARNs as IDs.
+        """
+        # SQS: TF uses URL format https://sqs.region.amazonaws.com/account/queue-name
+        if resource_type == "aws_sqs_queue" and resource_id.startswith("https://sqs."):
+            # Extract queue name from URL
+            return resource_id.rstrip("/").split("/")[-1]
+
+        # CloudWatch Log Group: TF may use name directly
+        # Just return as-is (name format like "etime/14si/prod/debug")
+
+        return resource_id
 
     def _filter_by_vpc(self, resources: list[Any], vpc_id: str) -> list[Any]:
         """Filter resources to only include those in a specific VPC."""

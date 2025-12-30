@@ -1076,20 +1076,34 @@ class TestDriftEngineIdExtraction:
         assert engine._extract_base_id("123456789012:us-east-1:i-abc123") == "i-abc123"
 
     def test_extract_base_id_arn(self):
-        """Test ARN IDs are preserved."""
+        """Test ARN IDs are properly extracted to base resource ID."""
         from unittest.mock import MagicMock
 
         from replimap.drift.engine import DriftEngine
 
         engine = DriftEngine(session=MagicMock(), region="us-east-1")
 
-        # ARN format should be preserved
-        arn = "arn:aws:sqs:ap-southeast-2:542859091916:etime-14si-prod-broadcasts"
-        assert engine._extract_base_id(arn) == arn
+        # SQS ARN -> extract queue name (since TF uses URL with queue name)
+        sqs_arn = "arn:aws:sqs:ap-southeast-2:542859091916:etime-14si-prod-broadcasts"
+        assert engine._extract_base_id(sqs_arn) == "etime-14si-prod-broadcasts"
 
-        # But account-prefixed ARN should extract the ARN
-        prefixed_arn = f"542859091916:ap-southeast-2:{arn}"
-        assert engine._extract_base_id(prefixed_arn) == arn
+        # Account-prefixed SQS ARN should also extract queue name
+        prefixed_arn = f"542859091916:ap-southeast-2:{sqs_arn}"
+        assert engine._extract_base_id(prefixed_arn) == "etime-14si-prod-broadcasts"
+
+        # ASG ARN -> extract ASG name
+        asg_arn = "arn:aws:autoscaling:ap-southeast-2:542859091916:autoScalingGroup:abc-123:autoScalingGroupName/asg-etime-test-b-14si"
+        assert engine._extract_base_id(asg_arn) == "asg-etime-test-b-14si"
+
+        # CloudWatch Log Group ARN -> extract log group name
+        logs_arn = (
+            "arn:aws:logs:ap-southeast-2:542859091916:log-group:etime/14si/prod/debug:*"
+        )
+        assert engine._extract_base_id(logs_arn) == "etime/14si/prod/debug"
+
+        # Unknown ARN format should be preserved as-is
+        unknown_arn = "arn:aws:unknown:region:account:resource"
+        assert engine._extract_base_id(unknown_arn) == unknown_arn
 
     def test_extract_base_id_with_colons_in_resource(self):
         """Test IDs with colons in the resource part."""
@@ -1106,6 +1120,27 @@ class TestDriftEngineIdExtraction:
             )
             == "some:resource:with:colons"
         )
+
+    def test_normalize_tf_id_sqs(self):
+        """Test TF ID normalization for SQS queues."""
+        from unittest.mock import MagicMock
+
+        from replimap.drift.engine import DriftEngine
+
+        engine = DriftEngine(session=MagicMock(), region="us-east-1")
+
+        # SQS URL format -> extract queue name
+        sqs_url = "https://sqs.ap-southeast-2.amazonaws.com/542859091916/etime-14si-prod-broadcasts"
+        assert (
+            engine._normalize_tf_id(sqs_url, "aws_sqs_queue")
+            == "etime-14si-prod-broadcasts"
+        )
+
+        # Other resource types should preserve ID
+        assert (
+            engine._normalize_tf_id("asg-name", "aws_autoscaling_group") == "asg-name"
+        )
+        assert engine._normalize_tf_id("bucket-name", "aws_s3_bucket") == "bucket-name"
 
 
 class TestDriftNormalizer:
