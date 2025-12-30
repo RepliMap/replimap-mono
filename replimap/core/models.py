@@ -81,6 +81,12 @@ class ResourceType(str, Enum):
     IAM_POLICY = "aws_iam_policy"
     IAM_INSTANCE_PROFILE = "aws_iam_instance_profile"
 
+    # Phase 3 - Monitoring
+    CLOUDWATCH_LOG_GROUP = "aws_cloudwatch_log_group"
+
+    # Phase 3 - Networking (additional)
+    EIP = "aws_eip"
+
     def __str__(self) -> str:
         return self.value
 

@@ -371,3 +371,91 @@ class NetworkingScanner(BaseScanner):
                     f"Added Network ACL: {nacl_id} "
                     f"({'default' if is_default else 'custom'})"
                 )
+
+
+@ScannerRegistry.register
+class EIPScanner(BaseScanner):
+    """
+    Scanner for Elastic IP addresses.
+
+    Captures:
+    - Allocation ID (used as ID in TF state)
+    - Public IP
+    - Association details (instance, ENI)
+    - Domain (vpc or standard)
+    - Tags
+    """
+
+    resource_types: ClassVar[list[str]] = ["aws_eip"]
+
+    # EIPs can reference instances and ENIs
+    depends_on_types: ClassVar[list[str]] = [
+        "aws_instance",
+    ]
+
+    def scan(self, graph: GraphEngine) -> None:
+        """Scan all Elastic IPs in the region."""
+        logger.info(f"Scanning Elastic IPs in {self.region}...")
+
+        ec2 = self.get_client("ec2")
+        eip_count = 0
+
+        try:
+            # describe_addresses is not paginated
+            response = ec2.describe_addresses()
+
+            for address in response.get("Addresses", []):
+                if self._process_eip(address, graph):
+                    eip_count += 1
+
+            logger.info(f"Scanned {eip_count} Elastic IPs")
+
+        except ClientError as e:
+            self._handle_aws_error(e, "describe_addresses")
+
+    def _process_eip(self, address: dict[str, Any], graph: GraphEngine) -> bool:
+        """Process a single Elastic IP address."""
+        allocation_id = address.get("AllocationId", "")
+        public_ip = address.get("PublicIp", "")
+
+        if not allocation_id:
+            # Classic EC2 EIPs may not have allocation ID
+            return False
+
+        tags = self._extract_tags(address.get("Tags"))
+
+        # Extract association details
+        instance_id = address.get("InstanceId")
+        network_interface_id = address.get("NetworkInterfaceId")
+        private_ip = address.get("PrivateIpAddress")
+        association_id = address.get("AssociationId")
+
+        config = {
+            "allocation_id": allocation_id,
+            "public_ip": public_ip,
+            "domain": address.get("Domain", "vpc"),
+            "instance_id": instance_id,
+            "network_interface_id": network_interface_id,
+            "private_ip_address": private_ip,
+            "association_id": association_id,
+            "network_border_group": address.get("NetworkBorderGroup"),
+            "public_ipv4_pool": address.get("PublicIpv4Pool"),
+        }
+
+        # Use allocation_id as ID (matches TF state format)
+        node = ResourceNode(
+            id=allocation_id,
+            resource_type=ResourceType.EIP,
+            region=self.region,
+            config=config,
+            tags=tags,
+        )
+
+        graph.add_resource(node)
+
+        # Establish dependencies
+        if instance_id and graph.get_resource(instance_id):
+            graph.add_dependency(allocation_id, instance_id, DependencyType.USES)
+
+        logger.debug(f"Added Elastic IP: {allocation_id} ({public_ip})")
+        return True
