@@ -942,6 +942,49 @@ The following cost factors are **NOT** included and may significantly increase y
             border: 1px solid #ddd;
             border-radius: 4px;
         }}
+        /* Pagination styling */
+        .dataTables_wrapper .dataTables_paginate {{
+            margin-top: 15px;
+            padding-top: 10px;
+        }}
+        .dataTables_wrapper .dataTables_paginate .paginate_button {{
+            display: inline-block;
+            padding: 6px 12px;
+            margin: 0 3px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            color: #333 !important;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            min-width: 36px;
+            text-align: center;
+        }}
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {{
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }}
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {{
+            background: #1a73e8;
+            border-color: #1a73e8;
+            color: #fff !important;
+            font-weight: 600;
+        }}
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {{
+            color: #adb5bd !important;
+            cursor: not-allowed;
+            background: #f8f9fa;
+            border-color: #e9ecef;
+        }}
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {{
+            background: #f8f9fa;
+            border-color: #e9ecef;
+        }}
+        .dataTables_wrapper .dataTables_paginate .ellipsis {{
+            padding: 6px 8px;
+            color: #666;
+        }}
         /* ECharts container */
         #treemapChart {{
             height: 350px;
@@ -1025,6 +1068,25 @@ The following cost factors are **NOT** included and may significantly increase y
                 background: #2d2d2d;
                 border-color: #444;
                 color: #e0e0e0;
+            }}
+            .dataTables_wrapper .dataTables_paginate .paginate_button {{
+                background: #2d2d2d;
+                border-color: #444;
+                color: #e0e0e0 !important;
+            }}
+            .dataTables_wrapper .dataTables_paginate .paginate_button:hover {{
+                background: #3d3d3d;
+                border-color: #555;
+            }}
+            .dataTables_wrapper .dataTables_paginate .paginate_button.current {{
+                background: #1976d2;
+                border-color: #1976d2;
+                color: #fff !important;
+            }}
+            .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {{
+                background: #1e1e1e;
+                border-color: #333;
+                color: #555 !important;
             }}
         }}
         /* Print styles */
@@ -1263,6 +1325,16 @@ The following cost factors are **NOT** included and may significantly increase y
         window.addEventListener('resize', () => treemapChart.resize());
 
         // Initialize DataTables
+        let showZeroCost = false;
+
+        // Custom filter function (doesn't pollute the search box)
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {{
+            if (showZeroCost) return true;
+            // Column 5 is Monthly Est. - check if it's $0.00
+            const monthlyCost = data[5] || '';
+            return monthlyCost !== '$0.00';
+        }});
+
         $(document).ready(function() {{
             const table = $('#allResourcesTable').DataTable({{
                 pageLength: 25,
@@ -1278,34 +1350,30 @@ The following cost factors are **NOT** included and may significantly increase y
                 ]
             }});
 
-            // Initial filter: hide $0.00 resources
-            table.search('^(?!.*\\\\$0\\\\.00)', true, false).draw();
-
             // Toggle zero-cost resources
             $('#showZeroCost').on('change', function() {{
-                if (this.checked) {{
-                    table.search('').draw();
-                }} else {{
-                    table.search('^(?!.*\\\\$0\\\\.00)', true, false).draw();
-                }}
+                showZeroCost = this.checked;
+                table.draw();
             }});
         }});
 
         // Filter resources from recommendations
         function filterResources(keyword) {{
             const table = $('#allResourcesTable').DataTable();
+            // Enable showing zero cost in case filter reveals them
+            showZeroCost = true;
+            document.getElementById('showZeroCost').checked = true;
             table.search(keyword).draw();
             document.getElementById('allResourcesTable').scrollIntoView({{
                 behavior: 'smooth'
             }});
-            // Enable showing zero cost in case filter reveals them
-            document.getElementById('showZeroCost').checked = true;
         }}
 
         function clearFilter() {{
             const table = $('#allResourcesTable').DataTable();
             document.getElementById('showZeroCost').checked = false;
-            table.search('^(?!.*\\\\$0\\\\.00)', true, false).draw();
+            showZeroCost = false;
+            table.search('').draw();
         }}
 
         // NAT Gateway calculator
