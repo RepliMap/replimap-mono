@@ -981,7 +981,8 @@ class TestCostReporter:
             content = output_path.read_text()
             assert "<!DOCTYPE html>" in content
             assert "$350" in content
-            assert "Chart.js" in content or "chart.js" in content
+            # Uses ECharts for treemap visualization
+            assert "echarts" in content.lower()
 
     def test_to_csv(self):
         """Test CSV export."""

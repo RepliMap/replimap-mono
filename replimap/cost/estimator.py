@@ -551,14 +551,15 @@ class CostEstimator:
             resource_costs, key=lambda r: r.monthly_cost, reverse=True
         )[:10]
 
-        # Calculate optimization potential
-        total_optimization = sum(r.optimization_potential for r in resource_costs)
+        # Generate recommendations first, then calculate total from recommendations
+        recommendations = self._generate_recommendations(resource_costs, by_category)
+
+        # Calculate optimization potential from recommendations (not per-resource values)
+        # This ensures header total matches the sum of recommendation savings
+        total_optimization = sum(rec.potential_savings for rec in recommendations)
         optimization_pct = (
             (total_optimization / monthly_total * 100) if monthly_total > 0 else 0
         )
-
-        # Generate recommendations
-        recommendations = self._generate_recommendations(resource_costs, by_category)
 
         # Count estimated vs unestimated
         estimated = len(
