@@ -7,9 +7,14 @@ from typing import Any
 
 from replimap.drift.models import (
     AttributeDiff,
+    DriftReason,
     DriftSeverity,
     DriftType,
     ResourceDrift,
+)
+from replimap.drift.normalizer import (
+    DriftNormalizer,
+    classify_drift_reason,
 )
 from replimap.drift.state_parser import TFResource
 
@@ -108,7 +113,14 @@ DEFAULT_COMPARABLE: dict[str, list[str]] = {
 class DriftComparator:
     """Compare Terraform state against actual AWS state."""
 
-    def __init__(self) -> None:
+    def __init__(self, strict_mode: bool = False) -> None:
+        """
+        Initialize comparator.
+
+        Args:
+            strict_mode: If True, skip normalization (for debugging)
+        """
+        self.normalizer = DriftNormalizer(strict_mode=strict_mode)
         self.ignore_attributes = {
             "arn",  # ARNs can have account-specific info
             "id",  # ID is used for matching, not comparison
@@ -122,12 +134,14 @@ class DriftComparator:
         self,
         tf_resource: TFResource,
         actual_attributes: dict[str, Any],
+        include_noise: bool = False,
     ) -> ResourceDrift:
         """Compare a single resource's expected vs actual state.
 
         Args:
             tf_resource: Resource from Terraform state
             actual_attributes: Attributes from AWS API
+            include_noise: If True, include ordering/default_value diffs (for debugging)
 
         Returns:
             ResourceDrift with all differences
@@ -150,19 +164,41 @@ class DriftComparator:
                 actual = actual_attributes.get(attr)
 
                 if self._values_differ(expected, actual, attr):
+                    # Classify the drift reason
+                    reason_str = classify_drift_reason(
+                        attr, expected, actual, tf_resource.type
+                    )
+                    reason = DriftReason(reason_str)
+
+                    # Skip noise diffs unless explicitly requested
+                    if not include_noise and reason in (
+                        DriftReason.ORDERING,
+                        DriftReason.DEFAULT_VALUE,
+                    ):
+                        logger.debug(
+                            "Filtering noise drift for %s.%s: %s (%s)",
+                            tf_resource.address,
+                            attr,
+                            reason.value,
+                            f"{expected!r} -> {actual!r}",
+                        )
+                        continue
+
                     diff = AttributeDiff(
                         attribute=attr,
                         expected=expected,
                         actual=actual,
                         severity=severity,
+                        reason=reason,
                     )
                     diffs.append(diff)
 
-                    # Track maximum severity
-                    if self._severity_rank(severity) > self._severity_rank(
-                        max_severity
-                    ):
-                        max_severity = severity
+                    # Track maximum severity (only for semantic drifts)
+                    if diff.is_semantic:
+                        if self._severity_rank(severity) > self._severity_rank(
+                            max_severity
+                        ):
+                            max_severity = severity
 
         # Determine drift type
         if diffs:
@@ -181,66 +217,16 @@ class DriftComparator:
         )
 
     def _values_differ(self, expected: Any, actual: Any, attr: str) -> bool:
-        """Check if two values are meaningfully different."""
-        # Handle None vs empty
-        if expected is None and actual is None:
-            return False
-        if expected is None or actual is None:
-            # None vs empty string/list is not a diff
-            if expected in (None, "", [], {}) and actual in (None, "", [], {}):
-                return False
-            return True
+        """Check if two values are meaningfully different.
 
-        # Handle lists (like security group rules)
-        if isinstance(expected, list) and isinstance(actual, list):
-            return not self._lists_equivalent(expected, actual)
+        Uses the normalizer's values_equivalent for sophisticated comparison
+        that handles falsy equivalence, type coercion, and order-independent
+        list/dict comparison.
+        """
+        from replimap.drift.normalizer import values_equivalent
 
-        # Handle dicts
-        if isinstance(expected, dict) and isinstance(actual, dict):
-            return not self._dicts_equivalent(expected, actual)
-
-        # Handle strings (case-insensitive for some attrs)
-        if isinstance(expected, str) and isinstance(actual, str):
-            # Some attributes should be case-insensitive
-            if attr in ("engine", "instance_type"):
-                return expected.lower() != actual.lower()
-            return expected != actual
-
-        # Default comparison
-        return expected != actual
-
-    def _lists_equivalent(self, list1: list, list2: list) -> bool:
-        """Check if two lists contain equivalent items (order-independent)."""
-        if len(list1) != len(list2):
-            return False
-
-        # For simple lists
-        if all(isinstance(x, (str, int, float, bool)) for x in list1 + list2):
-            return set(list1) == set(list2)
-
-        # For lists of dicts (like ingress rules)
-        try:
-            # Convert to comparable format
-            def normalize(item: Any) -> Any:
-                if isinstance(item, dict):
-                    return tuple(
-                        sorted((k, str(v)) for k, v in item.items() if v is not None)
-                    )
-                return item
-
-            normalized1 = sorted(normalize(x) for x in list1)
-            normalized2 = sorted(normalize(x) for x in list2)
-            return normalized1 == normalized2
-        except (TypeError, ValueError, AttributeError):
-            # Fallback to simple comparison for unhashable or incomparable types
-            return list1 == list2
-
-    def _dicts_equivalent(self, dict1: dict, dict2: dict) -> bool:
-        """Check if two dicts are equivalent."""
-        # Filter out None values
-        d1 = {k: v for k, v in dict1.items() if v is not None}
-        d2 = {k: v for k, v in dict2.items() if v is not None}
-        return d1 == d2
+        # Use normalizer's sophisticated comparison
+        return not values_equivalent(expected, actual, attr)
 
     def _severity_rank(self, severity: DriftSeverity) -> int:
         """Get numeric rank for severity comparison."""

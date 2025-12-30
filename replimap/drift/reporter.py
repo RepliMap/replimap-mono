@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from replimap.drift.models import DriftReport, DriftSeverity, DriftType, ResourceDrift
+from replimap.drift.models import (
+    DriftReason,
+    DriftReport,
+    DriftSeverity,
+    DriftType,
+    ResourceDrift,
+)
 
 if TYPE_CHECKING:
     pass
@@ -102,12 +108,26 @@ class DriftReporter:
 
         # Show diffs for modified resources
         if drift.drift_type == DriftType.MODIFIED and drift.diffs:
-            for diff in drift.diffs[:3]:  # Limit to 3
+            # Separate semantic vs noise diffs
+            semantic_diffs = [d for d in drift.diffs if d.is_semantic]
+            other_diffs = [d for d in drift.diffs if not d.is_semantic]
+
+            for diff in semantic_diffs[:3]:  # Limit to 3
                 line += (
                     f"\n      {diff.attribute}: {diff.expected!r} -> {diff.actual!r}"
                 )
-            if len(drift.diffs) > 3:
-                line += f"\n      ... and {len(drift.diffs) - 3} more changes"
+            if len(semantic_diffs) > 3:
+                line += (
+                    f"\n      ... and {len(semantic_diffs) - 3} more semantic changes"
+                )
+
+            # Summarize non-semantic diffs
+            if other_diffs:
+                tag_count = sum(
+                    1 for d in other_diffs if d.reason == DriftReason.TAG_ONLY
+                )
+                if tag_count:
+                    line += f"\n      + {tag_count} tag change(s)"
 
         return line
 
@@ -126,6 +146,7 @@ class DriftReporter:
             generated_at=datetime.now(UTC).isoformat(),
             DriftType=DriftType,
             DriftSeverity=DriftSeverity,
+            DriftReason=DriftReason,
         )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)

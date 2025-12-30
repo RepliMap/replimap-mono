@@ -27,6 +27,16 @@ class DriftSeverity(str, Enum):
     INFO = "info"  # Informational only
 
 
+class DriftReason(str, Enum):
+    """Classification of why a drift was detected."""
+
+    SEMANTIC = "semantic"  # Real configuration change (action required)
+    ORDERING = "ordering"  # Same content, different order (noise)
+    DEFAULT_VALUE = "default_value"  # None vs false/0/[] (cosmetic)
+    COMPUTED = "computed"  # AWS-computed field changed (expected)
+    TAG_ONLY = "tag_only"  # Only tags changed (low priority)
+
+
 @dataclass
 class AttributeDiff:
     """A single attribute difference."""
@@ -35,9 +45,20 @@ class AttributeDiff:
     expected: Any  # Value from TF state
     actual: Any  # Value from AWS
     severity: DriftSeverity = DriftSeverity.MEDIUM
+    reason: DriftReason = DriftReason.SEMANTIC  # Why this diff exists
 
     def __str__(self) -> str:
         return f"{self.attribute}: {self.expected!r} → {self.actual!r}"
+
+    @property
+    def is_noise(self) -> bool:
+        """Check if this diff is likely noise (ordering/default)."""
+        return self.reason in (DriftReason.ORDERING, DriftReason.DEFAULT_VALUE)
+
+    @property
+    def is_semantic(self) -> bool:
+        """Check if this is a real configuration change."""
+        return self.reason == DriftReason.SEMANTIC
 
 
 @dataclass

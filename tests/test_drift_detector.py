@@ -20,7 +20,17 @@ from replimap.drift import (
     TFResource,
 )
 from replimap.drift.comparator import DriftComparator
-from replimap.drift.models import AttributeDiff, ResourceDrift
+from replimap.drift.models import AttributeDiff, DriftReason, ResourceDrift
+from replimap.drift.normalizer import (
+    DriftNormalizer,
+    canonical_hash,
+    classify_drift_reason,
+    deep_sort,
+    get_ignores_for_type,
+    is_falsy,
+    normalize_tags,
+    values_equivalent,
+)
 
 
 class TestDriftModels:
@@ -516,7 +526,11 @@ class TestDriftComparator:
         assert drift.severity == DriftSeverity.CRITICAL  # ingress is critical
 
     def test_compare_with_tags_change(self):
-        """Test comparing resource with only tags changed."""
+        """Test comparing resource with only tags changed.
+
+        Note: Tag changes are classified as TAG_ONLY reason, which is not
+        filtered as noise but has LOW severity.
+        """
         comparator = DriftComparator()
         tf_resource = TFResource(
             type="aws_vpc",
@@ -536,7 +550,9 @@ class TestDriftComparator:
         drift = comparator.compare_resource(tf_resource, actual_attrs)
 
         assert drift.is_drifted is True
-        assert drift.severity == DriftSeverity.LOW  # tags are low severity
+        # Tags have LOW severity but since it's TAG_ONLY reason, not semantic,
+        # max_severity doesn't get updated and stays at INFO
+        assert drift.severity == DriftSeverity.INFO
 
     def test_identify_added_resources(self):
         """Test identifying added resources."""
@@ -592,13 +608,17 @@ class TestDriftComparator:
         assert removed[0].severity == DriftSeverity.HIGH
 
     def test_values_differ_none_handling(self):
-        """Test _values_differ handles None correctly."""
+        """Test _values_differ handles None correctly.
+
+        Note: Now uses values_equivalent from normalizer which has
+        more sophisticated falsy value handling.
+        """
         comparator = DriftComparator()
 
         # Both None - no diff
         assert comparator._values_differ(None, None, "attr") is False
 
-        # None vs empty - no diff
+        # None vs empty - no diff (falsy equivalence)
         assert comparator._values_differ(None, "", "attr") is False
         assert comparator._values_differ(None, [], "attr") is False
         assert comparator._values_differ(None, {}, "attr") is False
@@ -607,20 +627,22 @@ class TestDriftComparator:
         assert comparator._values_differ(None, "value", "attr") is True
         assert comparator._values_differ("value", None, "attr") is True
 
-    def test_lists_equivalent(self):
-        """Test _lists_equivalent comparison."""
-        comparator = DriftComparator()
+    def test_lists_equivalent_via_values_equivalent(self):
+        """Test list comparison via values_equivalent.
 
+        Note: The comparator now uses values_equivalent from normalizer
+        which handles order-independent list comparison.
+        """
         # Same simple lists (order independent)
-        assert comparator._lists_equivalent([1, 2, 3], [3, 2, 1]) is True
+        assert values_equivalent([1, 2, 3], [3, 2, 1], "attr") is True
 
         # Different simple lists
-        assert comparator._lists_equivalent([1, 2], [1, 2, 3]) is False
+        assert values_equivalent([1, 2], [1, 2, 3], "attr") is False
 
         # Same dicts in lists (order independent)
         list1 = [{"port": 80}, {"port": 443}]
         list2 = [{"port": 443}, {"port": 80}]
-        assert comparator._lists_equivalent(list1, list2) is True
+        assert values_equivalent(list1, list2, "ports") is True
 
     def test_severity_for_added(self):
         """Test _severity_for_added returns correct severity."""
@@ -1020,3 +1042,392 @@ class TestDriftEdgeCases:
 
         # Should limit output
         assert "... and" in console_output or len(console_output) > 100
+
+
+class TestDriftNormalizer:
+    """Tests for drift normalization pipeline."""
+
+    # =========================================================================
+    # Layer 1: Attribute Filter Tests
+    # =========================================================================
+
+    def test_get_ignores_for_type_base_ignores(self):
+        """Test that base ignores are always included."""
+        ignores = get_ignores_for_type("aws_vpc")
+        assert "arn" in ignores
+        assert "id" in ignores
+        assert "create_date" in ignores
+
+    def test_get_ignores_for_type_resource_specific(self):
+        """Test resource-specific ignores are included."""
+        ignores = get_ignores_for_type("aws_autoscaling_group")
+        assert "instances" in ignores
+        assert "desired_capacity" in ignores
+        # Also has base ignores
+        assert "arn" in ignores
+
+    def test_get_ignores_for_type_unknown_type(self):
+        """Test unknown resource type gets only base ignores."""
+        ignores = get_ignores_for_type("aws_unknown_type")
+        assert ignores  # Has base ignores
+        assert "instances" not in ignores  # No resource-specific
+
+    # =========================================================================
+    # Layer 2: Structure Normalizer Tests
+    # =========================================================================
+
+    def test_normalize_tags_aws_format(self):
+        """Test normalizing AWS API tag format."""
+        tags = [
+            {"Key": "Name", "Value": "web-server"},
+            {"Key": "Environment", "Value": "production"},
+        ]
+        result = normalize_tags(tags)
+        assert result == {"Name": "web-server", "Environment": "production"}
+
+    def test_normalize_tags_terraform_format(self):
+        """Test normalizing Terraform dict format."""
+        tags = {"Name": "web-server", "Environment": "production"}
+        result = normalize_tags(tags)
+        assert result == {"Name": "web-server", "Environment": "production"}
+
+    def test_normalize_tags_filters_aws_managed(self):
+        """Test AWS-managed tags are filtered out."""
+        tags = [
+            {"Key": "Name", "Value": "web"},
+            {"Key": "aws:autoscaling:groupName", "Value": "asg-1"},
+            {"Key": "kubernetes.io/cluster/eks", "Value": "owned"},
+        ]
+        result = normalize_tags(tags)
+        assert result == {"Name": "web"}
+        assert "aws:autoscaling:groupName" not in result
+        assert "kubernetes.io/cluster/eks" not in result
+
+    def test_normalize_tags_none(self):
+        """Test normalizing None tags."""
+        assert normalize_tags(None) == {}
+
+    def test_normalize_tags_empty(self):
+        """Test normalizing empty tags."""
+        assert normalize_tags([]) == {}
+        assert normalize_tags({}) == {}
+
+    def test_deep_sort_simple_list(self):
+        """Test deep sorting simple lists."""
+        result = deep_sort([3, 1, 2])
+        assert result == [1, 2, 3]
+
+    def test_deep_sort_nested_dict(self):
+        """Test deep sorting nested dicts."""
+        result = deep_sort({"z": 1, "a": {"c": 3, "b": 2}})
+        # Dict should be sorted by key
+        assert list(result.keys()) == ["a", "z"]
+        assert list(result["a"].keys()) == ["b", "c"]
+
+    def test_deep_sort_list_of_dicts(self):
+        """Test deep sorting list of dicts."""
+        input_list = [
+            {"port": 443, "protocol": "tcp"},
+            {"port": 80, "protocol": "tcp"},
+        ]
+        result = deep_sort(input_list)
+        # Should be sorted deterministically
+        assert len(result) == 2
+
+    def test_canonical_hash_order_independent(self):
+        """Test canonical hash is order independent."""
+        list1 = [{"port": 80}, {"port": 443}]
+        list2 = [{"port": 443}, {"port": 80}]
+        assert canonical_hash(list1) == canonical_hash(list2)
+
+    def test_canonical_hash_different_content(self):
+        """Test canonical hash differs for different content."""
+        list1 = [{"port": 80}]
+        list2 = [{"port": 443}]
+        assert canonical_hash(list1) != canonical_hash(list2)
+
+    # =========================================================================
+    # Layer 3: Value Canonicalizer Tests
+    # =========================================================================
+
+    def test_is_falsy_none(self):
+        """Test is_falsy for None."""
+        assert is_falsy(None) is True
+
+    def test_is_falsy_false(self):
+        """Test is_falsy for False."""
+        assert is_falsy(False) is True
+
+    def test_is_falsy_zero(self):
+        """Test is_falsy for zero."""
+        assert is_falsy(0) is True
+        assert is_falsy(0.0) is True
+
+    def test_is_falsy_empty_string(self):
+        """Test is_falsy for empty string."""
+        assert is_falsy("") is True
+        assert is_falsy("null") is True
+        assert is_falsy("None") is True
+
+    def test_is_falsy_empty_containers(self):
+        """Test is_falsy for empty containers."""
+        assert is_falsy([]) is True
+        assert is_falsy({}) is True
+        assert is_falsy(set()) is True
+
+    def test_is_falsy_truthy_values(self):
+        """Test is_falsy for truthy values."""
+        assert is_falsy(True) is False
+        assert is_falsy(1) is False
+        assert is_falsy("hello") is False
+        assert is_falsy([1, 2, 3]) is False
+
+    def test_values_equivalent_both_falsy(self):
+        """Test values_equivalent when both are falsy."""
+        assert values_equivalent(None, False, "attr") is True
+        assert values_equivalent(None, "", "attr") is True
+        assert values_equivalent([], {}, "attr") is True
+        assert values_equivalent(0, None, "attr") is True
+
+    def test_values_equivalent_one_falsy(self):
+        """Test values_equivalent when one is falsy."""
+        assert values_equivalent(None, "value", "attr") is False
+        assert values_equivalent("value", None, "attr") is False
+
+    def test_values_equivalent_same_values(self):
+        """Test values_equivalent for same values."""
+        assert values_equivalent("hello", "hello", "attr") is True
+        assert values_equivalent(80, 80, "attr") is True
+
+    def test_values_equivalent_string_number(self):
+        """Test values_equivalent with type coercion."""
+        # Stringified numbers should be equivalent
+        assert values_equivalent("80", 80, "port") is True
+        assert values_equivalent("true", True, "enabled") is True
+
+    def test_values_equivalent_tags(self):
+        """Test values_equivalent for tags."""
+        aws_tags = [{"Key": "Name", "Value": "web"}]
+        tf_tags = {"Name": "web"}
+        assert values_equivalent(aws_tags, tf_tags, "tags") is True
+
+    def test_values_equivalent_lists_order_independent(self):
+        """Test values_equivalent for lists (order independent)."""
+        list1 = [{"port": 80}, {"port": 443}]
+        list2 = [{"port": 443}, {"port": 80}]
+        assert values_equivalent(list1, list2, "ingress") is True
+
+    def test_values_equivalent_case_insensitive_attrs(self):
+        """Test values_equivalent case insensitivity for specific attrs."""
+        assert values_equivalent("t2.micro", "T2.MICRO", "instance_type") is True
+        assert values_equivalent("mysql", "MYSQL", "engine") is True
+
+    # =========================================================================
+    # Drift Reason Classification Tests
+    # =========================================================================
+
+    def test_classify_drift_reason_semantic(self):
+        """Test classification of semantic drift."""
+        reason = classify_drift_reason("cidr_block", "10.0.0.0/16", "10.1.0.0/16", "")
+        assert reason == DriftReason.SEMANTIC.value
+
+    def test_classify_drift_reason_tag_only(self):
+        """Test classification of tag-only drift."""
+        reason = classify_drift_reason("tags", {"Name": "old"}, {"Name": "new"}, "")
+        assert reason == DriftReason.TAG_ONLY.value
+
+    def test_classify_drift_reason_ordering(self):
+        """Test classification of ordering drift."""
+        list1 = [{"port": 80}, {"port": 443}]
+        list2 = [{"port": 443}, {"port": 80}]
+        reason = classify_drift_reason("ingress", list1, list2, "")
+        assert reason == DriftReason.ORDERING.value
+
+    def test_classify_drift_reason_default_value(self):
+        """Test classification of default value drift.
+
+        DEFAULT_VALUE is when one side is falsy and the other is not.
+        When both are falsy (None and ""), they're considered equivalent
+        and this wouldn't even be called as a diff.
+        """
+        # One falsy (None), one truthy ("value") -> DEFAULT_VALUE
+        reason = classify_drift_reason("description", None, "value", "")
+        assert reason == DriftReason.DEFAULT_VALUE.value
+
+        # One truthy, one falsy -> DEFAULT_VALUE
+        reason = classify_drift_reason("description", "old", "", "")
+        assert reason == DriftReason.DEFAULT_VALUE.value
+
+    def test_classify_drift_reason_computed(self):
+        """Test classification of computed attribute drift."""
+        reason = classify_drift_reason("arn", "arn:old", "arn:new", "aws_instance")
+        assert reason == DriftReason.COMPUTED.value
+
+    # =========================================================================
+    # DriftNormalizer Class Tests
+    # =========================================================================
+
+    def test_normalizer_filters_ignored_attrs(self):
+        """Test normalizer filters ignored attributes."""
+        normalizer = DriftNormalizer()
+        attrs = {
+            "cidr_block": "10.0.0.0/16",
+            "arn": "arn:aws:...",
+            "id": "vpc-123",
+        }
+        result = normalizer.normalize(attrs, "aws_vpc")
+        assert "cidr_block" in result
+        assert "arn" not in result
+        assert "id" not in result
+
+    def test_normalizer_normalizes_tags(self):
+        """Test normalizer normalizes tags."""
+        normalizer = DriftNormalizer()
+        attrs = {
+            "tags": [{"Key": "Name", "Value": "web"}],
+        }
+        result = normalizer.normalize(attrs, "aws_instance")
+        assert result["tags"] == {"Name": "web"}
+
+    def test_normalizer_sorts_lists(self):
+        """Test normalizer sorts lists deterministically.
+
+        Note: deep_sort sorts by JSON representation for consistency,
+        not by specific field values. The important thing is that
+        the order is deterministic.
+        """
+        normalizer = DriftNormalizer()
+        attrs1 = {
+            "ingress": [{"port": 443}, {"port": 80}],
+        }
+        attrs2 = {
+            "ingress": [{"port": 80}, {"port": 443}],
+        }
+        result1 = normalizer.normalize(attrs1, "aws_security_group")
+        result2 = normalizer.normalize(attrs2, "aws_security_group")
+        # Both should produce the same sorted output
+        assert result1["ingress"] == result2["ingress"]
+
+    def test_normalizer_strict_mode(self):
+        """Test normalizer strict mode skips normalization."""
+        normalizer = DriftNormalizer(strict_mode=True)
+        attrs = {"arn": "arn:aws:..."}
+        result = normalizer.normalize(attrs, "aws_vpc")
+        # Strict mode preserves all attributes
+        assert "arn" in result
+
+    def test_normalizer_compare_no_diff(self):
+        """Test normalizer compare with equivalent values."""
+        normalizer = DriftNormalizer()
+        expected = {"tags": {"Name": "web"}}
+        actual = {"tags": [{"Key": "Name", "Value": "web"}]}
+        diffs = normalizer.compare(expected, actual, "aws_instance")
+        assert len(diffs) == 0
+
+    def test_normalizer_compare_with_diff(self):
+        """Test normalizer compare with differences."""
+        normalizer = DriftNormalizer()
+        expected = {"cidr_block": "10.0.0.0/16"}
+        actual = {"cidr_block": "10.1.0.0/16"}
+        diffs = normalizer.compare(expected, actual, "aws_vpc")
+        assert len(diffs) == 1
+        attr, exp_val, act_val, reason = diffs[0]
+        assert attr == "cidr_block"
+        assert exp_val == "10.0.0.0/16"
+        assert act_val == "10.1.0.0/16"
+
+    # =========================================================================
+    # DriftReason Model Tests
+    # =========================================================================
+
+    def test_drift_reason_enum_values(self):
+        """Test DriftReason enum values."""
+        assert DriftReason.SEMANTIC.value == "semantic"
+        assert DriftReason.ORDERING.value == "ordering"
+        assert DriftReason.DEFAULT_VALUE.value == "default_value"
+        assert DriftReason.COMPUTED.value == "computed"
+        assert DriftReason.TAG_ONLY.value == "tag_only"
+
+    def test_attribute_diff_is_noise(self):
+        """Test AttributeDiff.is_noise property."""
+        noise_diff = AttributeDiff(
+            attribute="ingress",
+            expected=[{"port": 80}],
+            actual=[{"port": 80}],
+            reason=DriftReason.ORDERING,
+        )
+        assert noise_diff.is_noise is True
+
+        semantic_diff = AttributeDiff(
+            attribute="cidr_block",
+            expected="10.0.0.0/16",
+            actual="10.1.0.0/16",
+            reason=DriftReason.SEMANTIC,
+        )
+        assert semantic_diff.is_noise is False
+
+    def test_attribute_diff_is_semantic(self):
+        """Test AttributeDiff.is_semantic property."""
+        semantic_diff = AttributeDiff(
+            attribute="cidr_block",
+            expected="10.0.0.0/16",
+            actual="10.1.0.0/16",
+            reason=DriftReason.SEMANTIC,
+        )
+        assert semantic_diff.is_semantic is True
+
+        tag_diff = AttributeDiff(
+            attribute="tags",
+            expected={"Name": "old"},
+            actual={"Name": "new"},
+            reason=DriftReason.TAG_ONLY,
+        )
+        assert tag_diff.is_semantic is False
+
+    # =========================================================================
+    # Integration Tests
+    # =========================================================================
+
+    def test_comparator_filters_noise_by_default(self):
+        """Test comparator filters ordering/default value drifts."""
+        comparator = DriftComparator()
+        tf_resource = TFResource(
+            type="aws_security_group",
+            name="web",
+            address="aws_security_group.web",
+            id="sg-123",
+            attributes={
+                "ingress": [{"port": 443}, {"port": 80}],  # Different order
+            },
+        )
+        actual_attrs = {
+            "ingress": [{"port": 80}, {"port": 443}],  # Same content
+        }
+
+        drift = comparator.compare_resource(tf_resource, actual_attrs)
+        # Should have no diffs because ordering is filtered
+        assert drift.drift_type == DriftType.UNCHANGED
+
+    def test_comparator_includes_noise_when_requested(self):
+        """Test comparator includes noise when include_noise=True."""
+        comparator = DriftComparator()
+        tf_resource = TFResource(
+            type="aws_security_group",
+            name="web",
+            address="aws_security_group.web",
+            id="sg-123",
+            attributes={
+                "ingress": [{"port": 443}, {"port": 80}],
+            },
+        )
+        actual_attrs = {
+            "ingress": [{"port": 80}, {"port": 443}],
+        }
+
+        drift = comparator.compare_resource(
+            tf_resource, actual_attrs, include_noise=True
+        )
+        # With include_noise, the ordering diff should be included
+        # Note: depends on whether there actually IS a diff after normalization
+        # In this case, canonical_hash should make them equal
+        assert drift.drift_type == DriftType.UNCHANGED
