@@ -93,20 +93,30 @@ class DriftEngine:
             )
 
         # 3. Build lookup maps
+        # Note: Scanner IDs use format {account}:{region}:{resource_id}
+        # while TF state uses just {resource_id}
+        # We need to extract the base resource ID for matching
         tf_by_id = {r.id: r for r in tf_state.resources}
         tf_ids = set(tf_by_id.keys())
 
-        actual_by_id = {r.id: r for r in actual_resources}
-        actual_ids = set(actual_by_id.keys())
+        # Build map from base resource ID to scanner resource
+        actual_by_base_id: dict[str, Any] = {}
+        for r in actual_resources:
+            base_id = self._extract_base_id(r.id)
+            actual_by_base_id[base_id] = r
+        actual_base_ids = set(actual_by_base_id.keys())
+
+        logger.debug(f"TF IDs sample: {list(tf_ids)[:5]}")
+        logger.debug(f"AWS IDs sample: {list(actual_base_ids)[:5]}")
 
         # 4. Compare resources
         logger.info("Comparing resources...")
         drifts = []
 
         # Check for modifications (resources in both TF and AWS)
-        for resource_id in tf_ids & actual_ids:
+        for resource_id in tf_ids & actual_base_ids:
             tf_resource = tf_by_id[resource_id]
-            actual_resource = actual_by_id[resource_id]
+            actual_resource = actual_by_base_id[resource_id]
 
             # Get actual attributes (convert from scanner format)
             actual_attrs = self._extract_attributes(actual_resource)
@@ -116,12 +126,14 @@ class DriftEngine:
                 drifts.append(drift)
 
         # Check for added resources (in AWS but not in TF)
-        added = self.comparator.identify_added_resources(actual_resources, tf_ids)
+        added = self.comparator.identify_added_resources(
+            actual_resources, tf_ids, id_extractor=self._extract_base_id
+        )
         drifts.extend(added)
 
         # Check for removed resources (in TF but not in AWS)
         removed = self.comparator.identify_removed_resources(
-            tf_state.resources, actual_ids
+            tf_state.resources, actual_base_ids
         )
         drifts.extend(removed)
 
@@ -129,7 +141,7 @@ class DriftEngine:
         end_time = time.time()
 
         report = DriftReport(
-            total_resources=len(tf_ids | actual_ids),
+            total_resources=len(tf_ids | actual_base_ids),
             drifted_resources=len(drifts),
             added_resources=len([d for d in drifts if d.drift_type == DriftType.ADDED]),
             removed_resources=len(
@@ -149,6 +161,35 @@ class DriftEngine:
         )
 
         return report
+
+    def _extract_base_id(self, full_id: str) -> str:
+        """Extract base resource ID from scanner's prefixed format.
+
+        Scanner IDs use format: {account_id}:{region}:{resource_id}
+        TF state uses just: {resource_id}
+
+        Examples:
+            542859091916:ap-southeast-2:sg-072c65dfd31d69b92 -> sg-072c65dfd31d69b92
+            sg-072c65dfd31d69b92 -> sg-072c65dfd31d69b92
+            542859091916:ap-southeast-2:arn:aws:sqs:... -> arn:aws:sqs:...
+        """
+        if ":" not in full_id:
+            return full_id
+
+        parts = full_id.split(":")
+
+        # Check if first part looks like account ID (12 digits)
+        if len(parts) >= 3 and parts[0].isdigit() and len(parts[0]) == 12:
+            # Format is account:region:resource_id
+            # Resource ID is everything after the second colon
+            return ":".join(parts[2:])
+
+        # Check for ARN format (arn:aws:service:region:account:...)
+        if full_id.startswith("arn:"):
+            return full_id
+
+        # Default: return as-is
+        return full_id
 
     def _filter_by_vpc(self, resources: list[Any], vpc_id: str) -> list[Any]:
         """Filter resources to only include those in a specific VPC."""

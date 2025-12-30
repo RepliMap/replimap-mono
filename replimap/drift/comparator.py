@@ -243,24 +243,34 @@ class DriftComparator:
         self,
         actual_resources: list[Any],
         tf_state_ids: set[str],
+        id_extractor: Any | None = None,
     ) -> list[ResourceDrift]:
         """Find resources in AWS that aren't in Terraform state.
 
         These are resources created outside of Terraform (console, CLI, etc).
+
+        Args:
+            actual_resources: List of resources from AWS
+            tf_state_ids: Set of resource IDs from Terraform state
+            id_extractor: Optional function to extract base ID from resource.id
+                         (used when scanner IDs have account:region: prefix)
         """
         added = []
 
         for resource in actual_resources:
-            if resource.id not in tf_state_ids:
+            # Extract base ID for comparison if extractor provided
+            base_id = id_extractor(resource.id) if id_extractor else resource.id
+
+            if base_id not in tf_state_ids:
                 # Get terraform type from resource
                 terraform_type = getattr(
                     resource, "terraform_type", str(resource.resource_type)
                 )
-                resource_name = getattr(resource, "original_name", None) or resource.id
+                resource_name = getattr(resource, "original_name", None) or base_id
 
                 drift = ResourceDrift(
                     resource_type=terraform_type,
-                    resource_id=resource.id,
+                    resource_id=base_id,  # Use base ID for display
                     resource_name=resource_name,
                     tf_address="",
                     drift_type=DriftType.ADDED,

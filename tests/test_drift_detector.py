@@ -1044,6 +1044,70 @@ class TestDriftEdgeCases:
         assert "... and" in console_output or len(console_output) > 100
 
 
+class TestDriftEngineIdExtraction:
+    """Tests for ID extraction in drift engine."""
+
+    def test_extract_base_id_simple(self):
+        """Test extracting base ID from simple resource ID."""
+        from unittest.mock import MagicMock
+
+        from replimap.drift.engine import DriftEngine
+
+        engine = DriftEngine(session=MagicMock(), region="us-east-1")
+
+        # Simple ID without prefix
+        assert engine._extract_base_id("sg-072c65dfd31d69b92") == "sg-072c65dfd31d69b92"
+        assert engine._extract_base_id("i-1234567890abcdef0") == "i-1234567890abcdef0"
+
+    def test_extract_base_id_with_account_prefix(self):
+        """Test extracting base ID from account:region:id format."""
+        from unittest.mock import MagicMock
+
+        from replimap.drift.engine import DriftEngine
+
+        engine = DriftEngine(session=MagicMock(), region="us-east-1")
+
+        # ID with account:region prefix
+        assert (
+            engine._extract_base_id("542859091916:ap-southeast-2:sg-072c65dfd31d69b92")
+            == "sg-072c65dfd31d69b92"
+        )
+
+        assert engine._extract_base_id("123456789012:us-east-1:i-abc123") == "i-abc123"
+
+    def test_extract_base_id_arn(self):
+        """Test ARN IDs are preserved."""
+        from unittest.mock import MagicMock
+
+        from replimap.drift.engine import DriftEngine
+
+        engine = DriftEngine(session=MagicMock(), region="us-east-1")
+
+        # ARN format should be preserved
+        arn = "arn:aws:sqs:ap-southeast-2:542859091916:etime-14si-prod-broadcasts"
+        assert engine._extract_base_id(arn) == arn
+
+        # But account-prefixed ARN should extract the ARN
+        prefixed_arn = f"542859091916:ap-southeast-2:{arn}"
+        assert engine._extract_base_id(prefixed_arn) == arn
+
+    def test_extract_base_id_with_colons_in_resource(self):
+        """Test IDs with colons in the resource part."""
+        from unittest.mock import MagicMock
+
+        from replimap.drift.engine import DriftEngine
+
+        engine = DriftEngine(session=MagicMock(), region="us-east-1")
+
+        # Resource ID that contains colons
+        assert (
+            engine._extract_base_id(
+                "542859091916:ap-southeast-2:some:resource:with:colons"
+            )
+            == "some:resource:with:colons"
+        )
+
+
 class TestDriftNormalizer:
     """Tests for drift normalization pipeline."""
 
