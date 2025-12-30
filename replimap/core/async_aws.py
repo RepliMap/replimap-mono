@@ -252,6 +252,9 @@ class AsyncAWSClient:
 
         # aiobotocore session and config
         self._session = get_session()
+        # Set profile if specified (must be done before creating clients)
+        if profile:
+            self._session.set_config_variable("profile", profile)
         self._config = AioConfig(
             connect_timeout=connect_timeout,
             read_timeout=read_timeout,
