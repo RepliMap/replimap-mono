@@ -103,7 +103,7 @@ class TestStructuredLogging:
 
         result = _sanitize_sensitive(None, "info", event_dict)
 
-        assert result["password"] == "[REDACTED]"
+        assert result["password"] == "[REDACTED]"  # noqa: S105
         assert result["api_key"] == "[REDACTED]"
         assert result["username"] == "admin"  # Unchanged
 
