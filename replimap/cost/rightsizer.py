@@ -200,9 +200,7 @@ class RightSizerClient:
         """Get the source of the last analysis (api, local, or unknown)."""
         return self._last_source
 
-    def _get_local_engine(
-        self, strategy: DowngradeStrategy
-    ) -> LocalRightSizer:
+    def _get_local_engine(self, strategy: DowngradeStrategy) -> LocalRightSizer:
         """Get or create local right-sizer engine."""
         # Map DowngradeStrategy to OptimizationStrategy
         strategy_map = {
@@ -237,13 +235,13 @@ class RightSizerClient:
                 annual_savings=rec.annual_savings,
                 savings_percentage=rec.savings_percentage,
                 savings_breakdown=SavingsBreakdown(instance=rec.monthly_savings),
-                confidence="high" if rec.confidence >= 0.8 else (
-                    "medium" if rec.confidence >= 0.6 else "low"
-                ),
+                confidence="high"
+                if rec.confidence >= 0.8
+                else ("medium" if rec.confidence >= 0.6 else "low"),
                 actions=[f"Change instance type to {rec.recommended_instance}"],
-                warnings=[] if rec.confidence >= 0.6 else [
-                    "Lower confidence - verify workload fits target size"
-                ],
+                warnings=[]
+                if rec.confidence >= 0.6
+                else ["Lower confidence - verify workload fits target size"],
             )
             suggestions.append(suggestion)
 
@@ -491,7 +489,9 @@ class RightSizerClient:
                 "Gateway Timeout",
             ]
 
-            should_fallback = any(err.lower() in error_msg.lower() for err in fallback_errors)
+            should_fallback = any(
+                err.lower() in error_msg.lower() for err in fallback_errors
+            )
 
             if should_fallback:
                 logger.warning(

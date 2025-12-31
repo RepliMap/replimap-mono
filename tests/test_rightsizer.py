@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from replimap.cost.local_rightsizer import (
-    LocalRecommendation,
     LocalRightSizer,
     OptimizationStrategy,
 )
@@ -29,7 +28,11 @@ class TestLocalRightSizer:
         """Conservative strategy suggests safe downsizes."""
         sizer = LocalRightSizer(OptimizationStrategy.CONSERVATIVE)
         resources = [
-            {"id": "i-123", "resource_type": "aws_instance", "instance_type": "m5.2xlarge"}
+            {
+                "id": "i-123",
+                "resource_type": "aws_instance",
+                "instance_type": "m5.2xlarge",
+            }
         ]
 
         recs = sizer.analyze(resources)
@@ -43,7 +46,11 @@ class TestLocalRightSizer:
         """Aggressive strategy suggests bigger downsizes."""
         sizer = LocalRightSizer(OptimizationStrategy.AGGRESSIVE)
         resources = [
-            {"id": "i-123", "resource_type": "aws_instance", "instance_type": "m5.2xlarge"}
+            {
+                "id": "i-123",
+                "resource_type": "aws_instance",
+                "instance_type": "m5.2xlarge",
+            }
         ]
 
         recs = sizer.analyze(resources)
@@ -56,7 +63,11 @@ class TestLocalRightSizer:
         """Unknown instance types return no recommendation."""
         sizer = LocalRightSizer(OptimizationStrategy.CONSERVATIVE)
         resources = [
-            {"id": "i-123", "resource_type": "aws_instance", "instance_type": "x99.unknown"}
+            {
+                "id": "i-123",
+                "resource_type": "aws_instance",
+                "instance_type": "x99.unknown",
+            }
         ]
 
         recs = sizer.analyze(resources)
@@ -67,7 +78,11 @@ class TestLocalRightSizer:
         """RDS instances get right-size recommendations."""
         sizer = LocalRightSizer(OptimizationStrategy.CONSERVATIVE)
         resources = [
-            {"id": "mydb", "resource_type": "aws_db_instance", "instance_type": "db.r5.xlarge"}
+            {
+                "id": "mydb",
+                "resource_type": "aws_db_instance",
+                "instance_type": "db.r5.xlarge",
+            }
         ]
 
         recs = sizer.analyze(resources)
@@ -80,7 +95,11 @@ class TestLocalRightSizer:
         """ElastiCache nodes get right-size recommendations."""
         sizer = LocalRightSizer(OptimizationStrategy.CONSERVATIVE)
         resources = [
-            {"id": "redis-cluster", "resource_type": "aws_elasticache_cluster", "instance_type": "cache.r5.large"}
+            {
+                "id": "redis-cluster",
+                "resource_type": "aws_elasticache_cluster",
+                "instance_type": "cache.r5.large",
+            }
         ]
 
         recs = sizer.analyze(resources)
@@ -94,7 +113,11 @@ class TestLocalRightSizer:
         """Monthly savings calculated correctly."""
         sizer = LocalRightSizer(OptimizationStrategy.CONSERVATIVE)
         resources = [
-            {"id": "i-123", "resource_type": "aws_instance", "instance_type": "m5.2xlarge"}
+            {
+                "id": "i-123",
+                "resource_type": "aws_instance",
+                "instance_type": "m5.2xlarge",
+            }
         ]
 
         recs = sizer.analyze(resources)
@@ -107,7 +130,11 @@ class TestLocalRightSizer:
         """Annual savings should be 12x monthly."""
         sizer = LocalRightSizer(OptimizationStrategy.CONSERVATIVE)
         resources = [
-            {"id": "i-123", "resource_type": "aws_instance", "instance_type": "m5.xlarge"}
+            {
+                "id": "i-123",
+                "resource_type": "aws_instance",
+                "instance_type": "m5.xlarge",
+            }
         ]
 
         recs = sizer.analyze(resources)
@@ -119,7 +146,11 @@ class TestLocalRightSizer:
         sizer = LocalRightSizer(OptimizationStrategy.CONSERVATIVE)
         resources = [
             {"id": "i-1", "resource_type": "aws_instance", "instance_type": "m5.large"},
-            {"id": "i-2", "resource_type": "aws_instance", "instance_type": "m5.2xlarge"},
+            {
+                "id": "i-2",
+                "resource_type": "aws_instance",
+                "instance_type": "m5.2xlarge",
+            },
         ]
 
         recs = sizer.analyze(resources)
@@ -144,8 +175,16 @@ class TestLocalRightSizer:
         """Total savings calculation works correctly."""
         sizer = LocalRightSizer(OptimizationStrategy.CONSERVATIVE)
         resources = [
-            {"id": "i-1", "resource_type": "aws_instance", "instance_type": "m5.xlarge"},
-            {"id": "i-2", "resource_type": "aws_instance", "instance_type": "m5.2xlarge"},
+            {
+                "id": "i-1",
+                "resource_type": "aws_instance",
+                "instance_type": "m5.xlarge",
+            },
+            {
+                "id": "i-2",
+                "resource_type": "aws_instance",
+                "instance_type": "m5.2xlarge",
+            },
         ]
 
         recs = sizer.analyze(resources)
@@ -168,7 +207,11 @@ class TestLocalRightSizer:
         """Balanced strategy provides middle-ground recommendations."""
         sizer = LocalRightSizer(OptimizationStrategy.BALANCED)
         resources = [
-            {"id": "i-1", "resource_type": "aws_instance", "instance_type": "m5.2xlarge"}
+            {
+                "id": "i-1",
+                "resource_type": "aws_instance",
+                "instance_type": "m5.2xlarge",
+            }
         ]
 
         recs = sizer.analyze(resources)
@@ -364,7 +407,9 @@ class TestRightSizerAPIFallback:
 
     @pytest.mark.asyncio
     @patch("httpx.AsyncClient")
-    async def test_api_timeout_falls_back_to_local(self, mock_client: MagicMock) -> None:
+    async def test_api_timeout_falls_back_to_local(
+        self, mock_client: MagicMock
+    ) -> None:
         """API timeout gracefully falls back to local."""
         import httpx
 
@@ -473,11 +518,18 @@ class TestRightSizerAPIFallback:
                     "resource_id": "i-123",
                     "resource_type": "aws_instance",
                     "current": {"instance_type": "m5.2xlarge", "monthly_cost": 280.32},
-                    "recommended": {"instance_type": "t3.medium", "monthly_cost": 30.37},
+                    "recommended": {
+                        "instance_type": "t3.medium",
+                        "monthly_cost": 30.37,
+                    },
                     "monthly_savings": 249.95,
                     "annual_savings": 2999.40,
                     "savings_percentage": 89.2,
-                    "savings_breakdown": {"instance": 249.95, "storage": 0, "multi_az": 0},
+                    "savings_breakdown": {
+                        "instance": 249.95,
+                        "storage": 0,
+                        "multi_az": 0,
+                    },
                     "confidence": "high",
                 }
             ],
