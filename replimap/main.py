@@ -11,10 +11,12 @@ Usage:
 from __future__ import annotations
 
 import configparser
+import fcntl
 import hashlib
 import json
 import logging
 import os
+import tempfile
 import time
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -82,6 +84,44 @@ logging.basicConfig(
     handlers=[RichHandler(console=console, rich_tracebacks=True)],
 )
 logger = logging.getLogger("replimap")
+
+
+def print_scan_summary(graph: GraphEngine, duration: float) -> None:
+    """
+    Print a summary of scanned resources with counts by type.
+
+    Args:
+        graph: The populated graph engine
+        duration: Scan duration in seconds
+    """
+    resources = graph.get_all_resources()
+    if not resources:
+        console.print("[dim]No resources found.[/]")
+        return
+
+    # Count resources by type
+    type_counts: dict[str, int] = {}
+    for node in resources:
+        type_name = str(node.resource_type).replace("aws_", "")
+        type_counts[type_name] = type_counts.get(type_name, 0) + 1
+
+    # Sort by count (descending)
+    sorted_counts = sorted(type_counts.items(), key=lambda x: x[1], reverse=True)
+
+    # Format summary line
+    total = len(resources)
+    top_types = sorted_counts[:4]  # Show top 4 resource types
+    type_summary = ", ".join(f"{count} {name}" for name, count in top_types)
+
+    if len(sorted_counts) > 4:
+        other_count = sum(count for _, count in sorted_counts[4:])
+        type_summary += f", +{other_count} others"
+
+    console.print(
+        f"[green]✓ Scanned {total} resources[/] ({type_summary}) "
+        f"[dim]in {duration:.1f}s[/]"
+    )
+
 
 # Create Typer app
 app = typer.Typer(
@@ -161,13 +201,19 @@ def get_cached_credentials(profile: str | None) -> dict | None:
     Get cached credentials if valid.
 
     Returns cached session credentials to avoid repeated MFA prompts.
+    Thread-safe with file locking.
     """
     if not CREDENTIAL_CACHE_FILE.exists():
         return None
 
     try:
         with open(CREDENTIAL_CACHE_FILE) as f:
-            cache = json.load(f)
+            # Acquire shared lock for reading
+            fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+            try:
+                cache = json.load(f)
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
         cache_key = get_credential_cache_key(profile)
         if cache_key not in cache:
@@ -180,7 +226,7 @@ def get_cached_credentials(profile: str | None) -> dict | None:
             return None
 
         return entry["credentials"]
-    except (json.JSONDecodeError, KeyError, ValueError):
+    except (json.JSONDecodeError, KeyError, ValueError, OSError):
         return None
 
 
@@ -189,59 +235,102 @@ def save_cached_credentials(
     credentials: dict,
     expiration: datetime | None = None,
 ) -> None:
-    """Save credentials to cache."""
+    """
+    Save credentials to cache.
+
+    Thread-safe with file locking and atomic write pattern.
+    """
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    cache = {}
-    if CREDENTIAL_CACHE_FILE.exists():
+    # Use exclusive lock for read-modify-write operation
+    # Open in append mode to create file if it doesn't exist
+    with open(CREDENTIAL_CACHE_FILE, "a+") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
         try:
-            with open(CREDENTIAL_CACHE_FILE) as f:
-                cache = json.load(f)
-        except json.JSONDecodeError:
-            cache = {}
+            # Read existing cache
+            f.seek(0)
+            content = f.read()
+            try:
+                cache = json.loads(content) if content.strip() else {}
+            except json.JSONDecodeError:
+                cache = {}
 
-    cache_key = get_credential_cache_key(profile)
+            cache_key = get_credential_cache_key(profile)
 
-    # Use provided expiration or default TTL
-    if expiration:
-        expires_at = expiration
-    else:
-        expires_at = datetime.now() + CREDENTIAL_CACHE_TTL
+            # Use provided expiration or default TTL
+            if expiration:
+                expires_at = expiration
+            else:
+                expires_at = datetime.now() + CREDENTIAL_CACHE_TTL
 
-    cache[cache_key] = {
-        "credentials": credentials,
-        "expires_at": expires_at.isoformat(),
-        "profile": profile,
-    }
+            cache[cache_key] = {
+                "credentials": credentials,
+                "expires_at": expires_at.isoformat(),
+                "profile": profile,
+            }
 
-    with open(CREDENTIAL_CACHE_FILE, "w") as f:
-        json.dump(cache, f, indent=2)
-
-    # Secure the cache file
-    os.chmod(CREDENTIAL_CACHE_FILE, 0o600)
+            # Atomic write: write to temp file, then rename
+            fd, temp_path = tempfile.mkstemp(
+                dir=CACHE_DIR, prefix=".credentials_", suffix=".tmp"
+            )
+            try:
+                with os.fdopen(fd, "w") as temp_f:
+                    json.dump(cache, temp_f, indent=2)
+                os.chmod(temp_path, 0o600)
+                os.rename(temp_path, CREDENTIAL_CACHE_FILE)
+            except Exception:
+                # Clean up temp file on failure
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+                raise
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
 def clear_credential_cache(profile: str | None = None) -> None:
-    """Clear credential cache for a profile or all profiles."""
+    """
+    Clear credential cache for a profile or all profiles.
+
+    Thread-safe with file locking.
+    """
     if not CREDENTIAL_CACHE_FILE.exists():
         return
 
     if profile is None:
-        # Clear all
-        CREDENTIAL_CACHE_FILE.unlink()
+        # Clear all - atomic operation
+        try:
+            CREDENTIAL_CACHE_FILE.unlink()
+        except FileNotFoundError:
+            pass
         return
 
     try:
-        with open(CREDENTIAL_CACHE_FILE) as f:
-            cache = json.load(f)
+        with open(CREDENTIAL_CACHE_FILE, "a+") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                f.seek(0)
+                content = f.read()
+                cache = json.loads(content) if content.strip() else {}
 
-        cache_key = get_credential_cache_key(profile)
-        if cache_key in cache:
-            del cache[cache_key]
+                cache_key = get_credential_cache_key(profile)
+                if cache_key in cache:
+                    del cache[cache_key]
 
-        with open(CREDENTIAL_CACHE_FILE, "w") as f:
-            json.dump(cache, f, indent=2)
-    except (json.JSONDecodeError, KeyError):
+                # Atomic write
+                fd, temp_path = tempfile.mkstemp(
+                    dir=CACHE_DIR, prefix=".credentials_", suffix=".tmp"
+                )
+                try:
+                    with os.fdopen(fd, "w") as temp_f:
+                        json.dump(cache, temp_f, indent=2)
+                    os.rename(temp_path, CREDENTIAL_CACHE_FILE)
+                except Exception:
+                    if os.path.exists(temp_path):
+                        os.unlink(temp_path)
+                    raise
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    except (json.JSONDecodeError, KeyError, OSError):
         pass
 
 
@@ -729,6 +818,9 @@ def scan(
         )
         progress.update(task, completed=True)
     scan_duration = time.time() - scan_start
+
+    # Print scan summary with resource counts
+    print_scan_summary(graph, scan_duration)
 
     # Update scan cache with new results
     if use_scan_cache:

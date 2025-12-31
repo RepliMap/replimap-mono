@@ -18,13 +18,17 @@ import re
 
 def sanitize_name(name: str) -> str:
     """
-    Sanitize a name for use in Terraform variable names.
+    Sanitize a name for use in Terraform variable/resource names.
+
+    Terraform identifiers must:
+    - Contain only letters, digits, underscores, and hyphens (but we use _ only)
+    - Start with a letter or underscore (not a digit)
 
     Args:
         name: Raw name (may contain special characters)
 
     Returns:
-        Sanitized name (lowercase, underscores only)
+        Sanitized name (lowercase, underscores only, valid Terraform identifier)
 
     Examples:
         >>> sanitize_name("web-server")
@@ -33,7 +37,16 @@ def sanitize_name(name: str) -> str:
         'main_db'
         >>> sanitize_name("MyResource-123")
         'myresource_123'
+        >>> sanitize_name("123-invalid")
+        '_123_invalid'
+        >>> sanitize_name("a:b:c/d")
+        'a_b_c_d'
+        >>> sanitize_name("")
+        '_unnamed'
     """
+    if not name:
+        return "_unnamed"
+
     # Replace non-alphanumeric (except underscore) with underscore
     clean_name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
@@ -41,7 +54,14 @@ def sanitize_name(name: str) -> str:
     clean_name = re.sub(r"_+", "_", clean_name)
 
     # Lowercase and strip leading/trailing underscores
-    return clean_name.lower().strip("_")
+    clean_name = clean_name.lower().strip("_")
+
+    # Ensure doesn't start with a digit (invalid in Terraform)
+    if clean_name and clean_name[0].isdigit():
+        clean_name = "_" + clean_name
+
+    # Handle empty result
+    return clean_name if clean_name else "_unnamed"
 
 
 def get_variable_name(resource_type: str, resource_name: str, attribute: str) -> str:

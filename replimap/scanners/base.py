@@ -224,6 +224,8 @@ class BaseScanner(ABC):
         """
         Handle AWS API errors with appropriate logging and exceptions.
 
+        Provides user-friendly error messages with actionable hints.
+
         Args:
             error: The boto3 ClientError
             operation: Description of the operation that failed
@@ -235,18 +237,116 @@ class BaseScanner(ABC):
         error_code = error.response.get("Error", {}).get("Code", "Unknown")
         error_message = error.response.get("Error", {}).get("Message", str(error))
 
-        if error_code in (
-            "AccessDenied",
-            "UnauthorizedAccess",
-            "AccessDeniedException",
-        ):
-            logger.error(f"Permission denied: {operation} - {error_message}")
-            raise AWSPermissionError(
-                f"Insufficient permissions for {operation}: {error_message}"
-            )
+        # User-friendly error messages with hints
+        error_hints = {
+            # Permission errors
+            "AccessDenied": (
+                f"Permission denied for {operation}. "
+                f"Ensure your IAM role/user has read-only access to this service. "
+                f"Required: {self._get_required_permissions(operation)}"
+            ),
+            "AccessDeniedException": (
+                f"Access denied for {operation}. "
+                f"Check IAM policies attached to your role/user."
+            ),
+            "UnauthorizedAccess": (
+                f"Unauthorized access for {operation}. "
+                f"Verify you're using the correct AWS profile and region."
+            ),
+            "InvalidClientTokenId": (
+                "Invalid AWS credentials. Check that your AWS access key ID is correct "
+                "and the credentials haven't been rotated."
+            ),
+            "ExpiredToken": (
+                "AWS security token has expired. "
+                "If using MFA, run 'replimap' again to refresh your session. "
+                "If using SSO, run 'aws sso login' first."
+            ),
+            "ExpiredTokenException": (
+                "Session credentials expired. Refresh your credentials and retry."
+            ),
+            "SignatureDoesNotMatch": (
+                "AWS signature mismatch. This usually means your secret access key "
+                "is incorrect or your system clock is significantly off."
+            ),
+            # Throttling errors
+            "Throttling": (
+                f"AWS is rate-limiting requests for {operation}. "
+                "Consider reducing parallel workers with REPLIMAP_MAX_WORKERS=2"
+            ),
+            "ThrottlingException": (
+                "Too many API requests. RepliMap will retry automatically. "
+                "If this persists, reduce concurrency."
+            ),
+            "RequestLimitExceeded": (
+                "AWS API request limit exceeded. Wait a moment and retry. "
+                "Consider running the scan during off-peak hours."
+            ),
+            # Service errors
+            "ServiceUnavailable": (
+                f"AWS {operation} service is temporarily unavailable. "
+                "Check AWS Service Health Dashboard and retry later."
+            ),
+            "InternalError": (
+                f"AWS internal error during {operation}. "
+                "This is an AWS-side issue. Wait a few minutes and retry."
+            ),
+            # Resource errors
+            "ResourceNotFoundException": (
+                f"Resource not found during {operation}. "
+                "The resource may have been deleted or doesn't exist in this region."
+            ),
+            "NoSuchEntity": (
+                f"Entity not found during {operation}. "
+                "Verify the resource exists and you're scanning the correct account."
+            ),
+            # Validation errors
+            "ValidationException": (
+                f"Invalid request for {operation}: {error_message}"
+            ),
+            "InvalidParameterValue": (
+                f"Invalid parameter in {operation}: {error_message}"
+            ),
+        }
 
-        logger.error(f"AWS error during {operation}: {error_code} - {error_message}")
-        raise ScannerError(f"AWS error during {operation}: {error_message}")
+        # Get user-friendly message or fall back to AWS message
+        friendly_message = error_hints.get(error_code, None)
+
+        # Check for permission-related errors
+        permission_errors = {
+            "AccessDenied", "UnauthorizedAccess", "AccessDeniedException",
+            "InvalidClientTokenId", "ExpiredToken", "ExpiredTokenException",
+            "SignatureDoesNotMatch", "MissingAuthenticationToken",
+        }
+
+        if error_code in permission_errors:
+            log_msg = friendly_message or f"Permission denied: {operation} - {error_message}"
+            logger.error(log_msg)
+            raise AWSPermissionError(log_msg)
+
+        # For other errors, log with context
+        log_msg = friendly_message or f"AWS error during {operation}: {error_code} - {error_message}"
+        logger.error(log_msg)
+        raise ScannerError(log_msg)
+
+    def _get_required_permissions(self, operation: str) -> str:
+        """Get required IAM permissions for common operations."""
+        permission_map = {
+            "EC2 scanning": "ec2:Describe*",
+            "VPC scanning": "ec2:DescribeVpcs, ec2:DescribeSubnets, ec2:DescribeSecurityGroups",
+            "RDS scanning": "rds:Describe*",
+            "S3 scanning": "s3:ListAllMyBuckets, s3:GetBucketLocation, s3:GetBucketTagging",
+            "IAM scanning": "iam:List*, iam:Get*",
+            "ElastiCache scanning": "elasticache:Describe*",
+            "Lambda scanning": "lambda:List*, lambda:GetFunction",
+            "CloudWatch scanning": "logs:DescribeLogGroups, cloudwatch:DescribeAlarms",
+            "EBS scanning": "ec2:DescribeVolumes",
+            "networking scanning": "ec2:DescribeInternetGateways, ec2:DescribeNatGateways, ec2:DescribeRouteTables",
+        }
+        for key, perms in permission_map.items():
+            if key.lower() in operation.lower():
+                return perms
+        return "appropriate read-only permissions for this AWS service"
 
 
 class ScannerRegistry:

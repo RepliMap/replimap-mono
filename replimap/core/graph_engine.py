@@ -354,19 +354,42 @@ class GraphEngine:
 
     def _infer_type_from_id(self, node_id: str) -> ResourceType:
         """
-        Infer resource type from AWS ID prefix pattern.
+        Infer resource type from AWS ID prefix pattern or ARN.
 
         Args:
             node_id: AWS resource ID or ARN
 
         Returns:
-            Best-guess ResourceType, or VPC as fallback
+            Best-guess ResourceType, or UNKNOWN as fallback
         """
+        # Try ID prefix patterns first
         for pattern, resource_type in _AWS_ID_PATTERNS.items():
             if re.match(pattern, node_id):
                 return resource_type
-        # Default to VPC as a reasonable fallback for unknown types
-        return ResourceType.VPC
+
+        # Try ARN parsing for resources not matching ID patterns
+        if node_id.startswith("arn:aws:"):
+            parts = node_id.split(":")
+            if len(parts) >= 3:
+                service = parts[2]
+                arn_service_map: dict[str, ResourceType] = {
+                    "ec2": ResourceType.EC2_INSTANCE,
+                    "rds": ResourceType.RDS_INSTANCE,
+                    "s3": ResourceType.S3_BUCKET,
+                    "elasticache": ResourceType.ELASTICACHE_CLUSTER,
+                    "elasticloadbalancing": ResourceType.LB,
+                    "sqs": ResourceType.SQS_QUEUE,
+                    "sns": ResourceType.SNS_TOPIC,
+                    "iam": ResourceType.IAM_ROLE,
+                    "logs": ResourceType.CLOUDWATCH_LOG_GROUP,
+                    "cloudwatch": ResourceType.CLOUDWATCH_METRIC_ALARM,
+                }
+                if service in arn_service_map:
+                    return arn_service_map[service]
+
+        # Log and return UNKNOWN for truly unrecognized resources
+        logger.debug(f"Could not infer type for {node_id}, using UNKNOWN")
+        return ResourceType.UNKNOWN
 
     @property
     def phantom_count(self) -> int:
