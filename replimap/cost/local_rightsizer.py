@@ -345,12 +345,12 @@ class LocalRightSizer:
         # Sort by monthly savings descending
         return sorted(recommendations, key=lambda r: r.monthly_savings, reverse=True)
 
-    def _analyze_resource(
-        self, resource: dict[str, Any]
-    ) -> LocalRecommendation | None:
+    def _analyze_resource(self, resource: dict[str, Any]) -> LocalRecommendation | None:
         """Analyze a single resource."""
         resource_type = resource.get("resource_type", resource.get("type", "")).lower()
-        instance_type = resource.get("instance_type", resource.get("instance_class", ""))
+        instance_type = resource.get(
+            "instance_type", resource.get("instance_class", "")
+        )
 
         if not instance_type:
             return None

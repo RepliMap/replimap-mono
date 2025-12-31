@@ -314,18 +314,28 @@ class BaseScanner(ABC):
 
         # Check for permission-related errors
         permission_errors = {
-            "AccessDenied", "UnauthorizedAccess", "AccessDeniedException",
-            "InvalidClientTokenId", "ExpiredToken", "ExpiredTokenException",
-            "SignatureDoesNotMatch", "MissingAuthenticationToken",
+            "AccessDenied",
+            "UnauthorizedAccess",
+            "AccessDeniedException",
+            "InvalidClientTokenId",
+            "ExpiredToken",
+            "ExpiredTokenException",
+            "SignatureDoesNotMatch",
+            "MissingAuthenticationToken",
         }
 
         if error_code in permission_errors:
-            log_msg = friendly_message or f"Permission denied: {operation} - {error_message}"
+            log_msg = (
+                friendly_message or f"Permission denied: {operation} - {error_message}"
+            )
             logger.error(log_msg)
             raise AWSPermissionError(log_msg)
 
         # For other errors, log with context
-        log_msg = friendly_message or f"AWS error during {operation}: {error_code} - {error_message}"
+        log_msg = (
+            friendly_message
+            or f"AWS error during {operation}: {error_code} - {error_message}"
+        )
         logger.error(log_msg)
         raise ScannerError(log_msg)
 

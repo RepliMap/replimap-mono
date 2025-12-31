@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import json
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -95,9 +92,7 @@ class TestCredentialCaching:
     def mock_cache_paths(self, temp_cache_dir, monkeypatch):
         """Mock the cache directory paths."""
         cache_file = temp_cache_dir / "credentials.json"
-        monkeypatch.setattr(
-            "replimap.cli.utils.aws_session.CACHE_DIR", temp_cache_dir
-        )
+        monkeypatch.setattr("replimap.cli.utils.aws_session.CACHE_DIR", temp_cache_dir)
         monkeypatch.setattr(
             "replimap.cli.utils.aws_session.CREDENTIAL_CACHE_FILE", cache_file
         )
@@ -120,8 +115,8 @@ class TestCredentialCaching:
         retrieved = get_cached_credentials("test-profile")
         assert retrieved is not None
         assert retrieved["access_key"] == "AKIATEST123"
-        assert retrieved["secret_key"] == "secret123"
-        assert retrieved["session_token"] == "token123"
+        assert retrieved["secret_key"] == "secret123"  # noqa: S105
+        assert retrieved["session_token"] == "token123"  # noqa: S105
 
     def test_expired_credentials_return_none(self, mock_cache_paths):
         """Should return None for expired credentials."""

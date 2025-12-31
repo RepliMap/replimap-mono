@@ -1,7 +1,5 @@
 """Tests for Terraform naming utilities."""
 
-import pytest
-
 from replimap.core.naming import (
     get_size_variable_name,
     get_variable_name,
