@@ -88,6 +88,9 @@ class ResourceType(str, Enum):
     # Phase 3 - Networking (additional)
     EIP = "aws_eip"
 
+    # Unknown/fallback type for phantom nodes
+    UNKNOWN = "aws_unknown"
+
     def __str__(self) -> str:
         return self.value
 

@@ -4,11 +4,12 @@ Right-Sizer Module.
 Calls the Backend API to get optimization suggestions and generates
 a Terraform .auto.tfvars file for applying overrides.
 
-CRITICAL: Uses replimap.core.naming to ensure variable names match Generator.
-
-The Seven Laws of Sovereign Code:
+Includes local fallback engine for offline operation per the
+Seven Laws of Sovereign Code:
 1. Operate Autonomously - The tool should work offline when possible
 3. Simplicity is the Ultimate Sophistication - Minimal dependencies
+
+CRITICAL: Uses replimap.core.naming to ensure variable names match Generator.
 """
 
 from __future__ import annotations
@@ -27,6 +28,11 @@ from rich.table import Table
 
 # CRITICAL: Use the SAME naming module as Generator
 from replimap.core.naming import get_variable_name
+from replimap.cost.local_rightsizer import (
+    LocalRecommendation,
+    LocalRightSizer,
+    OptimizationStrategy,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +158,14 @@ class RightSizerResult:
 
 
 class RightSizerClient:
-    """Client for the Right-Sizer API."""
+    """
+    Client for the Right-Sizer API with local fallback.
+
+    Provides hybrid operation:
+    1. Tries API for ML-powered recommendations (higher accuracy)
+    2. Falls back to local rule engine if API is unavailable
+    3. Supports offline-only mode via prefer_local flag
+    """
 
     SUPPORTED_RESOURCE_TYPES = {
         "aws_instance",
@@ -162,16 +175,163 @@ class RightSizerClient:
         # Note: aws_launch_template is NOT supported by the backend API
     }
 
-    def __init__(self) -> None:
-        """Initialize the Right-Sizer client."""
+    def __init__(self, prefer_local: bool = False) -> None:
+        """
+        Initialize the Right-Sizer client.
+
+        Args:
+            prefer_local: If True, skip API and use local rules only.
+                         Useful for offline operation or faster analysis.
+        """
         from replimap.licensing.manager import get_license_manager
 
         self.manager = get_license_manager()
+        self.prefer_local = prefer_local
+        self._local_engine: LocalRightSizer | None = None
+        self._last_source: str = "unknown"  # Track where results came from
 
     def _get_license_key(self) -> str | None:
         """Get the current license key."""
         license_info = self.manager.current_license  # Property, not method
         return license_info.license_key if license_info else None
+
+    @property
+    def last_source(self) -> str:
+        """Get the source of the last analysis (api, local, or unknown)."""
+        return self._last_source
+
+    def _get_local_engine(self, strategy: DowngradeStrategy) -> LocalRightSizer:
+        """Get or create local right-sizer engine."""
+        # Map DowngradeStrategy to OptimizationStrategy
+        strategy_map = {
+            DowngradeStrategy.CONSERVATIVE: OptimizationStrategy.CONSERVATIVE,
+            DowngradeStrategy.AGGRESSIVE: OptimizationStrategy.AGGRESSIVE,
+        }
+        opt_strategy = strategy_map.get(strategy, OptimizationStrategy.CONSERVATIVE)
+        return LocalRightSizer(opt_strategy)
+
+    def _convert_local_to_result(
+        self,
+        recommendations: list[LocalRecommendation],
+        strategy: DowngradeStrategy,
+    ) -> RightSizerResult:
+        """Convert local recommendations to RightSizerResult format."""
+        suggestions = []
+        for rec in recommendations:
+            # Estimate original cost from savings percentage
+            if rec.savings_percentage > 0:
+                original_cost = rec.monthly_savings / (rec.savings_percentage / 100)
+            else:
+                original_cost = rec.monthly_savings * 2  # Fallback estimate
+
+            suggestion = ResourceSuggestion(
+                resource_id=rec.resource_id,
+                resource_type=rec.resource_type,
+                original_type=rec.current_instance,
+                original_monthly_cost=round(original_cost, 2),
+                recommended_type=rec.recommended_instance,
+                recommended_monthly_cost=round(original_cost - rec.monthly_savings, 2),
+                monthly_savings=rec.monthly_savings,
+                annual_savings=rec.annual_savings,
+                savings_percentage=rec.savings_percentage,
+                savings_breakdown=SavingsBreakdown(instance=rec.monthly_savings),
+                confidence="high"
+                if rec.confidence >= 0.8
+                else ("medium" if rec.confidence >= 0.6 else "low"),
+                actions=[f"Change instance type to {rec.recommended_instance}"],
+                warnings=[]
+                if rec.confidence >= 0.6
+                else ["Lower confidence - verify workload fits target size"],
+            )
+            suggestions.append(suggestion)
+
+        total_current = sum(s.original_monthly_cost for s in suggestions)
+        total_recommended = sum(s.recommended_monthly_cost for s in suggestions)
+        total_savings = sum(s.monthly_savings for s in suggestions)
+        savings_pct = (total_savings / total_current * 100) if total_current > 0 else 0
+
+        return RightSizerResult(
+            success=True,
+            suggestions=suggestions,
+            skipped=[],
+            total_resources=len(suggestions),
+            resources_with_suggestions=len(suggestions),
+            resources_skipped=0,
+            total_current_monthly=round(total_current, 2),
+            total_recommended_monthly=round(total_recommended, 2),
+            total_monthly_savings=round(total_savings, 2),
+            total_annual_savings=round(total_savings * 12, 2),
+            savings_percentage=round(savings_pct, 1),
+            savings_breakdown=SavingsBreakdown(
+                instance=round(total_savings, 2),
+                storage=0,
+                multi_az=0,
+            ),
+            strategy_used=strategy.value,
+            error_message=None,
+        )
+
+    def get_suggestions_local(
+        self,
+        resources: list[ResourceSummary],
+        strategy: DowngradeStrategy = DowngradeStrategy.CONSERVATIVE,
+    ) -> RightSizerResult:
+        """
+        Get suggestions using local rule engine only.
+
+        This is faster and works offline, but less accurate than API.
+        """
+        self._last_source = "local"
+
+        if not resources:
+            return self._error_result("No rightsizable resources found")
+
+        # Convert ResourceSummary to dict format for local engine
+        resource_dicts = [
+            {
+                "id": r.resource_id,
+                "resource_id": r.resource_id,
+                "resource_type": r.resource_type,
+                "instance_type": r.instance_type,
+            }
+            for r in resources
+        ]
+
+        local_engine = self._get_local_engine(strategy)
+        recommendations = local_engine.analyze(resource_dicts)
+
+        if not recommendations:
+            logger.info("Local engine found no optimization opportunities")
+            return RightSizerResult(
+                success=True,
+                suggestions=[],
+                skipped=[
+                    SkippedResource(
+                        resource_id=r.resource_id,
+                        resource_type=r.resource_type,
+                        instance_type=r.instance_type,
+                        reason="No local rule available or already optimal",
+                    )
+                    for r in resources
+                ],
+                total_resources=len(resources),
+                resources_with_suggestions=0,
+                resources_skipped=len(resources),
+                total_current_monthly=0,
+                total_recommended_monthly=0,
+                total_monthly_savings=0,
+                total_annual_savings=0,
+                savings_percentage=0,
+                savings_breakdown=SavingsBreakdown(),
+                strategy_used=strategy.value,
+            )
+
+        result = self._convert_local_to_result(recommendations, strategy)
+        logger.info(
+            f"Local engine found {len(recommendations)} optimizations, "
+            f"saving ${result.total_monthly_savings:.2f}/month"
+        )
+        return result
 
     def extract_resources(
         self,
@@ -244,7 +404,19 @@ class RightSizerClient:
         resources: list[ResourceSummary],
         strategy: DowngradeStrategy = DowngradeStrategy.CONSERVATIVE,
     ) -> RightSizerResult:
-        """Get optimization suggestions from API (sync version)."""
+        """
+        Get optimization suggestions (sync version).
+
+        Uses hybrid approach:
+        1. If prefer_local is True, use local engine only
+        2. Otherwise, try API first
+        3. Fall back to local if API fails
+        """
+        # Use local engine if preferred
+        if self.prefer_local:
+            logger.info("Using local right-sizer (prefer_local=True)")
+            return self.get_suggestions_local(resources, strategy)
+
         import asyncio
 
         try:
@@ -267,19 +439,73 @@ class RightSizerClient:
         resources: list[ResourceSummary],
         strategy: DowngradeStrategy = DowngradeStrategy.CONSERVATIVE,
     ) -> RightSizerResult:
-        """Get optimization suggestions from API (async version)."""
+        """
+        Get optimization suggestions from API with local fallback (async version).
+
+        Falls back to local rules if:
+        - No license key available
+        - API returns an error
+        - Network timeout occurs
+        """
         if not resources:
             return self._error_result("No rightsizable resources found")
 
         license_key = self._get_license_key()
         if not license_key:
-            return self._error_result("No active license key")
+            # No license - use local fallback
+            logger.info("No license key, using local right-sizer")
+            return self.get_suggestions_local(resources, strategy)
 
-        # Batch resources if exceeding API limit
-        if len(resources) > MAX_RESOURCES_PER_REQUEST:
-            return await self._get_suggestions_batched(resources, strategy, license_key)
+        # Try API first
+        try:
+            if len(resources) > MAX_RESOURCES_PER_REQUEST:
+                result = await self._get_suggestions_batched(
+                    resources, strategy, license_key
+                )
+            else:
+                result = await self._get_suggestions_single(
+                    resources, strategy, license_key
+                )
 
-        return await self._get_suggestions_single(resources, strategy, license_key)
+            # Check if API succeeded
+            if result.success:
+                self._last_source = "api"
+                return result
+
+            # API returned an error - check if we should fallback
+            error_msg = result.error_message or ""
+            fallback_errors = [
+                "API request timed out",
+                "Network error",
+                "Invalid response from API",
+                "HTTP 500",
+                "HTTP 502",
+                "HTTP 503",
+                "HTTP 504",
+                "ServiceUnavailable",
+                "Internal Server Error",
+                "Service Unavailable",
+                "Bad Gateway",
+                "Gateway Timeout",
+            ]
+
+            should_fallback = any(
+                err.lower() in error_msg.lower() for err in fallback_errors
+            )
+
+            if should_fallback:
+                logger.warning(
+                    f"API error: {error_msg}. Falling back to local right-sizer."
+                )
+                return self.get_suggestions_local(resources, strategy)
+
+            # For other errors (auth, license, etc.), return the API error
+            return result
+
+        except Exception as e:
+            # Unexpected error - fallback to local
+            logger.warning(f"Unexpected API error: {e}. Using local right-sizer.")
+            return self.get_suggestions_local(resources, strategy)
 
     async def _get_suggestions_batched(
         self,

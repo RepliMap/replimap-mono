@@ -752,14 +752,14 @@ locals {
                     declared_variables.add(match.group(1))
 
             # Scan rendered content for all var.xxx references
-            # Include hyphens in pattern to catch malformed variable names from templates
+            # Include special chars in pattern to catch malformed variable names from templates
             # and sanitize them to valid HCL identifiers
-            var_ref_pattern = re.compile(r"\bvar\.([a-zA-Z_][a-zA-Z0-9_-]*)")
+            var_ref_pattern = re.compile(r"\bvar\.([a-zA-Z0-9_][a-zA-Z0-9_.:\-/]*)")
             referenced_variables: set[str] = set()
             for content in rendered_content:
                 for match in var_ref_pattern.finditer(content):
-                    # Sanitize variable name: replace hyphens with underscores
-                    var_name = match.group(1).replace("-", "_")
+                    # Use full sanitize_name() for proper Terraform identifier handling
+                    var_name = sanitize_name(match.group(1))
                     referenced_variables.add(var_name)
 
             # Find undeclared variables

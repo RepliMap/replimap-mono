@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from replimap.cli.utils.console_links import get_console_url
 from replimap.cost.models import (
     COST_DISCLAIMER_FULL,
     COST_DISCLAIMER_SHORT,
@@ -369,25 +370,7 @@ The following cost factors are **NOT** included and may significantly increase y
         """Generate AWS Console deep link for a resource."""
         if not region:
             region = "us-east-1"
-        base = f"https://{region}.console.aws.amazon.com"
-
-        # Map resource types to console URLs
-        links = {
-            "aws_instance": f"{base}/ec2/home?region={region}#InstanceDetails:instanceId={resource_id}",
-            "aws_db_instance": f"{base}/rds/home?region={region}#database:id={resource_id}",
-            "aws_ebs_volume": f"{base}/ec2/home?region={region}#VolumeDetails:volumeId={resource_id}",
-            "aws_nat_gateway": f"{base}/vpc/home?region={region}#NatGatewayDetails:natGatewayId={resource_id}",
-            "aws_lb": f"{base}/ec2/home?region={region}#LoadBalancer:loadBalancerArn={resource_id}",
-            "aws_alb": f"{base}/ec2/home?region={region}#LoadBalancer:loadBalancerArn={resource_id}",
-            "aws_elasticache_cluster": f"{base}/elasticache/home?region={region}#/redis/{resource_id}",
-            "aws_s3_bucket": f"{base}/s3/buckets/{resource_id}?region={region}",
-            "aws_lambda_function": f"{base}/lambda/home?region={region}#/functions/{resource_id}",
-            "aws_eip": f"{base}/ec2/home?region={region}#ElasticIpDetails:AllocationId={resource_id}",
-            "aws_rds_cluster": f"{base}/rds/home?region={region}#database:id={resource_id}",
-            "aws_eks_cluster": f"{base}/eks/home?region={region}#/clusters/{resource_id}",
-        }
-
-        return links.get(resource_type, "")
+        return get_console_url(resource_type, resource_id, region)
 
     def _detect_environment(self, resource_name: str) -> str:
         """Detect environment from resource name."""
