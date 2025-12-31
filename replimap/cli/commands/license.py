@@ -110,9 +110,7 @@ def create_license_app() -> typer.Typer:
 
         # Features table
         console.print()
-        table = Table(
-            title="Plan Features", show_header=True, header_style="bold cyan"
-        )
+        table = Table(title="Plan Features", show_header=True, header_style="bold cyan")
         table.add_column("Feature", style="dim")
         table.add_column("Available", justify="center")
 
@@ -207,9 +205,7 @@ def create_license_app() -> typer.Typer:
             raise typer.Exit(0)
 
         if not confirm:
-            confirm = typer.confirm(
-                "Are you sure you want to deactivate your license?"
-            )
+            confirm = typer.confirm("Are you sure you want to deactivate your license?")
             if not confirm:
                 console.print("[dim]Cancelled.[/]")
                 raise typer.Exit(0)

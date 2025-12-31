@@ -152,9 +152,7 @@ def register(app: typer.Typer) -> None:
                 f"\n[dim]Detected region: {effective_region} (from {region_source})[/]"
             )
             if not Confirm.ask("Use this region?", default=True):
-                effective_region = Prompt.ask(
-                    "Enter region", default=effective_region
-                )
+                effective_region = Prompt.ask("Enter region", default=effective_region)
 
         # Validate output format
         valid_formats = ("terraform", "cloudformation", "pulumi")
@@ -207,9 +205,7 @@ def register(app: typer.Typer) -> None:
             raise typer.Exit(1)
 
         # Get AWS session
-        session = get_aws_session(
-            profile, effective_region, use_cache=not no_cache
-        )
+        session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
         # Initialize graph
         graph = GraphEngine()
@@ -276,9 +272,7 @@ def register(app: typer.Typer) -> None:
 
         # Show output files table
         console.print()
-        table = Table(
-            title="Output Files", show_header=True, header_style="bold cyan"
-        )
+        table = Table(title="Output Files", show_header=True, header_style="bold cyan")
         table.add_column("File", style="dim")
         table.add_column("Resources", justify="right")
 
@@ -362,19 +356,15 @@ def register(app: typer.Typer) -> None:
 
                                 # Get suggestions from API
                                 strategy = DowngradeStrategy(dev_strategy.lower())
-                                result = rightsizer.get_suggestions(
-                                    summaries, strategy
-                                )
+                                result = rightsizer.get_suggestions(summaries, strategy)
 
                                 if result.success and result.suggestions:
                                     # 1. Display recommendations table
                                     rightsizer.display_suggestions_table(result)
 
                                     # 2. Generate and write tfvars file
-                                    tfvars_content = (
-                                        rightsizer.generate_tfvars_content(
-                                            result.suggestions
-                                        )
+                                    tfvars_content = rightsizer.generate_tfvars_content(
+                                        result.suggestions
                                     )
                                     tfvars_path = rightsizer.write_tfvars_file(
                                         str(output_dir), tfvars_content
@@ -419,8 +409,7 @@ def register(app: typer.Typer) -> None:
                             # Graceful degradation - don't crash the whole clone
                             console.print(f"\n[red]Right-Sizer error: {e}[/red]")
                             console.print(
-                                "[yellow]Continuing with "
-                                "production defaults.[/yellow]"
+                                "[yellow]Continuing with production defaults.[/yellow]"
                             )
 
             except FeatureNotAvailableError as e:

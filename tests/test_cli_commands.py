@@ -58,6 +58,66 @@ class TestMainCommands:
         assert result.exit_code == 0
         assert "List available AWS profiles" in result.output
 
+    def test_audit_command_registered(self, runner):
+        """Audit command should be registered."""
+        result = runner.invoke(app, ["audit", "--help"])
+        assert result.exit_code == 0
+        assert "Audit" in result.output or "audit" in result.output.lower()
+
+    def test_graph_command_registered(self, runner):
+        """Graph command should be registered."""
+        result = runner.invoke(app, ["graph", "--help"])
+        assert result.exit_code == 0
+        assert "graph" in result.output.lower()
+
+    def test_drift_command_registered(self, runner):
+        """Drift command should be registered."""
+        result = runner.invoke(app, ["drift", "--help"])
+        assert result.exit_code == 0
+        assert "drift" in result.output.lower()
+
+    def test_deps_command_registered(self, runner):
+        """Deps command should be registered."""
+        result = runner.invoke(app, ["deps", "--help"])
+        assert result.exit_code == 0
+        assert "depend" in result.output.lower()
+
+    def test_cost_command_registered(self, runner):
+        """Cost command should be registered."""
+        result = runner.invoke(app, ["cost", "--help"])
+        assert result.exit_code == 0
+        assert "cost" in result.output.lower()
+
+    def test_remediate_command_registered(self, runner):
+        """Remediate command should be registered."""
+        result = runner.invoke(app, ["remediate", "--help"])
+        assert result.exit_code == 0
+        assert "remediat" in result.output.lower()
+
+    def test_validate_command_registered(self, runner):
+        """Validate command should be registered."""
+        result = runner.invoke(app, ["validate", "--help"])
+        assert result.exit_code == 0
+        assert "validat" in result.output.lower()
+
+    def test_unused_command_registered(self, runner):
+        """Unused command should be registered."""
+        result = runner.invoke(app, ["unused", "--help"])
+        assert result.exit_code == 0
+        assert "unused" in result.output.lower()
+
+    def test_trends_command_registered(self, runner):
+        """Trends command should be registered."""
+        result = runner.invoke(app, ["trends", "--help"])
+        assert result.exit_code == 0
+        assert "trend" in result.output.lower()
+
+    def test_transfer_command_registered(self, runner):
+        """Transfer command should be registered."""
+        result = runner.invoke(app, ["transfer", "--help"])
+        assert result.exit_code == 0
+        assert "transfer" in result.output.lower()
+
 
 class TestCacheSubcommands:
     """Tests for cache sub-command group."""
@@ -143,6 +203,106 @@ class TestLicenseSubcommands:
         assert "Show detailed usage statistics" in result.output
 
 
+class TestUpgradeSubcommands:
+    """Tests for upgrade sub-command group."""
+
+    def test_upgrade_command_registered(self, runner):
+        """Upgrade command group should be registered."""
+        result = runner.invoke(app, ["upgrade", "--help"])
+        assert result.exit_code == 0
+        assert "upgrade" in result.output.lower()
+
+    def test_upgrade_solo_subcommand(self, runner):
+        """Upgrade solo subcommand should be accessible."""
+        result = runner.invoke(app, ["upgrade", "solo", "--help"])
+        assert result.exit_code == 0
+
+    def test_upgrade_pro_subcommand(self, runner):
+        """Upgrade pro subcommand should be accessible."""
+        result = runner.invoke(app, ["upgrade", "pro", "--help"])
+        assert result.exit_code == 0
+
+    def test_upgrade_team_subcommand(self, runner):
+        """Upgrade team subcommand should be accessible."""
+        result = runner.invoke(app, ["upgrade", "team", "--help"])
+        assert result.exit_code == 0
+
+
+class TestSnapshotSubcommands:
+    """Tests for snapshot sub-command group."""
+
+    def test_snapshot_command_registered(self, runner):
+        """Snapshot command group should be registered."""
+        result = runner.invoke(app, ["snapshot", "--help"])
+        assert result.exit_code == 0
+        assert "snapshot" in result.output.lower()
+
+    def test_snapshot_save_subcommand(self, runner):
+        """Snapshot save subcommand should be accessible."""
+        result = runner.invoke(app, ["snapshot", "save", "--help"])
+        assert result.exit_code == 0
+
+    def test_snapshot_list_subcommand(self, runner):
+        """Snapshot list subcommand should be accessible."""
+        result = runner.invoke(app, ["snapshot", "list", "--help"])
+        assert result.exit_code == 0
+
+    def test_snapshot_diff_subcommand(self, runner):
+        """Snapshot diff subcommand should be accessible."""
+        result = runner.invoke(app, ["snapshot", "diff", "--help"])
+        assert result.exit_code == 0
+
+    def test_snapshot_show_subcommand(self, runner):
+        """Snapshot show subcommand should be accessible."""
+        result = runner.invoke(app, ["snapshot", "show", "--help"])
+        assert result.exit_code == 0
+
+
+class TestTrustCenterSubcommands:
+    """Tests for trust-center sub-command group."""
+
+    def test_trust_center_command_registered(self, runner):
+        """Trust-center command group should be registered."""
+        result = runner.invoke(app, ["trust-center", "--help"])
+        assert result.exit_code == 0
+        assert "trust" in result.output.lower()
+
+    def test_trust_center_status_subcommand(self, runner):
+        """Trust-center status subcommand should be accessible."""
+        result = runner.invoke(app, ["trust-center", "status", "--help"])
+        assert result.exit_code == 0
+
+    def test_trust_center_report_subcommand(self, runner):
+        """Trust-center report subcommand should be accessible."""
+        result = runner.invoke(app, ["trust-center", "report", "--help"])
+        assert result.exit_code == 0
+
+
+class TestDRSubcommands:
+    """Tests for dr sub-command group."""
+
+    def test_dr_command_registered(self, runner):
+        """DR command group should be registered."""
+        result = runner.invoke(app, ["dr", "--help"])
+        assert result.exit_code == 0
+        # dr = disaster recovery
+        assert (
+            "disaster" in result.output.lower()
+            or "recovery" in result.output.lower()
+            or "dr" in result.output.lower()
+        )
+
+    def test_dr_assess_subcommand(self, runner):
+        """DR assess subcommand should be accessible."""
+        result = runner.invoke(app, ["dr", "assess", "--help"])
+        assert result.exit_code == 0
+
+    def test_dr_scorecard_subcommand(self, runner):
+        """DR scorecard subcommand should be accessible."""
+        result = runner.invoke(app, ["dr", "scorecard", "--help"])
+        assert result.exit_code == 0
+
+
 class TestCommandOptions:
     """Tests for command options."""
 
@@ -173,36 +333,127 @@ class TestCommandModuleImports:
     def test_scan_module_importable(self):
         """Scan command module should be importable."""
         from replimap.cli.commands import scan
+
         assert hasattr(scan, "register")
 
     def test_clone_module_importable(self):
         """Clone command module should be importable."""
         from replimap.cli.commands import clone
+
         assert hasattr(clone, "register")
 
     def test_load_module_importable(self):
         """Load command module should be importable."""
         from replimap.cli.commands import load
+
         assert hasattr(load, "register")
 
     def test_profiles_module_importable(self):
         """Profiles command module should be importable."""
         from replimap.cli.commands import profiles
+
         assert hasattr(profiles, "register")
 
     def test_cache_module_importable(self):
         """Cache command module should be importable."""
         from replimap.cli.commands import cache
+
         assert hasattr(cache, "register")
 
     def test_license_module_importable(self):
         """License command module should be importable."""
         from replimap.cli.commands import license
+
         assert hasattr(license, "register")
+
+    def test_audit_module_importable(self):
+        """Audit command module should be importable."""
+        from replimap.cli.commands import audit
+
+        assert hasattr(audit, "register")
+
+    def test_graph_module_importable(self):
+        """Graph command module should be importable."""
+        from replimap.cli.commands import graph
+
+        assert hasattr(graph, "register")
+
+    def test_drift_module_importable(self):
+        """Drift command module should be importable."""
+        from replimap.cli.commands import drift
+
+        assert hasattr(drift, "register")
+
+    def test_deps_module_importable(self):
+        """Deps command module should be importable."""
+        from replimap.cli.commands import deps
+
+        assert hasattr(deps, "register")
+
+    def test_cost_module_importable(self):
+        """Cost command module should be importable."""
+        from replimap.cli.commands import cost
+
+        assert hasattr(cost, "register")
+
+    def test_remediate_module_importable(self):
+        """Remediate command module should be importable."""
+        from replimap.cli.commands import remediate
+
+        assert hasattr(remediate, "register")
+
+    def test_validate_module_importable(self):
+        """Validate command module should be importable."""
+        from replimap.cli.commands import validate
+
+        assert hasattr(validate, "register")
+
+    def test_unused_module_importable(self):
+        """Unused command module should be importable."""
+        from replimap.cli.commands import unused
+
+        assert hasattr(unused, "register")
+
+    def test_trends_module_importable(self):
+        """Trends command module should be importable."""
+        from replimap.cli.commands import trends
+
+        assert hasattr(trends, "register")
+
+    def test_transfer_module_importable(self):
+        """Transfer command module should be importable."""
+        from replimap.cli.commands import transfer
+
+        assert hasattr(transfer, "register")
+
+    def test_upgrade_module_importable(self):
+        """Upgrade command module should be importable."""
+        from replimap.cli.commands import upgrade
+
+        assert hasattr(upgrade, "register")
+
+    def test_snapshot_module_importable(self):
+        """Snapshot command module should be importable."""
+        from replimap.cli.commands import snapshot
+
+        assert hasattr(snapshot, "register")
+
+    def test_trust_center_module_importable(self):
+        """Trust center command module should be importable."""
+        from replimap.cli.commands import trust_center
+
+        assert hasattr(trust_center, "register")
+
+    def test_dr_module_importable(self):
+        """DR command module should be importable."""
+        from replimap.cli.commands import dr
+
+        assert hasattr(dr, "register")
 
     def test_register_all_commands_importable(self):
         """register_all_commands should be importable."""
         from replimap.cli.commands import register_all_commands
+
         assert callable(register_all_commands)
 
 

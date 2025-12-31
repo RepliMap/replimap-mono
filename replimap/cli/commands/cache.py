@@ -172,9 +172,7 @@ def create_scan_cache_app() -> typer.Typer:
                 resources = len(cache_data.get("resources", {}))
                 updated = cache_data.get("last_updated", "unknown")
                 if updated != "unknown":
-                    updated = datetime.fromisoformat(updated).strftime(
-                        "%Y-%m-%d %H:%M"
-                    )
+                    updated = datetime.fromisoformat(updated).strftime("%Y-%m-%d %H:%M")
                 table.add_row(account, region, str(resources), updated)
                 total_resources += resources
             except (json.JSONDecodeError, FileNotFoundError):
