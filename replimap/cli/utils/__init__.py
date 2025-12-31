@@ -10,6 +10,7 @@ from replimap.cli.utils.aws_session import (
     save_cached_credentials,
 )
 from replimap.cli.utils.console import console, get_console, get_logger, logger
+from replimap.cli.utils.helpers import print_graph_stats, print_scan_summary
 from replimap.cli.utils.options import (
     DryRunOption,
     ForceOption,
@@ -50,4 +51,7 @@ __all__ = [
     "DryRunOption",
     "ForceOption",
     "YesOption",
+    # Helpers
+    "print_scan_summary",
+    "print_graph_stats",
 ]
