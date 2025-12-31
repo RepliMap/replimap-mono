@@ -14,6 +14,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from replimap.cli.utils.console_links import get_console_url
 from replimap.cost.models import (
     COST_DISCLAIMER_FULL,
     COST_DISCLAIMER_SHORT,
@@ -369,58 +370,7 @@ The following cost factors are **NOT** included and may significantly increase y
         """Generate AWS Console deep link for a resource."""
         if not region:
             region = "us-east-1"
-        base = f"https://{region}.console.aws.amazon.com"
-
-        # Map resource types to console URLs
-        links = {
-            # EC2
-            "aws_instance": f"{base}/ec2/home?region={region}#InstanceDetails:instanceId={resource_id}",
-            "aws_security_group": f"{base}/ec2/home?region={region}#SecurityGroup:groupId={resource_id}",
-            "aws_eip": f"{base}/ec2/home?region={region}#ElasticIpDetails:AllocationId={resource_id}",
-            "aws_launch_template": f"{base}/ec2/home?region={region}#LaunchTemplates:launchTemplateId={resource_id}",
-            "aws_ebs_volume": f"{base}/ec2/home?region={region}#VolumeDetails:volumeId={resource_id}",
-            # VPC
-            "aws_vpc": f"{base}/vpc/home?region={region}#VpcDetails:VpcId={resource_id}",
-            "aws_subnet": f"{base}/vpc/home?region={region}#SubnetDetails:subnetId={resource_id}",
-            "aws_route_table": f"{base}/vpc/home?region={region}#RouteTableDetails:RouteTableId={resource_id}",
-            "aws_internet_gateway": f"{base}/vpc/home?region={region}#InternetGateway:internetGatewayId={resource_id}",
-            "aws_nat_gateway": f"{base}/vpc/home?region={region}#NatGatewayDetails:natGatewayId={resource_id}",
-            "aws_vpc_endpoint": f"{base}/vpc/home?region={region}#Endpoints:vpcEndpointId={resource_id}",
-            "aws_network_acl": f"{base}/vpc/home?region={region}#NetworkAclDetails:networkAclId={resource_id}",
-            # RDS
-            "aws_db_instance": f"{base}/rds/home?region={region}#database:id={resource_id}",
-            "aws_rds_cluster": f"{base}/rds/home?region={region}#database:id={resource_id}",
-            "aws_db_subnet_group": f"{base}/rds/home?region={region}#db-subnet-group:id={resource_id}",
-            # ElastiCache
-            "aws_elasticache_cluster": f"{base}/elasticache/home?region={region}#/redis/{resource_id}",
-            "aws_elasticache_replication_group": f"{base}/elasticache/home?region={region}#/redis/{resource_id}",
-            "aws_elasticache_subnet_group": f"{base}/elasticache/home?region={region}#/subnet-groups/{resource_id}",
-            # S3 (global console URL)
-            "aws_s3_bucket": f"https://s3.console.aws.amazon.com/s3/buckets/{resource_id}?region={region}",
-            # Lambda
-            "aws_lambda_function": f"{base}/lambda/home?region={region}#/functions/{resource_id}",
-            # Load Balancers
-            "aws_lb": f"{base}/ec2/home?region={region}#LoadBalancers:search={resource_id}",
-            "aws_alb": f"{base}/ec2/home?region={region}#LoadBalancers:search={resource_id}",
-            "aws_lb_target_group": f"{base}/ec2/home?region={region}#TargetGroups:search={resource_id}",
-            # Auto Scaling
-            "aws_autoscaling_group": f"{base}/ec2/home?region={region}#AutoScalingGroupDetails:id={resource_id}",
-            # EKS
-            "aws_eks_cluster": f"{base}/eks/home?region={region}#/clusters/{resource_id}",
-            # IAM (global, no region)
-            "aws_iam_role": f"https://console.aws.amazon.com/iam/home#/roles/{resource_id}",
-            "aws_iam_policy": f"https://console.aws.amazon.com/iam/home#/policies/{resource_id}",
-            "aws_iam_user": f"https://console.aws.amazon.com/iam/home#/users/{resource_id}",
-            # CloudWatch
-            "aws_cloudwatch_log_group": f"{base}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{resource_id.replace('/', '$252F')}",
-            "aws_cloudwatch_metric_alarm": f"{base}/cloudwatch/home?region={region}#alarmsV2:alarm/{resource_id}",
-            # SQS
-            "aws_sqs_queue": f"{base}/sqs/v2/home?region={region}#/queues/{resource_id}",
-            # SNS
-            "aws_sns_topic": f"{base}/sns/v3/home?region={region}#/topic/{resource_id}",
-        }
-
-        return links.get(resource_type, "")
+        return get_console_url(resource_type, resource_id, region)
 
     def _detect_environment(self, resource_name: str) -> str:
         """Detect environment from resource name."""

@@ -46,6 +46,7 @@ def get_console_url(resource_type: str, resource_id: str, region: str) -> str:
         "network_acl": f"{base}/vpc/home?region={region}#NetworkAclDetails:networkAclId={resource_id}",
         # RDS
         "db_instance": f"{base}/rds/home?region={region}#database:id={resource_id}",
+        "rds_cluster": f"{base}/rds/home?region={region}#database:id={resource_id}",
         "db_subnet_group": f"{base}/rds/home?region={region}#db-subnet-group:id={resource_id}",
         # ElastiCache
         "elasticache_cluster": f"{base}/elasticache/home?region={region}#/redis/{resource_id}",
@@ -62,6 +63,8 @@ def get_console_url(resource_type: str, resource_id: str, region: str) -> str:
         "nlb": f"{base}/ec2/home?region={region}#LoadBalancers:search={resource_id}",
         # Auto Scaling
         "autoscaling_group": f"{base}/ec2/home?region={region}#AutoScalingGroupDetails:id={resource_id}",
+        # EKS
+        "eks_cluster": f"{base}/eks/home?region={region}#/clusters/{resource_id}",
         # IAM (global)
         "iam_role": f"https://console.aws.amazon.com/iam/home#/roles/{resource_id}",
         "iam_policy": f"https://console.aws.amazon.com/iam/home#/policies/{resource_id}",
