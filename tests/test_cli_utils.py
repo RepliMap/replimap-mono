@@ -260,54 +260,65 @@ class TestOptionsExports:
     def test_profile_option_exists(self):
         """ProfileOption should be importable."""
         from replimap.cli.utils import ProfileOption
+
         assert ProfileOption is not None
 
     def test_region_option_exists(self):
         """RegionOption should be importable."""
         from replimap.cli.utils import RegionOption
+
         assert RegionOption is not None
 
     def test_optional_region_option_exists(self):
         """OptionalRegionOption should be importable."""
         from replimap.cli.utils import OptionalRegionOption
+
         assert OptionalRegionOption is not None
 
     def test_output_dir_option_exists(self):
         """OutputDirOption should be importable."""
         from replimap.cli.utils import OutputDirOption
+
         assert OutputDirOption is not None
 
     def test_vpc_option_exists(self):
         """VpcOption should be importable."""
         from replimap.cli.utils import VpcOption
+
         assert VpcOption is not None
 
     def test_tag_option_exists(self):
         """TagOption should be importable."""
         from replimap.cli.utils import TagOption
+
         assert TagOption is not None
 
     def test_format_option_exists(self):
         """FormatOption should be importable."""
         from replimap.cli.utils import FormatOption
+
         assert FormatOption is not None
 
     def test_quiet_option_exists(self):
         """QuietOption should be importable."""
         from replimap.cli.utils import QuietOption
+
         assert QuietOption is not None
 
     def test_dry_run_option_exists(self):
         """DryRunOption should be importable."""
         from replimap.cli.utils import DryRunOption
+
         assert DryRunOption is not None
 
     def test_force_option_exists(self):
         """ForceOption should be importable."""
         from replimap.cli.utils import ForceOption
+
         assert ForceOption is not None
 
     def test_yes_option_exists(self):
         """YesOption should be importable."""
         from replimap.cli.utils import YesOption
+
         assert YesOption is not None
