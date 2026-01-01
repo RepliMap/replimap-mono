@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Global CLI Options** - Profile and region options available at top level
+  - `replimap -p <profile> <command>` works for all commands
+  - `replimap -r <region> <command>` works for all commands
+  - Subcommands (snapshot, dr) inherit from global options if not set locally
+  - Example: `replimap -p prod snapshot save -n "before-deploy"`
+
+- **Global Graceful Shutdown** - Clean Ctrl-C handling across all commands
+  - `replimap/core/concurrency.py` - Thread pool factory with centralized tracking
+    - `create_thread_pool()` - Factory for tracked ThreadPoolExecutor instances
+    - `shutdown_all_executors()` - Emergency shutdown for all active pools
+    - `check_shutdown()` - Cooperative cancellation for long-running loops
+    - WeakSet-based tracking for automatic cleanup
+  - `replimap/core/signals.py` - Global signal handlers
+    - SIGINT handler shows "Cancelled by user" and exits cleanly (code 130)
+    - SIGTERM handler shows "Terminated" and exits cleanly (code 143)
+    - Uses `os._exit()` to avoid Python threading cleanup tracebacks
+  - Eliminates ugly threading exceptions on Ctrl-C during scans
+
 - **Observability Infrastructure** - Structured logging and graph tracing for debugging
   - `replimap/core/logging.py` - Structured logging with `structlog`
     - `configure_logging()` - Environment-aware formatters (JSON for prod, human-readable for dev)
@@ -27,6 +45,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - XSS prevention and accessibility testing
 
 ### Fixed
+
+- **Unused Command API** - Fixed `AttributeError: 'UnusedResourceDetector' has no attribute 'detect_from_graph'`
+  - Changed constructor from `UnusedResourceDetector(session, region)` to `UnusedResourceDetector(region=, account_id=)`
+  - Changed method from `detect_from_graph(graph)` to async `scan(graph, check_metrics=True)`
+  - Returns `UnusedResourcesReport` with `.unused_resources` list
+
+- **Trends Command API** - Fixed `analyze() got an unexpected keyword argument 'days'`
+  - Changed constructor from `CostTrendAnalyzer(session)` to `CostTrendAnalyzer(region=, account_id=)`
+  - Changed parameter from `days=` to `lookback_days=`
+  - Fixed attribute access: `result.trend` → `result.overall_trend`
+  - Fixed service data: `result.service_breakdown` → `result.service_trends`
+  - Fixed forecast: now sums list of `CostForecastResult` objects
 
 - **XSS Vulnerability in Drift Report** - Jinja2 autoescape wasn't working for `.html.j2` files
   - Changed from `select_autoescape(["html", "xml"])` to `autoescape=True`

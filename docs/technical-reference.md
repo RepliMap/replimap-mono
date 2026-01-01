@@ -1340,6 +1340,35 @@ replimap license deactivate --yes
 
 ## CLI Reference
 
+### Global Options
+
+These options can be specified at the top level and will be inherited by all commands:
+
+```bash
+replimap [GLOBAL OPTIONS] <command> [COMMAND OPTIONS]
+
+# Global options
+  --profile, -p TEXT    AWS profile name (inherited by subcommands)
+  --region, -r TEXT     AWS region (inherited by subcommands)
+  --quiet, -q           Suppress verbose output
+  --version, -V         Show version and exit
+  --help, -h            Show help and exit
+```
+
+**Examples:**
+```bash
+# Profile at global level (works for all commands)
+replimap -p prod scan
+replimap -p prod clone --output-dir ./staging
+replimap -p prod snapshot save -n "before-deploy"
+replimap -p prod -r eu-west-1 graph
+
+# Equivalent to command-level options
+replimap scan --profile prod
+```
+
+### Commands
+
 ```bash
 # Show version
 replimap --version
