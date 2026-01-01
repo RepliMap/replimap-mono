@@ -4,13 +4,21 @@ Scan command - AWS resource discovery and dependency graph building.
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from pathlib import Path
 
 import typer
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.prompt import Confirm, Prompt
 
 from replimap import __version__
@@ -36,7 +44,7 @@ from replimap.core import (
 from replimap.licensing import Feature, check_scan_allowed, get_scans_remaining
 from replimap.licensing.manager import get_license_manager
 from replimap.licensing.tracker import get_usage_tracker
-from replimap.scanners.base import run_all_scanners
+from replimap.scanners.base import get_total_scanner_count, run_all_scanners
 
 
 def register(app: typer.Typer) -> None:
@@ -341,18 +349,57 @@ def register(app: typer.Typer) -> None:
                 "[dim]Performing incremental scan for updated resources...[/]"
             )
 
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task(
-                f"Scanning AWS resources ({scan_mode})...", total=None
-            )
+        total_scanners = get_total_scanner_count()
+        quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
+
+        if quiet_mode:
+            # Quiet mode: no progress bar, just run scanners
             results = run_all_scanners(
-                session, effective_region, graph, parallel=use_parallel
+                session,
+                effective_region,
+                graph,
+                parallel=use_parallel,
             )
-            progress.update(task, completed=True)
+        else:
+            # Normal mode: show progress bar
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold cyan]{task.description}"),
+                BarColumn(bar_width=30),
+                TaskProgressColumn(),
+                TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+                TimeElapsedColumn(),
+                console=console,
+                transient=False,
+            ) as progress:
+                task = progress.add_task(
+                    f"Scanning AWS resources ({scan_mode})...",
+                    total=total_scanners,
+                    resource_count=0,
+                )
+
+                def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                    """Update progress bar when a scanner completes."""
+                    progress.update(
+                        task,
+                        advance=1,
+                        resource_count=graph.node_count,
+                    )
+
+                results = run_all_scanners(
+                    session,
+                    effective_region,
+                    graph,
+                    parallel=use_parallel,
+                    on_scanner_complete=on_scanner_complete,
+                )
+
+                # Final update with completion state
+                progress.update(
+                    task,
+                    description="[bold green]✓ Scan complete",
+                    resource_count=graph.node_count,
+                )
         scan_duration = time.time() - scan_start
 
         # Print scan summary with resource counts
