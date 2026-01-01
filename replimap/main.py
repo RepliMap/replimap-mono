@@ -43,6 +43,18 @@ def main_callback(
         "-V",
         help="Show version and exit",
     ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile name (can also be set per-command)",
+    ),
+    region: str | None = typer.Option(
+        None,
+        "--region",
+        "-r",
+        help="AWS region (can also be set per-command)",
+    ),
 ) -> None:
     """RepliMap - AWS Infrastructure Intelligence Engine."""
     if version:
@@ -52,6 +64,11 @@ def main_callback(
     if quiet:
         logging.getLogger("replimap").setLevel(logging.WARNING)
         os.environ["REPLIMAP_QUIET"] = "1"
+
+    # Store global options in context for subcommands
+    ctx.ensure_object(dict)
+    ctx.obj["global_profile"] = profile
+    ctx.obj["global_region"] = region
 
     # Show help if no command provided (mimic no_args_is_help)
     if ctx.invoked_subcommand is None:

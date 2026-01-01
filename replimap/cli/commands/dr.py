@@ -36,15 +36,29 @@ def create_dr_app() -> typer.Typer:
         """
         Disaster Recovery readiness assessment.
 
-        Common options (--profile, --region) can be specified before the subcommand.
+        Common options (--profile, --region) can be specified before the subcommand
+        or at the global level (e.g., replimap -p prod dr assess).
 
         Examples:
+            replimap -p prod dr assess
             replimap dr -p prod assess
             replimap dr -p prod scorecard
         """
         ctx.ensure_object(dict)
-        ctx.obj["profile"] = profile
-        ctx.obj["region"] = region
+        # Use local option if set, otherwise inherit from global context
+        parent_ctx = ctx.parent
+        global_profile = (
+            parent_ctx.obj.get("global_profile")
+            if parent_ctx and parent_ctx.obj
+            else None
+        )
+        global_region = (
+            parent_ctx.obj.get("global_region")
+            if parent_ctx and parent_ctx.obj
+            else None
+        )
+        ctx.obj["profile"] = profile or global_profile
+        ctx.obj["region"] = region or global_region
 
     @dr_app.command("assess")
     def dr_assess(

@@ -156,14 +156,26 @@ def unused_command(
         )
 
     # Analyze resource utilization (global signal handler handles Ctrl-C)
+    import asyncio
+
+    account_id = session.client("sts").get_caller_identity().get("Account", "")
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
         task = progress.add_task("Analyzing resource utilization...", total=None)
-        detector = UnusedResourceDetector(session, effective_region)
-        unused_resources = detector.detect_from_graph(graph)
+        detector = UnusedResourceDetector(
+            region=effective_region,
+            account_id=account_id,
+        )
+
+        async def run_detection():
+            return await detector.scan(graph, check_metrics=True)
+
+        report = asyncio.run(run_detection())
+        unused_resources = report.unused_resources
         progress.update(task, completed=True)
 
     # Filter by confidence

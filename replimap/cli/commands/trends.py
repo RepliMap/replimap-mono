@@ -76,9 +76,13 @@ def trends_command(
         )
     )
 
+    import asyncio
+
     session = get_aws_session(
         effective_profile, effective_region, use_cache=not no_cache
     )
+
+    account_id = session.client("sts").get_caller_identity().get("Account", "")
 
     # Global signal handler handles Ctrl-C
     try:
@@ -90,8 +94,15 @@ def trends_command(
             task = progress.add_task(
                 "Fetching cost data from Cost Explorer...", total=None
             )
-            analyzer = CostTrendAnalyzer(session)
-            result = analyzer.analyze(days=days)
+            analyzer = CostTrendAnalyzer(
+                region=effective_region,
+                account_id=account_id,
+            )
+
+            async def run_analysis():
+                return await analyzer.analyze(lookback_days=days)
+
+            result = asyncio.run(run_analysis())
             progress.update(task, completed=True)
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/]")
@@ -102,7 +113,7 @@ def trends_command(
 
     if output_format == "console":
         console.print("[bold]Trend Analysis[/bold]")
-        trend = result.trend
+        trend = result.overall_trend
         direction_style = {
             "increasing": "red",
             "decreasing": "green",
@@ -126,20 +137,23 @@ def trends_command(
             )
             for a in result.anomalies[:5]:
                 console.print(
-                    f"  • {a.date}: {a.anomaly_type.value} - ${a.amount:.2f} ({a.description})"
+                    f"  • {a.date}: {a.anomaly_type.value} - ${a.actual_amount:.2f} (deviation: {a.deviation_pct:+.1f}%)"
                 )
             console.print()
 
-        if result.service_breakdown:
+        if result.service_trends:
             console.print("[bold]Top Services by Cost[/bold]")
-            for svc, cost in list(result.service_breakdown.items())[:5]:
-                console.print(f"  • {svc}: ${cost:.2f}")
+            for svc in result.service_trends[:5]:
+                console.print(f"  • {svc.service}: ${svc.current_monthly:.2f}")
             console.print()
 
         if result.forecast:
             console.print("[bold]Forecast[/bold]")
-            console.print(f"  Next 7 days: ${result.forecast.next_7_days:.2f}")
-            console.print(f"  Next 30 days: ${result.forecast.next_30_days:.2f}")
+            # Sum up forecasted costs for 7 and 30 days
+            next_7 = sum(f.mean_value for f in result.forecast[:7])
+            next_30 = sum(f.mean_value for f in result.forecast[:30])
+            console.print(f"  Next 7 days: ${next_7:.2f}")
+            console.print(f"  Next 30 days: ${next_30:.2f}")
 
     elif output_format == "json":
         output_path = output or Path("cost_trends.json")
@@ -152,9 +166,11 @@ def trends_command(
         with open(output_path, "w") as f:
             f.write("# Cost Trend Analysis\n\n")
             f.write(f"- Period: Last {days} days\n")
-            f.write(f"- Direction: {result.trend.direction.value}\n")
-            f.write(f"- Rate: ${abs(result.trend.slope):.2f}/day\n")
-            f.write(f"- Projected monthly: ${result.trend.projected_monthly:.2f}\n")
+            f.write(f"- Direction: {result.overall_trend.direction.value}\n")
+            f.write(f"- Rate: ${abs(result.overall_trend.slope):.2f}/day\n")
+            f.write(
+                f"- Projected monthly: ${result.overall_trend.projected_monthly:.2f}\n"
+            )
         console.print(f"[green]✓ Saved to {output_path}[/]")
 
     console.print()

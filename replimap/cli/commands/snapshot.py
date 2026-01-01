@@ -32,16 +32,30 @@ def create_snapshot_app() -> typer.Typer:
         """
         Infrastructure snapshots for change tracking.
 
-        Common options (--profile, --region) can be specified before the subcommand.
+        Common options (--profile, --region) can be specified before the subcommand
+        or at the global level (e.g., replimap -p prod snapshot save).
 
         Examples:
+            replimap -p prod snapshot save -n "before-deploy"
             replimap snapshot -p prod save -n "before-deploy"
             replimap snapshot -p prod list
             replimap snapshot -p prod diff --baseline v1 --current v2
         """
         ctx.ensure_object(dict)
-        ctx.obj["profile"] = profile
-        ctx.obj["region"] = region
+        # Use local option if set, otherwise inherit from global context
+        parent_ctx = ctx.parent
+        global_profile = (
+            parent_ctx.obj.get("global_profile")
+            if parent_ctx and parent_ctx.obj
+            else None
+        )
+        global_region = (
+            parent_ctx.obj.get("global_region")
+            if parent_ctx and parent_ctx.obj
+            else None
+        )
+        ctx.obj["profile"] = profile or global_profile
+        ctx.obj["region"] = region or global_region
 
     @snapshot_app.command("save")
     def snapshot_save(
