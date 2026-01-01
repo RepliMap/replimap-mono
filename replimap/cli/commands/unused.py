@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-from replimap.cli.utils import console, get_aws_session
+from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core import GraphEngine
 from replimap.scanners.base import run_all_scanners
 
@@ -90,13 +90,25 @@ def unused_command(
         console.print(cost_gate.prompt)
         raise typer.Exit(1)
 
-    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    # Determine region (flag > profile > env > default)
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            region_source = "default"
+
     effective_profile = profile or "default"
 
     console.print(
         Panel(
             f"[bold cyan]Unused Resource Detector[/bold cyan]\n\n"
-            f"Region: [cyan]{effective_region}[/]\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
             f"Profile: [cyan]{effective_profile}[/]",
             border_style="cyan",
         )
@@ -151,19 +163,22 @@ def unused_command(
         )
 
     # Analyze resource utilization
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Analyzing resource utilization...", total=None)
-        try:
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Analyzing resource utilization...", total=None)
             detector = UnusedResourceDetector(session, effective_region)
             unused_resources = detector.detect_from_graph(graph)
             progress.update(task, completed=True)
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/]")
-            raise typer.Exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        raise typer.Exit(130)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/]")
+        raise typer.Exit(1)
 
     # Filter by confidence
     if confidence != "all":
