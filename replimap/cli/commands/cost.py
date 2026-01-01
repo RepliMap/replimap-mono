@@ -57,6 +57,12 @@ def cost_command(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
     acknowledge: bool = typer.Option(
         False,
         "--acknowledge",
@@ -150,16 +156,29 @@ def cost_command(
     # Get AWS session
     session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
-    # Scan resources
-    console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-        try:
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
+
+    # Use cached graph or scan
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning AWS resources...", total=None)
+
             # Create graph and run scanners
             graph = GraphEngine()
             run_all_scanners(
@@ -178,9 +197,27 @@ def cost_command(
                 )
                 graph = apply_filter_to_graph(graph, filter_config)
 
-            progress.update(task, description="Estimating costs...")
+            progress.update(task, completed=True)
 
-            # Estimate costs
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            vpc=vpc,
+        )
+
+    # Estimate costs
+    console.print()
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Estimating costs...", total=None)
+
+        try:
             estimator = CostEstimator(effective_region)
             estimate = estimator.estimate_from_graph_engine(graph)
 
