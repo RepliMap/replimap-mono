@@ -4249,6 +4249,12 @@ def snapshot_save(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Save an infrastructure snapshot.
@@ -4293,19 +4299,42 @@ def snapshot_save(
     # Get AWS session
     session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
-    # Scan resources
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
         console=console,
-    ) as progress:
-        task = progress.add_task("Scanning infrastructure...", total=None)
+        refresh=refresh,
+        vpc=vpc,
+    )
 
-        graph = GraphEngine()
-        run_all_scanners(session, effective_region, graph)
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        # Scan resources
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning infrastructure...", total=None)
 
-        progress.update(task, completed=True)
+            graph = GraphEngine()
+            run_all_scanners(session, effective_region, graph)
+
+            progress.update(task, completed=True)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            vpc=vpc,
+        )
 
     # Filter by VPC if specified
     if vpc:
@@ -4948,6 +4977,12 @@ def validate(
         "--generate-defaults",
         help="Generate default constraints file",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Validate infrastructure against topology constraints.
@@ -5077,26 +5112,52 @@ constraints:
     effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
     effective_profile = profile or "default"
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
         console=console,
-    ) as progress:
-        task = progress.add_task("Scanning infrastructure...", total=None)
+        refresh=refresh,
+    )
 
-        try:
-            session = boto3.Session(profile_name=effective_profile)
-            graph = GraphEngine()
-            run_all_scanners(session, graph, effective_region)
-            progress.update(task, description="Validating constraints...")
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning infrastructure...", total=None)
 
-            # Validate
-            validator = TopologyValidator(constraints)
-            result = validator.validate(graph)
+            try:
+                session = boto3.Session(profile_name=effective_profile)
+                graph = GraphEngine()
+                run_all_scanners(session, graph, effective_region)
+                progress.update(task, completed=True)
 
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/]")
-            raise typer.Exit(1)
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/]")
+                raise typer.Exit(1)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
+
+    # Validate
+    try:
+        validator = TopologyValidator(constraints)
+        result = validator.validate(graph)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/]")
+        raise typer.Exit(1)
 
     # Display results
     console.print("[bold]Validation Results[/bold]\n")
@@ -5211,6 +5272,12 @@ def unused(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Detect unused and underutilized AWS resources.
@@ -5274,26 +5341,58 @@ def unused(
     if resource_types:
         types_filter = [t.strip().lower() for t in resource_types.split(",")]
 
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+    )
+
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning for unused resources...", total=None)
+
+            try:
+                # Create graph and run scanners
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+
+                progress.update(task, completed=True)
+
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/]")
+                raise typer.Exit(1)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
+
+    # Analyze resource utilization
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Scanning for unused resources...", total=None)
+        task = progress.add_task("Analyzing resource utilization...", total=None)
 
         try:
-            # Create graph and run scanners
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-
-            progress.update(task, description="Analyzing resource utilization...")
-
-            # Detect unused resources
             detector = UnusedResourceDetector(session, effective_region)
             unused_resources = detector.detect_from_graph(graph)
-
             progress.update(task, completed=True)
-
         except Exception as e:
             console.print(f"[red]Error: {e}[/]")
             raise typer.Exit(1)
@@ -5652,6 +5751,12 @@ def transfer(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Analyze data transfer costs and optimization opportunities.
@@ -5697,26 +5802,58 @@ def transfer(
         effective_profile, effective_region, use_cache=not no_cache
     )
 
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+    )
+
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning infrastructure...", total=None)
+
+            try:
+                # Create graph and run scanners
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+
+                progress.update(task, completed=True)
+
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/]")
+                raise typer.Exit(1)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
+
+    # Analyze transfer paths
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Scanning infrastructure...", total=None)
+        task = progress.add_task("Analyzing transfer paths...", total=None)
 
         try:
-            # Create graph and run scanners
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-
-            progress.update(task, description="Analyzing transfer paths...")
-
-            # Analyze transfer costs
             analyzer = DataTransferAnalyzer(session, effective_region)
             report = analyzer.analyze_from_graph(graph)
-
             progress.update(task, completed=True)
-
         except Exception as e:
             console.print(f"[red]Error: {e}[/]")
             raise typer.Exit(1)
@@ -5827,6 +5964,12 @@ def dr_assess(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Assess disaster recovery readiness for your infrastructure.
@@ -5889,30 +6032,62 @@ def dr_assess(
         effective_profile, effective_region, use_cache=not no_cache
     )
 
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+    )
+
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning primary region...", total=None)
+
+            try:
+                # Create graph and run scanners
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+
+                progress.update(task, completed=True)
+
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/]")
+                raise typer.Exit(1)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
+
+    # Assess DR readiness
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Scanning primary region...", total=None)
+        task = progress.add_task("Assessing DR readiness...", total=None)
 
         try:
-            # Create graph and run scanners
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-
-            progress.update(task, description="Assessing DR readiness...")
-
-            # Run DR assessment
             assessor = DRReadinessAssessor(
                 session,
                 primary_region=effective_region,
                 dr_region=dr_region,
             )
             result = assessor.assess(graph, target_tier=target)
-
             progress.update(task, completed=True)
-
         except Exception as e:
             console.print(f"[red]Error: {e}[/]")
             raise typer.Exit(1)
