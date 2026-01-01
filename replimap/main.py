@@ -681,6 +681,19 @@ def scan(
     # Show next steps
     print_next_steps()
 
+    # Cache graph for subsequent commands (graph, deps, clone, cost, audit)
+    from replimap.core.cache_manager import save_graph_to_cache
+
+    save_graph_to_cache(
+        graph,
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        vpc=vpc,
+        account_id=account_id,
+        metadata={"scan_duration": scan_duration},
+    )
+
     # Show remaining scans for FREE users
     remaining = get_scans_remaining()
     if remaining >= 0:
@@ -2367,6 +2380,12 @@ def graph(
         "--security",
         help="Security-focused view (show SGs, IAM, KMS)",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Ignore cache and force a fresh AWS scan",
+    ),
 ) -> None:
     """
     Generate visual dependency graph of AWS infrastructure.
@@ -2458,8 +2477,17 @@ def graph(
     effective_show_sg_rules = show_sg_rules or security_view
     effective_show_routes = show_routes
 
-    # Run visualization
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph
+
     console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
 
     try:
         visualizer = GraphVisualizer(
@@ -2473,7 +2501,10 @@ def graph(
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task("Generating graph...", total=None)
+            if cached_graph:
+                task = progress.add_task("Generating visualization...", total=None)
+            else:
+                task = progress.add_task("Scanning and generating graph...", total=None)
 
             result = visualizer.generate(
                 vpc_id=vpc,
@@ -2483,9 +2514,16 @@ def graph(
                 show_sg_rules=effective_show_sg_rules,
                 show_routes=effective_show_routes,
                 no_collapse=no_collapse,
+                existing_graph=cached_graph,
             )
 
             progress.update(task, completed=True)
+
+        # If we scanned (no cache hit), save to cache for next time
+        if not cached_graph:
+            # Note: We don't have access to the internal graph here after visualization
+            # The cache is populated by the 'scan' command - graph command just uses it
+            console.print("[dim]Tip: Run 'replimap scan' first to enable caching[/dim]")
     except Exception as e:
         console.print()
         console.print(
@@ -3015,6 +3053,12 @@ def deps(
         "-a",
         help="Use deep analyzer mode with categorized output (EC2, SG, IAM Role)",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Ignore cache and force a fresh AWS scan",
+    ),
 ) -> None:
     """
     Explore dependencies for a resource.
@@ -3106,50 +3150,66 @@ def deps(
         return
 
     # Graph-based mode (default)
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph
+
     console.print()
-    total_scanners = get_total_scanner_count()
-    graph = GraphEngine()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
+
+    if cached_graph:
+        graph = cached_graph
+    else:
+        # No cache - do full scan
+        total_scanners = get_total_scanner_count()
+        graph = GraphEngine()
 
     try:
-        # Phase 1: Scan AWS resources with progress bar
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold cyan]{task.description}"),
-            BarColumn(bar_width=30),
-            TaskProgressColumn(),
-            TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
-            TimeElapsedColumn(),
-            console=console,
-            transient=False,
-        ) as progress:
-            task = progress.add_task(
-                "Scanning AWS resources...",
-                total=total_scanners,
-                resource_count=0,
-                dep_count=0,
-            )
+        if not cached_graph:
+            # Phase 1: Scan AWS resources with progress bar
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold cyan]{task.description}"),
+                BarColumn(bar_width=30),
+                TaskProgressColumn(),
+                TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
+                TimeElapsedColumn(),
+                console=console,
+                transient=False,
+            ) as progress:
+                task = progress.add_task(
+                    "Scanning AWS resources...",
+                    total=total_scanners,
+                    resource_count=0,
+                    dep_count=0,
+                )
 
-            def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                    progress.update(
+                        task,
+                        advance=1,
+                        resource_count=graph.node_count,
+                        dep_count=graph.edge_count,
+                    )
+
+                run_all_scanners(
+                    session=session,
+                    region=effective_region,
+                    graph=graph,
+                    on_scanner_complete=on_scanner_complete,
+                )
+
                 progress.update(
                     task,
-                    advance=1,
+                    description="[bold green]✓ Scan complete",
                     resource_count=graph.node_count,
                     dep_count=graph.edge_count,
                 )
-
-            run_all_scanners(
-                session=session,
-                region=effective_region,
-                graph=graph,
-                on_scanner_complete=on_scanner_complete,
-            )
-
-            progress.update(
-                task,
-                description="[bold green]✓ Scan complete",
-                resource_count=graph.node_count,
-                dep_count=graph.edge_count,
-            )
 
         # Apply VPC filter if specified
         if vpc:
@@ -5786,6 +5846,65 @@ def dr_scorecard(
 
 # Register DR command group
 app.add_typer(dr_app, name="dr")
+
+
+# =============================================================================
+# CACHE MANAGEMENT COMMAND
+# =============================================================================
+
+
+@app.command()
+def cache(
+    show: bool = typer.Option(
+        False,
+        "--show",
+        "-s",
+        help="Show cache status and list all cached scans",
+    ),
+    clear: bool = typer.Option(
+        False,
+        "--clear",
+        "-c",
+        help="Clear all cached scans",
+    ),
+) -> None:
+    """
+    Manage scan cache.
+
+    RepliMap caches scan results to speed up subsequent commands.
+    After running 'replimap scan', commands like 'graph', 'deps', 'clone',
+    'audit', and 'cost' can use the cached data (<1s) instead of re-scanning.
+
+    Examples:
+        # Show cache status
+        replimap cache --show
+
+        # Clear all cached scans
+        replimap cache --clear
+    """
+    from replimap.core.cache_manager import CacheManager, print_cache_status
+
+    if clear:
+        count = CacheManager.clear_all()
+        if count > 0:
+            console.print(f"[green]✓ Cleared {count} cached scan(s)[/green]")
+        else:
+            console.print("[dim]No cached scans to clear.[/dim]")
+    elif show:
+        print_cache_status(console)
+    else:
+        # Default: show help
+        console.print()
+        console.print("[bold]Scan Cache[/bold]")
+        console.print()
+        console.print(
+            "RepliMap caches scan results to speed up subsequent commands.\n"
+            "Run 'replimap scan' once, then 'graph', 'deps', 'clone' use cached data.\n"
+        )
+        console.print("  [cyan]replimap cache --show[/cyan]   Show cached scans")
+        console.print("  [cyan]replimap cache --clear[/cyan]  Clear all cached scans")
+        console.print()
+        print_cache_status(console)
 
 
 def _signal_handler(sig: int, frame: Any) -> None:

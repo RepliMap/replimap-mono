@@ -175,6 +175,7 @@ class GraphVisualizer:
         show_sg_rules: bool = False,
         show_routes: bool = False,
         no_collapse: bool = False,
+        existing_graph: GraphEngine | None = None,
     ) -> str | Path:
         """
         Generate visualization in specified format.
@@ -189,6 +190,7 @@ class GraphVisualizer:
             show_sg_rules: Show security group rules
             show_routes: Show routes and route tables
             no_collapse: Disable resource grouping
+            existing_graph: Pre-built graph to use (skips scanning)
 
         Returns:
             Generated content (str) or path to file
@@ -199,10 +201,14 @@ class GraphVisualizer:
         from replimap.graph.grouper import GroupingConfig as GC
         from replimap.scanners import run_all_scanners
 
-        # 1. Build dependency graph using existing scanners
-        graph = GraphEngine()
-        logger.info(f"Scanning AWS resources in {self.region}...")
-        run_all_scanners(self.session, self.region, graph)
+        # 1. Use existing graph or scan for new one
+        if existing_graph is not None:
+            graph = existing_graph
+            logger.info("Using pre-built graph")
+        else:
+            graph = GraphEngine()
+            logger.info(f"Scanning AWS resources in {self.region}...")
+            run_all_scanners(self.session, self.region, graph)
 
         # 2. Configure filter
         if filter_config is not None:
