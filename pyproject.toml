@@ -74,7 +74,7 @@ dev = [
 # This avoids dependency conflicts with networkx versions.
 
 [project.scripts]
-replimap = "replimap.main:cli"
+replimap = "replimap.main:main"
 
 [project.urls]
 Homepage = "https://github.com/RepliMap/replimap"
