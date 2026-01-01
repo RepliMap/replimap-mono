@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
+import sys
 
 import typer
 from rich.console import Console
@@ -62,9 +64,24 @@ def main_callback(
 register_all_commands(app)
 
 
+def _signal_handler(sig: int, frame: object) -> None:
+    """Handle SIGINT (Ctrl+C) gracefully."""
+    console.print("\n[yellow]Cancelled by user[/yellow]")
+    sys.exit(130)  # 130 is standard SIGINT exit code
+
+
 def main() -> None:
     """Entry point for the CLI."""
-    app()
+    # Register signal handler for graceful Ctrl-C handling
+    # This prevents ugly threading shutdown exceptions
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    try:
+        app()
+    except KeyboardInterrupt:
+        # Fallback in case signal handler doesn't catch it
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        sys.exit(130)
 
 
 if __name__ == "__main__":
