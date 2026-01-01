@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import signal
+import sys
 import time
 import uuid
 from datetime import UTC, datetime
@@ -5568,9 +5570,23 @@ def dr_scorecard(
 app.add_typer(dr_app, name="dr")
 
 
+def _signal_handler(sig: int, frame: Any) -> None:
+    """Handle SIGINT (Ctrl+C) gracefully."""
+    console.print("\n[bold red]🛑 Aborted by user.[/bold red]")
+    sys.exit(130)  # Standard exit code for SIGINT
+
+
 def cli() -> None:
     """Entry point for the CLI."""
-    app()
+    # Register signal handler for clean Ctrl+C exit
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    try:
+        app()
+    except KeyboardInterrupt:
+        # Fallback if signal handler is bypassed
+        console.print("\n[bold red]🛑 Aborted by user.[/bold red]")
+        sys.exit(130)
 
 
 if __name__ == "__main__":

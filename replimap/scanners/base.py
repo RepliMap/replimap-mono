@@ -86,7 +86,8 @@ def parallel_process_items(
         return results, failures
 
     # Process in parallel
-    with ThreadPoolExecutor(max_workers=min(workers, len(items))) as executor:
+    executor = ThreadPoolExecutor(max_workers=min(workers, len(items)))
+    try:
         future_to_item = {executor.submit(processor, item): item for item in items}
 
         for future in as_completed(future_to_item):
@@ -98,6 +99,12 @@ def parallel_process_items(
             except Exception as e:
                 failures.append((item, e))
                 logger.warning(f"Failed to process {description} item: {e}")
+    except KeyboardInterrupt:
+        # Immediate shutdown on Ctrl+C
+        executor.shutdown(wait=False, cancel_futures=True)
+        raise
+    finally:
+        executor.shutdown(wait=True)
 
     if failures:
         logger.warning(
@@ -605,7 +612,8 @@ def _run_scanners_parallel(
             logger.error(f"{scanner_name} failed: {e}")
             return (scanner_name, e)
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    try:
         futures = {
             executor.submit(run_single_scanner, sc): sc for sc in scanner_classes
         }
@@ -613,5 +621,12 @@ def _run_scanners_parallel(
         for future in as_completed(futures):
             scanner_name, error = future.result()
             results[scanner_name] = error
+    except KeyboardInterrupt:
+        # Immediate shutdown: don't wait for in-flight tasks, cancel pending
+        executor.shutdown(wait=False, cancel_futures=True)
+        raise
+    finally:
+        # Normal cleanup (no-op if already shut down)
+        executor.shutdown(wait=True)
 
     return results

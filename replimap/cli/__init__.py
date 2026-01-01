@@ -60,9 +60,18 @@ def create_app() -> typer.Typer:
             "-V",
             help="Enable verbose logging",
         ),
+        quiet: bool = typer.Option(
+            False,
+            "--quiet",
+            "-q",
+            help="Suppress INFO logs (keep progress bars and errors)",
+        ),
     ) -> None:
         """RepliMap - AWS Environment Replication Tool."""
-        if verbose:
+        if quiet:
+            # Suppress INFO logs but keep WARNING/ERROR
+            logging.getLogger("replimap").setLevel(logging.WARNING)
+        elif verbose:
             logging.getLogger().setLevel(logging.DEBUG)
 
     # Register all commands
