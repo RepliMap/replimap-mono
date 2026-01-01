@@ -480,16 +480,50 @@ def scan(
     if cached_count > 0:
         console.print("[dim]Performing incremental scan for updated resources...[/]")
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task(f"Scanning AWS resources ({scan_mode})...", total=None)
+    total_scanners = get_total_scanner_count()
+    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
+
+    if quiet_mode:
         results = run_all_scanners(
             session, effective_region, graph, parallel=use_parallel
         )
-        progress.update(task, completed=True)
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                f"Scanning AWS resources ({scan_mode})...",
+                total=total_scanners,
+                resource_count=0,
+            )
+
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                progress.update(
+                    task,
+                    advance=1,
+                    resource_count=graph.node_count,
+                )
+
+            results = run_all_scanners(
+                session,
+                effective_region,
+                graph,
+                parallel=use_parallel,
+                on_scanner_complete=on_scanner_complete,
+            )
+
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+            )
     scan_duration = time.time() - scan_start
 
     # Print scan summary with resource counts
@@ -813,14 +847,47 @@ def clone(
     graph = GraphEngine()
 
     # Run all scanners with progress
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    total_scanners = get_total_scanner_count()
+    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
+
+    if quiet_mode:
         run_all_scanners(session, effective_region, graph)
-        progress.update(task, completed=True)
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                "Scanning AWS resources...",
+                total=total_scanners,
+                resource_count=0,
+            )
+
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                progress.update(
+                    task,
+                    advance=1,
+                    resource_count=graph.node_count,
+                )
+
+            run_all_scanners(
+                session,
+                effective_region,
+                graph,
+                on_scanner_complete=on_scanner_complete,
+            )
+
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+            )
 
     stats = graph.statistics()
     console.print(
@@ -2358,20 +2425,16 @@ def graph(
 
     # Run visualization
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
 
-        try:
-            visualizer = GraphVisualizer(
-                session=session,
-                region=effective_region,
-                profile=profile,
-            )
+    try:
+        visualizer = GraphVisualizer(
+            session=session,
+            region=effective_region,
+            profile=profile,
+        )
 
+        if quiet_mode:
             result = visualizer.generate(
                 vpc_id=vpc,
                 output_format=fmt,
@@ -2381,19 +2444,35 @@ def graph(
                 show_routes=effective_show_routes,
                 no_collapse=no_collapse,
             )
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Generating graph...", total=None)
 
-            progress.update(task, completed=True)
-        except Exception as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Graph generation failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
+                result = visualizer.generate(
+                    vpc_id=vpc,
+                    output_format=fmt,
+                    output_path=output,
+                    show_all=show_all,
+                    show_sg_rules=effective_show_sg_rules,
+                    show_routes=effective_show_routes,
+                    no_collapse=no_collapse,
                 )
+
+                progress.update(task, completed=True)
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Graph generation failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
             )
-            raise typer.Exit(1)
+        )
+        raise typer.Exit(1)
 
     # Output result
     console.print()
@@ -3005,81 +3084,113 @@ def deps(
 
     # Graph-based mode (default)
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    total_scanners = get_total_scanner_count()
+    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
+    graph = GraphEngine()
 
-        try:
-            # Create graph and run scanners
-            graph = GraphEngine()
-            run_all_scanners(
-                session=session,
-                region=effective_region,
-                graph=graph,
-            )
-
-            # Apply VPC filter if specified
-            if vpc:
-                from replimap.core import ScanFilter, apply_filter_to_graph
-
-                filter_config = ScanFilter(
-                    vpc_ids=[vpc],
-                    include_vpc_resources=True,
+    try:
+        # Phase 1: Scan AWS resources with progress bar
+        if quiet_mode:
+            run_all_scanners(session=session, region=effective_region, graph=graph)
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold cyan]{task.description}"),
+                BarColumn(bar_width=30),
+                TaskProgressColumn(),
+                TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+                TimeElapsedColumn(),
+                console=console,
+                transient=False,
+            ) as progress:
+                task = progress.add_task(
+                    "Scanning AWS resources...",
+                    total=total_scanners,
+                    resource_count=0,
                 )
-                graph = apply_filter_to_graph(graph, filter_config)
 
-            progress.update(task, description="Building dependency graph...")
+                def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                    progress.update(
+                        task,
+                        advance=1,
+                        resource_count=graph.node_count,
+                    )
 
-            # Build dependency graph
+                run_all_scanners(
+                    session=session,
+                    region=effective_region,
+                    graph=graph,
+                    on_scanner_complete=on_scanner_complete,
+                )
+
+                progress.update(
+                    task,
+                    description="[bold green]✓ Scan complete",
+                    resource_count=graph.node_count,
+                )
+
+        # Apply VPC filter if specified
+        if vpc:
+            from replimap.core import ScanFilter, apply_filter_to_graph
+
+            filter_config = ScanFilter(
+                vpc_ids=[vpc],
+                include_vpc_resources=True,
+            )
+            graph = apply_filter_to_graph(graph, filter_config)
+
+        # Phase 2: Build dependency graph (spinner only)
+        if not quiet_mode:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Building dependency graph...", total=None)
+                builder = DependencyGraphBuilder()
+                dep_graph = builder.build_from_graph_engine(graph, effective_region)
+                progress.update(task, completed=True)
+        else:
             builder = DependencyGraphBuilder()
             dep_graph = builder.build_from_graph_engine(graph, effective_region)
 
-            progress.update(task, description="Exploring dependencies...")
+        # Build resource configs map for ASG detection
+        resource_configs = {res.id: res.config for res in graph.get_all_resources()}
 
-            # Build resource configs map for ASG detection
-            resource_configs = {res.id: res.config for res in graph.get_all_resources()}
+        # Explore dependencies
+        calculator = ImpactCalculator(
+            dep_graph,
+            builder.get_nodes(),
+            builder.get_edges(),
+            resource_configs=resource_configs,
+        )
 
-            # Explore dependencies
-            calculator = ImpactCalculator(
-                dep_graph,
-                builder.get_nodes(),
-                builder.get_edges(),
-                resource_configs=resource_configs,
-            )
-
-            try:
-                result = calculator.calculate_blast_radius(resource_id, max_depth)
-            except ValueError:
-                progress.stop()
-                console.print()
-                console.print(
-                    Panel(
-                        f"[red]Resource not found:[/] {resource_id}\n\n"
-                        f"Make sure the resource ID is correct and exists in region {effective_region}.\n\n"
-                        f"[dim]Available resources: {len(builder.get_nodes())}[/]",
-                        title="Error",
-                        border_style="red",
-                    )
-                )
-                raise typer.Exit(1)
-
-            progress.update(task, completed=True)
-
-        except Exception as e:
-            progress.stop()
+        try:
+            result = calculator.calculate_blast_radius(resource_id, max_depth)
+        except ValueError:
             console.print()
             console.print(
                 Panel(
-                    f"[red]Dependency exploration failed:[/]\n{e}",
+                    f"[red]Resource not found:[/] {resource_id}\n\n"
+                    f"Make sure the resource ID is correct and exists in region {effective_region}.\n\n"
+                    f"[dim]Available resources: {len(builder.get_nodes())}[/]",
                     title="Error",
                     border_style="red",
                 )
             )
-            logger.exception("Dependency exploration failed")
             raise typer.Exit(1)
+
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Dependency exploration failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
+            )
+        )
+        logger.exception("Dependency exploration failed")
+        raise typer.Exit(1)
 
     # Report results
     reporter = DependencyExplorerReporter()
@@ -3293,49 +3404,119 @@ def cost(
 
     # Scan resources
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    total_scanners = get_total_scanner_count()
+    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
+    graph = GraphEngine()
 
-        try:
-            # Create graph and run scanners
-            graph = GraphEngine()
-            run_all_scanners(
-                session=session,
-                region=effective_region,
-                graph=graph,
-            )
-
-            # Apply VPC filter if specified
-            if vpc:
-                from replimap.core import ScanFilter, apply_filter_to_graph
-
-                filter_config = ScanFilter(
-                    vpc_ids=[vpc],
-                    include_vpc_resources=True,
+    try:
+        # Phase 1: Scan AWS resources with progress bar
+        if quiet_mode:
+            run_all_scanners(session=session, region=effective_region, graph=graph)
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold cyan]{task.description}"),
+                BarColumn(bar_width=30),
+                TaskProgressColumn(),
+                TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+                TimeElapsedColumn(),
+                console=console,
+                transient=False,
+            ) as progress:
+                task = progress.add_task(
+                    "Scanning AWS resources...",
+                    total=total_scanners,
+                    resource_count=0,
                 )
-                graph = apply_filter_to_graph(graph, filter_config)
 
-            progress.update(task, description="Estimating costs...")
+                def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                    progress.update(
+                        task,
+                        advance=1,
+                        resource_count=graph.node_count,
+                    )
 
-            # Estimate costs
+                run_all_scanners(
+                    session=session,
+                    region=effective_region,
+                    graph=graph,
+                    on_scanner_complete=on_scanner_complete,
+                )
+
+                progress.update(
+                    task,
+                    description="[bold green]✓ Scan complete",
+                    resource_count=graph.node_count,
+                )
+
+        # Apply VPC filter if specified
+        if vpc:
+            from replimap.core import ScanFilter, apply_filter_to_graph
+
+            filter_config = ScanFilter(
+                vpc_ids=[vpc],
+                include_vpc_resources=True,
+            )
+            graph = apply_filter_to_graph(graph, filter_config)
+
+        # Phase 2: Estimate costs (spinner only)
+        if not quiet_mode:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Estimating costs...", total=None)
+                estimator = CostEstimator(effective_region)
+                estimate = estimator.estimate_from_graph_engine(graph)
+                progress.update(task, completed=True)
+        else:
             estimator = CostEstimator(effective_region)
             estimate = estimator.estimate_from_graph_engine(graph)
 
-            # Apply RI-aware pricing if requested (P3-4)
-            ri_analysis = None
-            if ri_aware:
-                progress.update(task, description="Analyzing reservations...")
+        # Apply RI-aware pricing if requested (P3-4)
+        ri_analysis = None
+        if ri_aware:
+            if not quiet_mode:
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    console=console,
+                ) as progress:
+                    task = progress.add_task("Analyzing reservations...", total=None)
+                    try:
+                        import asyncio
+
+                        from replimap.cost.ri_aware import RIAwareAnalyzer
+
+                        ri_credentials: dict[str, str] | None = None
+                        session_creds = session.get_credentials()
+                        if session_creds:
+                            frozen = session_creds.get_frozen_credentials()
+                            ri_credentials = {
+                                "aws_access_key_id": frozen.access_key,
+                                "aws_secret_access_key": frozen.secret_key,
+                            }
+                            if frozen.token:
+                                ri_credentials["aws_session_token"] = frozen.token
+
+                        async def run_ri_analysis() -> Any:
+                            async with RIAwareAnalyzer(
+                                region=effective_region, credentials=ri_credentials
+                            ) as analyzer:
+                                return await analyzer.analyze()
+
+                        ri_analysis = asyncio.run(run_ri_analysis())
+                        progress.update(task, completed=True)
+                    except Exception as e:
+                        progress.update(task, completed=True)
+                        logger.warning(f"Could not analyze reservations: {e}")
+            else:
                 try:
                     import asyncio
 
                     from replimap.cost.ri_aware import RIAwareAnalyzer
 
-                    # Get credentials from the already-authenticated session
-                    # (avoids MFA re-prompt and assume-role hang in async context)
                     ri_credentials: dict[str, str] | None = None
                     session_creds = session.get_credentials()
                     if session_creds:
@@ -3348,37 +3529,32 @@ def cost(
                             ri_credentials["aws_session_token"] = frozen.token
 
                     async def run_ri_analysis() -> Any:
-                        """Run RI analysis with proper cleanup."""
                         async with RIAwareAnalyzer(
                             region=effective_region, credentials=ri_credentials
                         ) as analyzer:
                             return await analyzer.analyze()
 
                     ri_analysis = asyncio.run(run_ri_analysis())
-
-                    # Adjust costs based on reservations
-                    if ri_analysis and ri_analysis.total_potential_savings > 0:
-                        console.print(
-                            f"\n[dim]RI/Savings Plans coverage: "
-                            f"${ri_analysis.total_potential_savings:.2f}/month savings[/]"
-                        )
                 except Exception as e:
                     logger.warning(f"Could not analyze reservations: {e}")
 
-            progress.update(task, completed=True)
-
-        except Exception as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Cost estimation failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
+            if ri_analysis and ri_analysis.total_potential_savings > 0:
+                console.print(
+                    f"\n[dim]RI/Savings Plans coverage: "
+                    f"${ri_analysis.total_potential_savings:.2f}/month savings[/]"
                 )
+
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Cost estimation failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
             )
-            logger.exception("Cost estimation failed")
-            raise typer.Exit(1)
+        )
+        logger.exception("Cost estimation failed")
+        raise typer.Exit(1)
 
     # Report results
     reporter = CostReporter()
