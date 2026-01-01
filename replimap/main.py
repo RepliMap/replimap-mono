@@ -1348,13 +1348,35 @@ scan_cache_app = typer.Typer(
 app.add_typer(scan_cache_app, name="scan-cache")
 
 
+def _get_account_id_for_profile(profile: str | None) -> str | None:
+    """Get AWS account ID for a profile (for cache filtering)."""
+    if not profile:
+        return None
+    try:
+        import boto3
+
+        session = boto3.Session(profile_name=profile)
+        sts = session.client("sts")
+        return sts.get_caller_identity()["Account"]
+    except Exception:
+        return None
+
+
 @scan_cache_app.command("status")
-def scan_cache_status() -> None:
+def scan_cache_status(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Filter by AWS profile (looks up account ID)",
+    ),
+) -> None:
     """
     Show scan cache status for all regions.
 
     Examples:
         replimap scan-cache status
+        replimap scan-cache status --profile prod
     """
     from replimap.core.cache import DEFAULT_CACHE_DIR
 
@@ -1366,6 +1388,13 @@ def scan_cache_status() -> None:
     if not cache_files:
         console.print("[dim]No scan cache found.[/]")
         return
+
+    # Get account ID for profile filtering
+    filter_account_id = _get_account_id_for_profile(profile) if profile else None
+    if profile and not filter_account_id:
+        console.print(
+            f"[yellow]Warning: Could not get account ID for profile '{profile}'[/]"
+        )
 
     table = Table(title="Scan Cache Status", show_header=True, header_style="bold cyan")
     table.add_column("Account")
@@ -1382,7 +1411,11 @@ def scan_cache_status() -> None:
             metadata = cache_data.get("metadata", {})
             entries = cache_data.get("entries", {})
 
+            # Filter by account if profile specified
             account_id = metadata.get("account_id", "unknown")
+            if filter_account_id and account_id != filter_account_id:
+                continue
+
             region = metadata.get("region", "unknown")
             resource_count = len(entries)
             total_resources += resource_count
@@ -1414,6 +1447,12 @@ def scan_cache_status() -> None:
 
 @scan_cache_app.command("clear")
 def scan_cache_clear(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Clear cache for specific profile only",
+    ),
     region: str | None = typer.Option(
         None,
         "--region",
@@ -1432,6 +1471,7 @@ def scan_cache_clear(
 
     Examples:
         replimap scan-cache clear
+        replimap scan-cache clear --profile prod
         replimap scan-cache clear --region us-east-1
     """
     from replimap.core.cache import DEFAULT_CACHE_DIR
@@ -1445,26 +1485,49 @@ def scan_cache_clear(
         console.print("[dim]No scan cache to clear.[/]")
         return
 
-    # Filter by region if specified
+    # Get account ID for profile filtering
+    filter_account_id = _get_account_id_for_profile(profile) if profile else None
+    if profile and not filter_account_id:
+        console.print(
+            f"[yellow]Warning: Could not get account ID for profile '{profile}'[/]"
+        )
+
+    # Filter by region and/or profile
     files_to_delete = []
     for cache_file in cache_files:
         try:
             with open(cache_file) as f:
                 cache_data = json.load(f)
             metadata = cache_data.get("metadata", {})
-            if region is None or metadata.get("region") == region:
-                files_to_delete.append(cache_file)
+            account_id = metadata.get("account_id")
+            cache_region = metadata.get("region")
+
+            # Apply filters
+            if filter_account_id and account_id != filter_account_id:
+                continue
+            if region and cache_region != region:
+                continue
+
+            files_to_delete.append(cache_file)
         except (json.JSONDecodeError, KeyError):
             files_to_delete.append(cache_file)  # Delete corrupt files
 
+    filter_desc = []
+    if profile:
+        filter_desc.append(f"profile '{profile}'")
+    if region:
+        filter_desc.append(f"region '{region}'")
+
     if not files_to_delete:
-        console.print(f"[dim]No cache found for region '{region}'.[/]")
+        console.print(
+            f"[dim]No cache found for {' and '.join(filter_desc) if filter_desc else 'any filters'}.[/]"
+        )
         return
 
     if not yes:
-        if region:
+        if filter_desc:
             confirm = Confirm.ask(
-                f"Clear scan cache for region '{region}'? ({len(files_to_delete)} files)"
+                f"Clear scan cache for {' and '.join(filter_desc)}? ({len(files_to_delete)} files)"
             )
         else:
             confirm = Confirm.ask(
@@ -1488,6 +1551,12 @@ def scan_cache_info(
         "-r",
         help="Region to show cache info for",
     ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile (looks up account ID)",
+    ),
     account: str | None = typer.Option(
         None,
         "--account",
@@ -1500,12 +1569,22 @@ def scan_cache_info(
 
     Examples:
         replimap scan-cache info -r us-east-1
+        replimap scan-cache info -r us-east-1 --profile prod
     """
     from replimap.core.cache import DEFAULT_CACHE_DIR
 
     if not DEFAULT_CACHE_DIR.exists():
         console.print("[dim]No scan cache found.[/]")
         raise typer.Exit(1)
+
+    # Get account ID from profile if specified
+    filter_account_id = account
+    if profile and not filter_account_id:
+        filter_account_id = _get_account_id_for_profile(profile)
+        if not filter_account_id:
+            console.print(
+                f"[yellow]Warning: Could not get account ID for profile '{profile}'[/]"
+            )
 
     # Find cache file for region
     cache_file = None
@@ -1515,7 +1594,10 @@ def scan_cache_info(
                 cache_data = json.load(f)
             metadata = cache_data.get("metadata", {})
             if metadata.get("region") == region:
-                if account is None or metadata.get("account_id") == account:
+                if (
+                    filter_account_id is None
+                    or metadata.get("account_id") == filter_account_id
+                ):
                     cache_file = cf
                     break
         except (json.JSONDecodeError, KeyError):
