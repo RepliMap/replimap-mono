@@ -26,7 +26,7 @@ class TestCreateThreadPool:
         for executor in list(_active_executors):
             try:
                 executor.shutdown(wait=False, cancel_futures=True)
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
     def test_creates_executor_with_max_workers(self) -> None:
@@ -74,7 +74,7 @@ class TestShutdownAllExecutors:
         for executor in list(_active_executors):
             try:
                 executor.shutdown(wait=False, cancel_futures=True)
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
     def test_returns_zero_when_no_executors(self) -> None:
@@ -206,7 +206,7 @@ class TestConcurrentExecution:
         for executor in list(_active_executors):
             try:
                 executor.shutdown(wait=False, cancel_futures=True)
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
     def test_multiple_tasks_execute_concurrently(self) -> None:

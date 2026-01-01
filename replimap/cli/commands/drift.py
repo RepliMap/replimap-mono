@@ -218,7 +218,7 @@ def drift_command(
             )
 
             # Save to cache if we did a fresh scan
-            if cached_graph is None and hasattr(engine, '_graph'):
+            if cached_graph is None and hasattr(engine, "_graph"):
                 save_graph_to_cache(
                     graph=engine._graph,
                     profile=profile or "default",

@@ -13,10 +13,9 @@ SGs have high blast radius - a single change can affect many resources.
 from __future__ import annotations
 
 from concurrent.futures import as_completed
-
-from replimap.core.concurrency import create_thread_pool
 from typing import Any
 
+from replimap.core.concurrency import create_thread_pool
 from replimap.deps.base_analyzer import ResourceDependencyAnalyzer
 from replimap.deps.models import (
     Dependency,

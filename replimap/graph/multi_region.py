@@ -18,12 +18,11 @@ import asyncio
 import logging
 from collections.abc import Callable
 from concurrent.futures import as_completed
-
-from replimap.core.concurrency import create_thread_pool
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from replimap.core.concurrency import create_thread_pool
 from replimap.graph.visualizer import (
     GraphEdge,
     GraphNode,

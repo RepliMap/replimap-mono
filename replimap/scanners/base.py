@@ -17,14 +17,13 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from concurrent.futures import as_completed
-
-from replimap.core.concurrency import create_thread_pool
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import boto3
 from botocore.exceptions import ClientError
 
 from replimap.core.aws_config import BOTO_CONFIG
+from replimap.core.concurrency import create_thread_pool
 from replimap.core.retry import (
     with_retry,  # noqa: F401 - Re-export for backward compatibility
 )

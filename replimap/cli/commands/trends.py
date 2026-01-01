@@ -76,7 +76,9 @@ def trends_command(
         )
     )
 
-    session = get_aws_session(effective_profile, effective_region, use_cache=not no_cache)
+    session = get_aws_session(
+        effective_profile, effective_region, use_cache=not no_cache
+    )
 
     # Global signal handler handles Ctrl-C
     try:
@@ -85,15 +87,15 @@ def trends_command(
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task("Fetching cost data from Cost Explorer...", total=None)
+            task = progress.add_task(
+                "Fetching cost data from Cost Explorer...", total=None
+            )
             analyzer = CostTrendAnalyzer(session)
             result = analyzer.analyze(days=days)
             progress.update(task, completed=True)
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/]")
-        console.print(
-            "[dim]Note: Cost Explorer must be enabled in your AWS account[/]"
-        )
+        console.print("[dim]Note: Cost Explorer must be enabled in your AWS account[/]")
         raise typer.Exit(1)
 
     console.print()

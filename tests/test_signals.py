@@ -29,7 +29,9 @@ class TestSetupSignalHandlers:
 
             # Check SIGINT handler was installed
             sigint_calls = [
-                call for call in mock_signal.call_args_list if call[0][0] == signal.SIGINT
+                call
+                for call in mock_signal.call_args_list
+                if call[0][0] == signal.SIGINT
             ]
             assert len(sigint_calls) == 1
             assert sigint_calls[0][0][1] == _handle_sigint
@@ -43,7 +45,9 @@ class TestSetupSignalHandlers:
 
             # Check SIGTERM handler was installed
             sigterm_calls = [
-                call for call in mock_signal.call_args_list if call[0][0] == signal.SIGTERM
+                call
+                for call in mock_signal.call_args_list
+                if call[0][0] == signal.SIGTERM
             ]
             assert len(sigterm_calls) == 1
             assert sigterm_calls[0][0][1] == _handle_sigterm
@@ -54,7 +58,9 @@ class TestSetupSignalHandlers:
         original_handler = signal.getsignal(signal.SIGINT)
 
         with patch("signal.signal"):
-            with patch("signal.getsignal", return_value=original_handler) as mock_getsignal:
+            with patch(
+                "signal.getsignal", return_value=original_handler
+            ) as mock_getsignal:
                 setup_signal_handlers(mock_console)
                 mock_getsignal.assert_called_with(signal.SIGINT)
 

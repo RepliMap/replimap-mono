@@ -27,9 +27,7 @@ def create_snapshot_app() -> typer.Typer:
         profile: str | None = typer.Option(
             None, "--profile", "-p", help="AWS profile name"
         ),
-        region: str | None = typer.Option(
-            None, "--region", "-r", help="AWS region"
-        ),
+        region: str | None = typer.Option(None, "--region", "-r", help="AWS region"),
     ) -> None:
         """
         Infrastructure snapshots for change tracking.
