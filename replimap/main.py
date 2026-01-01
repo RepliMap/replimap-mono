@@ -169,9 +169,17 @@ def main(
         "-V",
         help="Enable verbose logging",
     ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Suppress INFO logs (keep progress bars and errors)",
+    ),
 ) -> None:
     """RepliMap - AWS Environment Replication Tool."""
-    if verbose:
+    if quiet:
+        logging.getLogger("replimap").setLevel(logging.WARNING)
+    elif verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
 
