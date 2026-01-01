@@ -39,7 +39,7 @@ def create_app() -> typer.Typer:
     app = typer.Typer(
         name="replimap",
         help="AWS Environment Replication Tool - Clone your production to staging in minutes",
-        add_completion=False,
+        add_completion=True,  # Enable shell completion (install via --install-completion)
         rich_markup_mode="rich",
         context_settings={"help_option_names": ["-h", "--help"]},
     )

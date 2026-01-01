@@ -117,7 +117,7 @@ def print_scan_summary(graph: GraphEngine, duration: float) -> None:
 app = typer.Typer(
     name="replimap",
     help="AWS Environment Replication Tool - Clone your production to staging in minutes",
-    add_completion=False,
+    add_completion=True,  # Enable shell completion (install via --install-completion)
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -172,6 +172,8 @@ def print_next_steps() -> None:
     """Print suggested next steps after a scan."""
     from rich.panel import Panel
 
+    from replimap.cli.utils.tips import show_random_tip
+
     next_steps = """[bold]replimap graph[/]      Visualize infrastructure dependencies
 [bold]replimap audit[/]     Check for security and cost issues
 [bold]replimap clone[/]     Generate Terraform for staging environment
@@ -179,6 +181,9 @@ def print_next_steps() -> None:
 
     console.print()
     console.print(Panel(next_steps, title="📋 Next Steps", border_style="dim"))
+
+    # Occasionally show a pro tip
+    show_random_tip(console, probability=0.3)
 
 
 @app.callback()
@@ -203,9 +208,29 @@ def main(
         "-q",
         help="Suppress INFO logs (keep progress bars and errors)",
     ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Show full tracebacks on errors",
+    ),
+    no_update_check: bool = typer.Option(
+        False,
+        "--no-update-check",
+        help="Disable automatic update check",
+        hidden=True,
+    ),
 ) -> None:
     """RepliMap - AWS Environment Replication Tool."""
-    if quiet:
+    # Start background update check
+    if not no_update_check:
+        from replimap.cli.utils.update_checker import start_update_check
+
+        start_update_check(__version__)
+
+    if debug:
+        os.environ["REPLIMAP_DEBUG"] = "1"
+        logging.getLogger().setLevel(logging.DEBUG)
+    elif quiet:
         logging.getLogger("replimap").setLevel(logging.WARNING)
     elif verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -5773,15 +5798,40 @@ def _signal_handler(sig: int, frame: Any) -> None:
 
 def cli() -> None:
     """Entry point for the CLI."""
+    import botocore.exceptions
+
+    from replimap.cli.utils.error_handler import handle_aws_error, handle_generic_error
+    from replimap.cli.utils.update_checker import show_update_notice
+
     # Register signal handler for clean Ctrl+C exit
     signal.signal(signal.SIGINT, _signal_handler)
 
+    # Check if debug mode is enabled
+    debug = os.getenv("REPLIMAP_DEBUG", "").lower() in ("1", "true", "yes")
+
     try:
         app()
+        # Show update notice at end of successful execution
+        show_update_notice(console)
     except KeyboardInterrupt:
         # Fallback if signal handler is bypassed
-        console.print("\n[bold red]🛑 Aborted by user.[/bold red]")
+        console.print("\n[bold red]Aborted by user.[/bold red]")
         os._exit(130)
+    except botocore.exceptions.NoCredentialsError as e:
+        handle_aws_error(e, operation="credential lookup")
+    except botocore.exceptions.PartialCredentialsError as e:
+        handle_aws_error(e, operation="credential lookup")
+    except botocore.exceptions.ProfileNotFound as e:
+        handle_aws_error(e, operation="profile lookup")
+    except botocore.exceptions.EndpointConnectionError as e:
+        handle_aws_error(e, operation="AWS API connection")
+    except botocore.exceptions.ClientError as e:
+        handle_aws_error(e)
+    except botocore.exceptions.BotoCoreError as e:
+        handle_aws_error(e)
+    except Exception as e:
+        # Catch-all for unexpected errors
+        handle_generic_error(e, debug=debug)
 
 
 if __name__ == "__main__":

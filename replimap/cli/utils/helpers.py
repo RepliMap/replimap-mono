@@ -72,6 +72,8 @@ def print_graph_stats(graph: GraphEngine) -> None:
 
 def print_next_steps() -> None:
     """Print suggested next steps after a scan."""
+    from replimap.cli.utils.tips import show_random_tip
+
     next_steps = """[bold]replimap graph[/]      Visualize infrastructure dependencies
 [bold]replimap audit[/]     Check for security and cost issues
 [bold]replimap clone[/]     Generate Terraform for staging environment
@@ -79,6 +81,9 @@ def print_next_steps() -> None:
 
     console.print()
     console.print(Panel(next_steps, title="📋 Next Steps", border_style="dim"))
+
+    # Occasionally show a pro tip
+    show_random_tip(console, probability=0.3)
 
 
 __all__ = [
