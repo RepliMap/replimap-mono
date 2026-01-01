@@ -187,17 +187,16 @@ def drift_command(
     # Try to use cached graph for AWS state
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    console.print()
-    cached_graph, cache_meta = get_or_load_graph(
-        profile=profile or "default",
-        region=effective_region,
-        console=console,
-        refresh=refresh,
-        vpc=vpc,
-    )
-
     # Run drift detection
     try:
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+            vpc=vpc,
+        )
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),

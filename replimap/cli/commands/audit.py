@@ -360,19 +360,19 @@ def audit_command(
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
     from replimap.scanners.base import run_all_scanners
 
-    console.print()
-    cached_graph, cache_meta = get_or_load_graph(
-        profile=profile or "default",
-        region=effective_region,
-        console=console,
-        refresh=refresh,
-        vpc=vpc,
-    )
+    try:
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+            vpc=vpc,
+        )
 
-    # If no cached graph, do the scan and cache it
-    graph = cached_graph
-    if graph is None:
-        try:
+        # If no cached graph, do the scan and cache it
+        graph = cached_graph
+        if graph is None:
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -382,28 +382,38 @@ def audit_command(
                 graph = GraphEngine()
                 run_all_scanners(session, effective_region, graph)
                 progress.update(task, completed=True)
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Cancelled by user[/yellow]")
-            raise typer.Exit(130)
 
-        # Apply VPC filter if specified
-        if vpc:
-            from replimap.core import ScanFilter, apply_filter_to_graph
+            # Apply VPC filter if specified
+            if vpc:
+                from replimap.core import ScanFilter, apply_filter_to_graph
 
-            filter_config = ScanFilter(
-                vpc_ids=[vpc],
-                include_vpc_resources=True,
+                filter_config = ScanFilter(
+                    vpc_ids=[vpc],
+                    include_vpc_resources=True,
+                )
+                graph = apply_filter_to_graph(graph, filter_config)
+
+            # Save to cache (cache is per vpc if specified)
+            save_graph_to_cache(
+                graph=graph,
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+                vpc=vpc,
             )
-            graph = apply_filter_to_graph(graph, filter_config)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        raise typer.Exit(130)
 
-        # Save to cache (cache is per vpc if specified)
-        save_graph_to_cache(
-            graph=graph,
-            profile=profile or "default",
-            region=effective_region,
-            console=console,
-            vpc=vpc,
+    # Apply VPC filter if specified (for cached graph)
+    if cached_graph is not None and vpc:
+        from replimap.core import ScanFilter, apply_filter_to_graph
+
+        filter_config = ScanFilter(
+            vpc_ids=[vpc],
+            include_vpc_resources=True,
         )
+        graph = apply_filter_to_graph(graph, filter_config)
 
     # Run audit with the graph (skip scanning since we have it)
     console.print()

@@ -299,19 +299,19 @@ def deps_command(
     # Try to load from cache first
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    console.print()
-    cached_graph, cache_meta = get_or_load_graph(
-        profile=profile or "default",
-        region=effective_region,
-        console=console,
-        refresh=refresh,
-        vpc=vpc,
-    )
+    try:
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+            vpc=vpc,
+        )
 
-    if cached_graph is not None:
-        graph = cached_graph
-    else:
-        try:
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -327,29 +327,29 @@ def deps_command(
                     graph=graph,
                 )
                 progress.update(task, completed=True)
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Cancelled by user[/yellow]")
-            raise typer.Exit(130)
-        except Exception as e:
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Dependency exploration failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
-                )
-            )
-            logger.exception("Dependency exploration failed")
-            raise typer.Exit(1)
 
-        # Save to cache
-        save_graph_to_cache(
-            graph=graph,
-            profile=profile or "default",
-            region=effective_region,
-            console=console,
-            vpc=vpc,
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+                vpc=vpc,
+            )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        raise typer.Exit(130)
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Dependency exploration failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
+            )
         )
+        logger.exception("Dependency exploration failed")
+        raise typer.Exit(1)
 
     # Apply VPC filter if specified
     if vpc:

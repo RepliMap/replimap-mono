@@ -216,23 +216,23 @@ def register(app: typer.Typer) -> None:
         # Try to load from cache first
         from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-        console.print()
-        cached_graph, cache_meta = get_or_load_graph(
-            profile=profile or "default",
-            region=effective_region,
-            console=console,
-            refresh=refresh,
-        )
+        try:
+            console.print()
+            cached_graph, cache_meta = get_or_load_graph(
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+                refresh=refresh,
+            )
 
-        # Use cached graph or scan
-        if cached_graph is not None:
-            graph = cached_graph
-        else:
-            # Initialize graph
-            graph = GraphEngine()
+            # Use cached graph or scan
+            if cached_graph is not None:
+                graph = cached_graph
+            else:
+                # Initialize graph
+                graph = GraphEngine()
 
-            # Run all scanners with progress
-            try:
+                # Run all scanners with progress
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
@@ -241,17 +241,17 @@ def register(app: typer.Typer) -> None:
                     task = progress.add_task("Scanning AWS resources...", total=None)
                     run_all_scanners(session, effective_region, graph)
                     progress.update(task, completed=True)
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Cancelled by user[/yellow]")
-                raise typer.Exit(130)
 
-            # Save to cache
-            save_graph_to_cache(
-                graph=graph,
-                profile=profile or "default",
-                region=effective_region,
-                console=console,
-            )
+                # Save to cache
+                save_graph_to_cache(
+                    graph=graph,
+                    profile=profile or "default",
+                    region=effective_region,
+                    console=console,
+                )
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Cancelled by user[/yellow]")
+            raise typer.Exit(130)
 
         stats = graph.statistics()
         console.print(

@@ -177,17 +177,15 @@ def graph_command(
     # Try to load from cache first
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    console.print()
-    cached_graph, cache_meta = get_or_load_graph(
-        profile=profile or "default",
-        region=effective_region,
-        console=console,
-        refresh=refresh,
-        vpc=vpc,
-    )
-
-    # Run visualization
     try:
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+            vpc=vpc,
+        )
         # Show message if we need to scan (no cache)
         if cached_graph is None:
             console.print("[dim]Scanning AWS resources...[/dim]")

@@ -99,20 +99,20 @@ def create_snapshot_app() -> typer.Typer:
 
         session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
-        # Try to load from cache first
-        console.print()
-        cached_graph, cache_meta = get_or_load_graph(
-            profile=profile or "default",
-            region=effective_region,
-            console=console,
-            refresh=refresh,
-            vpc=vpc,
-        )
+        try:
+            # Try to load from cache first
+            console.print()
+            cached_graph, cache_meta = get_or_load_graph(
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+                refresh=refresh,
+                vpc=vpc,
+            )
 
-        if cached_graph is not None:
-            graph = cached_graph
-        else:
-            try:
+            if cached_graph is not None:
+                graph = cached_graph
+            else:
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
@@ -122,18 +122,18 @@ def create_snapshot_app() -> typer.Typer:
                     graph = GraphEngine()
                     run_all_scanners(session, effective_region, graph)
                     progress.update(task, completed=True)
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Cancelled by user[/yellow]")
-                raise typer.Exit(130)
 
-            # Save to cache
-            save_graph_to_cache(
-                graph=graph,
-                profile=profile or "default",
-                region=effective_region,
-                console=console,
-                vpc=vpc,
-            )
+                # Save to cache
+                save_graph_to_cache(
+                    graph=graph,
+                    profile=profile or "default",
+                    region=effective_region,
+                    console=console,
+                    vpc=vpc,
+                )
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Cancelled by user[/yellow]")
+            raise typer.Exit(130)
 
         if vpc:
             filtered_resources = []

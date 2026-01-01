@@ -118,18 +118,18 @@ def create_dr_app() -> typer.Typer:
         )
 
         # Try to load from cache first
-        console.print()
-        cached_graph, cache_meta = get_or_load_graph(
-            profile=effective_profile,
-            region=effective_region,
-            console=console,
-            refresh=refresh,
-        )
+        try:
+            console.print()
+            cached_graph, cache_meta = get_or_load_graph(
+                profile=effective_profile,
+                region=effective_region,
+                console=console,
+                refresh=refresh,
+            )
 
-        if cached_graph is not None:
-            graph = cached_graph
-        else:
-            try:
+            if cached_graph is not None:
+                graph = cached_graph
+            else:
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
@@ -140,20 +140,20 @@ def create_dr_app() -> typer.Typer:
                     graph = GraphEngine()
                     run_all_scanners(session, effective_region, graph)
                     progress.update(task, completed=True)
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Cancelled by user[/yellow]")
-                raise typer.Exit(130)
-            except Exception as e:
-                console.print(f"[red]Error: {e}[/]")
-                raise typer.Exit(1)
 
-            # Save to cache
-            save_graph_to_cache(
-                graph=graph,
-                profile=effective_profile,
-                region=effective_region,
-                console=console,
-            )
+                # Save to cache
+                save_graph_to_cache(
+                    graph=graph,
+                    profile=effective_profile,
+                    region=effective_region,
+                    console=console,
+                )
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Cancelled by user[/yellow]")
+            raise typer.Exit(130)
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/]")
+            raise typer.Exit(1)
 
         # Assess DR readiness
         with Progress(

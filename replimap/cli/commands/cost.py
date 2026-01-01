@@ -159,20 +159,20 @@ def cost_command(
     # Try to load from cache first
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    console.print()
-    cached_graph, cache_meta = get_or_load_graph(
-        profile=profile or "default",
-        region=effective_region,
-        console=console,
-        refresh=refresh,
-        vpc=vpc,
-    )
+    try:
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+            vpc=vpc,
+        )
 
-    # Use cached graph or scan
-    if cached_graph is not None:
-        graph = cached_graph
-    else:
-        try:
+        # Use cached graph or scan
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -199,18 +199,18 @@ def cost_command(
                     graph = apply_filter_to_graph(graph, filter_config)
 
                 progress.update(task, completed=True)
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Cancelled by user[/yellow]")
-            raise typer.Exit(130)
 
-        # Save to cache
-        save_graph_to_cache(
-            graph=graph,
-            profile=profile or "default",
-            region=effective_region,
-            console=console,
-            vpc=vpc,
-        )
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+                vpc=vpc,
+            )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        raise typer.Exit(130)
 
     # Estimate costs
     console.print()
