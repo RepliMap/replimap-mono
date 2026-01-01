@@ -2152,6 +2152,12 @@ def audit(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
     fail_on_high: bool = typer.Option(
         False,
         "--fail-on-high",
@@ -2253,12 +2259,25 @@ def audit(
         )
         raise typer.Exit(1)
 
-    # Run audit - scan with progress bar, then run Checkov
-    console.print()
-    total_scanners = get_total_scanner_count()
-    graph = GraphEngine()
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    try:
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
+
+    # Use cached graph or scan
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        total_scanners = get_total_scanner_count()
+        graph = GraphEngine()
+
         # Phase 1: Scan with progress bar
         with Progress(
             SpinnerColumn(),
@@ -2301,6 +2320,16 @@ def audit(
                 dep_count=graph.edge_count,
             )
 
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            vpc=vpc,
+        )
+
+    try:
         # Phase 2: Run Checkov on scanned graph
         with Progress(
             SpinnerColumn(),
@@ -3479,6 +3508,12 @@ def cost(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
     acknowledge: bool = typer.Option(
         False,
         "--acknowledge",
@@ -3574,12 +3609,25 @@ def cost(
     # Get AWS session
     session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
-    # Scan resources
-    console.print()
-    total_scanners = get_total_scanner_count()
-    graph = GraphEngine()
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    try:
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
+
+    # Use cached graph or scan
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        total_scanners = get_total_scanner_count()
+        graph = GraphEngine()
+
         # Phase 1: Scan AWS resources with progress bar
         with Progress(
             SpinnerColumn(),
@@ -3632,6 +3680,16 @@ def cost(
             )
             graph = apply_filter_to_graph(graph, filter_config)
 
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            vpc=vpc,
+        )
+
+    try:
         # Phase 2: Estimate costs (spinner)
         with Progress(
             SpinnerColumn(),
