@@ -10,7 +10,7 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from replimap.cli.utils import console, get_aws_session
+from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core import GraphEngine
 from replimap.scanners.base import run_all_scanners
 
@@ -45,6 +45,12 @@ def transfer_command(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Analyze data transfer costs and optimization opportunities.
@@ -63,13 +69,25 @@ def transfer_command(
         console.print(cost_gate.prompt)
         raise typer.Exit(1)
 
-    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    # Determine region (flag > profile > env > default)
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            region_source = "default"
+
     effective_profile = profile or "default"
 
     console.print(
         Panel(
             f"[bold cyan]Data Transfer Analyzer[/bold cyan]\n\n"
-            f"Region: [cyan]{effective_region}[/]\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
             f"Profile: [cyan]{effective_profile}[/]",
             border_style="cyan",
         )
@@ -79,17 +97,47 @@ def transfer_command(
         effective_profile, effective_region, use_cache=not no_cache
     )
 
+    # Try to load from cache first (global signal handler handles Ctrl-C)
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+    )
+
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning infrastructure...", total=None)
+
+            graph = GraphEngine()
+            run_all_scanners(session, effective_region, graph)
+            progress.update(task, completed=True)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
+
+    # Analyze transfer paths
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Scanning infrastructure...", total=None)
-
+        task = progress.add_task("Analyzing transfer paths...", total=None)
         try:
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-            progress.update(task, description="Analyzing transfer paths...")
             analyzer = DataTransferAnalyzer(session, effective_region)
             report = analyzer.analyze_from_graph(graph)
             progress.update(task, completed=True)

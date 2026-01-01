@@ -17,11 +17,12 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from replimap.core.concurrency import create_thread_pool
 from replimap.graph.visualizer import (
     GraphEdge,
     GraphNode,
@@ -467,7 +468,12 @@ class MultiRegionScanner:
         regions = self.config.regions or COMMON_REGIONS
         results: dict[str, RegionScanResult] = {}
 
-        with ThreadPoolExecutor(max_workers=self.config.max_parallel) as executor:
+        # Use tracked thread pool - global signal handler will shutdown on Ctrl-C
+        executor = create_thread_pool(
+            max_workers=self.config.max_parallel,
+            thread_name_prefix="multi-region-",
+        )
+        try:
             # Submit all region scans
             future_to_region = {
                 executor.submit(self._scan_region, region, scan_func): region
@@ -499,6 +505,8 @@ class MultiRegionScanner:
                         resource_count=0,
                         error=str(e),
                     )
+        finally:
+            executor.shutdown(wait=True)
 
         return self._aggregate_results(results)
 

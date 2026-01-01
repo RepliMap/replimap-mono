@@ -85,6 +85,7 @@ class AuditRenderer:
         """
         self.account_id = account_id or "unknown"
         self.region = region or "unknown"
+        self._unsupported_types: set[str] = set()  # Track unsupported types for summary
 
         # Initialize Jinja2 environment
         self.env = Environment(
@@ -122,9 +123,8 @@ class AuditRenderer:
             output_file = self.FILE_MAPPING.get(resource.resource_type)
 
             if not output_file:
-                logger.warning(
-                    f"No file mapping for resource type: {resource.resource_type}"
-                )
+                # Collect unsupported types for summary (don't log each one)
+                self._unsupported_types.add(str(resource.resource_type))
                 continue
 
             # Generate raw Terraform for this resource
@@ -150,6 +150,13 @@ class AuditRenderer:
         # Generate supporting files
         self._generate_versions(output_dir, written_files)
         self._generate_providers(output_dir, written_files)
+
+        # Log summary of unsupported types (once, not per-resource)
+        if self._unsupported_types:
+            types_list = ", ".join(sorted(self._unsupported_types))
+            logger.info(
+                f"Skipped {len(self._unsupported_types)} unsupported resource types: {types_list}"
+            )
 
         return written_files
 

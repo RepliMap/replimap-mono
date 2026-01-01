@@ -9,7 +9,7 @@ import boto3
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from replimap.cli.utils import console
+from replimap.cli.utils import console, get_profile_region
 from replimap.core import GraphEngine
 from replimap.scanners.base import run_all_scanners
 
@@ -48,6 +48,12 @@ def validate_command(
         False,
         "--generate-defaults",
         help="Generate default constraints file",
+    ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
     ),
 ) -> None:
     """
@@ -174,30 +180,63 @@ constraints:
 
     console.print(f"[dim]Loaded {len(constraints)} constraints from {config}[/]\n")
 
-    # Scan infrastructure
-    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    # Determine region (flag > profile > env > default)
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            region_source = "default"
+
     effective_profile = profile or "default"
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning infrastructure...", total=None)
+    console.print(f"[dim]Region: {effective_region} (from {region_source})[/]\n")
 
-        try:
+    # Try to load from cache first (global signal handler handles Ctrl-C)
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+    )
+
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning infrastructure...", total=None)
+
             session = boto3.Session(profile_name=effective_profile)
             graph = GraphEngine()
             run_all_scanners(session, graph, effective_region)
-            progress.update(task, description="Validating constraints...")
+            progress.update(task, completed=True)
 
-            # Validate
-            validator = TopologyValidator(constraints)
-            result = validator.validate(graph)
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
 
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/]")
-            raise typer.Exit(1)
+    # Validate
+    try:
+        validator = TopologyValidator(constraints)
+        result = validator.validate(graph)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/]")
+        raise typer.Exit(1)
 
     # Display results
     console.print("[bold]Validation Results[/bold]\n")

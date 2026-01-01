@@ -84,6 +84,12 @@ def register(app: typer.Typer) -> None:
             "--no-cache",
             help="Don't use cached credentials (re-authenticate)",
         ),
+        refresh: bool = typer.Option(
+            False,
+            "--refresh",
+            "-R",
+            help="Force fresh AWS scan (ignore cached graph)",
+        ),
         dev_mode: bool = typer.Option(
             False,
             "--dev-mode",
@@ -207,18 +213,41 @@ def register(app: typer.Typer) -> None:
         # Get AWS session
         session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
-        # Initialize graph
-        graph = GraphEngine()
+        # Try to load from cache first (global signal handler handles Ctrl-C)
+        from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-        # Run all scanners with progress
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
             console=console,
-        ) as progress:
-            task = progress.add_task("Scanning AWS resources...", total=None)
-            run_all_scanners(session, effective_region, graph)
-            progress.update(task, completed=True)
+            refresh=refresh,
+        )
+
+        # Use cached graph or scan
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
+            # Initialize graph
+            graph = GraphEngine()
+
+            # Run all scanners with progress
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning AWS resources...", total=None)
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+            )
 
         stats = graph.statistics()
         console.print(

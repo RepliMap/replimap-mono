@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import typer
@@ -15,16 +16,50 @@ from replimap.cli.utils import console, get_aws_session, get_profile_region
 
 def create_snapshot_app() -> typer.Typer:
     """Create and return the snapshot subcommand app."""
-    snapshot_app = typer.Typer(help="Infrastructure snapshots for change tracking")
+    snapshot_app = typer.Typer(
+        help="Infrastructure snapshots for change tracking",
+        context_settings={"help_option_names": ["-h", "--help"]},
+    )
 
-    @snapshot_app.command("save")
-    def snapshot_save(
+    @snapshot_app.callback()
+    def snapshot_callback(
+        ctx: typer.Context,
         profile: str | None = typer.Option(
             None, "--profile", "-p", help="AWS profile name"
         ),
-        region: str | None = typer.Option(
-            None, "--region", "-r", help="AWS region to snapshot"
-        ),
+        region: str | None = typer.Option(None, "--region", "-r", help="AWS region"),
+    ) -> None:
+        """
+        Infrastructure snapshots for change tracking.
+
+        Common options (--profile, --region) can be specified before the subcommand
+        or at the global level (e.g., replimap -p prod snapshot save).
+
+        Examples:
+            replimap -p prod snapshot save -n "before-deploy"
+            replimap snapshot -p prod save -n "before-deploy"
+            replimap snapshot -p prod list
+            replimap snapshot -p prod diff --baseline v1 --current v2
+        """
+        ctx.ensure_object(dict)
+        # Use local option if set, otherwise inherit from global context
+        parent_ctx = ctx.parent
+        global_profile = (
+            parent_ctx.obj.get("global_profile")
+            if parent_ctx and parent_ctx.obj
+            else None
+        )
+        global_region = (
+            parent_ctx.obj.get("global_region")
+            if parent_ctx and parent_ctx.obj
+            else None
+        )
+        ctx.obj["profile"] = profile or global_profile
+        ctx.obj["region"] = region or global_region
+
+    @snapshot_app.command("save")
+    def snapshot_save(
+        ctx: typer.Context,
         name: str = typer.Option(..., "--name", "-n", help="Snapshot name"),
         vpc: str | None = typer.Option(
             None, "--vpc", "-v", help="VPC ID to scope the snapshot (optional)"
@@ -35,14 +70,23 @@ def create_snapshot_app() -> typer.Typer:
         no_cache: bool = typer.Option(
             False, "--no-cache", help="Don't use cached credentials"
         ),
+        refresh: bool = typer.Option(
+            False, "--refresh", "-R", help="Force fresh AWS scan (ignore cached graph)"
+        ),
     ) -> None:
         """Save an infrastructure snapshot."""
         from replimap.core import GraphEngine
+        from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
         from replimap.scanners.base import run_all_scanners
         from replimap.snapshot import InfraSnapshot, ResourceSnapshot, SnapshotStore
 
+        # Get profile and region from context (set by callback)
+        profile = ctx.obj.get("profile") if ctx.obj else None
+        region = ctx.obj.get("region") if ctx.obj else None
+
+        # Determine region (flag > profile > env > default)
         effective_region = region
-        region_source = "flag"
+        region_source = "flag" if region else None
 
         if not effective_region:
             profile_region = get_profile_region(profile)
@@ -50,7 +94,7 @@ def create_snapshot_app() -> typer.Typer:
                 effective_region = profile_region
                 region_source = f"profile '{profile or 'default'}'"
             else:
-                effective_region = "us-east-1"
+                effective_region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
                 region_source = "default"
 
         console.print()
@@ -67,16 +111,37 @@ def create_snapshot_app() -> typer.Typer:
 
         session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
+        # Try to load from cache first (global signal handler handles Ctrl-C)
         console.print()
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
             console=console,
-        ) as progress:
-            task = progress.add_task("Scanning infrastructure...", total=None)
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-            progress.update(task, completed=True)
+            refresh=refresh,
+            vpc=vpc,
+        )
+
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning infrastructure...", total=None)
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+                vpc=vpc,
+            )
 
         if vpc:
             filtered_resources = []
@@ -148,12 +213,13 @@ def create_snapshot_app() -> typer.Typer:
 
     @snapshot_app.command("list")
     def snapshot_list(
-        region: str | None = typer.Option(
-            None, "--region", "-r", help="Filter by region"
-        ),
+        ctx: typer.Context,
     ) -> None:
         """List saved snapshots."""
         from replimap.snapshot import SnapshotStore
+
+        # Get region filter from context
+        region = ctx.obj.get("region") if ctx.obj else None
 
         store = SnapshotStore()
         snapshots = store.list(region=region)
@@ -180,6 +246,7 @@ def create_snapshot_app() -> typer.Typer:
 
     @snapshot_app.command("show")
     def snapshot_show(
+        ctx: typer.Context,
         name: str = typer.Argument(..., help="Snapshot name or path"),
     ) -> None:
         """Show snapshot details."""
@@ -212,8 +279,7 @@ def create_snapshot_app() -> typer.Typer:
 
     @snapshot_app.command("diff")
     def snapshot_diff(
-        profile: str | None = typer.Option(None, "--profile", "-p"),
-        region: str | None = typer.Option(None, "--region", "-r"),
+        ctx: typer.Context,
         baseline: str = typer.Option(
             ..., "--baseline", "-b", help="Baseline snapshot name or path"
         ),
@@ -236,12 +302,17 @@ def create_snapshot_app() -> typer.Typer:
             SnapshotStore,
         )
 
+        # Get profile and region from context
+        profile = ctx.obj.get("profile") if ctx.obj else None
+        region = ctx.obj.get("region") if ctx.obj else None
+
         store = SnapshotStore()
         baseline_snap = store.load(baseline)
         if not baseline_snap:
             console.print(f"[red]Baseline snapshot not found: {baseline}[/red]")
             raise typer.Exit(1)
 
+        # Use baseline region if not specified
         if not region:
             region = baseline_snap.region
 
@@ -269,6 +340,7 @@ def create_snapshot_app() -> typer.Typer:
 
             session = get_aws_session(profile, region, use_cache=not no_cache)
 
+            # Global signal handler handles Ctrl-C
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -364,6 +436,7 @@ def create_snapshot_app() -> typer.Typer:
 
     @snapshot_app.command("delete")
     def snapshot_delete(
+        ctx: typer.Context,
         name: str = typer.Argument(..., help="Snapshot name to delete"),
         force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
     ) -> None:

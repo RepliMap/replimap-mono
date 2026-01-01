@@ -423,13 +423,18 @@ class RightSizerClient:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # If already in async context, run in thread pool
-                import concurrent.futures
+                from replimap.core.concurrency import create_thread_pool
 
-                with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor = create_thread_pool(
+                    max_workers=1, thread_name_prefix="rightsizer-"
+                )
+                try:
                     future = executor.submit(
                         asyncio.run, self.get_suggestions_async(resources, strategy)
                     )
                     return future.result()
+                finally:
+                    executor.shutdown(wait=True)
             return asyncio.run(self.get_suggestions_async(resources, strategy))
         except RuntimeError:
             return asyncio.run(self.get_suggestions_async(resources, strategy))

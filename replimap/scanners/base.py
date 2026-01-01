@@ -16,13 +16,14 @@ from __future__ import annotations
 import logging
 import os
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import boto3
 from botocore.exceptions import ClientError
 
 from replimap.core.aws_config import BOTO_CONFIG
+from replimap.core.concurrency import create_thread_pool
 from replimap.core.retry import (
     with_retry,  # noqa: F401 - Re-export for backward compatibility
 )
@@ -85,8 +86,12 @@ def parallel_process_items(
                 logger.warning(f"Failed to process {description} item: {e}")
         return results, failures
 
-    # Process in parallel
-    executor = ThreadPoolExecutor(max_workers=min(workers, len(items)))
+    # Process in parallel using tracked thread pool
+    # Global signal handler will shutdown on Ctrl-C
+    executor = create_thread_pool(
+        max_workers=min(workers, len(items)),
+        thread_name_prefix=f"parallel-{description[:10]}-",
+    )
     try:
         future_to_item = {executor.submit(processor, item): item for item in items}
 
@@ -99,10 +104,6 @@ def parallel_process_items(
             except Exception as e:
                 failures.append((item, e))
                 logger.warning(f"Failed to process {description} item: {e}")
-    except KeyboardInterrupt:
-        # Immediate shutdown on Ctrl+C
-        executor.shutdown(wait=False, cancel_futures=True)
-        raise
     finally:
         executor.shutdown(wait=True)
 
@@ -625,7 +626,11 @@ def _run_scanners_parallel(
             logger.error(f"{scanner_name} failed: {e}")
             return (scanner_name, e)
 
-    executor = ThreadPoolExecutor(max_workers=max_workers)
+    # Use tracked thread pool - global signal handler will shutdown on Ctrl-C
+    executor = create_thread_pool(
+        max_workers=max_workers,
+        thread_name_prefix="scanner-",
+    )
     try:
         futures = {
             executor.submit(run_single_scanner, sc): sc for sc in scanner_classes
@@ -636,12 +641,7 @@ def _run_scanners_parallel(
             results[scanner_name] = error
             if on_complete:
                 on_complete(scanner_name, error is None)
-    except KeyboardInterrupt:
-        # Immediate shutdown: don't wait for in-flight tasks, cancel pending
-        executor.shutdown(wait=False, cancel_futures=True)
-        raise
     finally:
-        # Normal cleanup (no-op if already shut down)
         executor.shutdown(wait=True)
 
     return results

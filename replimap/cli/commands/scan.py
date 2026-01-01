@@ -40,6 +40,7 @@ from replimap.core import (
     build_subgraph_from_selection,
     update_cache_from_graph,
 )
+from replimap.core.cache_manager import save_graph_to_cache
 from replimap.licensing import Feature, check_scan_allowed, get_scans_remaining
 from replimap.licensing.manager import get_license_manager
 from replimap.licensing.tracker import get_usage_tracker
@@ -485,6 +486,16 @@ def register(app: typer.Typer) -> None:
             duration_seconds=scan_duration,
             profile=profile,
             success=True,
+        )
+
+        # Save to graph cache for use by other commands (graph, audit, cost, etc.)
+        save_graph_to_cache(
+            graph=graph,
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            vpc=vpc,
+            account_id=account_id if use_scan_cache else None,
         )
 
         # Report any failed scanners (only show errors, not successes)

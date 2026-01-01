@@ -45,6 +45,7 @@ class DriftEngine:
         state_path: Path | None = None,
         remote_backend: dict[str, str] | None = None,
         vpc_id: str | None = None,
+        graph: Any | None = None,
     ) -> DriftReport:
         """Run drift detection.
 
@@ -52,6 +53,7 @@ class DriftEngine:
             state_path: Path to local terraform.tfstate
             remote_backend: Dict with bucket, key, region for S3 backend
             vpc_id: Optional VPC to scope the scan
+            graph: Optional pre-scanned GraphEngine (from cache)
 
         Returns:
             DriftReport with all detected drifts
@@ -77,10 +79,15 @@ class DriftEngine:
 
         logger.info(f"Found {len(tf_state.resources)} resources in Terraform state")
 
-        # 2. Scan actual AWS resources using existing scanners
-        logger.info("Scanning AWS resources...")
-        graph = GraphEngine()
-        run_all_scanners(self.session, self.region, graph, parallel=True)
+        # 2. Use provided graph or scan actual AWS resources
+        if graph is not None:
+            logger.info("Using provided graph (from cache)")
+            self._graph = graph
+        else:
+            logger.info("Scanning AWS resources...")
+            graph = GraphEngine()
+            run_all_scanners(self.session, self.region, graph, parallel=True)
+            self._graph = graph  # Store for cache saving
 
         # Get all resources from the graph
         actual_resources = list(graph.get_all_resources())

@@ -138,15 +138,29 @@ class TestConsoleOutput:
         assert "Application-level dependencies" in captured.out
 
     def test_console_output_has_important_disclaimer_panel(self, capsys):
-        """Console output must show Important Disclaimer panel."""
+        """Console output must show Important Disclaimer panel in verbose mode."""
         reporter = DependencyExplorerReporter()
         result = create_mock_result()
 
-        reporter.to_console(result)
+        # Verbose mode shows full disclaimer panel
+        reporter.to_console(result, verbose=True)
 
         captured = capsys.readouterr()
         # Should have the full disclaimer panel
         assert "Important Disclaimer" in captured.out or "CANNOT" in captured.out
+
+    def test_console_output_compact_has_disclaimer(self, capsys):
+        """Console output (compact mode) must show disclaimer hint."""
+        reporter = DependencyExplorerReporter()
+        result = create_mock_result()
+
+        # Default compact mode shows short disclaimer with hint
+        reporter.to_console(result, verbose=False)
+
+        captured = capsys.readouterr()
+        # Should have compact disclaimer with hint to use --verbose
+        assert "AWS API metadata only" in captured.out
+        assert "--verbose" in captured.out
 
 
 class TestJsonOutput:

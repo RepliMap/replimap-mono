@@ -250,6 +250,12 @@ def audit_command(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
     fail_on_high: bool = typer.Option(
         False,
         "--fail-on-high",
@@ -349,19 +355,78 @@ def audit_command(
         )
         raise typer.Exit(1)
 
-    # Run audit
+    # Try to load from cache first
+    from replimap.core import GraphEngine
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+    from replimap.scanners.base import run_all_scanners
+
+    # Try to load from cache first (global signal handler handles Ctrl-C)
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
+
+    # If no cached graph, do the scan and cache it
+    graph = cached_graph
+    if graph is None:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning AWS resources...", total=None)
+            graph = GraphEngine()
+            run_all_scanners(session, effective_region, graph)
+            progress.update(task, completed=True)
+
+        # Apply VPC filter if specified
+        if vpc:
+            from replimap.core import ScanFilter, apply_filter_to_graph
+
+            filter_config = ScanFilter(
+                vpc_ids=[vpc],
+                include_vpc_resources=True,
+            )
+            graph = apply_filter_to_graph(graph, filter_config)
+
+        # Save to cache (cache is per vpc if specified)
+        save_graph_to_cache(
+            graph=graph,
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            vpc=vpc,
+        )
+
+    # Apply VPC filter if specified (for cached graph)
+    if cached_graph is not None and vpc:
+        from replimap.core import ScanFilter, apply_filter_to_graph
+
+        filter_config = ScanFilter(
+            vpc_ids=[vpc],
+            include_vpc_resources=True,
+        )
+        graph = apply_filter_to_graph(graph, filter_config)
+
+    # Run audit with the graph (skip scanning since we have it)
     console.print()
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+        task = progress.add_task("Running security checks...", total=None)
 
         try:
             results, report_path = engine.run(
                 output_dir=terraform_dir,
                 report_path=output,
+                skip_scan=True,
+                graph=graph,
             )
         except Exception as e:
             progress.stop()

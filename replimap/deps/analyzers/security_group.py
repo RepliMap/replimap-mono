@@ -12,9 +12,10 @@ SGs have high blast radius - a single change can affect many resources.
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from typing import Any
 
+from replimap.core.concurrency import create_thread_pool
 from replimap.deps.base_analyzer import ResourceDependencyAnalyzer
 from replimap.deps.models import (
     Dependency,
@@ -146,8 +147,9 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
             ("ElastiCache", self._find_elasticache_using_sg),
         ]
 
-        # Run queries in parallel
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        # Run queries in parallel - global signal handler will shutdown on Ctrl-C
+        executor = create_thread_pool(max_workers=5, thread_name_prefix="sg-")
+        try:
             futures = {
                 executor.submit(query_func, sg_id): name for name, query_func in queries
             }
@@ -159,6 +161,8 @@ class SecurityGroupAnalyzer(ResourceDependencyAnalyzer):
                 except Exception:  # noqa: S110
                     # Log but don't fail
                     pass
+        finally:
+            executor.shutdown(wait=True)
 
         return consumers
 

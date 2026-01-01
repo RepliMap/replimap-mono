@@ -11,23 +11,58 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from replimap.cli.utils import console, get_aws_session
+from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core import GraphEngine
 from replimap.scanners.base import run_all_scanners
 
 
 def create_dr_app() -> typer.Typer:
     """Create and return the DR subcommand app."""
-    dr_app = typer.Typer(help="Disaster Recovery readiness assessment")
+    dr_app = typer.Typer(
+        help="Disaster Recovery readiness assessment",
+        context_settings={"help_option_names": ["-h", "--help"]},
+    )
 
-    @dr_app.command("assess")
-    def dr_assess(
+    @dr_app.callback()
+    def dr_callback(
+        ctx: typer.Context,
         profile: str | None = typer.Option(
             None, "--profile", "-p", help="AWS profile name"
         ),
         region: str | None = typer.Option(
-            None, "--region", "-r", help="Primary AWS region to assess"
+            None, "--region", "-r", help="Primary AWS region"
         ),
+    ) -> None:
+        """
+        Disaster Recovery readiness assessment.
+
+        Common options (--profile, --region) can be specified before the subcommand
+        or at the global level (e.g., replimap -p prod dr assess).
+
+        Examples:
+            replimap -p prod dr assess
+            replimap dr -p prod assess
+            replimap dr -p prod scorecard
+        """
+        ctx.ensure_object(dict)
+        # Use local option if set, otherwise inherit from global context
+        parent_ctx = ctx.parent
+        global_profile = (
+            parent_ctx.obj.get("global_profile")
+            if parent_ctx and parent_ctx.obj
+            else None
+        )
+        global_region = (
+            parent_ctx.obj.get("global_region")
+            if parent_ctx and parent_ctx.obj
+            else None
+        )
+        ctx.obj["profile"] = profile or global_profile
+        ctx.obj["region"] = region or global_region
+
+    @dr_app.command("assess")
+    def dr_assess(
+        ctx: typer.Context,
         dr_region: str | None = typer.Option(
             None, "--dr-region", help="DR region to check for replicas"
         ),
@@ -46,11 +81,31 @@ def create_dr_app() -> typer.Typer:
         no_cache: bool = typer.Option(
             False, "--no-cache", help="Don't use cached credentials"
         ),
+        refresh: bool = typer.Option(
+            False, "--refresh", "-R", help="Force fresh AWS scan (ignore cached graph)"
+        ),
     ) -> None:
         """Assess disaster recovery readiness for your infrastructure."""
+        from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
         from replimap.dr.readiness import DRReadinessAssessor, DRTier
 
-        effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        # Get profile and region from context
+        profile = ctx.obj.get("profile") if ctx.obj else None
+        region = ctx.obj.get("region") if ctx.obj else None
+
+        # Determine region (context > profile > env > default)
+        effective_region = region
+        region_source = "flag" if region else None
+
+        if not effective_region:
+            profile_region = get_profile_region(profile)
+            if profile_region:
+                effective_region = profile_region
+                region_source = f"profile '{profile or 'default'}'"
+            else:
+                effective_region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+                region_source = "default"
+
         effective_profile = profile or "default"
 
         tier_map = {
@@ -65,7 +120,7 @@ def create_dr_app() -> typer.Typer:
         console.print(
             Panel(
                 f"[bold cyan]DR Readiness Assessment[/bold cyan]\n\n"
-                f"Primary Region: [cyan]{effective_region}[/]\n"
+                f"Primary Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
                 f"DR Region: [cyan]{dr_region or 'Auto-detect'}[/]\n"
                 f"Target Tier: [cyan]{target.display_name}[/]",
                 border_style="cyan",
@@ -76,17 +131,45 @@ def create_dr_app() -> typer.Typer:
             effective_profile, effective_region, use_cache=not no_cache
         )
 
+        # Try to load from cache first (global signal handler handles Ctrl-C)
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+        )
+
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning primary region...", total=None)
+
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
+                profile=effective_profile,
+                region=effective_region,
+                console=console,
+            )
+
+        # Assess DR readiness
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task("Scanning primary region...", total=None)
-
+            task = progress.add_task("Assessing DR readiness...", total=None)
             try:
-                graph = GraphEngine()
-                run_all_scanners(session, effective_region, graph)
-                progress.update(task, description="Assessing DR readiness...")
                 assessor = DRReadinessAssessor(
                     session,
                     primary_region=effective_region,
@@ -196,10 +279,13 @@ body {{ font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto
 
     @dr_app.command("scorecard")
     def dr_scorecard(
-        profile: str | None = typer.Option(None, "--profile", "-p"),
+        ctx: typer.Context,
         output: Path | None = typer.Option(None, "--output", "-o"),
     ) -> None:
         """Generate DR readiness scorecard for all regions."""
+        # Profile available from context for future use
+        _ = ctx.obj.get("profile") if ctx.obj else None
+
         console.print("[dim]Generating multi-region DR scorecard...[/dim]")
         console.print(
             "[yellow]This feature requires scanning multiple regions.[/yellow]"
