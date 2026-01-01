@@ -481,49 +481,43 @@ def scan(
         console.print("[dim]Performing incremental scan for updated resources...[/]")
 
     total_scanners = get_total_scanner_count()
-    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
 
-    if quiet_mode:
-        results = run_all_scanners(
-            session, effective_region, graph, parallel=use_parallel
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=30),
+        TaskProgressColumn(),
+        TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=False,
+    ) as progress:
+        task = progress.add_task(
+            f"Scanning AWS resources ({scan_mode})...",
+            total=total_scanners,
+            resource_count=0,
         )
-    else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold cyan]{task.description}"),
-            BarColumn(bar_width=30),
-            TaskProgressColumn(),
-            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
-            TimeElapsedColumn(),
-            console=console,
-            transient=False,
-        ) as progress:
-            task = progress.add_task(
-                f"Scanning AWS resources ({scan_mode})...",
-                total=total_scanners,
-                resource_count=0,
-            )
 
-            def on_scanner_complete(scanner_name: str, success: bool) -> None:
-                progress.update(
-                    task,
-                    advance=1,
-                    resource_count=graph.node_count,
-                )
-
-            results = run_all_scanners(
-                session,
-                effective_region,
-                graph,
-                parallel=use_parallel,
-                on_scanner_complete=on_scanner_complete,
-            )
-
+        def on_scanner_complete(scanner_name: str, success: bool) -> None:
             progress.update(
                 task,
-                description="[bold green]✓ Scan complete",
+                advance=1,
                 resource_count=graph.node_count,
             )
+
+        results = run_all_scanners(
+            session,
+            effective_region,
+            graph,
+            parallel=use_parallel,
+            on_scanner_complete=on_scanner_complete,
+        )
+
+        progress.update(
+            task,
+            description="[bold green]✓ Scan complete",
+            resource_count=graph.node_count,
+        )
     scan_duration = time.time() - scan_start
 
     # Print scan summary with resource counts
@@ -848,46 +842,42 @@ def clone(
 
     # Run all scanners with progress
     total_scanners = get_total_scanner_count()
-    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
 
-    if quiet_mode:
-        run_all_scanners(session, effective_region, graph)
-    else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold cyan]{task.description}"),
-            BarColumn(bar_width=30),
-            TaskProgressColumn(),
-            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
-            TimeElapsedColumn(),
-            console=console,
-            transient=False,
-        ) as progress:
-            task = progress.add_task(
-                "Scanning AWS resources...",
-                total=total_scanners,
-                resource_count=0,
-            )
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=30),
+        TaskProgressColumn(),
+        TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=False,
+    ) as progress:
+        task = progress.add_task(
+            "Scanning AWS resources...",
+            total=total_scanners,
+            resource_count=0,
+        )
 
-            def on_scanner_complete(scanner_name: str, success: bool) -> None:
-                progress.update(
-                    task,
-                    advance=1,
-                    resource_count=graph.node_count,
-                )
-
-            run_all_scanners(
-                session,
-                effective_region,
-                graph,
-                on_scanner_complete=on_scanner_complete,
-            )
-
+        def on_scanner_complete(scanner_name: str, success: bool) -> None:
             progress.update(
                 task,
-                description="[bold green]✓ Scan complete",
+                advance=1,
                 resource_count=graph.node_count,
             )
+
+        run_all_scanners(
+            session,
+            effective_region,
+            graph,
+            on_scanner_complete=on_scanner_complete,
+        )
+
+        progress.update(
+            task,
+            description="[bold green]✓ Scan complete",
+            resource_count=graph.node_count,
+        )
 
     stats = graph.statistics()
     console.print(
@@ -2116,52 +2106,47 @@ def audit(
     # Run audit - scan with progress bar, then run Checkov
     console.print()
     total_scanners = get_total_scanner_count()
-    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
     graph = GraphEngine()
 
     try:
-        if quiet_mode:
-            # Quiet mode: no progress bar
-            run_all_scanners(session, effective_region, graph)
-        else:
-            # Normal mode: show progress bar during scan
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[bold cyan]{task.description}"),
-                BarColumn(bar_width=30),
-                TaskProgressColumn(),
-                TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
-                TimeElapsedColumn(),
-                console=console,
-                transient=False,
-            ) as progress:
-                task = progress.add_task(
-                    "Scanning AWS resources...",
-                    total=total_scanners,
-                    resource_count=0,
-                )
+        # Phase 1: Scan with progress bar
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                "Scanning AWS resources...",
+                total=total_scanners,
+                resource_count=0,
+            )
 
-                def on_scanner_complete(scanner_name: str, success: bool) -> None:
-                    progress.update(
-                        task,
-                        advance=1,
-                        resource_count=graph.node_count,
-                    )
-
-                run_all_scanners(
-                    session,
-                    effective_region,
-                    graph,
-                    on_scanner_complete=on_scanner_complete,
-                )
-
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
                 progress.update(
                     task,
-                    description="[bold green]✓ Scan complete",
+                    advance=1,
                     resource_count=graph.node_count,
                 )
 
-        # Run Checkov on scanned graph
+            run_all_scanners(
+                session,
+                effective_region,
+                graph,
+                on_scanner_complete=on_scanner_complete,
+            )
+
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+            )
+
+        # Phase 2: Run Checkov on scanned graph
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -2425,7 +2410,6 @@ def graph(
 
     # Run visualization
     console.print()
-    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
 
     try:
         visualizer = GraphVisualizer(
@@ -2434,7 +2418,13 @@ def graph(
             profile=profile,
         )
 
-        if quiet_mode:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Generating graph...", total=None)
+
             result = visualizer.generate(
                 vpc_id=vpc,
                 output_format=fmt,
@@ -2444,25 +2434,8 @@ def graph(
                 show_routes=effective_show_routes,
                 no_collapse=no_collapse,
             )
-        else:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Generating graph...", total=None)
 
-                result = visualizer.generate(
-                    vpc_id=vpc,
-                    output_format=fmt,
-                    output_path=output,
-                    show_all=show_all,
-                    show_sg_rules=effective_show_sg_rules,
-                    show_routes=effective_show_routes,
-                    no_collapse=no_collapse,
-                )
-
-                progress.update(task, completed=True)
+            progress.update(task, completed=True)
     except Exception as e:
         console.print()
         console.print(
@@ -3085,49 +3058,45 @@ def deps(
     # Graph-based mode (default)
     console.print()
     total_scanners = get_total_scanner_count()
-    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
     graph = GraphEngine()
 
     try:
         # Phase 1: Scan AWS resources with progress bar
-        if quiet_mode:
-            run_all_scanners(session=session, region=effective_region, graph=graph)
-        else:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[bold cyan]{task.description}"),
-                BarColumn(bar_width=30),
-                TaskProgressColumn(),
-                TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
-                TimeElapsedColumn(),
-                console=console,
-                transient=False,
-            ) as progress:
-                task = progress.add_task(
-                    "Scanning AWS resources...",
-                    total=total_scanners,
-                    resource_count=0,
-                )
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                "Scanning AWS resources...",
+                total=total_scanners,
+                resource_count=0,
+            )
 
-                def on_scanner_complete(scanner_name: str, success: bool) -> None:
-                    progress.update(
-                        task,
-                        advance=1,
-                        resource_count=graph.node_count,
-                    )
-
-                run_all_scanners(
-                    session=session,
-                    region=effective_region,
-                    graph=graph,
-                    on_scanner_complete=on_scanner_complete,
-                )
-
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
                 progress.update(
                     task,
-                    description="[bold green]✓ Scan complete",
+                    advance=1,
                     resource_count=graph.node_count,
                 )
+
+            run_all_scanners(
+                session=session,
+                region=effective_region,
+                graph=graph,
+                on_scanner_complete=on_scanner_complete,
+            )
+
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+            )
 
         # Apply VPC filter if specified
         if vpc:
@@ -3139,20 +3108,16 @@ def deps(
             )
             graph = apply_filter_to_graph(graph, filter_config)
 
-        # Phase 2: Build dependency graph (spinner only)
-        if not quiet_mode:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Building dependency graph...", total=None)
-                builder = DependencyGraphBuilder()
-                dep_graph = builder.build_from_graph_engine(graph, effective_region)
-                progress.update(task, completed=True)
-        else:
+        # Phase 2: Build dependency graph (spinner)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Building dependency graph...", total=None)
             builder = DependencyGraphBuilder()
             dep_graph = builder.build_from_graph_engine(graph, effective_region)
+            progress.update(task, completed=True)
 
         # Build resource configs map for ASG detection
         resource_configs = {res.id: res.config for res in graph.get_all_resources()}
@@ -3405,49 +3370,45 @@ def cost(
     # Scan resources
     console.print()
     total_scanners = get_total_scanner_count()
-    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
     graph = GraphEngine()
 
     try:
         # Phase 1: Scan AWS resources with progress bar
-        if quiet_mode:
-            run_all_scanners(session=session, region=effective_region, graph=graph)
-        else:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[bold cyan]{task.description}"),
-                BarColumn(bar_width=30),
-                TaskProgressColumn(),
-                TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
-                TimeElapsedColumn(),
-                console=console,
-                transient=False,
-            ) as progress:
-                task = progress.add_task(
-                    "Scanning AWS resources...",
-                    total=total_scanners,
-                    resource_count=0,
-                )
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                "Scanning AWS resources...",
+                total=total_scanners,
+                resource_count=0,
+            )
 
-                def on_scanner_complete(scanner_name: str, success: bool) -> None:
-                    progress.update(
-                        task,
-                        advance=1,
-                        resource_count=graph.node_count,
-                    )
-
-                run_all_scanners(
-                    session=session,
-                    region=effective_region,
-                    graph=graph,
-                    on_scanner_complete=on_scanner_complete,
-                )
-
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
                 progress.update(
                     task,
-                    description="[bold green]✓ Scan complete",
+                    advance=1,
                     resource_count=graph.node_count,
                 )
+
+            run_all_scanners(
+                session=session,
+                region=effective_region,
+                graph=graph,
+                on_scanner_complete=on_scanner_complete,
+            )
+
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+            )
 
         # Apply VPC filter if specified
         if vpc:
@@ -3459,59 +3420,26 @@ def cost(
             )
             graph = apply_filter_to_graph(graph, filter_config)
 
-        # Phase 2: Estimate costs (spinner only)
-        if not quiet_mode:
+        # Phase 2: Estimate costs (spinner)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Estimating costs...", total=None)
+            estimator = CostEstimator(effective_region)
+            estimate = estimator.estimate_from_graph_engine(graph)
+            progress.update(task, completed=True)
+
+        # Apply RI-aware pricing if requested (P3-4)
+        ri_analysis = None
+        if ri_aware:
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
                 console=console,
             ) as progress:
-                task = progress.add_task("Estimating costs...", total=None)
-                estimator = CostEstimator(effective_region)
-                estimate = estimator.estimate_from_graph_engine(graph)
-                progress.update(task, completed=True)
-        else:
-            estimator = CostEstimator(effective_region)
-            estimate = estimator.estimate_from_graph_engine(graph)
-
-        # Apply RI-aware pricing if requested (P3-4)
-        ri_analysis = None
-        if ri_aware:
-            if not quiet_mode:
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    console=console,
-                ) as progress:
-                    task = progress.add_task("Analyzing reservations...", total=None)
-                    try:
-                        import asyncio
-
-                        from replimap.cost.ri_aware import RIAwareAnalyzer
-
-                        ri_credentials: dict[str, str] | None = None
-                        session_creds = session.get_credentials()
-                        if session_creds:
-                            frozen = session_creds.get_frozen_credentials()
-                            ri_credentials = {
-                                "aws_access_key_id": frozen.access_key,
-                                "aws_secret_access_key": frozen.secret_key,
-                            }
-                            if frozen.token:
-                                ri_credentials["aws_session_token"] = frozen.token
-
-                        async def run_ri_analysis() -> Any:
-                            async with RIAwareAnalyzer(
-                                region=effective_region, credentials=ri_credentials
-                            ) as analyzer:
-                                return await analyzer.analyze()
-
-                        ri_analysis = asyncio.run(run_ri_analysis())
-                        progress.update(task, completed=True)
-                    except Exception as e:
-                        progress.update(task, completed=True)
-                        logger.warning(f"Could not analyze reservations: {e}")
-            else:
+                task = progress.add_task("Analyzing reservations...", total=None)
                 try:
                     import asyncio
 
@@ -3535,7 +3463,9 @@ def cost(
                             return await analyzer.analyze()
 
                     ri_analysis = asyncio.run(run_ri_analysis())
+                    progress.update(task, completed=True)
                 except Exception as e:
+                    progress.update(task, completed=True)
                     logger.warning(f"Could not analyze reservations: {e}")
 
             if ri_analysis and ri_analysis.total_potential_savings > 0:
