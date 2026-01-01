@@ -199,8 +199,6 @@ jobs:
   publish-pypi:
     needs: [version-bump, build]
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # For trusted publishing
     steps:
       - uses: actions/download-artifact@v4
         with:
