@@ -85,7 +85,9 @@ def get_category(resource_type: str) -> RelationshipCategory:
 class DependencyExplorerReporter:
     """Generate dependency exploration reports in various formats."""
 
-    def to_console(self, result: DependencyExplorerResult, verbose: bool = False) -> None:
+    def to_console(
+        self, result: DependencyExplorerResult, verbose: bool = False
+    ) -> None:
         """Print dependency exploration to console with grouped dependencies.
 
         Args:
@@ -297,7 +299,12 @@ class DependencyExplorerReporter:
                 if "/" in name_part:
                     segments = name_part.split("/")
                     for seg in segments:
-                        if seg and seg not in ("app", "net", "loadbalancer", "targetgroup"):
+                        if seg and seg not in (
+                            "app",
+                            "net",
+                            "loadbalancer",
+                            "targetgroup",
+                        ):
                             return seg[:25]
                 return name_part[:25]
 

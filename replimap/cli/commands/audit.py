@@ -356,8 +356,8 @@ def audit_command(
         raise typer.Exit(1)
 
     # Try to load from cache first
-    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
     from replimap.core import GraphEngine
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
     from replimap.scanners.base import run_all_scanners
 
     console.print()
