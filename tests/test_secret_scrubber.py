@@ -11,8 +11,6 @@ Verifies detection and redaction of sensitive patterns including:
 - Various API tokens (GitHub, Slack, Stripe, SendGrid)
 """
 
-import pytest
-
 from replimap.core.security import SecretScrubber
 
 

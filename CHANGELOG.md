@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Secret Scrubber** - Automatic detection and redaction of sensitive data in generated Terraform
+  - `replimap/core/security/scrubber.py` - SecretScrubber class with regex patterns
+  - Detects: AWS access keys (AKIA/ASIA), secret keys, private keys, database URLs, tokens
+  - Integrated into TerraformRenderer - scrubs user_data, environment, container_definitions
+  - Warning summary shown after clone: "Sensitive Data Redacted: AWS Access Key ID: 2"
+  - 36 comprehensive tests in `tests/test_secret_scrubber.py`
+
+- **First-Run Privacy Message** - One-time welcome message building user trust
+  - `replimap/core/first_run.py` - First-run experience module
+  - Shows "100% Local & Private" message on first run only
+  - `replimap --privacy` flag to show privacy info anytime
+  - Marker file at `~/.replimap/.first_run_complete` prevents repeat
+  - Hidden `replimap cache reset-first-run` command for testing
+
+- **High-Concurrency AWS Config** - Adaptive retry mode for large account scanning
+  - `HIGH_CONCURRENCY_CONFIG` with adaptive retry mode and 50 connection pool
+  - `get_boto_config(mode="high-concurrency")` for large accounts
+  - Maintains existing custom retry decorator design
+  - 22 tests in `tests/test_aws_config.py`
+
+- **Improved Renderer Skip Summary** - Compact output for unsupported resource types
+  - Uses Counter for tracking, shows top 5 types with counts
+  - Single-line output: "ℹ Skipped 133 resources: type1 (N), type2 (N), +X more types"
+  - Handles zero-skip case gracefully
+
 - **Global CLI Options** - Profile and region options available at top level
   - `replimap -p <profile> <command>` works for all commands
   - `replimap -r <region> <command>` works for all commands
