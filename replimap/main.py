@@ -131,20 +131,33 @@ def version_callback(value: bool) -> None:
 
 
 def print_graph_stats(graph: GraphEngine) -> None:
-    """Print graph statistics in a rich table."""
+    """Print graph statistics in a rich table (Top 10 + others)."""
     stats = graph.statistics()
 
-    table = Table(title="Graph Statistics", show_header=True, header_style="bold cyan")
-    table.add_column("Metric", style="dim")
-    table.add_column("Value", justify="right")
+    if not stats["resources_by_type"]:
+        console.print("[dim]No resources found.[/]")
+        return
 
-    table.add_row("Total Resources", str(stats["total_resources"]))
-    table.add_row("Total Dependencies", str(stats["total_dependencies"]))
+    # Sort by count descending
+    sorted_types = sorted(
+        stats["resources_by_type"].items(), key=lambda x: x[1], reverse=True
+    )
 
-    if stats["resources_by_type"]:
+    table = Table(title="Top Resources", show_header=True, header_style="bold cyan")
+    table.add_column("Resource Type", style="dim")
+    table.add_column("Count", justify="right")
+
+    # Show top 10
+    top_10 = sorted_types[:10]
+    for rtype, count in top_10:
+        table.add_row(rtype, f"{count:,}")
+
+    # Show "others" summary if more than 10 types
+    if len(sorted_types) > 10:
+        other_types = sorted_types[10:]
+        other_count = sum(count for _, count in other_types)
         table.add_section()
-        for rtype, count in sorted(stats["resources_by_type"].items()):
-            table.add_row(f"  {rtype}", str(count))
+        table.add_row(f"[dim]+ {len(other_types)} other types[/]", f"[dim]{other_count:,}[/]")
 
     console.print(table)
 
@@ -153,6 +166,19 @@ def print_graph_stats(graph: GraphEngine) -> None:
             "[yellow]Warning:[/] Dependency graph contains cycles!",
             style="bold yellow",
         )
+
+
+def print_next_steps() -> None:
+    """Print suggested next steps after a scan."""
+    from rich.panel import Panel
+
+    next_steps = """[bold]replimap graph[/]      Visualize infrastructure dependencies
+[bold]replimap audit[/]     Check for security and cost issues
+[bold]replimap clone[/]     Generate Terraform for staging environment
+[bold]replimap deps[/]      Explore resource dependencies"""
+
+    console.print()
+    console.print(Panel(next_steps, title="📋 Next Steps", border_style="dim"))
 
 
 @app.callback()
@@ -487,7 +513,7 @@ def scan(
         TextColumn("[bold cyan]{task.description}"),
         BarColumn(bar_width=30),
         TaskProgressColumn(),
-        TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+        TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
         TimeElapsedColumn(),
         console=console,
         transient=False,
@@ -496,6 +522,7 @@ def scan(
             f"Scanning AWS resources ({scan_mode})...",
             total=total_scanners,
             resource_count=0,
+            dep_count=0,
         )
 
         def on_scanner_complete(scanner_name: str, success: bool) -> None:
@@ -503,6 +530,7 @@ def scan(
                 task,
                 advance=1,
                 resource_count=graph.node_count,
+                dep_count=graph.edge_count,
             )
 
         results = run_all_scanners(
@@ -513,15 +541,14 @@ def scan(
             on_scanner_complete=on_scanner_complete,
         )
 
+        # Final update with complete stats
         progress.update(
             task,
             description="[bold green]✓ Scan complete",
             resource_count=graph.node_count,
+            dep_count=graph.edge_count,
         )
     scan_duration = time.time() - scan_start
-
-    # Print scan summary with resource counts
-    print_scan_summary(graph, scan_duration)
 
     # Update scan cache with new results
     if use_scan_cache:
@@ -613,23 +640,21 @@ def scan(
         success=True,
     )
 
-    # Report results
-    console.print()
-
+    # Report any failed scanners (only show errors, not successes)
     failed = [name for name, err in results.items() if err is not None]
-    succeeded = [name for name, err in results.items() if err is None]
-
-    if succeeded:
-        console.print(f"[green]Completed:[/] {', '.join(succeeded)}")
     if failed:
-        console.print(f"[red]Failed:[/] {', '.join(failed)}")
+        console.print()
+        console.print(f"[red]Failed scanners:[/] {', '.join(failed)}")
         for name, err in results.items():
             if err:
                 console.print(f"  [red]-[/] {name}: {err}")
 
-    # Print statistics
+    # Print resource breakdown table
     console.print()
     print_graph_stats(graph)
+
+    # Show next steps
+    print_next_steps()
 
     # Show remaining scans for FREE users
     remaining = get_scans_remaining()
@@ -848,7 +873,7 @@ def clone(
         TextColumn("[bold cyan]{task.description}"),
         BarColumn(bar_width=30),
         TaskProgressColumn(),
-        TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+        TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
         TimeElapsedColumn(),
         console=console,
         transient=False,
@@ -857,6 +882,7 @@ def clone(
             "Scanning AWS resources...",
             total=total_scanners,
             resource_count=0,
+            dep_count=0,
         )
 
         def on_scanner_complete(scanner_name: str, success: bool) -> None:
@@ -864,6 +890,7 @@ def clone(
                 task,
                 advance=1,
                 resource_count=graph.node_count,
+                dep_count=graph.edge_count,
             )
 
         run_all_scanners(
@@ -877,13 +904,8 @@ def clone(
             task,
             description="[bold green]✓ Scan complete",
             resource_count=graph.node_count,
+            dep_count=graph.edge_count,
         )
-
-    stats = graph.statistics()
-    console.print(
-        f"[green]Found[/] {stats['total_resources']} resources "
-        f"with {stats['total_dependencies']} dependencies"
-    )
 
     # Apply transformations
     console.print()
@@ -2115,7 +2137,7 @@ def audit(
             TextColumn("[bold cyan]{task.description}"),
             BarColumn(bar_width=30),
             TaskProgressColumn(),
-            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+            TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
             TimeElapsedColumn(),
             console=console,
             transient=False,
@@ -2124,6 +2146,7 @@ def audit(
                 "Scanning AWS resources...",
                 total=total_scanners,
                 resource_count=0,
+                dep_count=0,
             )
 
             def on_scanner_complete(scanner_name: str, success: bool) -> None:
@@ -2131,6 +2154,7 @@ def audit(
                     task,
                     advance=1,
                     resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
                 )
 
             run_all_scanners(
@@ -2144,6 +2168,7 @@ def audit(
                 task,
                 description="[bold green]✓ Scan complete",
                 resource_count=graph.node_count,
+                dep_count=graph.edge_count,
             )
 
         # Phase 2: Run Checkov on scanned graph
@@ -3067,7 +3092,7 @@ def deps(
             TextColumn("[bold cyan]{task.description}"),
             BarColumn(bar_width=30),
             TaskProgressColumn(),
-            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+            TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
             TimeElapsedColumn(),
             console=console,
             transient=False,
@@ -3076,6 +3101,7 @@ def deps(
                 "Scanning AWS resources...",
                 total=total_scanners,
                 resource_count=0,
+                dep_count=0,
             )
 
             def on_scanner_complete(scanner_name: str, success: bool) -> None:
@@ -3083,6 +3109,7 @@ def deps(
                     task,
                     advance=1,
                     resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
                 )
 
             run_all_scanners(
@@ -3096,6 +3123,7 @@ def deps(
                 task,
                 description="[bold green]✓ Scan complete",
                 resource_count=graph.node_count,
+                dep_count=graph.edge_count,
             )
 
         # Apply VPC filter if specified
@@ -3379,7 +3407,7 @@ def cost(
             TextColumn("[bold cyan]{task.description}"),
             BarColumn(bar_width=30),
             TaskProgressColumn(),
-            TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+            TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
             TimeElapsedColumn(),
             console=console,
             transient=False,
@@ -3388,6 +3416,7 @@ def cost(
                 "Scanning AWS resources...",
                 total=total_scanners,
                 resource_count=0,
+                dep_count=0,
             )
 
             def on_scanner_complete(scanner_name: str, success: bool) -> None:
@@ -3395,6 +3424,7 @@ def cost(
                     task,
                     advance=1,
                     resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
                 )
 
             run_all_scanners(
@@ -3408,6 +3438,7 @@ def cost(
                 task,
                 description="[bold green]✓ Scan complete",
                 resource_count=graph.node_count,
+                dep_count=graph.edge_count,
             )
 
         # Apply VPC filter if specified

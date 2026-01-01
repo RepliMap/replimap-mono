@@ -11,7 +11,7 @@ from replimap.cli.utils.aws_session import (
 )
 from replimap.cli.utils.console import console, get_console, get_logger, logger
 from replimap.cli.utils.console_links import get_console_url, get_console_url_from_id
-from replimap.cli.utils.helpers import print_graph_stats, print_scan_summary
+from replimap.cli.utils.helpers import print_graph_stats, print_next_steps, print_scan_summary
 from replimap.cli.utils.options import (
     DryRunOption,
     ForceOption,
@@ -55,6 +55,7 @@ __all__ = [
     # Helpers
     "print_scan_summary",
     "print_graph_stats",
+    "print_next_steps",
     # Console Links
     "get_console_url",
     "get_console_url_from_id",

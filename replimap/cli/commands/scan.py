@@ -29,7 +29,7 @@ from replimap.cli.utils import (
     get_profile_region,
     logger,
     print_graph_stats,
-    print_scan_summary,
+    print_next_steps,
 )
 from replimap.core import (
     GraphEngine,
@@ -352,58 +352,49 @@ def register(app: typer.Typer) -> None:
         total_scanners = get_total_scanner_count()
         quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
 
-        if quiet_mode:
-            # Quiet mode: no progress bar, just run scanners
+        # Always show progress bar (--quiet only suppresses INFO logs)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                f"Scanning AWS resources ({scan_mode})...",
+                total=total_scanners,
+                resource_count=0,
+                dep_count=0,
+            )
+
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                """Update progress bar when a scanner completes."""
+                progress.update(
+                    task,
+                    advance=1,
+                    resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
+                )
+
             results = run_all_scanners(
                 session,
                 effective_region,
                 graph,
                 parallel=use_parallel,
+                on_scanner_complete=on_scanner_complete,
             )
-        else:
-            # Normal mode: show progress bar
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[bold cyan]{task.description}"),
-                BarColumn(bar_width=30),
-                TaskProgressColumn(),
-                TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
-                TimeElapsedColumn(),
-                console=console,
-                transient=False,
-            ) as progress:
-                task = progress.add_task(
-                    f"Scanning AWS resources ({scan_mode})...",
-                    total=total_scanners,
-                    resource_count=0,
-                )
 
-                def on_scanner_complete(scanner_name: str, success: bool) -> None:
-                    """Update progress bar when a scanner completes."""
-                    progress.update(
-                        task,
-                        advance=1,
-                        resource_count=graph.node_count,
-                    )
-
-                results = run_all_scanners(
-                    session,
-                    effective_region,
-                    graph,
-                    parallel=use_parallel,
-                    on_scanner_complete=on_scanner_complete,
-                )
-
-                # Final update with completion state
-                progress.update(
-                    task,
-                    description="[bold green]✓ Scan complete",
-                    resource_count=graph.node_count,
-                )
+            # Final update with completion state
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+                dep_count=graph.edge_count,
+            )
         scan_duration = time.time() - scan_start
-
-        # Print scan summary with resource counts
-        print_scan_summary(graph, scan_duration)
 
         # Update scan cache with new results
         if use_scan_cache:
@@ -496,23 +487,21 @@ def register(app: typer.Typer) -> None:
             success=True,
         )
 
-        # Report results
-        console.print()
-
+        # Report any failed scanners (only show errors, not successes)
         failed = [name for name, err in results.items() if err is not None]
-        succeeded = [name for name, err in results.items() if err is None]
-
-        if succeeded:
-            console.print(f"[green]Completed:[/] {', '.join(succeeded)}")
         if failed:
-            console.print(f"[red]Failed:[/] {', '.join(failed)}")
+            console.print()
+            console.print(f"[red]Failed scanners:[/] {', '.join(failed)}")
             for name, err in results.items():
                 if err:
                     console.print(f"  [red]-[/] {name}: {err}")
 
-        # Print statistics
+        # Print resource breakdown table
         console.print()
         print_graph_stats(graph)
+
+        # Show next steps
+        print_next_steps()
 
         # Show remaining scans for FREE users
         remaining = get_scans_remaining()
