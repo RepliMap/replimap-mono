@@ -121,6 +121,20 @@ def create_cache_app() -> typer.Typer:
         console.print(table)
         console.print()
 
+    @cache_app.command("reset-first-run", hidden=True)
+    def reset_first_run() -> None:
+        """
+        Reset first-run marker (for testing).
+
+        This is a hidden command used for development and testing.
+        """
+        from replimap.core.first_run import reset_first_run_marker
+
+        if reset_first_run_marker():
+            console.print("[green]First-run marker reset.[/]")
+        else:
+            console.print("[dim]First-run marker was not set.[/]")
+
     return cache_app
 
 

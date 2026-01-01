@@ -14,6 +14,7 @@ from rich.console import Console
 
 from replimap import __version__
 from replimap.cli.commands import register_all_commands
+from replimap.core.first_run import check_and_show_first_run_message, show_privacy_info
 from replimap.core.signals import setup_signal_handlers
 
 # Create console and app
@@ -43,6 +44,11 @@ def main_callback(
         "-V",
         help="Show version and exit",
     ),
+    privacy: bool = typer.Option(
+        False,
+        "--privacy",
+        help="Show privacy and data handling information",
+    ),
     profile: str | None = typer.Option(
         None,
         "--profile",
@@ -57,6 +63,10 @@ def main_callback(
     ),
 ) -> None:
     """RepliMap - AWS Infrastructure Intelligence Engine."""
+    if privacy:
+        show_privacy_info(console)
+        raise typer.Exit(0)
+
     if version:
         console.print(f"RepliMap v{__version__}")
         raise typer.Exit(0)
@@ -69,6 +79,10 @@ def main_callback(
     ctx.ensure_object(dict)
     ctx.obj["global_profile"] = profile
     ctx.obj["global_region"] = region
+
+    # Show first-run message (only once ever, skip if quiet mode)
+    if not quiet:
+        check_and_show_first_run_message(console)
 
     # Show help if no command provided (mimic no_args_is_help)
     if ctx.invoked_subcommand is None:
