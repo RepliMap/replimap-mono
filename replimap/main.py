@@ -14,7 +14,6 @@ import json
 import logging
 import os
 import signal
-import sys
 import time
 import uuid
 from datetime import UTC, datetime
@@ -28,9 +27,12 @@ import boto3
 import typer
 from rich.panel import Panel
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
+    TaskProgressColumn,
     TextColumn,
+    TimeElapsedColumn,
 )
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
@@ -69,7 +71,7 @@ from replimap.licensing import (
 from replimap.licensing.manager import get_license_manager
 from replimap.licensing.tracker import get_usage_tracker
 from replimap.renderers import TerraformRenderer
-from replimap.scanners.base import run_all_scanners
+from replimap.scanners.base import get_total_scanner_count, run_all_scanners
 from replimap.transformers import create_default_pipeline
 from replimap.ui import print_audit_findings_fomo
 
@@ -2044,33 +2046,79 @@ def audit(
         )
         raise typer.Exit(1)
 
-    # Run audit
+    # Run audit - scan with progress bar, then run Checkov
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    total_scanners = get_total_scanner_count()
+    quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
+    graph = GraphEngine()
 
-        try:
+    try:
+        if quiet_mode:
+            # Quiet mode: no progress bar
+            run_all_scanners(session, effective_region, graph)
+        else:
+            # Normal mode: show progress bar during scan
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold cyan]{task.description}"),
+                BarColumn(bar_width=30),
+                TaskProgressColumn(),
+                TextColumn("[dim]• Found {task.fields[resource_count]:,} resources"),
+                TimeElapsedColumn(),
+                console=console,
+                transient=False,
+            ) as progress:
+                task = progress.add_task(
+                    "Scanning AWS resources...",
+                    total=total_scanners,
+                    resource_count=0,
+                )
+
+                def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                    progress.update(
+                        task,
+                        advance=1,
+                        resource_count=graph.node_count,
+                    )
+
+                run_all_scanners(
+                    session,
+                    effective_region,
+                    graph,
+                    on_scanner_complete=on_scanner_complete,
+                )
+
+                progress.update(
+                    task,
+                    description="[bold green]✓ Scan complete",
+                    resource_count=graph.node_count,
+                )
+
+        # Run Checkov on scanned graph
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Running security checks...", total=None)
             results, report_path = engine.run(
                 output_dir=terraform_dir,
                 report_path=output,
+                skip_scan=True,
+                graph=graph,
             )
-        except Exception as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Audit failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
-                )
-            )
-            raise typer.Exit(1)
+            progress.update(task, completed=True)
 
-        progress.update(task, completed=True)
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Audit failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
 
     # Handle JSON output format
     if output_format.lower() == "json":
@@ -5581,7 +5629,9 @@ app.add_typer(dr_app, name="dr")
 def _signal_handler(sig: int, frame: Any) -> None:
     """Handle SIGINT (Ctrl+C) gracefully."""
     console.print("\n[bold red]🛑 Aborted by user.[/bold red]")
-    sys.exit(130)  # Standard exit code for SIGINT
+    # Use os._exit() for immediate termination - bypasses threading cleanup
+    # which can cause hangs with ThreadPoolExecutor
+    os._exit(130)
 
 
 def cli() -> None:
@@ -5594,7 +5644,7 @@ def cli() -> None:
     except KeyboardInterrupt:
         # Fallback if signal handler is bypassed
         console.print("\n[bold red]🛑 Aborted by user.[/bold red]")
-        sys.exit(130)
+        os._exit(130)
 
 
 if __name__ == "__main__":
