@@ -9,7 +9,7 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from replimap.cli.utils import console, get_aws_session
+from replimap.cli.utils import console, get_aws_session, get_profile_region
 
 
 def trends_command(
@@ -63,6 +63,10 @@ def trends_command(
 
     effective_profile = profile or "default"
 
+    # Cost Explorer is a global service, typically accessed via us-east-1
+    # but we still respect profile region if set
+    effective_region = get_profile_region(profile) or "us-east-1"
+
     console.print(
         Panel(
             f"[bold cyan]Cost Trend Analyzer[/bold cyan]\n\n"
@@ -72,25 +76,27 @@ def trends_command(
         )
     )
 
-    session = get_aws_session(effective_profile, "us-east-1", use_cache=not no_cache)
+    session = get_aws_session(effective_profile, effective_region, use_cache=not no_cache)
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Fetching cost data from Cost Explorer...", total=None)
-
-        try:
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Fetching cost data from Cost Explorer...", total=None)
             analyzer = CostTrendAnalyzer(session)
             result = analyzer.analyze(days=days)
             progress.update(task, completed=True)
-        except Exception as e:
-            console.print(f"\n[red]Error: {e}[/]")
-            console.print(
-                "[dim]Note: Cost Explorer must be enabled in your AWS account[/]"
-            )
-            raise typer.Exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        raise typer.Exit(130)
+    except Exception as e:
+        console.print(f"\n[red]Error: {e}[/]")
+        console.print(
+            "[dim]Note: Cost Explorer must be enabled in your AWS account[/]"
+        )
+        raise typer.Exit(1)
 
     console.print()
 

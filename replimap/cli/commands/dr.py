@@ -11,7 +11,7 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from replimap.cli.utils import console, get_aws_session
+from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core import GraphEngine
 from replimap.scanners.base import run_all_scanners
 
@@ -54,7 +54,19 @@ def create_dr_app() -> typer.Typer:
         from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
         from replimap.dr.readiness import DRReadinessAssessor, DRTier
 
-        effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+        # Determine region (flag > profile > env > default)
+        effective_region = region
+        region_source = "flag"
+
+        if not effective_region:
+            profile_region = get_profile_region(profile)
+            if profile_region:
+                effective_region = profile_region
+                region_source = f"profile '{profile or 'default'}'"
+            else:
+                effective_region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+                region_source = "default"
+
         effective_profile = profile or "default"
 
         tier_map = {
@@ -69,7 +81,7 @@ def create_dr_app() -> typer.Typer:
         console.print(
             Panel(
                 f"[bold cyan]DR Readiness Assessment[/bold cyan]\n\n"
-                f"Primary Region: [cyan]{effective_region}[/]\n"
+                f"Primary Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
                 f"DR Region: [cyan]{dr_region or 'Auto-detect'}[/]\n"
                 f"Target Tier: [cyan]{target.display_name}[/]",
                 border_style="cyan",

@@ -10,7 +10,7 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from replimap.cli.utils import console, get_aws_session
+from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core import GraphEngine
 from replimap.scanners.base import run_all_scanners
 
@@ -69,13 +69,25 @@ def transfer_command(
         console.print(cost_gate.prompt)
         raise typer.Exit(1)
 
-    effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+    # Determine region (flag > profile > env > default)
+    effective_region = region
+    region_source = "flag"
+
+    if not effective_region:
+        profile_region = get_profile_region(profile)
+        if profile_region:
+            effective_region = profile_region
+            region_source = f"profile '{profile or 'default'}'"
+        else:
+            effective_region = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+            region_source = "default"
+
     effective_profile = profile or "default"
 
     console.print(
         Panel(
             f"[bold cyan]Data Transfer Analyzer[/bold cyan]\n\n"
-            f"Region: [cyan]{effective_region}[/]\n"
+            f"Region: [cyan]{effective_region}[/] [dim](from {region_source})[/]\n"
             f"Profile: [cyan]{effective_profile}[/]",
             border_style="cyan",
         )
