@@ -1482,8 +1482,10 @@ def scan_cache_clear(
 
 @scan_cache_app.command("info")
 def scan_cache_info(
-    region: str = typer.Argument(
+    region: str = typer.Option(
         ...,
+        "--region",
+        "-r",
         help="Region to show cache info for",
     ),
     account: str | None = typer.Option(
@@ -1497,7 +1499,7 @@ def scan_cache_info(
     Show detailed cache info for a region.
 
     Examples:
-        replimap scan-cache info us-east-1
+        replimap scan-cache info -r us-east-1
     """
     from replimap.core.cache import DEFAULT_CACHE_DIR
 
