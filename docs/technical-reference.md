@@ -1381,6 +1381,7 @@ replimap graph [OPTIONS]
   --scope, -s TEXT         Scope to VPC
   --format, -f TEXT        Output format: mermaid, html, json [default: mermaid]
   --output, -o PATH        Output file path
+  --refresh, -R            Force fresh AWS scan (bypass cache)
 
 # Drift command (state comparison)
 replimap drift [OPTIONS]
@@ -1406,6 +1407,7 @@ replimap deps RESOURCE_ID [OPTIONS]
   --output, -o PATH        Output file path
   --open/--no-open         Open HTML report in browser [default: open]
   --analyze                Deep analysis mode using resource-specific analyzers
+  --refresh, -R            Force fresh AWS scan (bypass cache)
 
 # Cost estimation command (Pro+)
 replimap cost [OPTIONS]
@@ -1481,6 +1483,20 @@ replimap license deactivate [--yes]
 # Credential cache management
 replimap cache status      # Show cached credentials
 replimap cache clear       # Clear credential cache
+
+# Graph cache management (speeds up graph, deps, clone commands)
+replimap graph-cache [OPTIONS]
+  --show, -s               Show cached graph scans
+  --clear, -c              Clear all cached graph scans
+
+# Scan cache management (incremental scanning)
+replimap scan-cache status                    # Show scan cache status
+replimap scan-cache status -p PROFILE         # Filter by AWS profile
+replimap scan-cache info -r REGION            # Show detailed cache info
+replimap scan-cache info -r REGION -p PROFILE # Filter by profile
+replimap scan-cache clear                     # Clear all scan cache
+replimap scan-cache clear -p PROFILE          # Clear for specific profile
+replimap scan-cache clear -r REGION           # Clear for specific region
 
 # List AWS profiles
 replimap profiles
@@ -1606,6 +1622,59 @@ replimap cache clear
 
 # Disable cache for a single command
 replimap scan --profile prod --no-cache
+```
+
+### Graph Caching
+
+RepliMap caches scan results to speed up subsequent commands. After running `replimap scan`, commands like `graph`, `deps`, `clone`, `audit`, and `cost` can use cached data (<1s) instead of re-scanning (90s+).
+
+```bash
+# First scan - full AWS scan (slow)
+replimap scan --profile prod -r us-east-1
+
+# Subsequent commands use cached graph (fast)
+replimap graph --profile prod -r us-east-1      # Uses cache
+replimap deps sg-12345 -r us-east-1             # Uses cache
+
+# Force fresh scan (bypass cache)
+replimap graph --profile prod -r us-east-1 --refresh
+replimap deps sg-12345 -r us-east-1 --refresh
+
+# Manage graph cache
+replimap graph-cache --show     # List all cached scans
+replimap graph-cache --clear    # Clear all cached scans
+```
+
+**Cache Location**: `~/.replimap/cache/graphs/`
+
+**Cache TTL**: 1 hour (configurable)
+
+| Command | Uses Cache | `--refresh` Flag |
+|---------|------------|------------------|
+| `scan` | Saves to cache | N/A |
+| `graph` | Yes | Yes |
+| `deps` | Yes | Yes |
+| `clone` | Yes | Yes |
+| `audit` | Yes | Yes |
+| `cost` | Yes | Yes |
+
+### Scan Cache (Incremental Scanning)
+
+For incremental scanning workflows, RepliMap maintains a separate scan cache:
+
+```bash
+# Show scan cache status
+replimap scan-cache status
+replimap scan-cache status -p prod    # Filter by profile
+
+# Show detailed info for a region
+replimap scan-cache info -r us-east-1
+replimap scan-cache info -r us-east-1 -p prod
+
+# Clear scan cache
+replimap scan-cache clear
+replimap scan-cache clear -p prod           # Clear for profile
+replimap scan-cache clear -r us-east-1      # Clear for region
 ```
 
 ### Parallel Scanning
