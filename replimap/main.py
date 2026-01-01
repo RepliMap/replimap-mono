@@ -5865,8 +5865,8 @@ app.add_typer(dr_app, name="dr")
 # =============================================================================
 
 
-@app.command()
-def cache(
+@app.command("graph-cache")
+def graph_cache(
     show: bool = typer.Option(
         False,
         "--show",
@@ -5881,7 +5881,7 @@ def cache(
     ),
 ) -> None:
     """
-    Manage scan cache.
+    Manage graph cache.
 
     RepliMap caches scan results to speed up subsequent commands.
     After running 'replimap scan', commands like 'graph', 'deps', 'clone',
@@ -5889,10 +5889,10 @@ def cache(
 
     Examples:
         # Show cache status
-        replimap cache --show
+        replimap graph-cache --show
 
         # Clear all cached scans
-        replimap cache --clear
+        replimap graph-cache --clear
     """
     from replimap.core.cache_manager import CacheManager, print_cache_status
 
@@ -5907,14 +5907,16 @@ def cache(
     else:
         # Default: show help
         console.print()
-        console.print("[bold]Scan Cache[/bold]")
+        console.print("[bold]Graph Cache[/bold]")
         console.print()
         console.print(
             "RepliMap caches scan results to speed up subsequent commands.\n"
             "Run 'replimap scan' once, then 'graph', 'deps', 'clone' use cached data.\n"
         )
-        console.print("  [cyan]replimap cache --show[/cyan]   Show cached scans")
-        console.print("  [cyan]replimap cache --clear[/cyan]  Clear all cached scans")
+        console.print("  [cyan]replimap graph-cache --show[/cyan]   Show cached scans")
+        console.print(
+            "  [cyan]replimap graph-cache --clear[/cyan]  Clear all cached scans"
+        )
         console.print()
         print_cache_status(console)
 
