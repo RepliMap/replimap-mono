@@ -782,6 +782,12 @@ def clone(
         "--no-cache",
         help="Don't use cached credentials (re-authenticate)",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
     dev_mode: bool = typer.Option(
         False,
         "--dev-mode",
@@ -904,51 +910,74 @@ def clone(
     # Get AWS session
     session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
-    # Initialize graph
-    graph = GraphEngine()
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    # Run all scanners with progress
-    total_scanners = get_total_scanner_count()
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold cyan]{task.description}"),
-        BarColumn(bar_width=30),
-        TaskProgressColumn(),
-        TextColumn(
-            "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
-        ),
-        TimeElapsedColumn(),
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
         console=console,
-        transient=False,
-    ) as progress:
-        task = progress.add_task(
-            "Scanning AWS resources...",
-            total=total_scanners,
-            resource_count=0,
-            dep_count=0,
-        )
+        refresh=refresh,
+    )
 
-        def on_scanner_complete(scanner_name: str, success: bool) -> None:
+    # Use cached graph or scan
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        # Initialize graph
+        graph = GraphEngine()
+
+        # Run all scanners with progress
+        total_scanners = get_total_scanner_count()
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn(
+                "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+            ),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                "Scanning AWS resources...",
+                total=total_scanners,
+                resource_count=0,
+                dep_count=0,
+            )
+
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                progress.update(
+                    task,
+                    advance=1,
+                    resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
+                )
+
+            run_all_scanners(
+                session,
+                effective_region,
+                graph,
+                on_scanner_complete=on_scanner_complete,
+            )
+
             progress.update(
                 task,
-                advance=1,
+                description="[bold green]✓ Scan complete",
                 resource_count=graph.node_count,
                 dep_count=graph.edge_count,
             )
 
-        run_all_scanners(
-            session,
-            effective_region,
-            graph,
-            on_scanner_complete=on_scanner_complete,
-        )
-
-        progress.update(
-            task,
-            description="[bold green]✓ Scan complete",
-            resource_count=graph.node_count,
-            dep_count=graph.edge_count,
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
         )
 
     # Apply transformations
@@ -3272,7 +3301,7 @@ def deps(
 
     # Graph-based mode (default)
     # Try to load from cache first
-    from replimap.core.cache_manager import get_or_load_graph
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
     console.print()
     cached_graph, cache_meta = get_or_load_graph(
@@ -3333,6 +3362,15 @@ def deps(
                     resource_count=graph.node_count,
                     dep_count=graph.edge_count,
                 )
+
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+                vpc=vpc,
+            )
 
         # Apply VPC filter if specified
         if vpc:
