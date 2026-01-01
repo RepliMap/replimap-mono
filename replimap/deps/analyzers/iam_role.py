@@ -13,7 +13,9 @@ IAM Roles have high blast radius - many resources may depend on them.
 from __future__ import annotations
 
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
+
+from replimap.core.concurrency import create_thread_pool
 from typing import Any
 
 from replimap.deps.base_analyzer import ResourceDependencyAnalyzer
@@ -275,7 +277,9 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
             ("Lambda Functions", self._find_lambda_using_role),
         ]
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
+        # Use tracked thread pool - global signal handler will shutdown on Ctrl-C
+        executor = create_thread_pool(max_workers=3, thread_name_prefix="iam-role-")
+        try:
             futures = {
                 executor.submit(query_func, role_name): name
                 for name, query_func in queries
@@ -287,6 +291,8 @@ class IAMRoleAnalyzer(ResourceDependencyAnalyzer):
                     consumers.extend(result)
                 except Exception:  # noqa: S110
                     pass
+        finally:
+            executor.shutdown(wait=True)
 
         return consumers
 

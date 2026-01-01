@@ -27,6 +27,13 @@ from .circuit_breaker import (
     CircuitState,
     get_circuit_breaker_registry,
 )
+from .concurrency import (
+    check_shutdown,
+    create_thread_pool,
+    is_shutdown_requested,
+    reset_shutdown_state,
+    shutdown_all_executors,
+)
 from .config import ConfigLoader, RepliMapConfig, deep_merge, generate_example_config
 from .errors import (
     DetailedError,
@@ -153,6 +160,12 @@ __all__ = [
     "CircuitOpenError",
     "CircuitState",
     "get_circuit_breaker_registry",
+    # Concurrency (Global Thread Pool Management)
+    "create_thread_pool",
+    "shutdown_all_executors",
+    "is_shutdown_requested",
+    "check_shutdown",
+    "reset_shutdown_state",
     # Sanitization
     "Sanitizer",
     "SanitizationResult",

@@ -17,7 +17,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
+
+from replimap.core.concurrency import create_thread_pool
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -467,8 +469,11 @@ class MultiRegionScanner:
         regions = self.config.regions or COMMON_REGIONS
         results: dict[str, RegionScanResult] = {}
 
-        executor = ThreadPoolExecutor(max_workers=self.config.max_parallel)
-        interrupted = False
+        # Use tracked thread pool - global signal handler will shutdown on Ctrl-C
+        executor = create_thread_pool(
+            max_workers=self.config.max_parallel,
+            thread_name_prefix="multi-region-",
+        )
         try:
             # Submit all region scans
             future_to_region = {
@@ -501,14 +506,8 @@ class MultiRegionScanner:
                         resource_count=0,
                         error=str(e),
                     )
-        except KeyboardInterrupt:
-            # Immediate shutdown on Ctrl+C - don't wait for threads
-            interrupted = True
-            executor.shutdown(wait=False, cancel_futures=True)
-            raise
         finally:
-            if not interrupted:
-                executor.shutdown(wait=True)
+            executor.shutdown(wait=True)
 
         return self._aggregate_results(results)
 

@@ -8,14 +8,13 @@ from __future__ import annotations
 
 import logging
 import os
-import signal
-import sys
 
 import typer
 from rich.console import Console
 
 from replimap import __version__
 from replimap.cli.commands import register_all_commands
+from replimap.core.signals import setup_signal_handlers
 
 # Create console and app
 console = Console()
@@ -64,24 +63,17 @@ def main_callback(
 register_all_commands(app)
 
 
-def _signal_handler(sig: int, frame: object) -> None:
-    """Handle SIGINT (Ctrl+C) gracefully."""
-    console.print("\n[yellow]Cancelled by user[/yellow]")
-    sys.exit(130)  # 130 is standard SIGINT exit code
-
-
 def main() -> None:
     """Entry point for the CLI."""
-    # Register signal handler for graceful Ctrl-C handling
-    # This prevents ugly threading shutdown exceptions
-    signal.signal(signal.SIGINT, _signal_handler)
+    # Install global signal handlers for graceful Ctrl-C handling
+    # This prevents ugly threading shutdown exceptions by:
+    # 1. Shutting down all tracked thread pools
+    # 2. Using os._exit() to skip Python cleanup
+    setup_signal_handlers(console)
 
-    try:
-        app()
-    except KeyboardInterrupt:
-        # Fallback in case signal handler doesn't catch it
-        console.print("\n[yellow]Cancelled by user[/yellow]")
-        sys.exit(130)
+    # Run the app - no need for KeyboardInterrupt handling here
+    # since the signal handler uses os._exit()
+    app()
 
 
 if __name__ == "__main__":
