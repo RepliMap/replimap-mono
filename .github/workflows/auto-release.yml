@@ -199,7 +199,6 @@ jobs:
   publish-pypi:
     needs: [version-bump, build]
     runs-on: ubuntu-latest
-    # Note: Removed 'environment' to prevent GitHub Deployments from showing
     permissions:
       id-token: write  # For trusted publishing
     steps:
@@ -210,10 +209,9 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        # Uses trusted publishing (OIDC) - no token needed if configured
-        # Fallback to token if trusted publishing not set up:
-        # with:
-        #   password: ${{ secrets.PYPI_TOKEN }}
+        with:
+          # Use token-based auth (no environment needed)
+          password: ${{ secrets.PYPI_TOKEN }}
 
   # ==========================================================================
   # Create GitHub Release
