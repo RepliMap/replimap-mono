@@ -157,7 +157,9 @@ def print_graph_stats(graph: GraphEngine) -> None:
         other_types = sorted_types[10:]
         other_count = sum(count for _, count in other_types)
         table.add_section()
-        table.add_row(f"[dim]+ {len(other_types)} other types[/]", f"[dim]{other_count:,}[/]")
+        table.add_row(
+            f"[dim]+ {len(other_types)} other types[/]", f"[dim]{other_count:,}[/]"
+        )
 
     console.print(table)
 
@@ -538,7 +540,9 @@ def scan(
         TextColumn("[bold cyan]{task.description}"),
         BarColumn(bar_width=30),
         TaskProgressColumn(),
-        TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
+        TextColumn(
+            "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+        ),
         TimeElapsedColumn(),
         console=console,
         transient=False,
@@ -911,7 +915,9 @@ def clone(
         TextColumn("[bold cyan]{task.description}"),
         BarColumn(bar_width=30),
         TaskProgressColumn(),
-        TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
+        TextColumn(
+            "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+        ),
         TimeElapsedColumn(),
         console=console,
         transient=False,
@@ -2175,7 +2181,9 @@ def audit(
             TextColumn("[bold cyan]{task.description}"),
             BarColumn(bar_width=30),
             TaskProgressColumn(),
-            TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
+            TextColumn(
+                "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+            ),
             TimeElapsedColumn(),
             console=console,
             transient=False,
@@ -3177,7 +3185,9 @@ def deps(
                 TextColumn("[bold cyan]{task.description}"),
                 BarColumn(bar_width=30),
                 TaskProgressColumn(),
-                TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
+                TextColumn(
+                    "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+                ),
                 TimeElapsedColumn(),
                 console=console,
                 transient=False,
@@ -3492,7 +3502,9 @@ def cost(
             TextColumn("[bold cyan]{task.description}"),
             BarColumn(bar_width=30),
             TaskProgressColumn(),
-            TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
+            TextColumn(
+                "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+            ),
             TimeElapsedColumn(),
             console=console,
             transient=False,

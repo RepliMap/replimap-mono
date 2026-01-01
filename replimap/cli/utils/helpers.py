@@ -59,7 +59,9 @@ def print_graph_stats(graph: GraphEngine) -> None:
         other_types = sorted_types[10:]
         other_count = sum(count for _, count in other_types)
         table.add_section()
-        table.add_row(f"[dim]+ {len(other_types)} other types[/]", f"[dim]{other_count:,}[/]")
+        table.add_row(
+            f"[dim]+ {len(other_types)} other types[/]", f"[dim]{other_count:,}[/]"
+        )
 
     console.print(table)
 

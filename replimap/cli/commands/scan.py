@@ -356,7 +356,9 @@ def register(app: typer.Typer) -> None:
             TextColumn("[bold cyan]{task.description}"),
             BarColumn(bar_width=30),
             TaskProgressColumn(),
-            TextColumn("[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"),
+            TextColumn(
+                "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+            ),
             TimeElapsedColumn(),
             console=console,
             transient=False,

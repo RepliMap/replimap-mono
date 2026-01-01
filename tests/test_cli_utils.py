@@ -322,3 +322,236 @@ class TestOptionsExports:
         from replimap.cli.utils import YesOption
 
         assert YesOption is not None
+
+
+# =============================================================================
+# New tests for error_handler, update_checker, tips, and helpers
+# =============================================================================
+
+
+class TestErrorHandler:
+    """Tests for error handler module."""
+
+    def test_error_messages_dict_exists(self) -> None:
+        """Test that ERROR_MESSAGES dict is populated."""
+        from replimap.cli.utils.error_handler import ERROR_MESSAGES
+
+        assert len(ERROR_MESSAGES) > 0
+        assert "AccessDenied" in ERROR_MESSAGES
+        assert "ExpiredToken" in ERROR_MESSAGES
+
+    def test_error_message_has_required_keys(self) -> None:
+        """Test that error messages have required keys."""
+        from replimap.cli.utils.error_handler import ERROR_MESSAGES
+
+        for code, info in ERROR_MESSAGES.items():
+            assert "title" in info, f"Missing 'title' for {code}"
+            assert "message" in info, f"Missing 'message' for {code}"
+            assert "fix" in info, f"Missing 'fix' for {code}"
+
+    def test_get_error_code_from_client_error(self) -> None:
+        """Test extracting error code from ClientError-like exception."""
+        from unittest.mock import MagicMock
+
+        from replimap.cli.utils.error_handler import _get_error_code
+
+        # Mock a ClientError-like exception
+        error = MagicMock()
+        error.response = {"Error": {"Code": "AccessDenied"}}
+
+        code = _get_error_code(error)
+        assert code == "AccessDenied"
+
+    def test_get_error_code_returns_empty_for_unknown(self) -> None:
+        """Test that unknown exceptions return empty string."""
+        from replimap.cli.utils.error_handler import _get_error_code
+
+        error = Exception("generic error")
+        code = _get_error_code(error)
+        assert code == ""
+
+    def test_get_error_info_returns_known_error(self) -> None:
+        """Test getting info for known error code."""
+        from unittest.mock import MagicMock
+
+        from replimap.cli.utils.error_handler import _get_error_info
+
+        error = MagicMock()
+        error.response = {"Error": {"Code": "AccessDenied"}}
+
+        info = _get_error_info(error)
+        assert info["title"] == "Permission Denied"
+
+    def test_get_error_info_returns_default_for_unknown(self) -> None:
+        """Test getting default info for unknown error."""
+        from replimap.cli.utils.error_handler import _get_error_info
+
+        error = Exception("unknown error")
+        info = _get_error_info(error)
+        assert "title" in info
+        assert "fix" in info
+
+
+class TestUpdateChecker:
+    """Tests for update checker module."""
+
+    def test_parse_version(self) -> None:
+        """Test version parsing."""
+        from replimap.cli.utils.update_checker import _parse_version
+
+        assert _parse_version("1.0.0") == (1, 0, 0)
+        assert _parse_version("0.1.29") == (0, 1, 29)
+        assert _parse_version("2.0.0-beta1") == (2, 0, 0)
+
+    def test_is_newer_version(self) -> None:
+        """Test version comparison."""
+        from replimap.cli.utils.update_checker import _is_newer_version
+
+        assert _is_newer_version("1.0.0", "0.9.0") is True
+        assert _is_newer_version("0.9.0", "1.0.0") is False
+        assert _is_newer_version("1.0.0", "1.0.0") is False
+        assert _is_newer_version("0.2.0", "0.1.29") is True
+
+    def test_start_update_check_respects_env_var(self, monkeypatch) -> None:
+        """Test that update check respects NO_UPDATE_CHECK env var."""
+        from replimap.cli.utils.update_checker import start_update_check
+
+        monkeypatch.setenv("REPLIMAP_NO_UPDATE_CHECK", "1")
+        # Should not raise, just return early
+        start_update_check("1.0.0")
+
+    def test_show_update_notice_respects_env_var(self, monkeypatch) -> None:
+        """Test that show_update_notice respects env var."""
+        from unittest.mock import MagicMock
+
+        from replimap.cli.utils.update_checker import show_update_notice
+
+        monkeypatch.setenv("REPLIMAP_NO_UPDATE_CHECK", "1")
+        console = MagicMock()
+        show_update_notice(console)
+        # Should not print anything
+
+
+class TestTips:
+    """Tests for tips module."""
+
+    def test_tips_list_not_empty(self) -> None:
+        """Test that TIPS list is populated."""
+        from replimap.cli.utils.tips import TIPS
+
+        assert len(TIPS) > 0
+
+    def test_show_random_tip_respects_no_tips_env(self, monkeypatch) -> None:
+        """Test that tips respect NO_TIPS env var."""
+        from unittest.mock import MagicMock
+
+        from replimap.cli.utils.tips import show_random_tip
+
+        monkeypatch.setenv("REPLIMAP_NO_TIPS", "1")
+        console = MagicMock()
+        show_random_tip(console, probability=1.0)
+        console.print.assert_not_called()
+
+    def test_show_random_tip_respects_quiet_env(self, monkeypatch) -> None:
+        """Test that tips respect QUIET env var."""
+        from unittest.mock import MagicMock
+
+        from replimap.cli.utils.tips import show_random_tip
+
+        monkeypatch.setenv("REPLIMAP_QUIET", "1")
+        console = MagicMock()
+        show_random_tip(console, probability=1.0)
+        console.print.assert_not_called()
+
+    def test_show_random_tip_prints_with_probability_1(self, monkeypatch) -> None:
+        """Test that tip is shown with probability 1."""
+        from unittest.mock import MagicMock
+
+        from replimap.cli.utils.tips import show_random_tip
+
+        # Clear env vars
+        monkeypatch.delenv("REPLIMAP_NO_TIPS", raising=False)
+        monkeypatch.delenv("REPLIMAP_QUIET", raising=False)
+
+        console = MagicMock()
+        show_random_tip(console, probability=1.0)
+        console.print.assert_called_once()
+
+    def test_show_tip_for_command_has_contextual_tips(self, monkeypatch) -> None:
+        """Test that contextual tips exist for known commands."""
+        from unittest.mock import MagicMock
+
+        from replimap.cli.utils.tips import show_tip_for_command
+
+        monkeypatch.setenv("REPLIMAP_NO_TIPS", "1")
+        console = MagicMock()
+        # Just verify it doesn't crash
+        show_tip_for_command(console, "scan")
+        show_tip_for_command(console, "audit")
+        show_tip_for_command(console, "unknown")
+
+
+class TestHelpersFunctions:
+    """Tests for helpers module functions."""
+
+    def test_print_graph_stats_empty_graph(self) -> None:
+        """Test print_graph_stats with empty graph."""
+        from unittest.mock import patch
+
+        from replimap.cli.utils.helpers import print_graph_stats
+        from replimap.core import GraphEngine
+
+        graph = GraphEngine()
+        # Should not raise
+        with patch("replimap.cli.utils.helpers.console") as mock_console:
+            print_graph_stats(graph)
+            mock_console.print.assert_called()
+
+    def test_print_graph_stats_with_resources(self) -> None:
+        """Test print_graph_stats with resources."""
+        from unittest.mock import patch
+
+        from replimap.cli.utils.helpers import print_graph_stats
+        from replimap.core import GraphEngine
+        from replimap.core.models import ResourceNode, ResourceType
+
+        graph = GraphEngine()
+        for i in range(5):
+            node = ResourceNode(
+                id=f"vpc-{i}",
+                resource_type=ResourceType.VPC,
+                region="us-east-1",
+                original_name=f"test-vpc-{i}",
+            )
+            graph.add_resource(node)
+
+        with patch("replimap.cli.utils.helpers.console") as mock_console:
+            print_graph_stats(graph)
+            mock_console.print.assert_called()
+
+    def test_print_next_steps(self, monkeypatch) -> None:
+        """Test print_next_steps function."""
+        from unittest.mock import patch
+
+        from replimap.cli.utils.helpers import print_next_steps
+
+        monkeypatch.setenv("REPLIMAP_NO_TIPS", "1")
+        with patch("replimap.cli.utils.helpers.console") as mock_console:
+            print_next_steps()
+            # Should have printed the panel
+            assert mock_console.print.call_count >= 1
+
+    def test_print_scan_summary_is_noop(self) -> None:
+        """Test that print_scan_summary is now a no-op."""
+        from replimap.cli.utils.helpers import print_scan_summary
+        from replimap.core import GraphEngine
+
+        graph = GraphEngine()
+        # Should not raise and should be a no-op
+        print_scan_summary(graph, 1.0)
+
+    def test_print_next_steps_export(self) -> None:
+        """Test that print_next_steps is properly exported."""
+        from replimap.cli.utils import print_next_steps
+
+        assert print_next_steps is not None

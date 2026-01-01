@@ -371,7 +371,9 @@ def print_cache_status(console: Console) -> None:
                 "[red]corrupt[/red]",
             )
         else:
-            status = "[red]expired[/red]" if cache["expired"] else "[green]valid[/green]"
+            status = (
+                "[red]expired[/red]" if cache["expired"] else "[green]valid[/green]"
+            )
             table.add_row(
                 cache["profile"],
                 cache["region"],
