@@ -172,32 +172,36 @@ def cost_command(
     if cached_graph is not None:
         graph = cached_graph
     else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Scanning AWS resources...", total=None)
+        try:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning AWS resources...", total=None)
 
-            # Create graph and run scanners
-            graph = GraphEngine()
-            run_all_scanners(
-                session=session,
-                region=effective_region,
-                graph=graph,
-            )
-
-            # Apply VPC filter if specified
-            if vpc:
-                from replimap.core import ScanFilter, apply_filter_to_graph
-
-                filter_config = ScanFilter(
-                    vpc_ids=[vpc],
-                    include_vpc_resources=True,
+                # Create graph and run scanners
+                graph = GraphEngine()
+                run_all_scanners(
+                    session=session,
+                    region=effective_region,
+                    graph=graph,
                 )
-                graph = apply_filter_to_graph(graph, filter_config)
 
-            progress.update(task, completed=True)
+                # Apply VPC filter if specified
+                if vpc:
+                    from replimap.core import ScanFilter, apply_filter_to_graph
+
+                    filter_config = ScanFilter(
+                        vpc_ids=[vpc],
+                        include_vpc_resources=True,
+                    )
+                    graph = apply_filter_to_graph(graph, filter_config)
+
+                progress.update(task, completed=True)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Cancelled by user[/yellow]")
+            raise typer.Exit(130)
 
         # Save to cache
         save_graph_to_cache(

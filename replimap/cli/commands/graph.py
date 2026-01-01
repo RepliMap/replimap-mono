@@ -188,6 +188,10 @@ def graph_command(
 
     # Run visualization
     try:
+        # Show message if we need to scan (no cache)
+        if cached_graph is None:
+            console.print("[dim]Scanning AWS resources...[/dim]")
+
         visualizer = GraphVisualizer(
             session=session,
             region=effective_region,
@@ -214,6 +218,9 @@ def graph_command(
                 console=console,
                 vpc=vpc,
             )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        raise typer.Exit(130)
     except Exception as e:
         console.print()
         console.print(

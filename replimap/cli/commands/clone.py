@@ -232,14 +232,18 @@ def register(app: typer.Typer) -> None:
             graph = GraphEngine()
 
             # Run all scanners with progress
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Scanning AWS resources...", total=None)
-                run_all_scanners(session, effective_region, graph)
-                progress.update(task, completed=True)
+            try:
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    console=console,
+                ) as progress:
+                    task = progress.add_task("Scanning AWS resources...", total=None)
+                    run_all_scanners(session, effective_region, graph)
+                    progress.update(task, completed=True)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Cancelled by user[/yellow]")
+                raise typer.Exit(130)
 
             # Save to cache
             save_graph_to_cache(

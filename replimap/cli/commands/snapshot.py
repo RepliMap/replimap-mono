@@ -84,15 +84,19 @@ def create_snapshot_app() -> typer.Typer:
         if cached_graph is not None:
             graph = cached_graph
         else:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Scanning infrastructure...", total=None)
-                graph = GraphEngine()
-                run_all_scanners(session, effective_region, graph)
-                progress.update(task, completed=True)
+            try:
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    console=console,
+                ) as progress:
+                    task = progress.add_task("Scanning infrastructure...", total=None)
+                    graph = GraphEngine()
+                    run_all_scanners(session, effective_region, graph)
+                    progress.update(task, completed=True)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Cancelled by user[/yellow]")
+                raise typer.Exit(130)
 
             # Save to cache
             save_graph_to_cache(
@@ -294,15 +298,19 @@ def create_snapshot_app() -> typer.Typer:
 
             session = get_aws_session(profile, region, use_cache=not no_cache)
 
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Scanning...", total=None)
-                graph = GraphEngine()
-                run_all_scanners(session, region, graph)
-                progress.update(task, completed=True)
+            try:
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    console=console,
+                ) as progress:
+                    task = progress.add_task("Scanning...", total=None)
+                    graph = GraphEngine()
+                    run_all_scanners(session, region, graph)
+                    progress.update(task, completed=True)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Cancelled by user[/yellow]")
+                raise typer.Exit(130)
 
             if baseline_snap.vpc_id:
                 filtered_resources = []

@@ -372,15 +372,19 @@ def audit_command(
     # If no cached graph, do the scan and cache it
     graph = cached_graph
     if graph is None:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Scanning AWS resources...", total=None)
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-            progress.update(task, completed=True)
+        try:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning AWS resources...", total=None)
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Cancelled by user[/yellow]")
+            raise typer.Exit(130)
 
         # Apply VPC filter if specified
         if vpc:

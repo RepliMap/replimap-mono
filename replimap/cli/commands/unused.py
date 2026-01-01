@@ -124,20 +124,23 @@ def unused_command(
     if cached_graph is not None:
         graph = cached_graph
     else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Scanning for unused resources...", total=None)
+        try:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning for unused resources...", total=None)
 
-            try:
                 graph = GraphEngine()
                 run_all_scanners(session, effective_region, graph)
                 progress.update(task, completed=True)
-            except Exception as e:
-                console.print(f"[red]Error: {e}[/]")
-                raise typer.Exit(1)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Cancelled by user[/yellow]")
+            raise typer.Exit(130)
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/]")
+            raise typer.Exit(1)
 
         # Save to cache
         save_graph_to_cache(

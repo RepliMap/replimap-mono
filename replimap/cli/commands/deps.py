@@ -311,14 +311,14 @@ def deps_command(
     if cached_graph is not None:
         graph = cached_graph
     else:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Scanning AWS resources...", total=None)
+        try:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning AWS resources...", total=None)
 
-            try:
                 # Create graph and run scanners
                 graph = GraphEngine()
                 run_all_scanners(
@@ -327,19 +327,20 @@ def deps_command(
                     graph=graph,
                 )
                 progress.update(task, completed=True)
-
-            except Exception as e:
-                progress.stop()
-                console.print()
-                console.print(
-                    Panel(
-                        f"[red]Dependency exploration failed:[/]\n{e}",
-                        title="Error",
-                        border_style="red",
-                    )
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Cancelled by user[/yellow]")
+            raise typer.Exit(130)
+        except Exception as e:
+            console.print()
+            console.print(
+                Panel(
+                    f"[red]Dependency exploration failed:[/]\n{e}",
+                    title="Error",
+                    border_style="red",
                 )
-                logger.exception("Dependency exploration failed")
-                raise typer.Exit(1)
+            )
+            logger.exception("Dependency exploration failed")
+            raise typer.Exit(1)
 
         # Save to cache
         save_graph_to_cache(
