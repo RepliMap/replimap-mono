@@ -78,14 +78,14 @@ def _do_check(current_version: str) -> None:
                 pass  # Cache corrupted, continue to fetch
 
         # Fetch from PyPI (with short timeout)
-        req = urllib.request.Request(
+        req = urllib.request.Request(  # noqa: S310 - URL is hardcoded to pypi.org
             PYPI_URL,
             headers={
                 "Accept": "application/json",
                 "User-Agent": f"replimap/{current_version}",
             },
         )
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:  # noqa: S310
             data = json.loads(resp.read().decode("utf-8"))
             latest = data["info"]["version"]
 
@@ -101,8 +101,8 @@ def _do_check(current_version: str) -> None:
         if _is_newer_version(latest, current_version):
             _update_result = latest
 
-    except Exception:
-        pass  # Silently fail - never interrupt user
+    except Exception:  # noqa: S110 - intentionally silent, never interrupt user
+        pass
 
 
 def start_update_check(current_version: str) -> None:

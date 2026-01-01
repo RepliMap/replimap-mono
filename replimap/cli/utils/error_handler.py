@@ -224,7 +224,7 @@ def handle_generic_error(error: Exception, debug: bool = False) -> None:
         error: The exception
         debug: If True, print full traceback
     """
-    content = f"[bold red]Unexpected Error[/bold red]\n\n"
+    content = "[bold red]Unexpected Error[/bold red]\n\n"
     content += f"{type(error).__name__}: {error}\n\n"
     content += "[bold]Fix:[/bold] Please report this issue at:\n"
     content += "   https://github.com/RepliMap/replimap/issues"

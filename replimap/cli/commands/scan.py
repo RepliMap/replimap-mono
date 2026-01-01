@@ -4,7 +4,6 @@ Scan command - AWS resource discovery and dependency graph building.
 
 from __future__ import annotations
 
-import logging
 import time
 import uuid
 from pathlib import Path
@@ -350,7 +349,6 @@ def register(app: typer.Typer) -> None:
             )
 
         total_scanners = get_total_scanner_count()
-        quiet_mode = logger.getEffectiveLevel() >= logging.WARNING
 
         # Always show progress bar (--quiet only suppresses INFO logs)
         with Progress(

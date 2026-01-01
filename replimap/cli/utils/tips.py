@@ -44,8 +44,8 @@ def show_random_tip(console: Console, probability: float = 0.3) -> None:
     if os.getenv("REPLIMAP_QUIET", "").lower() in ("1", "true", "yes"):
         return
 
-    if random.random() < probability:
-        tip = random.choice(TIPS)
+    if random.random() < probability:  # noqa: S311 - not security-sensitive
+        tip = random.choice(TIPS)  # noqa: S311 - not security-sensitive
         console.print(f"\n[dim]Tip: {tip}[/dim]")
 
 
@@ -82,8 +82,8 @@ def show_tip_for_command(console: Console, command: str) -> None:
     }
 
     tips = contextual_tips.get(command, [])
-    if tips and random.random() < 0.3:
-        tip = random.choice(tips)
+    if tips and random.random() < 0.3:  # noqa: S311 - not security-sensitive
+        tip = random.choice(tips)  # noqa: S311 - not security-sensitive
         console.print(f"\n[dim]Tip: {tip}[/dim]")
 
 
