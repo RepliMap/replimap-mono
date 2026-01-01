@@ -18,16 +18,37 @@ from replimap.scanners.base import run_all_scanners
 
 def create_dr_app() -> typer.Typer:
     """Create and return the DR subcommand app."""
-    dr_app = typer.Typer(help="Disaster Recovery readiness assessment")
+    dr_app = typer.Typer(
+        help="Disaster Recovery readiness assessment",
+        context_settings={"help_option_names": ["-h", "--help"]},
+    )
 
-    @dr_app.command("assess")
-    def dr_assess(
+    @dr_app.callback()
+    def dr_callback(
+        ctx: typer.Context,
         profile: str | None = typer.Option(
             None, "--profile", "-p", help="AWS profile name"
         ),
         region: str | None = typer.Option(
-            None, "--region", "-r", help="Primary AWS region to assess"
+            None, "--region", "-r", help="Primary AWS region"
         ),
+    ) -> None:
+        """
+        Disaster Recovery readiness assessment.
+
+        Common options (--profile, --region) can be specified before the subcommand.
+
+        Examples:
+            replimap dr -p prod assess
+            replimap dr -p prod scorecard
+        """
+        ctx.ensure_object(dict)
+        ctx.obj["profile"] = profile
+        ctx.obj["region"] = region
+
+    @dr_app.command("assess")
+    def dr_assess(
+        ctx: typer.Context,
         dr_region: str | None = typer.Option(
             None, "--dr-region", help="DR region to check for replicas"
         ),
@@ -54,9 +75,13 @@ def create_dr_app() -> typer.Typer:
         from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
         from replimap.dr.readiness import DRReadinessAssessor, DRTier
 
-        # Determine region (flag > profile > env > default)
+        # Get profile and region from context
+        profile = ctx.obj.get("profile") if ctx.obj else None
+        region = ctx.obj.get("region") if ctx.obj else None
+
+        # Determine region (context > profile > env > default)
         effective_region = region
-        region_source = "flag"
+        region_source = "flag" if region else None
 
         if not effective_region:
             profile_region = get_profile_region(profile)
@@ -247,10 +272,13 @@ body {{ font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto
 
     @dr_app.command("scorecard")
     def dr_scorecard(
-        profile: str | None = typer.Option(None, "--profile", "-p"),
+        ctx: typer.Context,
         output: Path | None = typer.Option(None, "--output", "-o"),
     ) -> None:
         """Generate DR readiness scorecard for all regions."""
+        # Profile available from context for future use
+        _ = ctx.obj.get("profile") if ctx.obj else None
+
         console.print("[dim]Generating multi-region DR scorecard...[/dim]")
         console.print(
             "[yellow]This feature requires scanning multiple regions.[/yellow]"
