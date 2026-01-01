@@ -23,6 +23,7 @@ app = typer.Typer(
     help="AWS Infrastructure Intelligence Engine",
     pretty_exceptions_show_locals=False,
     no_args_is_help=False,  # We handle this in the callback
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 
