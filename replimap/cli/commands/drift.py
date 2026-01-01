@@ -80,6 +80,12 @@ def drift_command(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Detect infrastructure drift between Terraform state and AWS.
@@ -178,16 +184,27 @@ def drift_command(
             "region": effective_region,
         }
 
-    # Run drift detection
-    console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Detecting drift...", total=None)
+    # Try to use cached graph for AWS state
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-        try:
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
+
+    # Run drift detection
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Detecting drift...", total=None)
+
             engine = DriftEngine(
                 session=session,
                 region=effective_region,
@@ -198,32 +215,43 @@ def drift_command(
                 state_path=state,
                 remote_backend=remote_backend,
                 vpc_id=vpc,
+                graph=cached_graph,
             )
+
+            # Save to cache if we did a fresh scan
+            if cached_graph is None and hasattr(engine, '_graph'):
+                save_graph_to_cache(
+                    graph=engine._graph,
+                    profile=profile or "default",
+                    region=effective_region,
+                    console=console,
+                    vpc=vpc,
+                )
 
             progress.update(task, completed=True)
-
-        except FileNotFoundError as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]State file not found:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
-                )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Cancelled by user[/yellow]")
+        raise typer.Exit(130)
+    except FileNotFoundError as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]State file not found:[/]\n{e}",
+                title="Error",
+                border_style="red",
             )
-            raise typer.Exit(1)
-        except Exception as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Drift detection failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
-                )
+        )
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Drift detection failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
             )
-            raise typer.Exit(1)
+        )
+        raise typer.Exit(1)
 
     # Generate output
     reporter = DriftReporter()
