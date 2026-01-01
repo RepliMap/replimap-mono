@@ -11,7 +11,7 @@ import logging
 import os
 import signal
 from types import FrameType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from replimap.core.concurrency import shutdown_all_executors
 
@@ -21,7 +21,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _console: Console | None = None
-_original_sigint_handler: signal.Handlers | None = None
+# Saved original handler for potential restoration (unused currently)
+_original_sigint_handler: Any = None
 
 
 def setup_signal_handlers(console: Console) -> None:

@@ -117,43 +117,36 @@ def create_dr_app() -> typer.Typer:
             effective_profile, effective_region, use_cache=not no_cache
         )
 
-        # Try to load from cache first
-        try:
-            console.print()
-            cached_graph, cache_meta = get_or_load_graph(
+        # Try to load from cache first (global signal handler handles Ctrl-C)
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+        )
+
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning primary region...", total=None)
+
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
                 profile=effective_profile,
                 region=effective_region,
                 console=console,
-                refresh=refresh,
             )
-
-            if cached_graph is not None:
-                graph = cached_graph
-            else:
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    console=console,
-                ) as progress:
-                    task = progress.add_task("Scanning primary region...", total=None)
-
-                    graph = GraphEngine()
-                    run_all_scanners(session, effective_region, graph)
-                    progress.update(task, completed=True)
-
-                # Save to cache
-                save_graph_to_cache(
-                    graph=graph,
-                    profile=effective_profile,
-                    region=effective_region,
-                    console=console,
-                )
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Cancelled by user[/yellow]")
-            raise typer.Exit(130)
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/]")
-            raise typer.Exit(1)
 
         # Assess DR readiness
         with Progress(

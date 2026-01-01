@@ -99,41 +99,37 @@ def create_snapshot_app() -> typer.Typer:
 
         session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
-        try:
-            # Try to load from cache first
-            console.print()
-            cached_graph, cache_meta = get_or_load_graph(
+        # Try to load from cache first (global signal handler handles Ctrl-C)
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+            vpc=vpc,
+        )
+
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning infrastructure...", total=None)
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
                 profile=profile or "default",
                 region=effective_region,
                 console=console,
-                refresh=refresh,
                 vpc=vpc,
             )
-
-            if cached_graph is not None:
-                graph = cached_graph
-            else:
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    console=console,
-                ) as progress:
-                    task = progress.add_task("Scanning infrastructure...", total=None)
-                    graph = GraphEngine()
-                    run_all_scanners(session, effective_region, graph)
-                    progress.update(task, completed=True)
-
-                # Save to cache
-                save_graph_to_cache(
-                    graph=graph,
-                    profile=profile or "default",
-                    region=effective_region,
-                    console=console,
-                    vpc=vpc,
-                )
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Cancelled by user[/yellow]")
-            raise typer.Exit(130)
 
         if vpc:
             filtered_resources = []
@@ -332,19 +328,16 @@ def create_snapshot_app() -> typer.Typer:
 
             session = get_aws_session(profile, region, use_cache=not no_cache)
 
-            try:
-                with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[progress.description]{task.description}"),
-                    console=console,
-                ) as progress:
-                    task = progress.add_task("Scanning...", total=None)
-                    graph = GraphEngine()
-                    run_all_scanners(session, region, graph)
-                    progress.update(task, completed=True)
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Cancelled by user[/yellow]")
-                raise typer.Exit(130)
+            # Global signal handler handles Ctrl-C
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning...", total=None)
+                graph = GraphEngine()
+                run_all_scanners(session, region, graph)
+                progress.update(task, completed=True)
 
             if baseline_snap.vpc_id:
                 filtered_resources = []

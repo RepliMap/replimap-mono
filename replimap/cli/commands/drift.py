@@ -187,7 +187,7 @@ def drift_command(
     # Try to use cached graph for AWS state
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    # Run drift detection
+    # Run drift detection (global signal handler handles Ctrl-C)
     try:
         console.print()
         cached_graph, cache_meta = get_or_load_graph(
@@ -228,9 +228,6 @@ def drift_command(
                 )
 
             progress.update(task, completed=True)
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Cancelled by user[/yellow]")
-        raise typer.Exit(130)
     except FileNotFoundError as e:
         console.print()
         console.print(

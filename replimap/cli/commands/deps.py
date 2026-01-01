@@ -299,6 +299,7 @@ def deps_command(
     # Try to load from cache first
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
+    # Try to load from cache first (global signal handler handles Ctrl-C)
     try:
         console.print()
         cached_graph, cache_meta = get_or_load_graph(
@@ -336,9 +337,6 @@ def deps_command(
                 console=console,
                 vpc=vpc,
             )
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Cancelled by user[/yellow]")
-        raise typer.Exit(130)
     except Exception as e:
         console.print()
         console.print(

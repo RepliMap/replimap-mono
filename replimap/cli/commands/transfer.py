@@ -97,45 +97,38 @@ def transfer_command(
         effective_profile, effective_region, use_cache=not no_cache
     )
 
-    # Try to load from cache first
+    # Try to load from cache first (global signal handler handles Ctrl-C)
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    try:
-        console.print()
-        cached_graph, cache_meta = get_or_load_graph(
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+    )
+
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning infrastructure...", total=None)
+
+            graph = GraphEngine()
+            run_all_scanners(session, effective_region, graph)
+            progress.update(task, completed=True)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
             profile=effective_profile,
             region=effective_region,
             console=console,
-            refresh=refresh,
         )
-
-        if cached_graph is not None:
-            graph = cached_graph
-        else:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Scanning infrastructure...", total=None)
-
-                graph = GraphEngine()
-                run_all_scanners(session, effective_region, graph)
-                progress.update(task, completed=True)
-
-            # Save to cache
-            save_graph_to_cache(
-                graph=graph,
-                profile=effective_profile,
-                region=effective_region,
-                console=console,
-            )
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Cancelled by user[/yellow]")
-        raise typer.Exit(130)
-    except Exception as e:
-        console.print(f"[red]Error: {e}[/]")
-        raise typer.Exit(1)
 
     # Analyze transfer paths
     with Progress(

@@ -78,6 +78,7 @@ def trends_command(
 
     session = get_aws_session(effective_profile, effective_region, use_cache=not no_cache)
 
+    # Global signal handler handles Ctrl-C
     try:
         with Progress(
             SpinnerColumn(),
@@ -88,9 +89,6 @@ def trends_command(
             analyzer = CostTrendAnalyzer(session)
             result = analyzer.analyze(days=days)
             progress.update(task, completed=True)
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Cancelled by user[/yellow]")
-        raise typer.Exit(130)
     except Exception as e:
         console.print(f"\n[red]Error: {e}[/]")
         console.print(

@@ -159,58 +159,55 @@ def cost_command(
     # Try to load from cache first
     from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
 
-    try:
-        console.print()
-        cached_graph, cache_meta = get_or_load_graph(
+    # Try to load from cache first (global signal handler handles Ctrl-C)
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
+
+    # Use cached graph or scan
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning AWS resources...", total=None)
+
+            # Create graph and run scanners
+            graph = GraphEngine()
+            run_all_scanners(
+                session=session,
+                region=effective_region,
+                graph=graph,
+            )
+
+            # Apply VPC filter if specified
+            if vpc:
+                from replimap.core import ScanFilter, apply_filter_to_graph
+
+                filter_config = ScanFilter(
+                    vpc_ids=[vpc],
+                    include_vpc_resources=True,
+                )
+                graph = apply_filter_to_graph(graph, filter_config)
+
+            progress.update(task, completed=True)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
             profile=profile or "default",
             region=effective_region,
             console=console,
-            refresh=refresh,
             vpc=vpc,
         )
-
-        # Use cached graph or scan
-        if cached_graph is not None:
-            graph = cached_graph
-        else:
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-            ) as progress:
-                task = progress.add_task("Scanning AWS resources...", total=None)
-
-                # Create graph and run scanners
-                graph = GraphEngine()
-                run_all_scanners(
-                    session=session,
-                    region=effective_region,
-                    graph=graph,
-                )
-
-                # Apply VPC filter if specified
-                if vpc:
-                    from replimap.core import ScanFilter, apply_filter_to_graph
-
-                    filter_config = ScanFilter(
-                        vpc_ids=[vpc],
-                        include_vpc_resources=True,
-                    )
-                    graph = apply_filter_to_graph(graph, filter_config)
-
-                progress.update(task, completed=True)
-
-            # Save to cache
-            save_graph_to_cache(
-                graph=graph,
-                profile=profile or "default",
-                region=effective_region,
-                console=console,
-                vpc=vpc,
-            )
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Cancelled by user[/yellow]")
-        raise typer.Exit(130)
 
     # Estimate costs
     console.print()
