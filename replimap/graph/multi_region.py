@@ -467,7 +467,9 @@ class MultiRegionScanner:
         regions = self.config.regions or COMMON_REGIONS
         results: dict[str, RegionScanResult] = {}
 
-        with ThreadPoolExecutor(max_workers=self.config.max_parallel) as executor:
+        executor = ThreadPoolExecutor(max_workers=self.config.max_parallel)
+        interrupted = False
+        try:
             # Submit all region scans
             future_to_region = {
                 executor.submit(self._scan_region, region, scan_func): region
@@ -499,6 +501,14 @@ class MultiRegionScanner:
                         resource_count=0,
                         error=str(e),
                     )
+        except KeyboardInterrupt:
+            # Immediate shutdown on Ctrl+C - don't wait for threads
+            interrupted = True
+            executor.shutdown(wait=False, cancel_futures=True)
+            raise
+        finally:
+            if not interrupted:
+                executor.shutdown(wait=True)
 
         return self._aggregate_results(results)
 
