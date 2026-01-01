@@ -39,7 +39,7 @@ def create_app() -> typer.Typer:
     app = typer.Typer(
         name="replimap",
         help="AWS Environment Replication Tool - Clone your production to staging in minutes",
-        add_completion=False,
+        add_completion=True,  # Enable shell completion (install via --install-completion)
         rich_markup_mode="rich",
         context_settings={"help_option_names": ["-h", "--help"]},
     )
@@ -60,9 +60,18 @@ def create_app() -> typer.Typer:
             "-V",
             help="Enable verbose logging",
         ),
+        quiet: bool = typer.Option(
+            False,
+            "--quiet",
+            "-q",
+            help="Suppress INFO logs (keep progress bars and errors)",
+        ),
     ) -> None:
         """RepliMap - AWS Environment Replication Tool."""
-        if verbose:
+        if quiet:
+            # Suppress INFO logs but keep WARNING/ERROR
+            logging.getLogger("replimap").setLevel(logging.WARNING)
+        elif verbose:
             logging.getLogger().setLevel(logging.DEBUG)
 
     # Register all commands

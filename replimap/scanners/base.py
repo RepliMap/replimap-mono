@@ -86,7 +86,8 @@ def parallel_process_items(
         return results, failures
 
     # Process in parallel
-    with ThreadPoolExecutor(max_workers=min(workers, len(items))) as executor:
+    executor = ThreadPoolExecutor(max_workers=min(workers, len(items)))
+    try:
         future_to_item = {executor.submit(processor, item): item for item in items}
 
         for future in as_completed(future_to_item):
@@ -98,6 +99,12 @@ def parallel_process_items(
             except Exception as e:
                 failures.append((item, e))
                 logger.warning(f"Failed to process {description} item: {e}")
+    except KeyboardInterrupt:
+        # Immediate shutdown on Ctrl+C
+        executor.shutdown(wait=False, cancel_futures=True)
+        raise
+    finally:
+        executor.shutdown(wait=True)
 
     if failures:
         logger.warning(
@@ -495,12 +502,18 @@ def _compute_scanner_phases(
     return phases
 
 
+def get_total_scanner_count() -> int:
+    """Return the total number of registered scanners."""
+    return len(ScannerRegistry.get_all())
+
+
 def run_all_scanners(
     session: boto3.Session,
     region: str,
     graph: GraphEngine,
     parallel: bool = True,
     max_workers: int | None = None,
+    on_scanner_complete: Callable[[str, bool], None] | None = None,
 ) -> dict[str, Exception | None]:
     """
     Run all registered scanners.
@@ -519,6 +532,7 @@ def run_all_scanners(
         graph: The GraphEngine to populate
         parallel: If True, run scanners in parallel (default: True)
         max_workers: Maximum parallel workers (default: REPLIMAP_MAX_WORKERS or 4)
+        on_scanner_complete: Optional callback(scanner_name, success) after each scanner
 
     Returns:
         Dictionary mapping scanner names to exceptions (None if successful)
@@ -544,11 +558,11 @@ def run_all_scanners(
 
         if parallel and workers > 1 and len(phase_scanners) > 1:
             phase_results = _run_scanners_parallel(
-                session, region, graph, phase_scanners, workers
+                session, region, graph, phase_scanners, workers, on_scanner_complete
             )
         else:
             phase_results = _run_scanners_sequential(
-                session, region, graph, phase_scanners
+                session, region, graph, phase_scanners, on_scanner_complete
             )
 
         results.update(phase_results)
@@ -561,6 +575,7 @@ def _run_scanners_sequential(
     region: str,
     graph: GraphEngine,
     scanner_classes: list[type[BaseScanner]],
+    on_complete: Callable[[str, bool], None] | None = None,
 ) -> dict[str, Exception | None]:
     """Run scanners sequentially."""
     results: dict[str, Exception | None] = {}
@@ -574,9 +589,13 @@ def _run_scanners_sequential(
             scanner.scan(graph)
             results[scanner_name] = None
             logger.info(f"{scanner_name} completed successfully")
+            if on_complete:
+                on_complete(scanner_name, True)
         except Exception as e:
             results[scanner_name] = e
             logger.error(f"{scanner_name} failed: {e}")
+            if on_complete:
+                on_complete(scanner_name, False)
 
     return results
 
@@ -587,6 +606,7 @@ def _run_scanners_parallel(
     graph: GraphEngine,
     scanner_classes: list[type[BaseScanner]],
     max_workers: int,
+    on_complete: Callable[[str, bool], None] | None = None,
 ) -> dict[str, Exception | None]:
     """Run scanners in parallel using ThreadPoolExecutor."""
     results: dict[str, Exception | None] = {}
@@ -605,7 +625,8 @@ def _run_scanners_parallel(
             logger.error(f"{scanner_name} failed: {e}")
             return (scanner_name, e)
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    executor = ThreadPoolExecutor(max_workers=max_workers)
+    try:
         futures = {
             executor.submit(run_single_scanner, sc): sc for sc in scanner_classes
         }
@@ -613,5 +634,14 @@ def _run_scanners_parallel(
         for future in as_completed(futures):
             scanner_name, error = future.result()
             results[scanner_name] = error
+            if on_complete:
+                on_complete(scanner_name, error is None)
+    except KeyboardInterrupt:
+        # Immediate shutdown: don't wait for in-flight tasks, cancel pending
+        executor.shutdown(wait=False, cancel_futures=True)
+        raise
+    finally:
+        # Normal cleanup (no-op if already shut down)
+        executor.shutdown(wait=True)
 
     return results

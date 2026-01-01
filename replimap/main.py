@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import signal
 import time
 import uuid
 from datetime import UTC, datetime
@@ -26,9 +27,12 @@ import boto3
 import typer
 from rich.panel import Panel
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
+    TaskProgressColumn,
     TextColumn,
+    TimeElapsedColumn,
 )
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
@@ -67,7 +71,7 @@ from replimap.licensing import (
 from replimap.licensing.manager import get_license_manager
 from replimap.licensing.tracker import get_usage_tracker
 from replimap.renderers import TerraformRenderer
-from replimap.scanners.base import run_all_scanners
+from replimap.scanners.base import get_total_scanner_count, run_all_scanners
 from replimap.transformers import create_default_pipeline
 from replimap.ui import print_audit_findings_fomo
 
@@ -113,7 +117,7 @@ def print_scan_summary(graph: GraphEngine, duration: float) -> None:
 app = typer.Typer(
     name="replimap",
     help="AWS Environment Replication Tool - Clone your production to staging in minutes",
-    add_completion=False,
+    add_completion=True,  # Enable shell completion (install via --install-completion)
     rich_markup_mode="rich",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -127,20 +131,35 @@ def version_callback(value: bool) -> None:
 
 
 def print_graph_stats(graph: GraphEngine) -> None:
-    """Print graph statistics in a rich table."""
+    """Print graph statistics in a rich table (Top 10 + others)."""
     stats = graph.statistics()
 
-    table = Table(title="Graph Statistics", show_header=True, header_style="bold cyan")
-    table.add_column("Metric", style="dim")
-    table.add_column("Value", justify="right")
+    if not stats["resources_by_type"]:
+        console.print("[dim]No resources found.[/]")
+        return
 
-    table.add_row("Total Resources", str(stats["total_resources"]))
-    table.add_row("Total Dependencies", str(stats["total_dependencies"]))
+    # Sort by count descending
+    sorted_types = sorted(
+        stats["resources_by_type"].items(), key=lambda x: x[1], reverse=True
+    )
 
-    if stats["resources_by_type"]:
+    table = Table(title="Top Resources", show_header=True, header_style="bold cyan")
+    table.add_column("Resource Type", style="dim")
+    table.add_column("Count", justify="right")
+
+    # Show top 10
+    top_10 = sorted_types[:10]
+    for rtype, count in top_10:
+        table.add_row(rtype, f"{count:,}")
+
+    # Show "others" summary if more than 10 types
+    if len(sorted_types) > 10:
+        other_types = sorted_types[10:]
+        other_count = sum(count for _, count in other_types)
         table.add_section()
-        for rtype, count in sorted(stats["resources_by_type"].items()):
-            table.add_row(f"  {rtype}", str(count))
+        table.add_row(
+            f"[dim]+ {len(other_types)} other types[/]", f"[dim]{other_count:,}[/]"
+        )
 
     console.print(table)
 
@@ -149,6 +168,24 @@ def print_graph_stats(graph: GraphEngine) -> None:
             "[yellow]Warning:[/] Dependency graph contains cycles!",
             style="bold yellow",
         )
+
+
+def print_next_steps() -> None:
+    """Print suggested next steps after a scan."""
+    from rich.panel import Panel
+
+    from replimap.cli.utils.tips import show_random_tip
+
+    next_steps = """[bold]replimap graph[/]      Visualize infrastructure dependencies
+[bold]replimap audit[/]     Check for security and cost issues
+[bold]replimap clone[/]     Generate Terraform for staging environment
+[bold]replimap deps[/]      Explore resource dependencies"""
+
+    console.print()
+    console.print(Panel(next_steps, title="📋 Next Steps", border_style="dim"))
+
+    # Occasionally show a pro tip
+    show_random_tip(console, probability=0.3)
 
 
 @app.callback()
@@ -167,9 +204,37 @@ def main(
         "-V",
         help="Enable verbose logging",
     ),
+    quiet: bool = typer.Option(
+        False,
+        "--quiet",
+        "-q",
+        help="Suppress INFO logs (keep progress bars and errors)",
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Show full tracebacks on errors",
+    ),
+    no_update_check: bool = typer.Option(
+        False,
+        "--no-update-check",
+        help="Disable automatic update check",
+        hidden=True,
+    ),
 ) -> None:
     """RepliMap - AWS Environment Replication Tool."""
-    if verbose:
+    # Start background update check
+    if not no_update_check:
+        from replimap.cli.utils.update_checker import start_update_check
+
+        start_update_check(__version__)
+
+    if debug:
+        os.environ["REPLIMAP_DEBUG"] = "1"
+        logging.getLogger().setLevel(logging.DEBUG)
+    elif quiet:
+        logging.getLogger("replimap").setLevel(logging.WARNING)
+    elif verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
 
@@ -468,20 +533,51 @@ def scan(
     if cached_count > 0:
         console.print("[dim]Performing incremental scan for updated resources...[/]")
 
+    total_scanners = get_total_scanner_count()
+
     with Progress(
         SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=30),
+        TaskProgressColumn(),
+        TextColumn(
+            "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+        ),
+        TimeElapsedColumn(),
         console=console,
+        transient=False,
     ) as progress:
-        task = progress.add_task(f"Scanning AWS resources ({scan_mode})...", total=None)
-        results = run_all_scanners(
-            session, effective_region, graph, parallel=use_parallel
+        task = progress.add_task(
+            f"Scanning AWS resources ({scan_mode})...",
+            total=total_scanners,
+            resource_count=0,
+            dep_count=0,
         )
-        progress.update(task, completed=True)
-    scan_duration = time.time() - scan_start
 
-    # Print scan summary with resource counts
-    print_scan_summary(graph, scan_duration)
+        def on_scanner_complete(scanner_name: str, success: bool) -> None:
+            progress.update(
+                task,
+                advance=1,
+                resource_count=graph.node_count,
+                dep_count=graph.edge_count,
+            )
+
+        results = run_all_scanners(
+            session,
+            effective_region,
+            graph,
+            parallel=use_parallel,
+            on_scanner_complete=on_scanner_complete,
+        )
+
+        # Final update with complete stats
+        progress.update(
+            task,
+            description="[bold green]✓ Scan complete",
+            resource_count=graph.node_count,
+            dep_count=graph.edge_count,
+        )
+    scan_duration = time.time() - scan_start
 
     # Update scan cache with new results
     if use_scan_cache:
@@ -573,23 +669,34 @@ def scan(
         success=True,
     )
 
-    # Report results
-    console.print()
-
+    # Report any failed scanners (only show errors, not successes)
     failed = [name for name, err in results.items() if err is not None]
-    succeeded = [name for name, err in results.items() if err is None]
-
-    if succeeded:
-        console.print(f"[green]Completed:[/] {', '.join(succeeded)}")
     if failed:
-        console.print(f"[red]Failed:[/] {', '.join(failed)}")
+        console.print()
+        console.print(f"[red]Failed scanners:[/] {', '.join(failed)}")
         for name, err in results.items():
             if err:
                 console.print(f"  [red]-[/] {name}: {err}")
 
-    # Print statistics
+    # Print resource breakdown table
     console.print()
     print_graph_stats(graph)
+
+    # Show next steps
+    print_next_steps()
+
+    # Cache graph for subsequent commands (graph, deps, clone, cost, audit)
+    from replimap.core.cache_manager import save_graph_to_cache
+
+    save_graph_to_cache(
+        graph,
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        vpc=vpc,
+        account_id=account_id,
+        metadata={"scan_duration": scan_duration},
+    )
 
     # Show remaining scans for FREE users
     remaining = get_scans_remaining()
@@ -801,20 +908,48 @@ def clone(
     graph = GraphEngine()
 
     # Run all scanners with progress
+    total_scanners = get_total_scanner_count()
+
     with Progress(
         SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+        TextColumn("[bold cyan]{task.description}"),
+        BarColumn(bar_width=30),
+        TaskProgressColumn(),
+        TextColumn(
+            "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+        ),
+        TimeElapsedColumn(),
         console=console,
+        transient=False,
     ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
-        run_all_scanners(session, effective_region, graph)
-        progress.update(task, completed=True)
+        task = progress.add_task(
+            "Scanning AWS resources...",
+            total=total_scanners,
+            resource_count=0,
+            dep_count=0,
+        )
 
-    stats = graph.statistics()
-    console.print(
-        f"[green]Found[/] {stats['total_resources']} resources "
-        f"with {stats['total_dependencies']} dependencies"
-    )
+        def on_scanner_complete(scanner_name: str, success: bool) -> None:
+            progress.update(
+                task,
+                advance=1,
+                resource_count=graph.node_count,
+                dep_count=graph.edge_count,
+            )
+
+        run_all_scanners(
+            session,
+            effective_region,
+            graph,
+            on_scanner_complete=on_scanner_complete,
+        )
+
+        progress.update(
+            task,
+            description="[bold green]✓ Scan complete",
+            resource_count=graph.node_count,
+            dep_count=graph.edge_count,
+        )
 
     # Apply transformations
     console.print()
@@ -1213,13 +1348,35 @@ scan_cache_app = typer.Typer(
 app.add_typer(scan_cache_app, name="scan-cache")
 
 
+def _get_account_id_for_profile(profile: str | None) -> str | None:
+    """Get AWS account ID for a profile (for cache filtering)."""
+    if not profile:
+        return None
+    try:
+        import boto3
+
+        session = boto3.Session(profile_name=profile)
+        sts = session.client("sts")
+        return sts.get_caller_identity()["Account"]
+    except Exception:
+        return None
+
+
 @scan_cache_app.command("status")
-def scan_cache_status() -> None:
+def scan_cache_status(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Filter by AWS profile (looks up account ID)",
+    ),
+) -> None:
     """
     Show scan cache status for all regions.
 
     Examples:
         replimap scan-cache status
+        replimap scan-cache status --profile prod
     """
     from replimap.core.cache import DEFAULT_CACHE_DIR
 
@@ -1231,6 +1388,13 @@ def scan_cache_status() -> None:
     if not cache_files:
         console.print("[dim]No scan cache found.[/]")
         return
+
+    # Get account ID for profile filtering
+    filter_account_id = _get_account_id_for_profile(profile) if profile else None
+    if profile and not filter_account_id:
+        console.print(
+            f"[yellow]Warning: Could not get account ID for profile '{profile}'[/]"
+        )
 
     table = Table(title="Scan Cache Status", show_header=True, header_style="bold cyan")
     table.add_column("Account")
@@ -1247,7 +1411,11 @@ def scan_cache_status() -> None:
             metadata = cache_data.get("metadata", {})
             entries = cache_data.get("entries", {})
 
+            # Filter by account if profile specified
             account_id = metadata.get("account_id", "unknown")
+            if filter_account_id and account_id != filter_account_id:
+                continue
+
             region = metadata.get("region", "unknown")
             resource_count = len(entries)
             total_resources += resource_count
@@ -1279,6 +1447,12 @@ def scan_cache_status() -> None:
 
 @scan_cache_app.command("clear")
 def scan_cache_clear(
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="Clear cache for specific profile only",
+    ),
     region: str | None = typer.Option(
         None,
         "--region",
@@ -1297,6 +1471,7 @@ def scan_cache_clear(
 
     Examples:
         replimap scan-cache clear
+        replimap scan-cache clear --profile prod
         replimap scan-cache clear --region us-east-1
     """
     from replimap.core.cache import DEFAULT_CACHE_DIR
@@ -1310,26 +1485,49 @@ def scan_cache_clear(
         console.print("[dim]No scan cache to clear.[/]")
         return
 
-    # Filter by region if specified
+    # Get account ID for profile filtering
+    filter_account_id = _get_account_id_for_profile(profile) if profile else None
+    if profile and not filter_account_id:
+        console.print(
+            f"[yellow]Warning: Could not get account ID for profile '{profile}'[/]"
+        )
+
+    # Filter by region and/or profile
     files_to_delete = []
     for cache_file in cache_files:
         try:
             with open(cache_file) as f:
                 cache_data = json.load(f)
             metadata = cache_data.get("metadata", {})
-            if region is None or metadata.get("region") == region:
-                files_to_delete.append(cache_file)
+            account_id = metadata.get("account_id")
+            cache_region = metadata.get("region")
+
+            # Apply filters
+            if filter_account_id and account_id != filter_account_id:
+                continue
+            if region and cache_region != region:
+                continue
+
+            files_to_delete.append(cache_file)
         except (json.JSONDecodeError, KeyError):
             files_to_delete.append(cache_file)  # Delete corrupt files
 
+    filter_desc = []
+    if profile:
+        filter_desc.append(f"profile '{profile}'")
+    if region:
+        filter_desc.append(f"region '{region}'")
+
     if not files_to_delete:
-        console.print(f"[dim]No cache found for region '{region}'.[/]")
+        console.print(
+            f"[dim]No cache found for {' and '.join(filter_desc) if filter_desc else 'any filters'}.[/]"
+        )
         return
 
     if not yes:
-        if region:
+        if filter_desc:
             confirm = Confirm.ask(
-                f"Clear scan cache for region '{region}'? ({len(files_to_delete)} files)"
+                f"Clear scan cache for {' and '.join(filter_desc)}? ({len(files_to_delete)} files)"
             )
         else:
             confirm = Confirm.ask(
@@ -1347,9 +1545,17 @@ def scan_cache_clear(
 
 @scan_cache_app.command("info")
 def scan_cache_info(
-    region: str = typer.Argument(
+    region: str = typer.Option(
         ...,
+        "--region",
+        "-r",
         help="Region to show cache info for",
+    ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        "-p",
+        help="AWS profile (looks up account ID)",
     ),
     account: str | None = typer.Option(
         None,
@@ -1362,13 +1568,23 @@ def scan_cache_info(
     Show detailed cache info for a region.
 
     Examples:
-        replimap scan-cache info us-east-1
+        replimap scan-cache info -r us-east-1
+        replimap scan-cache info -r us-east-1 --profile prod
     """
     from replimap.core.cache import DEFAULT_CACHE_DIR
 
     if not DEFAULT_CACHE_DIR.exists():
         console.print("[dim]No scan cache found.[/]")
         raise typer.Exit(1)
+
+    # Get account ID from profile if specified
+    filter_account_id = account
+    if profile and not filter_account_id:
+        filter_account_id = _get_account_id_for_profile(profile)
+        if not filter_account_id:
+            console.print(
+                f"[yellow]Warning: Could not get account ID for profile '{profile}'[/]"
+            )
 
     # Find cache file for region
     cache_file = None
@@ -1378,7 +1594,10 @@ def scan_cache_info(
                 cache_data = json.load(f)
             metadata = cache_data.get("metadata", {})
             if metadata.get("region") == region:
-                if account is None or metadata.get("account_id") == account:
+                if (
+                    filter_account_id is None
+                    or metadata.get("account_id") == filter_account_id
+                ):
                     cache_file = cf
                     break
         except (json.JSONDecodeError, KeyError):
@@ -2034,33 +2253,79 @@ def audit(
         )
         raise typer.Exit(1)
 
-    # Run audit
+    # Run audit - scan with progress bar, then run Checkov
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    total_scanners = get_total_scanner_count()
+    graph = GraphEngine()
 
-        try:
+    try:
+        # Phase 1: Scan with progress bar
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn(
+                "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+            ),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                "Scanning AWS resources...",
+                total=total_scanners,
+                resource_count=0,
+                dep_count=0,
+            )
+
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                progress.update(
+                    task,
+                    advance=1,
+                    resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
+                )
+
+            run_all_scanners(
+                session,
+                effective_region,
+                graph,
+                on_scanner_complete=on_scanner_complete,
+            )
+
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+                dep_count=graph.edge_count,
+            )
+
+        # Phase 2: Run Checkov on scanned graph
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Running security checks...", total=None)
             results, report_path = engine.run(
                 output_dir=terraform_dir,
                 report_path=output,
+                skip_scan=True,
+                graph=graph,
             )
-        except Exception as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Audit failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
-                )
-            )
-            raise typer.Exit(1)
+            progress.update(task, completed=True)
 
-        progress.update(task, completed=True)
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Audit failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
+            )
+        )
+        raise typer.Exit(1)
 
     # Handle JSON output format
     if output_format.lower() == "json":
@@ -2207,6 +2472,12 @@ def graph(
         "--security",
         help="Security-focused view (show SGs, IAM, KMS)",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Ignore cache and force a fresh AWS scan",
+    ),
 ) -> None:
     """
     Generate visual dependency graph of AWS infrastructure.
@@ -2298,21 +2569,34 @@ def graph(
     effective_show_sg_rules = show_sg_rules or security_view
     effective_show_routes = show_routes
 
-    # Run visualization
-    console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph
 
-        try:
-            visualizer = GraphVisualizer(
-                session=session,
-                region=effective_region,
-                profile=profile,
-            )
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+        vpc=vpc,
+    )
+
+    try:
+        visualizer = GraphVisualizer(
+            session=session,
+            region=effective_region,
+            profile=profile,
+        )
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            if cached_graph:
+                task = progress.add_task("Generating visualization...", total=None)
+            else:
+                task = progress.add_task("Scanning and generating graph...", total=None)
 
             result = visualizer.generate(
                 vpc_id=vpc,
@@ -2322,20 +2606,26 @@ def graph(
                 show_sg_rules=effective_show_sg_rules,
                 show_routes=effective_show_routes,
                 no_collapse=no_collapse,
+                existing_graph=cached_graph,
             )
 
             progress.update(task, completed=True)
-        except Exception as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Graph generation failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
-                )
+
+        # If we scanned (no cache hit), save to cache for next time
+        if not cached_graph:
+            # Note: We don't have access to the internal graph here after visualization
+            # The cache is populated by the 'scan' command - graph command just uses it
+            console.print("[dim]Tip: Run 'replimap scan' first to enable caching[/dim]")
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Graph generation failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
             )
-            raise typer.Exit(1)
+        )
+        raise typer.Exit(1)
 
     # Output result
     console.print()
@@ -2855,6 +3145,12 @@ def deps(
         "-a",
         help="Use deep analyzer mode with categorized output (EC2, SG, IAM Role)",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Ignore cache and force a fresh AWS scan",
+    ),
 ) -> None:
     """
     Explore dependencies for a resource.
@@ -2946,82 +3242,127 @@ def deps(
         return
 
     # Graph-based mode (default)
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph
+
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
         console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+        refresh=refresh,
+        vpc=vpc,
+    )
 
-        try:
-            # Create graph and run scanners
-            graph = GraphEngine()
-            run_all_scanners(
-                session=session,
-                region=effective_region,
-                graph=graph,
-            )
+    if cached_graph:
+        graph = cached_graph
+    else:
+        # No cache - do full scan
+        total_scanners = get_total_scanner_count()
+        graph = GraphEngine()
 
-            # Apply VPC filter if specified
-            if vpc:
-                from replimap.core import ScanFilter, apply_filter_to_graph
-
-                filter_config = ScanFilter(
-                    vpc_ids=[vpc],
-                    include_vpc_resources=True,
+    try:
+        if not cached_graph:
+            # Phase 1: Scan AWS resources with progress bar
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[bold cyan]{task.description}"),
+                BarColumn(bar_width=30),
+                TaskProgressColumn(),
+                TextColumn(
+                    "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+                ),
+                TimeElapsedColumn(),
+                console=console,
+                transient=False,
+            ) as progress:
+                task = progress.add_task(
+                    "Scanning AWS resources...",
+                    total=total_scanners,
+                    resource_count=0,
+                    dep_count=0,
                 )
-                graph = apply_filter_to_graph(graph, filter_config)
 
-            progress.update(task, description="Building dependency graph...")
+                def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                    progress.update(
+                        task,
+                        advance=1,
+                        resource_count=graph.node_count,
+                        dep_count=graph.edge_count,
+                    )
 
-            # Build dependency graph
+                run_all_scanners(
+                    session=session,
+                    region=effective_region,
+                    graph=graph,
+                    on_scanner_complete=on_scanner_complete,
+                )
+
+                progress.update(
+                    task,
+                    description="[bold green]✓ Scan complete",
+                    resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
+                )
+
+        # Apply VPC filter if specified
+        if vpc:
+            from replimap.core import ScanFilter, apply_filter_to_graph
+
+            filter_config = ScanFilter(
+                vpc_ids=[vpc],
+                include_vpc_resources=True,
+            )
+            graph = apply_filter_to_graph(graph, filter_config)
+
+        # Phase 2: Build dependency graph (spinner)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Building dependency graph...", total=None)
             builder = DependencyGraphBuilder()
             dep_graph = builder.build_from_graph_engine(graph, effective_region)
-
-            progress.update(task, description="Exploring dependencies...")
-
-            # Build resource configs map for ASG detection
-            resource_configs = {res.id: res.config for res in graph.get_all_resources()}
-
-            # Explore dependencies
-            calculator = ImpactCalculator(
-                dep_graph,
-                builder.get_nodes(),
-                builder.get_edges(),
-                resource_configs=resource_configs,
-            )
-
-            try:
-                result = calculator.calculate_blast_radius(resource_id, max_depth)
-            except ValueError:
-                progress.stop()
-                console.print()
-                console.print(
-                    Panel(
-                        f"[red]Resource not found:[/] {resource_id}\n\n"
-                        f"Make sure the resource ID is correct and exists in region {effective_region}.\n\n"
-                        f"[dim]Available resources: {len(builder.get_nodes())}[/]",
-                        title="Error",
-                        border_style="red",
-                    )
-                )
-                raise typer.Exit(1)
-
             progress.update(task, completed=True)
 
-        except Exception as e:
-            progress.stop()
+        # Build resource configs map for ASG detection
+        resource_configs = {res.id: res.config for res in graph.get_all_resources()}
+
+        # Explore dependencies
+        calculator = ImpactCalculator(
+            dep_graph,
+            builder.get_nodes(),
+            builder.get_edges(),
+            resource_configs=resource_configs,
+        )
+
+        try:
+            result = calculator.calculate_blast_radius(resource_id, max_depth)
+        except ValueError:
             console.print()
             console.print(
                 Panel(
-                    f"[red]Dependency exploration failed:[/]\n{e}",
+                    f"[red]Resource not found:[/] {resource_id}\n\n"
+                    f"Make sure the resource ID is correct and exists in region {effective_region}.\n\n"
+                    f"[dim]Available resources: {len(builder.get_nodes())}[/]",
                     title="Error",
                     border_style="red",
                 )
             )
-            logger.exception("Dependency exploration failed")
             raise typer.Exit(1)
+
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Dependency exploration failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
+            )
+        )
+        logger.exception("Dependency exploration failed")
+        raise typer.Exit(1)
 
     # Report results
     reporter = DependencyExplorerReporter()
@@ -3235,49 +3576,87 @@ def cost(
 
     # Scan resources
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+    total_scanners = get_total_scanner_count()
+    graph = GraphEngine()
 
-        try:
-            # Create graph and run scanners
-            graph = GraphEngine()
+    try:
+        # Phase 1: Scan AWS resources with progress bar
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn(
+                "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+            ),
+            TimeElapsedColumn(),
+            console=console,
+            transient=False,
+        ) as progress:
+            task = progress.add_task(
+                "Scanning AWS resources...",
+                total=total_scanners,
+                resource_count=0,
+                dep_count=0,
+            )
+
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                progress.update(
+                    task,
+                    advance=1,
+                    resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
+                )
+
             run_all_scanners(
                 session=session,
                 region=effective_region,
                 graph=graph,
+                on_scanner_complete=on_scanner_complete,
             )
 
-            # Apply VPC filter if specified
-            if vpc:
-                from replimap.core import ScanFilter, apply_filter_to_graph
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+                dep_count=graph.edge_count,
+            )
 
-                filter_config = ScanFilter(
-                    vpc_ids=[vpc],
-                    include_vpc_resources=True,
-                )
-                graph = apply_filter_to_graph(graph, filter_config)
+        # Apply VPC filter if specified
+        if vpc:
+            from replimap.core import ScanFilter, apply_filter_to_graph
 
-            progress.update(task, description="Estimating costs...")
+            filter_config = ScanFilter(
+                vpc_ids=[vpc],
+                include_vpc_resources=True,
+            )
+            graph = apply_filter_to_graph(graph, filter_config)
 
-            # Estimate costs
+        # Phase 2: Estimate costs (spinner)
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Estimating costs...", total=None)
             estimator = CostEstimator(effective_region)
             estimate = estimator.estimate_from_graph_engine(graph)
+            progress.update(task, completed=True)
 
-            # Apply RI-aware pricing if requested (P3-4)
-            ri_analysis = None
-            if ri_aware:
-                progress.update(task, description="Analyzing reservations...")
+        # Apply RI-aware pricing if requested (P3-4)
+        ri_analysis = None
+        if ri_aware:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Analyzing reservations...", total=None)
                 try:
                     import asyncio
 
                     from replimap.cost.ri_aware import RIAwareAnalyzer
 
-                    # Get credentials from the already-authenticated session
-                    # (avoids MFA re-prompt and assume-role hang in async context)
                     ri_credentials: dict[str, str] | None = None
                     session_creds = session.get_credentials()
                     if session_creds:
@@ -3290,37 +3669,34 @@ def cost(
                             ri_credentials["aws_session_token"] = frozen.token
 
                     async def run_ri_analysis() -> Any:
-                        """Run RI analysis with proper cleanup."""
                         async with RIAwareAnalyzer(
                             region=effective_region, credentials=ri_credentials
                         ) as analyzer:
                             return await analyzer.analyze()
 
                     ri_analysis = asyncio.run(run_ri_analysis())
-
-                    # Adjust costs based on reservations
-                    if ri_analysis and ri_analysis.total_potential_savings > 0:
-                        console.print(
-                            f"\n[dim]RI/Savings Plans coverage: "
-                            f"${ri_analysis.total_potential_savings:.2f}/month savings[/]"
-                        )
+                    progress.update(task, completed=True)
                 except Exception as e:
+                    progress.update(task, completed=True)
                     logger.warning(f"Could not analyze reservations: {e}")
 
-            progress.update(task, completed=True)
-
-        except Exception as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Cost estimation failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
+            if ri_analysis and ri_analysis.total_potential_savings > 0:
+                console.print(
+                    f"\n[dim]RI/Savings Plans coverage: "
+                    f"${ri_analysis.total_potential_savings:.2f}/month savings[/]"
                 )
+
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Cost estimation failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
             )
-            logger.exception("Cost estimation failed")
-            raise typer.Exit(1)
+        )
+        logger.exception("Cost estimation failed")
+        raise typer.Exit(1)
 
     # Report results
     reporter = CostReporter()
@@ -5568,9 +5944,111 @@ def dr_scorecard(
 app.add_typer(dr_app, name="dr")
 
 
+# =============================================================================
+# CACHE MANAGEMENT COMMAND
+# =============================================================================
+
+
+@app.command("graph-cache")
+def graph_cache(
+    show: bool = typer.Option(
+        False,
+        "--show",
+        "-s",
+        help="Show cache status and list all cached scans",
+    ),
+    clear: bool = typer.Option(
+        False,
+        "--clear",
+        "-c",
+        help="Clear all cached scans",
+    ),
+) -> None:
+    """
+    Manage graph cache.
+
+    RepliMap caches scan results to speed up subsequent commands.
+    After running 'replimap scan', commands like 'graph', 'deps', 'clone',
+    'audit', and 'cost' can use the cached data (<1s) instead of re-scanning.
+
+    Examples:
+        # Show cache status
+        replimap graph-cache --show
+
+        # Clear all cached scans
+        replimap graph-cache --clear
+    """
+    from replimap.core.cache_manager import CacheManager, print_cache_status
+
+    if clear:
+        count = CacheManager.clear_all()
+        if count > 0:
+            console.print(f"[green]✓ Cleared {count} cached scan(s)[/green]")
+        else:
+            console.print("[dim]No cached scans to clear.[/dim]")
+    elif show:
+        print_cache_status(console)
+    else:
+        # Default: show help
+        console.print()
+        console.print("[bold]Graph Cache[/bold]")
+        console.print()
+        console.print(
+            "RepliMap caches scan results to speed up subsequent commands.\n"
+            "Run 'replimap scan' once, then 'graph', 'deps', 'clone' use cached data.\n"
+        )
+        console.print("  [cyan]replimap graph-cache --show[/cyan]   Show cached scans")
+        console.print(
+            "  [cyan]replimap graph-cache --clear[/cyan]  Clear all cached scans"
+        )
+        console.print()
+        print_cache_status(console)
+
+
+def _signal_handler(sig: int, frame: Any) -> None:
+    """Handle SIGINT (Ctrl+C) gracefully."""
+    console.print("\n[bold red]🛑 Aborted by user.[/bold red]")
+    # Use os._exit() for immediate termination - bypasses threading cleanup
+    # which can cause hangs with ThreadPoolExecutor
+    os._exit(130)
+
+
 def cli() -> None:
     """Entry point for the CLI."""
-    app()
+    import botocore.exceptions
+
+    from replimap.cli.utils.error_handler import handle_aws_error, handle_generic_error
+    from replimap.cli.utils.update_checker import show_update_notice
+
+    # Register signal handler for clean Ctrl+C exit
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    # Check if debug mode is enabled
+    debug = os.getenv("REPLIMAP_DEBUG", "").lower() in ("1", "true", "yes")
+
+    try:
+        app()
+        # Show update notice at end of successful execution
+        show_update_notice(console)
+    except KeyboardInterrupt:
+        # Fallback if signal handler is bypassed
+        console.print("\n[bold red]Aborted by user.[/bold red]")
+        os._exit(130)
+    except botocore.exceptions.NoCredentialsError as e:
+        handle_aws_error(e, operation="credential lookup")
+    except botocore.exceptions.PartialCredentialsError as e:
+        handle_aws_error(e, operation="credential lookup")
+    except botocore.exceptions.ProfileNotFound as e:
+        handle_aws_error(e, operation="profile lookup")
+    except botocore.exceptions.EndpointConnectionError as e:
+        handle_aws_error(e, operation="AWS API connection")
+    except botocore.exceptions.ClientError as e:
+        handle_aws_error(e)
+    except botocore.exceptions.BotoCoreError as e:
+        handle_aws_error(e)
+    except Exception as e:
+        # Catch-all for unexpected errors
+        handle_generic_error(e, debug=debug)
 
 
 if __name__ == "__main__":

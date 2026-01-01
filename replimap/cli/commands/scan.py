@@ -10,7 +10,14 @@ from pathlib import Path
 
 import typer
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.prompt import Confirm, Prompt
 
 from replimap import __version__
@@ -21,7 +28,7 @@ from replimap.cli.utils import (
     get_profile_region,
     logger,
     print_graph_stats,
-    print_scan_summary,
+    print_next_steps,
 )
 from replimap.core import (
     GraphEngine,
@@ -36,7 +43,7 @@ from replimap.core import (
 from replimap.licensing import Feature, check_scan_allowed, get_scans_remaining
 from replimap.licensing.manager import get_license_manager
 from replimap.licensing.tracker import get_usage_tracker
-from replimap.scanners.base import run_all_scanners
+from replimap.scanners.base import get_total_scanner_count, run_all_scanners
 
 
 def register(app: typer.Typer) -> None:
@@ -341,22 +348,53 @@ def register(app: typer.Typer) -> None:
                 "[dim]Performing incremental scan for updated resources...[/]"
             )
 
+        total_scanners = get_total_scanner_count()
+
+        # Always show progress bar (--quiet only suppresses INFO logs)
         with Progress(
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(bar_width=30),
+            TaskProgressColumn(),
+            TextColumn(
+                "[dim]• {task.fields[resource_count]:,} resources • {task.fields[dep_count]:,} dependencies"
+            ),
+            TimeElapsedColumn(),
             console=console,
+            transient=False,
         ) as progress:
             task = progress.add_task(
-                f"Scanning AWS resources ({scan_mode})...", total=None
+                f"Scanning AWS resources ({scan_mode})...",
+                total=total_scanners,
+                resource_count=0,
+                dep_count=0,
             )
-            results = run_all_scanners(
-                session, effective_region, graph, parallel=use_parallel
-            )
-            progress.update(task, completed=True)
-        scan_duration = time.time() - scan_start
 
-        # Print scan summary with resource counts
-        print_scan_summary(graph, scan_duration)
+            def on_scanner_complete(scanner_name: str, success: bool) -> None:
+                """Update progress bar when a scanner completes."""
+                progress.update(
+                    task,
+                    advance=1,
+                    resource_count=graph.node_count,
+                    dep_count=graph.edge_count,
+                )
+
+            results = run_all_scanners(
+                session,
+                effective_region,
+                graph,
+                parallel=use_parallel,
+                on_scanner_complete=on_scanner_complete,
+            )
+
+            # Final update with completion state
+            progress.update(
+                task,
+                description="[bold green]✓ Scan complete",
+                resource_count=graph.node_count,
+                dep_count=graph.edge_count,
+            )
+        scan_duration = time.time() - scan_start
 
         # Update scan cache with new results
         if use_scan_cache:
@@ -449,23 +487,21 @@ def register(app: typer.Typer) -> None:
             success=True,
         )
 
-        # Report results
-        console.print()
-
+        # Report any failed scanners (only show errors, not successes)
         failed = [name for name, err in results.items() if err is not None]
-        succeeded = [name for name, err in results.items() if err is None]
-
-        if succeeded:
-            console.print(f"[green]Completed:[/] {', '.join(succeeded)}")
         if failed:
-            console.print(f"[red]Failed:[/] {', '.join(failed)}")
+            console.print()
+            console.print(f"[red]Failed scanners:[/] {', '.join(failed)}")
             for name, err in results.items():
                 if err:
                     console.print(f"  [red]-[/] {name}: {err}")
 
-        # Print statistics
+        # Print resource breakdown table
         console.print()
         print_graph_stats(graph)
+
+        # Show next steps
+        print_next_steps()
 
         # Show remaining scans for FREE users
         remaining = get_scans_remaining()
