@@ -137,6 +137,9 @@ class TerraformRenderer:
         # Track used terraform names for uniqueness
         self._used_names: dict[str, set[str]] = {}
 
+        # Track unsupported resource types for summary (instead of per-resource warnings)
+        self._unsupported_types: dict[str, int] = {}
+
     def render(self, graph: GraphEngine, output_dir: Path) -> dict[str, Path]:
         """
         Render the graph to Terraform files.
@@ -151,6 +154,9 @@ class TerraformRenderer:
         output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"Rendering Terraform to {output_dir}")
 
+        # Reset tracking for this render
+        self._unsupported_types = {}
+
         # Ensure unique terraform names before rendering
         self._ensure_unique_names(graph)
 
@@ -163,8 +169,10 @@ class TerraformRenderer:
             output_file = self.FILE_MAPPING.get(resource.resource_type)
 
             if not template_name or not output_file:
-                logger.warning(
-                    f"No template for resource type: {resource.resource_type}"
+                # Collect unsupported types for summary instead of per-resource warning
+                type_name = str(resource.resource_type)
+                self._unsupported_types[type_name] = (
+                    self._unsupported_types.get(type_name, 0) + 1
                 )
                 continue
 
@@ -217,6 +225,15 @@ class TerraformRenderer:
         # Run terraform fmt to ensure consistent formatting
         self._run_terraform_fmt(output_dir)
 
+        # Log summary of unsupported resource types (instead of per-resource warnings)
+        if self._unsupported_types:
+            total_skipped = sum(self._unsupported_types.values())
+            types_list = ", ".join(sorted(self._unsupported_types.keys()))
+            logger.info(
+                f"Skipped {total_skipped} resources "
+                f"({len(self._unsupported_types)} unsupported types: {types_list})"
+            )
+
         return written_files
 
     def _ensure_unique_names(self, graph: GraphEngine) -> None:
@@ -240,10 +257,11 @@ class TerraformRenderer:
             type_names[resource_type][name].append(resource)
 
         # Resolve duplicates using numeric suffixes
+        rename_count = 0
         for resource_type, names in type_names.items():
             for name, resources in names.items():
                 if len(resources) > 1:
-                    logger.warning(
+                    logger.debug(
                         f"Found {len(resources)} {resource_type} resources "
                         f"with terraform_name '{name}', making unique"
                     )
@@ -260,9 +278,14 @@ class TerraformRenderer:
                                 new_name = f"{name}_{suffix_num}"
                             used_names.add(new_name)
                             resource.terraform_name = new_name
-                            logger.info(
+                            rename_count += 1
+                            logger.debug(
                                 f"Renamed {resource.id} from '{name}' to '{new_name}'"
                             )
+
+        # Log summary of renames if any
+        if rename_count > 0:
+            logger.info(f"Renamed {rename_count} resources to ensure unique names")
 
     def preview(self, graph: GraphEngine) -> dict[str, list[str]]:
         """

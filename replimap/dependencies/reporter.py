@@ -85,8 +85,13 @@ def get_category(resource_type: str) -> RelationshipCategory:
 class DependencyExplorerReporter:
     """Generate dependency exploration reports in various formats."""
 
-    def to_console(self, result: DependencyExplorerResult) -> None:
-        """Print dependency exploration to console with grouped dependencies."""
+    def to_console(self, result: DependencyExplorerResult, verbose: bool = False) -> None:
+        """Print dependency exploration to console with grouped dependencies.
+
+        Args:
+            result: The dependency exploration result
+            verbose: If True, show all resources; if False, show compact summary by type
+        """
         console.print("\n[bold blue]Dependency Explorer[/bold blue]")
         console.print(f"[dim]{DISCLAIMER_SHORT}[/dim]\n")
 
@@ -151,21 +156,33 @@ class DependencyExplorerReporter:
         upstream = [r for r in result.affected_resources if r.depth < 0]
         downstream = [r for r in result.affected_resources if r.depth > 0]
 
-        # Group upstream by category
-        if upstream:
-            self._print_categorized_dependencies(
-                upstream,
-                "Dependencies (Resources This Resource Uses)",
-                is_upstream=True,
-            )
+        if verbose:
+            # Verbose mode: show all resources grouped by category
+            if upstream:
+                self._print_categorized_dependencies(
+                    upstream,
+                    "Dependencies (Resources This Resource Uses)",
+                    is_upstream=True,
+                )
 
-        # Group downstream by category
-        if downstream:
-            self._print_categorized_dependencies(
-                downstream,
-                "Dependents (Resources That Use This Resource)",
-                is_upstream=False,
-            )
+            if downstream:
+                self._print_categorized_dependencies(
+                    downstream,
+                    "Dependents (Resources That Use This Resource)",
+                    is_upstream=False,
+                )
+        else:
+            # Compact mode: show summary table by resource type
+            if downstream:
+                self._print_compact_summary(
+                    downstream,
+                    "Dependents by Type",
+                )
+            if upstream:
+                self._print_compact_summary(
+                    upstream,
+                    "Dependencies by Type",
+                )
 
         # Warnings section
         if result.warnings:
@@ -179,15 +196,113 @@ class DependencyExplorerReporter:
         # Next Best Actions
         self._print_next_actions(result)
 
-        # Always end with disclaimer
+        # End with disclaimer (compact or full based on verbose)
         console.print()
-        console.print(
-            Panel(
-                DISCLAIMER_FULL.strip(),
-                title="Important Disclaimer",
-                border_style="yellow",
+        if verbose:
+            console.print(
+                Panel(
+                    DISCLAIMER_FULL.strip(),
+                    title="Important Disclaimer",
+                    border_style="yellow",
+                )
             )
-        )
+        else:
+            # Compact disclaimer for non-verbose mode
+            console.print(
+                "[dim]⚠️  AWS API metadata only. "
+                "Application-level dependencies not detected. "
+                "Use --verbose for full output.[/dim]"
+            )
+
+    def _print_compact_summary(
+        self,
+        resources: list[ResourceNode],
+        title: str,
+        max_types: int = 10,
+    ) -> None:
+        """Print a compact summary table grouped by resource type.
+
+        Args:
+            resources: List of resources to summarize
+            title: Title for the table
+            max_types: Maximum number of types to show before grouping as "other"
+        """
+        # Group by resource type
+        by_type: dict[str, list[ResourceNode]] = {}
+        for r in resources:
+            rtype = r.type.replace("aws_", "")
+            if rtype not in by_type:
+                by_type[rtype] = []
+            by_type[rtype].append(r)
+
+        # Sort by count descending
+        sorted_types = sorted(by_type.items(), key=lambda x: len(x[1]), reverse=True)
+
+        # Create table
+        table = Table(title=title, show_header=True, header_style="bold cyan")
+        table.add_column("Resource Type", style="cyan")
+        table.add_column("Count", justify="right")
+        table.add_column("Examples", style="dim", max_width=45, overflow="ellipsis")
+
+        shown_types = 0
+        other_count = 0
+        other_types = 0
+
+        for rtype, type_resources in sorted_types:
+            if shown_types < max_types:
+                # Extract short names
+                names = [self._extract_short_name(r) for r in type_resources[:3]]
+                examples = ", ".join(names)
+                if len(type_resources) > 3:
+                    examples += f", +{len(type_resources) - 3} more"
+
+                table.add_row(rtype, str(len(type_resources)), examples)
+                shown_types += 1
+            else:
+                other_count += len(type_resources)
+                other_types += 1
+
+        if other_count > 0:
+            table.add_section()
+            table.add_row(
+                f"[dim]+ {other_types} other types[/dim]",
+                f"[dim]{other_count}[/dim]",
+                "",
+            )
+
+        console.print()
+        console.print(table)
+
+    def _extract_short_name(self, resource: ResourceNode) -> str:
+        """Extract a readable short name from a resource.
+
+        Args:
+            resource: The resource node
+
+        Returns:
+            A short, readable name for the resource
+        """
+        # If we have a name that's different from ID, use it
+        if resource.name and resource.name != resource.id:
+            return resource.name[:25]
+
+        resource_id = resource.id
+
+        # If it's an ARN, extract the meaningful part
+        if resource_id.startswith("arn:aws:"):
+            parts = resource_id.split(":")
+            if parts:
+                name_part = parts[-1]
+                # Handle specific ARN formats like "loadbalancer/app/name/hash"
+                if "/" in name_part:
+                    segments = name_part.split("/")
+                    for seg in segments:
+                        if seg and seg not in ("app", "net", "loadbalancer", "targetgroup"):
+                            return seg[:25]
+                return name_part[:25]
+
+        # Already a short ID (sg-xxx, i-xxx, etc.)
+        return resource_id[:25]
 
     def _print_categorized_dependencies(
         self,

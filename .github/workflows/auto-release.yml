@@ -199,9 +199,7 @@ jobs:
   publish-pypi:
     needs: [version-bump, build]
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/replimap
+    # Note: Removed 'environment' to prevent GitHub Deployments from showing
     permissions:
       id-token: write  # For trusted publishing
     steps:

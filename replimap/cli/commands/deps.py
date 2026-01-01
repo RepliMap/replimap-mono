@@ -184,6 +184,12 @@ def deps_command(
         "--disclaimer/--no-disclaimer",
         help="Show disclaimer about limitations",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-V",
+        help="Show all resources (not summarized by type)",
+    ),
     no_cache: bool = typer.Option(
         False,
         "--no-cache",
@@ -380,8 +386,8 @@ def deps_command(
             console.print("[dim]Opening report in browser...[/dim]")
             webbrowser.open(f"file://{output_path.absolute()}")
     else:
-        # Default: console output
-        reporter.to_console(result)
+        # Default: console output (compact by default, verbose shows all)
+        reporter.to_console(result, verbose=verbose)
 
     # Also export if output path specified but format is console
     if output and output_format == "console":

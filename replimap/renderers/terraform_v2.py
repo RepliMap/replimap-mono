@@ -274,7 +274,11 @@ class EnhancedTerraformRenderer(TerraformRenderer):
             )
 
         if not template_name:
-            logger.warning(f"No template for resource type: {resource.resource_type}")
+            # Collect unsupported types for summary (inherited from parent class)
+            type_name = str(resource.resource_type)
+            self._unsupported_types[type_name] = (
+                self._unsupported_types.get(type_name, 0) + 1
+            )
             return
 
         try:
