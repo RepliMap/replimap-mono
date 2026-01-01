@@ -59,6 +59,12 @@ def unused_command(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Detect unused and underutilized AWS resources.
@@ -104,17 +110,51 @@ def unused_command(
     if resource_types:
         types_filter = [t.strip().lower() for t in resource_types.split(",")]
 
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+    )
+
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning for unused resources...", total=None)
+
+            try:
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/]")
+                raise typer.Exit(1)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
+
+    # Analyze resource utilization
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Scanning for unused resources...", total=None)
-
+        task = progress.add_task("Analyzing resource utilization...", total=None)
         try:
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-            progress.update(task, description="Analyzing resource utilization...")
             detector = UnusedResourceDetector(session, effective_region)
             unused_resources = detector.detect_from_graph(graph)
             progress.update(task, completed=True)

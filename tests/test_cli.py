@@ -35,7 +35,7 @@ class TestCLI:
         """Test --help flag."""
         result = runner.invoke(app, ["--help"], color=False)
         assert result.exit_code == 0
-        assert "AWS Environment Replication Tool" in result.output
+        assert "AWS Infrastructure Intelligence Engine" in result.output
 
     def test_scan_help(self) -> None:
         """Test scan --help."""
@@ -92,7 +92,7 @@ class TestCLI:
 
     def test_clone_invalid_mode(self) -> None:
         """Test clone with invalid mode."""
-        with patch("replimap.main.get_aws_session") as mock_session:
+        with patch("replimap.cli.utils.get_aws_session") as mock_session:
             mock_session.return_value = MagicMock()
 
             result = runner.invoke(
@@ -107,8 +107,8 @@ class TestCLI:
 class TestCLIIntegration:
     """Integration tests for CLI (require mocking AWS)."""
 
-    @patch("replimap.main.get_aws_session")
-    @patch("replimap.main.run_all_scanners")
+    @patch("replimap.cli.utils.get_aws_session")
+    @patch("replimap.cli.commands.scan.run_all_scanners")
     def test_scan_dry_run(
         self, mock_scanners: MagicMock, mock_session: MagicMock
     ) -> None:

@@ -195,6 +195,12 @@ def deps_command(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
     analyze: bool = typer.Option(
         False,
         "--analyze",
@@ -290,82 +296,112 @@ def deps_command(
         return
 
     # Graph-based mode (default)
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
         console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+        refresh=refresh,
+        vpc=vpc,
+    )
 
-        try:
-            # Create graph and run scanners
-            graph = GraphEngine()
-            run_all_scanners(
-                session=session,
-                region=effective_region,
-                graph=graph,
-            )
-
-            # Apply VPC filter if specified
-            if vpc:
-                from replimap.core import ScanFilter, apply_filter_to_graph
-
-                filter_config = ScanFilter(
-                    vpc_ids=[vpc],
-                    include_vpc_resources=True,
-                )
-                graph = apply_filter_to_graph(graph, filter_config)
-
-            progress.update(task, description="Building dependency graph...")
-
-            # Build dependency graph
-            builder = DependencyGraphBuilder()
-            dep_graph = builder.build_from_graph_engine(graph, effective_region)
-
-            progress.update(task, description="Exploring dependencies...")
-
-            # Build resource configs map for ASG detection
-            resource_configs = {res.id: res.config for res in graph.get_all_resources()}
-
-            # Explore dependencies
-            calculator = ImpactCalculator(
-                dep_graph,
-                builder.get_nodes(),
-                builder.get_edges(),
-                resource_configs=resource_configs,
-            )
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning AWS resources...", total=None)
 
             try:
-                result = calculator.calculate_blast_radius(resource_id, max_depth)
-            except ValueError:
+                # Create graph and run scanners
+                graph = GraphEngine()
+                run_all_scanners(
+                    session=session,
+                    region=effective_region,
+                    graph=graph,
+                )
+                progress.update(task, completed=True)
+
+            except Exception as e:
                 progress.stop()
                 console.print()
                 console.print(
                     Panel(
-                        f"[red]Resource not found:[/] {resource_id}\n\n"
-                        f"Make sure the resource ID is correct and exists in region {effective_region}.\n\n"
-                        f"[dim]Available resources: {len(builder.get_nodes())}[/]",
+                        f"[red]Dependency exploration failed:[/]\n{e}",
                         title="Error",
                         border_style="red",
                     )
                 )
+                logger.exception("Dependency exploration failed")
                 raise typer.Exit(1)
 
-            progress.update(task, completed=True)
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=profile or "default",
+            region=effective_region,
+            console=console,
+            vpc=vpc,
+        )
 
-        except Exception as e:
-            progress.stop()
+    # Apply VPC filter if specified
+    if vpc:
+        from replimap.core import ScanFilter, apply_filter_to_graph
+
+        filter_config = ScanFilter(
+            vpc_ids=[vpc],
+            include_vpc_resources=True,
+        )
+        graph = apply_filter_to_graph(graph, filter_config)
+
+    # Build dependency graph and explore dependencies
+    try:
+        builder = DependencyGraphBuilder()
+        dep_graph = builder.build_from_graph_engine(graph, effective_region)
+
+        # Build resource configs map for ASG detection
+        resource_configs = {res.id: res.config for res in graph.get_all_resources()}
+
+        # Explore dependencies
+        calculator = ImpactCalculator(
+            dep_graph,
+            builder.get_nodes(),
+            builder.get_edges(),
+            resource_configs=resource_configs,
+        )
+
+        try:
+            result = calculator.calculate_blast_radius(resource_id, max_depth)
+        except ValueError:
             console.print()
             console.print(
                 Panel(
-                    f"[red]Dependency exploration failed:[/]\n{e}",
+                    f"[red]Resource not found:[/] {resource_id}\n\n"
+                    f"Make sure the resource ID is correct and exists in region {effective_region}.\n\n"
+                    f"[dim]Available resources: {len(builder.get_nodes())}[/]",
                     title="Error",
                     border_style="red",
                 )
             )
-            logger.exception("Dependency exploration failed")
             raise typer.Exit(1)
+
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Dependency exploration failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
+            )
+        )
+        logger.exception("Dependency exploration failed")
+        raise typer.Exit(1)
 
     # Report results
     reporter = DependencyExplorerReporter()
@@ -414,6 +450,7 @@ def blast_command(
     output_format: str = typer.Option("console", "--format", "-f"),
     open_report: bool = typer.Option(True, "--open/--no-open"),
     no_cache: bool = typer.Option(False, "--no-cache"),
+    refresh: bool = typer.Option(False, "--refresh", "-R"),
 ) -> None:
     """Deprecated: Use 'replimap deps' instead."""
     console.print(
@@ -431,6 +468,7 @@ def blast_command(
         open_report=open_report,
         show_disclaimer=True,
         no_cache=no_cache,
+        refresh=refresh,
         analyze=False,
     )
 

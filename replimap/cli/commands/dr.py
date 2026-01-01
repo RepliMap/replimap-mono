@@ -46,8 +46,12 @@ def create_dr_app() -> typer.Typer:
         no_cache: bool = typer.Option(
             False, "--no-cache", help="Don't use cached credentials"
         ),
+        refresh: bool = typer.Option(
+            False, "--refresh", "-R", help="Force fresh AWS scan (ignore cached graph)"
+        ),
     ) -> None:
         """Assess disaster recovery readiness for your infrastructure."""
+        from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
         from replimap.dr.readiness import DRReadinessAssessor, DRTier
 
         effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
@@ -76,17 +80,49 @@ def create_dr_app() -> typer.Typer:
             effective_profile, effective_region, use_cache=not no_cache
         )
 
+        # Try to load from cache first
+        console.print()
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+            refresh=refresh,
+        )
+
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning primary region...", total=None)
+
+                try:
+                    graph = GraphEngine()
+                    run_all_scanners(session, effective_region, graph)
+                    progress.update(task, completed=True)
+                except Exception as e:
+                    console.print(f"[red]Error: {e}[/]")
+                    raise typer.Exit(1)
+
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
+                profile=effective_profile,
+                region=effective_region,
+                console=console,
+            )
+
+        # Assess DR readiness
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task("Scanning primary region...", total=None)
-
+            task = progress.add_task("Assessing DR readiness...", total=None)
             try:
-                graph = GraphEngine()
-                run_all_scanners(session, effective_region, graph)
-                progress.update(task, description="Assessing DR readiness...")
                 assessor = DRReadinessAssessor(
                     session,
                     primary_region=effective_region,

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import typer
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 
@@ -79,6 +78,12 @@ def graph_command(
         False,
         "--security",
         help="Security-focused view (show SGs, IAM, KMS)",
+    ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
     ),
 ) -> None:
     """
@@ -169,44 +174,56 @@ def graph_command(
     effective_show_sg_rules = show_sg_rules or security_view
     effective_show_routes = show_routes
 
-    # Run visualization
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
     console.print()
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=profile or "default",
+        region=effective_region,
         console=console,
-    ) as progress:
-        task = progress.add_task("Scanning AWS resources...", total=None)
+        refresh=refresh,
+        vpc=vpc,
+    )
 
-        try:
-            visualizer = GraphVisualizer(
-                session=session,
+    # Run visualization
+    try:
+        visualizer = GraphVisualizer(
+            session=session,
+            region=effective_region,
+            profile=profile,
+        )
+
+        result = visualizer.generate(
+            vpc_id=vpc,
+            output_format=fmt,
+            output_path=output,
+            show_all=show_all,
+            show_sg_rules=effective_show_sg_rules,
+            show_routes=effective_show_routes,
+            no_collapse=no_collapse,
+            existing_graph=cached_graph,
+        )
+
+        # Save to cache if we did a fresh scan
+        if cached_graph is None and visualizer._graph is not None:
+            save_graph_to_cache(
+                graph=visualizer._graph,
+                profile=profile or "default",
                 region=effective_region,
-                profile=profile,
+                console=console,
+                vpc=vpc,
             )
-
-            result = visualizer.generate(
-                vpc_id=vpc,
-                output_format=fmt,
-                output_path=output,
-                show_all=show_all,
-                show_sg_rules=effective_show_sg_rules,
-                show_routes=effective_show_routes,
-                no_collapse=no_collapse,
+    except Exception as e:
+        console.print()
+        console.print(
+            Panel(
+                f"[red]Graph generation failed:[/]\n{e}",
+                title="Error",
+                border_style="red",
             )
-
-            progress.update(task, completed=True)
-        except Exception as e:
-            progress.stop()
-            console.print()
-            console.print(
-                Panel(
-                    f"[red]Graph generation failed:[/]\n{e}",
-                    title="Error",
-                    border_style="red",
-                )
-            )
-            raise typer.Exit(1)
+        )
+        raise typer.Exit(1)
 
     # Output result
     console.print()

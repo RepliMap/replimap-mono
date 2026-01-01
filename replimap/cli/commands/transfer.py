@@ -45,6 +45,12 @@ def transfer_command(
         "--no-cache",
         help="Don't use cached credentials",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Analyze data transfer costs and optimization opportunities.
@@ -79,17 +85,51 @@ def transfer_command(
         effective_profile, effective_region, use_cache=not no_cache
     )
 
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
+        console=console,
+        refresh=refresh,
+    )
+
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning infrastructure...", total=None)
+
+            try:
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/]")
+                raise typer.Exit(1)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
+
+    # Analyze transfer paths
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Scanning infrastructure...", total=None)
-
+        task = progress.add_task("Analyzing transfer paths...", total=None)
         try:
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-            progress.update(task, description="Analyzing transfer paths...")
             analyzer = DataTransferAnalyzer(session, effective_region)
             report = analyzer.analyze_from_graph(graph)
             progress.update(task, completed=True)

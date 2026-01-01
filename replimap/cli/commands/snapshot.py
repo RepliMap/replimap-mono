@@ -35,9 +35,13 @@ def create_snapshot_app() -> typer.Typer:
         no_cache: bool = typer.Option(
             False, "--no-cache", help="Don't use cached credentials"
         ),
+        refresh: bool = typer.Option(
+            False, "--refresh", "-R", help="Force fresh AWS scan (ignore cached graph)"
+        ),
     ) -> None:
         """Save an infrastructure snapshot."""
         from replimap.core import GraphEngine
+        from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
         from replimap.scanners.base import run_all_scanners
         from replimap.snapshot import InfraSnapshot, ResourceSnapshot, SnapshotStore
 
@@ -67,16 +71,37 @@ def create_snapshot_app() -> typer.Typer:
 
         session = get_aws_session(profile, effective_region, use_cache=not no_cache)
 
+        # Try to load from cache first
         console.print()
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
+        cached_graph, cache_meta = get_or_load_graph(
+            profile=profile or "default",
+            region=effective_region,
             console=console,
-        ) as progress:
-            task = progress.add_task("Scanning infrastructure...", total=None)
-            graph = GraphEngine()
-            run_all_scanners(session, effective_region, graph)
-            progress.update(task, completed=True)
+            refresh=refresh,
+            vpc=vpc,
+        )
+
+        if cached_graph is not None:
+            graph = cached_graph
+        else:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Scanning infrastructure...", total=None)
+                graph = GraphEngine()
+                run_all_scanners(session, effective_region, graph)
+                progress.update(task, completed=True)
+
+            # Save to cache
+            save_graph_to_cache(
+                graph=graph,
+                profile=profile or "default",
+                region=effective_region,
+                console=console,
+                vpc=vpc,
+            )
 
         if vpc:
             filtered_resources = []

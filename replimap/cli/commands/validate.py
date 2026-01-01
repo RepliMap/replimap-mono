@@ -49,6 +49,12 @@ def validate_command(
         "--generate-defaults",
         help="Generate default constraints file",
     ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh",
+        "-R",
+        help="Force fresh AWS scan (ignore cached graph)",
+    ),
 ) -> None:
     """
     Validate infrastructure against topology constraints.
@@ -178,26 +184,52 @@ constraints:
     effective_region = region or os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
     effective_profile = profile or "default"
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+    # Try to load from cache first
+    from replimap.core.cache_manager import get_or_load_graph, save_graph_to_cache
+
+    console.print()
+    cached_graph, cache_meta = get_or_load_graph(
+        profile=effective_profile,
+        region=effective_region,
         console=console,
-    ) as progress:
-        task = progress.add_task("Scanning infrastructure...", total=None)
+        refresh=refresh,
+    )
 
-        try:
-            session = boto3.Session(profile_name=effective_profile)
-            graph = GraphEngine()
-            run_all_scanners(session, graph, effective_region)
-            progress.update(task, description="Validating constraints...")
+    if cached_graph is not None:
+        graph = cached_graph
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Scanning infrastructure...", total=None)
 
-            # Validate
-            validator = TopologyValidator(constraints)
-            result = validator.validate(graph)
+            try:
+                session = boto3.Session(profile_name=effective_profile)
+                graph = GraphEngine()
+                run_all_scanners(session, graph, effective_region)
+                progress.update(task, completed=True)
 
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/]")
-            raise typer.Exit(1)
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/]")
+                raise typer.Exit(1)
+
+        # Save to cache
+        save_graph_to_cache(
+            graph=graph,
+            profile=effective_profile,
+            region=effective_region,
+            console=console,
+        )
+
+    # Validate
+    try:
+        validator = TopologyValidator(constraints)
+        result = validator.validate(graph)
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/]")
+        raise typer.Exit(1)
 
     # Display results
     console.print("[bold]Validation Results[/bold]\n")
