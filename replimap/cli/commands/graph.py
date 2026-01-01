@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import webbrowser
 from pathlib import Path
 
 import typer
 from rich.panel import Panel
 
 from replimap.cli.utils import console, get_aws_session, get_profile_region
+from replimap.core.browser import open_in_browser
 
 
 def graph_command(
@@ -235,8 +235,7 @@ def graph_command(
         # Open in browser for HTML
         if open_graph and fmt == OutputFormat.HTML:
             console.print()
-            console.print("[dim]Opening graph in browser...[/dim]")
-            webbrowser.open(f"file://{result.absolute()}")
+            open_in_browser(result, console=console)
     else:
         # Content returned for stdout mode
         console.print(result)

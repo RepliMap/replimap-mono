@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import webbrowser
 from pathlib import Path
 
 import typer
@@ -10,6 +9,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from replimap.cli.utils import console, get_aws_session, get_profile_region
+from replimap.core.browser import open_in_browser
 from replimap.licensing import check_drift_allowed
 
 
@@ -298,8 +298,7 @@ def drift_command(
         console.print()
         console.print(f"[green]HTML report:[/] {output_path.absolute()}")
         if open_report:
-            console.print("[dim]Opening report in browser...[/dim]")
-            webbrowser.open(f"file://{output_path.absolute()}")
+            open_in_browser(output_path, console=console)
 
     # JSON output
     if output_format == "json" or (output and output.suffix == ".json"):

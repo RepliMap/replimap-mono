@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json as json_module
 import os
-import webbrowser
 from pathlib import Path
 
 import typer
@@ -13,6 +12,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core import GraphEngine
+from replimap.core.browser import open_in_browser
 from replimap.scanners.base import run_all_scanners
 
 
@@ -273,7 +273,7 @@ body {{ font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto
             with open(output_path, "w") as f:
                 f.write(html_content)
             console.print(f"[green]✓ Saved to {output_path}[/]")
-            webbrowser.open(f"file://{output_path.absolute()}")
+            open_in_browser(output_path, console=console)
 
         console.print()
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import webbrowser
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,6 +12,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from replimap.cli.utils import console, get_aws_session, get_profile_region
+from replimap.core.browser import open_in_browser
 from replimap.licensing import check_audit_ci_mode_allowed, check_audit_fix_allowed
 from replimap.ui import print_audit_findings_fomo
 
@@ -464,8 +464,7 @@ def audit_command(
         # Open report in browser (only for HTML format)
         if open_report:
             console.print()
-            console.print("[dim]Opening report in browser...[/dim]")
-            webbrowser.open(f"file://{report_path.absolute()}")
+            open_in_browser(report_path, console=console)
 
     # Generate remediation if requested (SOLO+ feature)
     if fix:

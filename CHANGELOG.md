@@ -29,6 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Maintains existing custom retry decorator design
   - 22 tests in `tests/test_aws_config.py`
 
+- **Cross-Platform Browser Launcher** - Smart browser opening with WSL2 support
+  - `replimap/core/browser.py` - Cross-platform browser launcher module
+  - Detects WSL2 environment via kernel release string ("microsoft" or "wsl")
+  - WSL2 strategy: wslview (if available) → wslpath + cmd.exe /C start
+  - Native strategy: Python webbrowser module
+  - `cwd="/mnt/c/"` eliminates "UNC paths not supported" warning
+  - Fallback shows manual instructions with Windows path for WSL users
+  - 17 tests in `tests/test_browser.py`
+
 - **Improved Renderer Skip Summary** - Compact output for unsupported resource types
   - Uses Counter for tracking, shows top 5 types with counts
   - Single-line output: "ℹ Skipped 133 resources: type1 (N), type2 (N), +X more types"
