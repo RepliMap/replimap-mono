@@ -69,7 +69,8 @@ def unused_command(
     """
     Detect unused and underutilized AWS resources.
 
-    Identifies resources that may be candidates for termination or optimization.
+    Identifies resources that may be candidates for termination
+    or optimization to reduce costs.
 
     \b
     Examples:

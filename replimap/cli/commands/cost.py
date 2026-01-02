@@ -82,23 +82,35 @@ def cost_command(
     ),
 ) -> None:
     """
-    Estimate monthly AWS costs for your infrastructure. [Pro+]
+    Estimate monthly AWS costs for your infrastructure.
 
-    Rough estimates only - actual costs may differ 20-40%.
+    IMPORTANT: These are rough estimates only. Actual AWS costs may differ
+    by 20-40% depending on usage patterns, data transfer, and pricing agreements.
+
+    Provides cost breakdown by category, resource, and region with
+    optimization recommendations.
+
+    This is a Pro+ feature.
 
     \b
     Output formats:
-      console   Rich terminal summary (default)
-      table     Full resource cost table
-      html      Interactive report with charts
-      json/csv  Machine-readable exports
-      markdown  Markdown report
+    - console: Rich terminal output with summary (default)
+    - table: Full table of all resource costs
+    - html: Interactive HTML report with charts
+    - json: Machine-readable JSON
+    - csv: Spreadsheet-compatible CSV
+    - markdown: Markdown report
 
     \b
     Examples:
         replimap cost -r us-east-1
         replimap cost -r us-east-1 --vpc vpc-12345
         replimap cost -r us-east-1 -f html -o cost-report.html
+        replimap cost -r us-east-1 -f json -o costs.json --acknowledge
+
+    \b
+    RI-Aware Pricing:
+        replimap cost -r us-east-1 --ri-aware
         replimap cost -r us-east-1 --ri-aware --show-reservations
     """
     from replimap.cost import CostEstimator, CostReporter

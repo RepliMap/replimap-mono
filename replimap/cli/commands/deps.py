@@ -209,25 +209,31 @@ def deps_command(
     ),
 ) -> None:
     """
-    Explore dependencies for a resource. [Pro+]
+    Explore dependencies for a resource.
 
-    Shows what resources MAY be affected if you modify/delete a resource.
-    Based on AWS API metadata only - always validate before changes.
+    Shows what resources MAY be affected if you modify or delete a resource.
+    This analysis is based on AWS API metadata only.
+
+    IMPORTANT: Application-level dependencies (hardcoded IPs, DNS,
+    config files) are NOT detected. Always validate all dependencies
+    before making infrastructure changes.
+
+    This is a Pro+ feature.
 
     \b
     Output formats:
-      console  Rich terminal summary (default)
-      tree     Tree view of dependencies
-      table    Table of affected resources
-      html     Interactive D3.js report
-      json     Machine-readable JSON
+    - console: Rich terminal output with summary (default)
+    - tree: Tree view of dependencies
+    - table: Table of affected resources
+    - html: Interactive HTML report with D3.js visualization
+    - json: Machine-readable JSON
 
     \b
     Examples:
-        replimap deps sg-12345 -r us-east-1
-        replimap deps vpc-abc123 -r us-east-1 -f tree
+        replimap deps sg-12345 -r us-east-1              # Security group deps
+        replimap deps vpc-abc123 -r us-east-1 -f tree    # Tree view
         replimap deps i-xyz789 -r us-east-1 -f html -o deps.html
-        replimap deps vpc-12345 -r us-east-1 --depth 3
+        replimap deps vpc-12345 -r us-east-1 --depth 3   # Limit depth
     """
     from replimap.dependencies import (
         DISCLAIMER_SHORT,
