@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Score and grade shown in summary table
   - 26 tests in `tests/test_audit_terminal_reporter.py`
 
+- **Improved CLI Help Formatting** - Clean, readable command help output
+  - Uses `\b` markers to preserve example formatting in docstrings
+  - Commands fixed: scan, clone, audit, graph, deps, cost, dr, drift
+  - Before: Examples ran together on one unreadable line
+  - After: Properly indented, grouped examples with section headers
+
 - **Improved Renderer Skip Summary** - Compact output for unsupported resource types
   - Uses Counter for tracking, shows top 5 types with counts
   - Single-line output: "ℹ Skipped 133 resources: type1 (N), type2 (N), +X more types"

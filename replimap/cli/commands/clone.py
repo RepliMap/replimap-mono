@@ -106,22 +106,20 @@ def register(app: typer.Typer) -> None:
         """
         Clone AWS environment to Infrastructure-as-Code.
 
-        The region is determined in this order:
-        1. --region flag (if provided)
-        2. Profile's configured region (from ~/.aws/config)
-        3. AWS_DEFAULT_REGION environment variable
-        4. us-east-1 (fallback)
+        Region is determined in order: --region flag > profile config > env var > us-east-1
 
+        \b
         Output formats:
-        - terraform: Terraform HCL (Free tier and above)
-        - cloudformation: AWS CloudFormation YAML (Solo plan and above)
-        - pulumi: Pulumi Python (Pro plan and above)
+          terraform       Terraform HCL (Free+)
+          cloudformation  AWS CloudFormation YAML (Solo+)
+          pulumi          Pulumi Python (Pro+)
 
+        \b
         Examples:
-            replimap clone --profile prod --mode dry-run
-            replimap clone --profile prod --format terraform --mode generate
-            replimap clone -i  # Interactive mode
-            replimap clone --profile prod --format cloudformation -o ./cfn
+            replimap clone -p prod --mode dry-run
+            replimap clone -p prod -f terraform --mode generate
+            replimap clone -i                    # Interactive mode
+            replimap clone -p prod -f cloudformation -o ./cfn
         """
         from replimap.licensing.gates import FeatureNotAvailableError
         from replimap.renderers import CloudFormationRenderer, PulumiRenderer

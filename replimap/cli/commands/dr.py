@@ -36,12 +36,10 @@ def create_dr_app() -> typer.Typer:
         """
         Disaster Recovery readiness assessment.
 
-        Common options (--profile, --region) can be specified before the subcommand
-        or at the global level (e.g., replimap -p prod dr assess).
-
+        \b
         Examples:
             replimap -p prod dr assess
-            replimap dr -p prod assess
+            replimap dr -p prod assess -t tier_2
             replimap dr -p prod scorecard
         """
         ctx.ensure_object(dict)
