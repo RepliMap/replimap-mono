@@ -26,13 +26,13 @@ ERROR_MESSAGES: dict[str, dict[str, str]] = {
         "title": "Permission Denied",
         "message": "Your IAM credentials lack required permissions.",
         "fix": "Ensure your IAM role has the required policies attached.",
-        "docs": "https://docs.replimap.dev/iam-policy",
+        "docs": "https://docs.replimap.com/iam-policy",
     },
     "AccessDeniedException": {
         "title": "Permission Denied",
         "message": "Your IAM credentials lack required permissions.",
         "fix": "Ensure your IAM role has the required policies attached.",
-        "docs": "https://docs.replimap.dev/iam-policy",
+        "docs": "https://docs.replimap.com/iam-policy",
     },
     "ExpiredToken": {
         "title": "Session Expired",

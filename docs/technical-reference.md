@@ -10,9 +10,9 @@
 [![Tests](https://github.com/RepliMap/replimap/actions/workflows/test.yml/badge.svg)](https://github.com/RepliMap/replimap/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
 
-**AWS Infrastructure Staging Cloner**
+**AWS Infrastructure Intelligence Engine**
 
-> Point at your Production AWS and generate cost-optimized Staging Terraform in minutes.
+> Reverse-engineer AWS infrastructure into Terraform. Visualize dependencies, audit security, estimate costs.
 
 🔒 **Read-only mode** | 📍 **All data stays local** | ⚡ **Minutes, not hours**
 

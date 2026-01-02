@@ -4,8 +4,8 @@
 
 FROM python:3.11-slim
 
-LABEL maintainer="RepliMap Team <team@replimap.dev>"
-LABEL description="AWS Infrastructure Staging Cloner"
+LABEL maintainer="RepliMap Team <team@replimap.com>"
+LABEL description="AWS Infrastructure Intelligence Engine"
 LABEL org.opencontainers.image.source="https://github.com/replimap/replimap"
 
 # Install replimap

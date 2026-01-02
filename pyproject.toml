@@ -10,10 +10,10 @@ readme = "README.md"
 license = {text = "Proprietary"}
 requires-python = ">=3.10"
 authors = [
-    {name = "RepliMap Team", email = "team@replimap.dev"}
+    {name = "RepliMap Team", email = "team@replimap.com"}
 ]
 maintainers = [
-    {name = "RepliMap Team", email = "team@replimap.dev"}
+    {name = "RepliMap Team", email = "team@replimap.com"}
 ]
 keywords = [
     "aws",

@@ -10,12 +10,12 @@ from rich.panel import Panel
 from replimap.cli.utils import console
 
 # Constants
-PRICING_URL = "https://replimap.dev/pricing"
+PRICING_URL = "https://replimap.com/pricing"
 CHECKOUT_URLS = {
-    "solo": "https://replimap.dev/checkout/solo",
-    "pro": "https://replimap.dev/checkout/pro",
-    "team": "https://replimap.dev/checkout/team",
-    "enterprise": "https://replimap.dev/contact",
+    "solo": "https://replimap.com/checkout/solo",
+    "pro": "https://replimap.com/checkout/pro",
+    "team": "https://replimap.com/checkout/team",
+    "enterprise": "https://replimap.com/contact",
 }
 
 
