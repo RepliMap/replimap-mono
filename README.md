@@ -643,6 +643,18 @@ RepliMap is licensed under the [Business Source License 1.1](LICENSE.md).
 
 ---
 
+## 📈 Star History
+
+<a href="https://star-history.com/#RepliMap/replimap&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=RepliMap/replimap&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=RepliMap/replimap&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=RepliMap/replimap&type=Date" />
+ </picture>
+</a>
+
+---
+
 <p align="center">
   <strong>From chaos to clarity. From ClickOps to GitOps.</strong>
 </p>
