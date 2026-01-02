@@ -48,6 +48,7 @@ def trends_command(
 
     Uses AWS Cost Explorer to analyze historical spending patterns.
 
+    \b
     Examples:
         replimap trends
         replimap trends --days 90

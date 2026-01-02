@@ -50,7 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Improved CLI Help Formatting** - Clean, readable command help output
   - Uses `\b` markers to preserve example formatting in docstrings
-  - Commands fixed: scan, clone, audit, graph, deps, cost, dr, drift
+  - All commands fixed: scan, clone, audit, graph, deps, cost, dr, drift,
+    unused, validate, transfer, trends, remediate, load, profiles
   - Before: Examples ran together on one unreadable line
   - After: Properly indented, grouped examples with section headers
 

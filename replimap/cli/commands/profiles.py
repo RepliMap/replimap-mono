@@ -25,6 +25,7 @@ def register(app: typer.Typer) -> None:
 
         Shows all configured AWS profiles from ~/.aws/config and ~/.aws/credentials.
 
+        \b
         Examples:
             replimap profiles
         """

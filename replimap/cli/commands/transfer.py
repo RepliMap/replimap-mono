@@ -57,6 +57,7 @@ def transfer_command(
 
     Identifies costly data transfer patterns.
 
+    \b
     Examples:
         replimap transfer -r us-east-1
         replimap transfer -r us-east-1 -f json -o transfer.json
