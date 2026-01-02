@@ -10,6 +10,7 @@ import logging
 import re
 import shutil
 import subprocess
+from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,8 +18,11 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from replimap.core.models import ResourceType
 from replimap.core.naming import get_variable_name_for_resource, sanitize_name
+from replimap.core.security import SecretScrubber
 
 if TYPE_CHECKING:
+    from rich.console import Console
+
     from replimap.core import GraphEngine
 
 
@@ -106,14 +110,22 @@ class TerraformRenderer:
         ResourceType.SNS_TOPIC: "sns_topic.tf.j2",
     }
 
-    def __init__(self, template_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        template_dir: Path | None = None,
+        scrubber: SecretScrubber | None = None,
+    ) -> None:
         """
         Initialize the renderer.
 
         Args:
             template_dir: Path to Jinja2 templates (defaults to built-in)
+            scrubber: Optional SecretScrubber for detecting and redacting
+                sensitive data in generated Terraform. If not provided,
+                a new instance will be created.
         """
         self.template_dir = template_dir or TEMPLATE_DIR
+        self.scrubber = scrubber or SecretScrubber()
 
         # Initialize Jinja2 environment
         self.env = Environment(
@@ -138,7 +150,7 @@ class TerraformRenderer:
         self._used_names: dict[str, set[str]] = {}
 
         # Track unsupported resource types for summary (instead of per-resource warnings)
-        self._unsupported_types: dict[str, int] = {}
+        self._unsupported_types: Counter[str] = Counter()
 
     def render(self, graph: GraphEngine, output_dir: Path) -> dict[str, Path]:
         """
@@ -155,7 +167,8 @@ class TerraformRenderer:
         logger.info(f"Rendering Terraform to {output_dir}")
 
         # Reset tracking for this render
-        self._unsupported_types = {}
+        self._unsupported_types = Counter()
+        self.scrubber.reset()
 
         # Ensure unique terraform names before rendering
         self._ensure_unique_names(graph)
@@ -171,13 +184,14 @@ class TerraformRenderer:
             if not template_name or not output_file:
                 # Collect unsupported types for summary instead of per-resource warning
                 type_name = str(resource.resource_type)
-                self._unsupported_types[type_name] = (
-                    self._unsupported_types.get(type_name, 0) + 1
-                )
+                self._unsupported_types[type_name] += 1
                 continue
 
             try:
                 template = self.env.get_template(template_name)
+
+                # Scrub sensitive data from resource config before rendering
+                self._scrub_resource(resource)
 
                 # Pre-calculate variable names for Right-Sizer compatibility
                 # This ensures templates use sanitized names (underscores) matching variables.tf
@@ -235,6 +249,50 @@ class TerraformRenderer:
             )
 
         return written_files
+
+    def _scrub_resource(self, resource: object) -> None:
+        """
+        Scrub sensitive data from a resource's config before rendering.
+
+        Modifies the resource.config in-place to redact secrets like
+        AWS keys, passwords, and tokens.
+
+        Args:
+            resource: The resource object to scrub
+        """
+        if not hasattr(resource, "config") or not isinstance(resource.config, dict):
+            return
+
+        context = getattr(resource, "id", "unknown")
+
+        # Scrub user_data (EC2 instances, Launch Templates)
+        if "user_data" in resource.config and resource.config["user_data"]:
+            resource.config["user_data"] = self.scrubber.clean(
+                resource.config["user_data"], f"{context}.user_data"
+            )
+
+        # Scrub environment variables (Lambda functions, ECS tasks)
+        if "environment" in resource.config and isinstance(
+            resource.config["environment"], dict
+        ):
+            resource.config["environment"] = self.scrubber.clean_dict(
+                resource.config["environment"], f"{context}.environment"
+            )
+
+        # Scrub container definitions (ECS)
+        if "container_definitions" in resource.config:
+            container_defs = resource.config["container_definitions"]
+            if isinstance(container_defs, str):
+                resource.config["container_definitions"] = self.scrubber.clean(
+                    container_defs, f"{context}.container_definitions"
+                )
+            elif isinstance(container_defs, list):
+                for i, container in enumerate(container_defs):
+                    if isinstance(container, dict) and "environment" in container:
+                        container["environment"] = self.scrubber.clean_dict(
+                            container["environment"],
+                            f"{context}.container_definitions[{i}].environment",
+                        )
 
     def _ensure_unique_names(self, graph: GraphEngine) -> None:
         """
@@ -307,6 +365,30 @@ class TerraformRenderer:
                 preview[output_file].append(resource.id)
 
         return preview
+
+    def print_summary(self, console: Console) -> None:
+        """
+        Print a summary of skipped resources to the Rich console.
+
+        Call this after render() to display a user-friendly summary of
+        resource types that were skipped due to lack of template support.
+
+        Args:
+            console: Rich Console instance for output
+        """
+        # Handle zero case - don't print anything if nothing was skipped
+        if not self._unsupported_types:
+            return
+
+        total = sum(self._unsupported_types.values())
+        top_types = self._unsupported_types.most_common(5)
+        types_str = ", ".join(f"{rtype} ({count})" for rtype, count in top_types)
+
+        remaining = len(self._unsupported_types) - 5
+        if remaining > 0:
+            types_str += f", +{remaining} more types"
+
+        console.print(f"[dim]ℹ Skipped {total} resources: {types_str}[/dim]")
 
     def _generate_versions(
         self,

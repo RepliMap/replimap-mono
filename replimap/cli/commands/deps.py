@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import webbrowser
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +12,7 @@ from rich.status import Status
 
 from replimap.cli.utils import console, get_aws_session, get_profile_region, logger
 from replimap.core import GraphEngine
+from replimap.core.browser import open_in_browser
 from replimap.scanners.base import run_all_scanners
 
 
@@ -418,8 +418,7 @@ def deps_command(
         reporter.to_html(result, output_path)
         if open_report:
             console.print()
-            console.print("[dim]Opening report in browser...[/dim]")
-            webbrowser.open(f"file://{output_path.absolute()}")
+            open_in_browser(output_path, console=console)
     else:
         # Default: console output (compact by default, verbose shows all)
         reporter.to_console(result, verbose=verbose)
@@ -430,8 +429,7 @@ def deps_command(
             reporter.to_html(result, output)
             if open_report:
                 console.print()
-                console.print("[dim]Opening report in browser...[/dim]")
-                webbrowser.open(f"file://{output.absolute()}")
+                open_in_browser(output, console=console)
         elif output.suffix == ".json":
             reporter.to_json(result, output)
 

@@ -333,6 +333,14 @@ def register(app: typer.Typer) -> None:
                     written = renderer.render(graph, output_dir)
                     progress.update(task, completed=True)
 
+                # Print summary of skipped resource types (if any)
+                if hasattr(renderer, "print_summary"):
+                    renderer.print_summary(console)
+
+                # Print warning about redacted secrets (if any)
+                if hasattr(renderer, "scrubber") and renderer.scrubber.has_findings():
+                    renderer.scrubber.print_warnings(console)
+
                 console.print(
                     Panel(
                         f"[green]Generated {len(written)} files[/] "

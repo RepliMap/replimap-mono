@@ -62,6 +62,30 @@ RepliMap stores minimal data locally in `~/.replimap/`:
 
 ## Sensitive Data Protection
 
+### Secret Scrubber
+
+RepliMap includes a SecretScrubber that automatically detects and redacts sensitive data in generated Terraform code:
+
+```python
+# Detected patterns (automatically redacted):
+- AWS Access Key IDs (AKIA*, ASIA* for STS)
+- AWS Secret Access Keys
+- Private Keys (RSA, EC, DSA, OpenSSH)
+- Database URLs with embedded passwords
+- Bearer tokens, GitHub/Slack/Stripe tokens
+- Generic secrets (password=, api_key=, etc.)
+```
+
+When secrets are detected during `replimap clone`, you'll see:
+
+```
+⚠️  Sensitive Data Redacted:
+   • AWS Access Key ID: 2
+   • Generic Secret: 3
+
+Review generated files. Use Terraform variables for secrets.
+```
+
 ### Automatic Sanitization
 
 The sanitization transformer automatically removes sensitive data:

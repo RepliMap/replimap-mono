@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import webbrowser
 from pathlib import Path
 
 import typer
@@ -13,6 +12,7 @@ from rich.table import Table
 
 from replimap.cli.utils import console, get_aws_session, get_profile_region, logger
 from replimap.core import GraphEngine
+from replimap.core.browser import open_in_browser
 from replimap.scanners.base import run_all_scanners
 
 
@@ -310,8 +310,7 @@ def cost_command(
             reporter.to_html(estimate, output_path)
             if open_report:
                 console.print()
-                console.print("[dim]Opening report in browser...[/dim]")
-                webbrowser.open(f"file://{output_path.absolute()}")
+                open_in_browser(output_path, console=console)
     elif output_format in ("md", "markdown"):
         output_path = output or Path("./cost-estimate.md")
         if confirm_export():
@@ -330,8 +329,7 @@ def cost_command(
             reporter.to_html(estimate, output)
             if open_report:
                 console.print()
-                console.print("[dim]Opening report in browser...[/dim]")
-                webbrowser.open(f"file://{output.absolute()}")
+                open_in_browser(output, console=console)
         elif output.suffix == ".json":
             reporter.to_json(estimate, output)
         elif output.suffix == ".csv":
