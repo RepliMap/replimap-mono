@@ -1,6 +1,8 @@
+<!--
 <p align="center">
-  <img src="docs/assets/replimap-logo.png" alt="RepliMap Logo" width="120" />
+  <img src="docs/assets/logo.png" alt="RepliMap Logo" width="120" />
 </p>
+-->
 
 <h1 align="center">RepliMap</h1>
 
@@ -23,14 +25,13 @@
 <p align="center">
   <img src="https://img.shields.io/pypi/v/replimap?color=blue&label=PyPI" alt="PyPI" />
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+" />
-  <img src="https://img.shields.io/github/actions/workflow/status/RepliMap/replimap/test.yml?label=build" alt="Build" />
+  <img src="https://img.shields.io/github/actions/workflow/status/RepliMap/replimap/auto-release.yml?label=build" alt="Build" />
   <img src="https://img.shields.io/badge/license-BSL--1.1-green.svg" alt="License" />
 </p>
 
-<!-- TODO: Add terminal GIF here -->
-<!-- <p align="center">
-  <img src="docs/assets/replimap-demo.gif" alt="RepliMap Demo" width="700" />
-</p> -->
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="RepliMap Demo" width="700" />
+</p>
 
 ---
 
@@ -67,7 +68,7 @@ Sound familiar?
 
 ---
 
-## ✨ Features
+## Features
 
 ### 🔍 Scan & Understand
 
@@ -177,11 +178,6 @@ replimap -p prod -r us-east-1 cost
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-<!-- TODO: Add HTML cost report screenshot -->
-<!-- <p align="center">
-  <img src="docs/assets/cost-report-screenshot.png" alt="Cost Report" width="700" />
-</p> -->
-
 ### ✅ Audit Compliance
 
 **Find compliance gaps before your auditor does.**
@@ -246,7 +242,7 @@ Drift detected in 3 resources:
 
 ---
 
-## 🎯 Use Cases
+## Use Cases
 
 ### 🚀 Startup Scale-Up
 
@@ -299,7 +295,7 @@ Clone your entire infrastructure to a DR region with one command. All dependenci
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -549,7 +545,7 @@ The **Graph Engine** is the secret sauce: it transforms discrete cloud resources
 - ✅ 5 team seats
 - ✅ Priority support
 
-[View full pricing →](https://replimap.dev/pricing)
+[View full pricing →](https://replimap.com/pricing)
 
 ---
 
@@ -594,14 +590,14 @@ pip install replimap && replimap -r us-east-1 scan
 Run your first scan in 2 minutes. See what you've been missing.
 
 <p align="center">
-  <a href="https://replimap.dev/pricing"><strong>Get Pro License →</strong></a>
+  <a href="https://replimap.com/pricing"><strong>Get Pro License →</strong></a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
   <a href="https://cal.com/replimap/demo"><strong>Book a Demo →</strong></a>
 </p>
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 - [Installation Guide](docs/installation.md)
 - [Quick Start Tutorial](docs/quickstart.md)
@@ -613,10 +609,10 @@ Run your first scan in 2 minutes. See what you've been missing.
 
 ## 💬 Support
 
-- 📖 [Documentation](https://docs.replimap.dev)
+- 📖 [Documentation](https://docs.replimap.com)
 - 💬 [GitHub Discussions](https://github.com/RepliMap/replimap/discussions)
 - 🐛 [Issue Tracker](https://github.com/RepliMap/replimap/issues)
-- 📧 [Email Support](mailto:support@replimap.dev)
+- 📧 [Email Support](mailto:support@replimap.com)
 
 ---
 
@@ -639,7 +635,7 @@ RepliMap is licensed under the [Business Source License 1.1](LICENSE.md).
 - 🔍 Impact analysis (`deps`) — "What breaks if I delete this?"
 - 💵 Cost reports export (HTML/CSV/JSON)
 
-[View full pricing →](https://replimap.dev/pricing)
+[View full pricing →](https://replimap.com/pricing)
 
 ---
 
@@ -660,8 +656,8 @@ RepliMap is licensed under the [Business Source License 1.1](LICENSE.md).
 </p>
 
 <p align="center">
-  <a href="https://replimap.dev">Website</a> •
-  <a href="https://docs.replimap.dev">Docs</a> •
+  <a href="https://replimap.com">Website</a> •
+  <a href="https://docs.replimap.com">Docs</a> •
   <a href="https://twitter.com/replimap">Twitter</a>
 </p>
 
