@@ -38,6 +38,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fallback shows manual instructions with Windows path for WSL users
   - 17 tests in `tests/test_browser.py`
 
+- **Audit Concise Summary** - Compact audit output instead of 1000+ lines of findings
+  - `replimap/audit/terminal_reporter.py` - New terminal reporter module
+  - Default: Summary table + top 5 critical/high issues (~30 lines)
+  - `--verbose` / `-V` flag for full findings output
+  - Only FAILED checks counted (filters out PASSED)
+  - Severity normalization (handles None/unknown)
+  - Resource name truncation (prevents line overflow)
+  - Score and grade shown in summary table
+  - 26 tests in `tests/test_audit_terminal_reporter.py`
+
 - **Improved Renderer Skip Summary** - Compact output for unsupported resource types
   - Uses Counter for tracking, shows top 5 types with counts
   - Single-line output: "ℹ Skipped 133 resources: type1 (N), type2 (N), +X more types"

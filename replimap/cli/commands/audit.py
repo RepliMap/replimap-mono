@@ -11,6 +11,7 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from replimap.audit.terminal_reporter import print_audit_summary
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core.browser import open_in_browser
 from replimap.licensing import check_audit_ci_mode_allowed, check_audit_fix_allowed
@@ -282,6 +283,12 @@ def audit_command(
         "--fix-output",
         help="Directory for remediation Terraform files",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-V",
+        help="Show all findings in terminal (default: summary only)",
+    ),
 ) -> None:
     """
     Run security audit on AWS infrastructure.
@@ -449,17 +456,22 @@ def audit_command(
         console.print(f"[green]✓ JSON Report:[/] {json_path.absolute()}")
         console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
     else:
-        # Display results with FOMO design
-        # This shows ALL issue titles (even for FREE users)
-        # First CRITICAL gets 2-line remediation preview
-        # Remaining remediation details are gated by plan
+        # Display results based on verbosity
         console.print()
-        print_audit_findings_fomo(results, console_out=console)
+        if verbose:
+            # Verbose mode: Show all findings with FOMO design
+            # This shows ALL issue titles (even for FREE users)
+            # First CRITICAL gets 2-line remediation preview
+            # Remaining remediation details are gated by plan
+            print_audit_findings_fomo(results, console_out=console)
+        else:
+            # Default: Compact summary + top 5 critical issues
+            print_audit_summary(results, console, verbose=False)
 
         # Output paths
         console.print()
-        console.print(f"[green]✓ Report:[/] {report_path.absolute()}")
-        console.print(f"[green]✓ Terraform:[/] {terraform_dir.absolute()}")
+        console.print(f"[green]\u2713 Report:[/] {report_path.absolute()}")
+        console.print(f"[green]\u2713 Terraform:[/] {terraform_dir.absolute()}")
 
         # Open report in browser (only for HTML format)
         if open_report:
