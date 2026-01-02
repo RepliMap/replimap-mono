@@ -50,7 +50,9 @@ dmypy.json
 # Generated outputs (can be regenerated with `replimap clone`)
 terraform/
 staging-tf/
+audit_output/
 !templates/*.j2
+*.html
 
 # Terraform
 .terraform/
