@@ -76,7 +76,7 @@ def print_next_steps() -> None:
     """Print suggested next steps after a scan."""
     from replimap.cli.utils.tips import show_random_tip
 
-    next_steps = """[bold]replimap graph[/]      Visualize infrastructure dependencies
+    next_steps = """[bold]replimap graph[/]     Visualize infrastructure dependencies
 [bold]replimap audit[/]     Check for security and cost issues
 [bold]replimap clone[/]     Generate Terraform for staging environment
 [bold]replimap deps[/]      Explore resource dependencies"""
