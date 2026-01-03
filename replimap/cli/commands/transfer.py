@@ -55,8 +55,10 @@ def transfer_command(
     """
     Analyze data transfer costs and optimization opportunities.
 
+    \b
     Identifies costly data transfer patterns.
 
+    \b
     Examples:
         replimap transfer -r us-east-1
         replimap transfer -r us-east-1 -f json -o transfer.json

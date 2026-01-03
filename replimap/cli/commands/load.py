@@ -27,6 +27,7 @@ def register(app: typer.Typer) -> None:
         """
         Load and display a saved graph.
 
+        \b
         Examples:
             replimap load graph.json
         """

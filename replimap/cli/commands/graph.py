@@ -89,18 +89,22 @@ def graph_command(
     """
     Generate visual dependency graph of AWS infrastructure.
 
+    \b
     Scans your AWS environment and generates an interactive visualization
     showing resources and their dependencies.
 
+    \b
     By default, the graph is simplified for readability:
     - Noisy resources (SG rules, routes) are hidden
     - Large groups of similar resources are collapsed
 
+    \b
     Output formats:
     - html: Interactive D3.js force-directed graph (default)
     - mermaid: Mermaid diagram syntax for documentation
     - json: Raw JSON data for integration
 
+    \b
     Examples:
         replimap graph --region us-east-1
         replimap graph -p prod -r us-west-2 -v vpc-abc123

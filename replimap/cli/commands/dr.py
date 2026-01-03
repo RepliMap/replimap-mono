@@ -39,6 +39,7 @@ def create_dr_app() -> typer.Typer:
         Common options (--profile, --region) can be specified before the subcommand
         or at the global level (e.g., replimap -p prod dr assess).
 
+        \b
         Examples:
             replimap -p prod dr assess
             replimap dr -p prod assess

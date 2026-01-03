@@ -69,9 +69,11 @@ def unused_command(
     """
     Detect unused and underutilized AWS resources.
 
+    \b
     Identifies resources that may be candidates for termination
     or optimization to reduce costs.
 
+    \b
     Examples:
         replimap unused -r us-east-1
         replimap unused -r us-east-1 --confidence high

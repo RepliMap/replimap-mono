@@ -90,33 +90,28 @@ def drift_command(
     """
     Detect infrastructure drift between Terraform state and AWS.
 
+    \b
     Compares your Terraform state file against the actual AWS resources
     to identify changes made outside of Terraform (console, CLI, etc).
 
+    \b
     State Sources:
     - Local file: --state ./terraform.tfstate
     - S3 remote: --state-bucket my-bucket --state-key path/terraform.tfstate
 
+    \b
     Output formats:
     - console: Rich terminal output (default)
     - html: Professional HTML report
     - json: Machine-readable JSON
 
+    \b
     Examples:
-        # Local state file
         replimap drift -r us-east-1 -s ./terraform.tfstate
-
-        # Remote S3 state
-        replimap drift -r us-east-1 --state-bucket my-tf-state --state-key prod/terraform.tfstate
-
-        # Generate HTML report
-        replimap drift -r us-east-1 -s ./terraform.tfstate -f html -o drift-report.html
-
-        # CI/CD mode - fail on any drift
-        replimap drift -r us-east-1 -s ./terraform.tfstate --fail-on-drift --no-open
-
-        # CI/CD mode - fail only on high severity
-        replimap drift -r us-east-1 -s ./terraform.tfstate --fail-on-high --no-open
+        replimap drift -r us-east-1 --state-bucket my-bucket --state-key prod/tf.tfstate
+        replimap drift -r us-east-1 -s ./tf.tfstate -f html -o report.html
+        replimap drift -r us-east-1 -s ./tf.tfstate --fail-on-drift --no-open
+        replimap drift -r us-east-1 -s ./tf.tfstate --fail-on-high --no-open
     """
     from replimap.drift import DriftEngine, DriftReporter
 
