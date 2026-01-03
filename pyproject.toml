@@ -5,15 +5,15 @@ build-backend = "hatchling.build"
 [project]
 name = "replimap"
 dynamic = ["version"]
-description = "AWS Environment Replication Tool - Clone production to staging in minutes"
+description = "AWS Infrastructure Intelligence Engine — Scan, Understand, Transform"
 readme = "README.md"
 license = {text = "Proprietary"}
 requires-python = ">=3.10"
 authors = [
-    {name = "RepliMap Team", email = "team@replimap.com"}
+    {name = "David Lu", email = "david@replimap.com"}
 ]
 maintainers = [
-    {name = "RepliMap Team", email = "team@replimap.com"}
+    {name = "David Lu", email = "david@replimap.com"}
 ]
 keywords = [
     "aws",
@@ -77,10 +77,11 @@ dev = [
 replimap = "replimap.main:main"
 
 [project.urls]
-Homepage = "https://github.com/RepliMap/replimap"
-Documentation = "https://github.com/RepliMap/replimap#readme"
-Repository = "https://github.com/RepliMap/replimap.git"
+Homepage = "https://replimap.com"
+Documentation = "https://replimap.com/docs"
+Repository = "https://github.com/RepliMap/replimap"
 Issues = "https://github.com/RepliMap/replimap/issues"
+Changelog = "https://github.com/RepliMap/replimap/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["replimap"]

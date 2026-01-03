@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from rich.panel import Panel
 
 from replimap.cli.utils.console import console
+from replimap.core.constants import EMAIL_SUPPORT, URL_ISSUES
 
 if TYPE_CHECKING:
     pass
@@ -226,8 +227,11 @@ def handle_generic_error(error: Exception, debug: bool = False) -> None:
     """
     content = "[bold red]Unexpected Error[/bold red]\n\n"
     content += f"{type(error).__name__}: {error}\n\n"
-    content += "[bold]Fix:[/bold] Please report this issue at:\n"
-    content += "   https://github.com/RepliMap/replimap/issues"
+    content += (
+        f"[bold]Need help?[/bold] "
+        f"[link=mailto:{EMAIL_SUPPORT}]{EMAIL_SUPPORT}[/link] or "
+        f"[link={URL_ISSUES}]open an issue[/link]"
+    )
 
     console.print()
     console.print(Panel(content, title="[red]Error[/red]", border_style="red"))

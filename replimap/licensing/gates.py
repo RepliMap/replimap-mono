@@ -231,7 +231,7 @@ def get_upgrade_prompt(feature: Feature, current_plan: Plan) -> str:
 
     return (
         f"'{feature.value}' requires {required_plan.value} plan (${price}/month).\n"
-        f"Upgrade at: https://replimap.io/upgrade"
+        f"Upgrade at: https://replimap.com/pricing"
     )
 
 

@@ -10,6 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from replimap.core.constants import EMAIL_GENERAL, URL_DOCS, URL_REPO
+
 if TYPE_CHECKING:
     from rich.console import Console
 
@@ -44,6 +46,8 @@ def check_and_show_first_run_message(console: Console) -> None:
         "• No data is sent to external servers\n"
         "• No telemetry or analytics\n"
         "• Your AWS credentials never leave your computer\n\n"
+        f"[dim]Questions? [link=mailto:{EMAIL_GENERAL}]{EMAIL_GENERAL}[/link][/dim]\n"
+        f"[dim]Docs: [link={URL_DOCS}]{URL_DOCS}[/link][/dim]\n\n"
         "[dim]This message appears once. "
         "Run 'replimap --privacy' for details anytime.[/dim]"
     )
@@ -76,7 +80,7 @@ def show_privacy_info(console: Console) -> None:
         "• [bold]No Cloud:[/bold] Your infrastructure data never leaves your computer\n"
         "• [bold]Credentials:[/bold] AWS credentials are only used locally via boto3\n"
         "• [bold]Cache:[/bold] Scan results stored in ~/.replimap/cache/ (local only)\n\n"
-        "[dim]Source code: https://github.com/RepliMap/replimap[/dim]"
+        f"[dim]Source code: [link={URL_REPO}]{URL_REPO}[/link][/dim]"
     )
     console.print(Panel(message, title="RepliMap Privacy", border_style="green"))
 

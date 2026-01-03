@@ -458,7 +458,7 @@ def register(app: typer.Typer) -> None:
                     Panel(
                         f"[red]Feature not available:[/] {e}\n\n"
                         f"Upgrade your plan to use {format_name} output:\n"
-                        f"[bold]https://replimap.io/upgrade[/]",
+                        f"[bold]https://replimap.com/pricing[/]",
                         title="Upgrade Required",
                         border_style="red",
                     )

@@ -4,9 +4,9 @@
 
 FROM python:3.11-slim
 
-LABEL maintainer="RepliMap Team <team@replimap.com>"
+LABEL maintainer="David Lu <david@replimap.com>"
 LABEL description="AWS Infrastructure Intelligence Engine"
-LABEL org.opencontainers.image.source="https://github.com/replimap/replimap"
+LABEL org.opencontainers.image.source="https://github.com/RepliMap/replimap"
 
 # Install replimap
 RUN pip install --no-cache-dir replimap

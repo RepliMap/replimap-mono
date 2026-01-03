@@ -137,17 +137,17 @@ arn:aws:ec2:us-east-1:${var.aws_account_id}:vpc/vpc-abc123
 
 If you discover a security vulnerability, please report it responsibly:
 
-1. **Email**: security@replimap.io
-2. **Subject**: `[SECURITY] Brief description`
-3. **Include**:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Any suggested fixes
+**Email**: [support@replimap.com](mailto:support@replimap.com)
+
+Please include:
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Any suggested fixes
 
 ### Response Timeline
 
-- **Acknowledgment**: Within 24 hours
+- **Acknowledgment**: Within 48 hours
 - **Initial Assessment**: Within 72 hours
 - **Fix Timeline**: Depends on severity
   - Critical: 24-48 hours
@@ -215,9 +215,9 @@ replimap license usage
 
 ## Contact
 
-- **Security Issues**: security@replimap.io
-- **General Support**: support@replimap.io
-- **GitHub Issues**: https://github.com/replimap/replimap/issues
+- **Security Issues**: [support@replimap.com](mailto:support@replimap.com)
+- **General Support**: [hello@replimap.com](mailto:hello@replimap.com)
+- **GitHub Issues**: [github.com/RepliMap/replimap/issues](https://github.com/RepliMap/replimap/issues)
 
 ## Version History
 
