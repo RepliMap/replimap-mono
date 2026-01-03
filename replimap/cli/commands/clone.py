@@ -106,6 +106,7 @@ def register(app: typer.Typer) -> None:
         """
         Clone AWS environment to Infrastructure-as-Code.
 
+        \b
         The region is determined in this order:
         1. --region flag (if provided)
         2. Profile's configured region (from ~/.aws/config)

@@ -165,6 +165,7 @@ def register(app: typer.Typer) -> None:
         """
         Scan AWS resources and build dependency graph.
 
+        \b
         The region is determined in this order:
         1. --region flag (if provided)
         2. Profile's configured region (from ~/.aws/config)
