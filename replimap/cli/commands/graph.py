@@ -89,9 +89,11 @@ def graph_command(
     """
     Generate visual dependency graph of AWS infrastructure.
 
+    \b
     Scans your AWS environment and generates an interactive visualization
     showing resources and their dependencies.
 
+    \b
     By default, the graph is simplified for readability:
     - Noisy resources (SG rules, routes) are hidden
     - Large groups of similar resources are collapsed

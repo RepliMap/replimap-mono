@@ -211,13 +211,16 @@ def deps_command(
     """
     Explore dependencies for a resource.
 
+    \b
     Shows what resources MAY be affected if you modify or delete a resource.
     This analysis is based on AWS API metadata only.
 
+    \b
     IMPORTANT: Application-level dependencies (hardcoded IPs, DNS,
     config files) are NOT detected. Always validate all dependencies
     before making infrastructure changes.
 
+    \b
     This is a Pro+ feature.
 
     \b

@@ -55,6 +55,7 @@ def transfer_command(
     """
     Analyze data transfer costs and optimization opportunities.
 
+    \b
     Identifies costly data transfer patterns.
 
     \b

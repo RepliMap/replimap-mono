@@ -59,6 +59,7 @@ def validate_command(
     """
     Validate infrastructure against topology constraints.
 
+    \b
     Checks your AWS infrastructure against policy rules defined in a
     constraints YAML file. Perfect for enforcing security policies,
     tagging standards, and architectural patterns.

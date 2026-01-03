@@ -46,6 +46,7 @@ def trends_command(
     """
     Analyze AWS cost trends and detect anomalies.
 
+    \b
     Uses AWS Cost Explorer to analyze historical spending patterns.
 
     \b

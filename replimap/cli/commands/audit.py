@@ -293,10 +293,12 @@ def audit_command(
     """
     Run security audit on AWS infrastructure.
 
+    \b
     Scans your AWS environment, generates a forensic Terraform snapshot,
     runs Checkov security analysis, and produces an HTML report with
     findings mapped to SOC2 controls.
 
+    \b
     Requires Checkov to be installed: pip install checkov
 
     \b

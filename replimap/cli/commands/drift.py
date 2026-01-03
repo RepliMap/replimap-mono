@@ -90,6 +90,7 @@ def drift_command(
     """
     Detect infrastructure drift between Terraform state and AWS.
 
+    \b
     Compares your Terraform state file against the actual AWS resources
     to identify changes made outside of Terraform (console, CLI, etc).
 

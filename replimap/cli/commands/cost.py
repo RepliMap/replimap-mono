@@ -84,13 +84,13 @@ def cost_command(
     """
     Estimate monthly AWS costs for your infrastructure.
 
+    \b
     IMPORTANT: These are rough estimates only. Actual AWS costs may differ
     by 20-40% depending on usage patterns, data transfer, and pricing agreements.
 
+    \b
     Provides cost breakdown by category, resource, and region with
-    optimization recommendations.
-
-    This is a Pro+ feature.
+    optimization recommendations. This is a Pro+ feature.
 
     \b
     Output formats:
