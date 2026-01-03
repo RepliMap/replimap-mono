@@ -607,12 +607,21 @@ Run your first scan in 2 minutes. See what you've been missing.
 
 ---
 
-## 💬 Support
+## Support & Contact
 
-- 📖 [Documentation](https://docs.replimap.com)
-- 💬 [GitHub Discussions](https://github.com/RepliMap/replimap/discussions)
-- 🐛 [Issue Tracker](https://github.com/RepliMap/replimap/issues)
-- 📧 [Email Support](mailto:support@replimap.com)
+| Purpose | Contact |
+|---------|---------|
+| General inquiries | [hello@replimap.com](mailto:hello@replimap.com) |
+| Technical support | [support@replimap.com](mailto:support@replimap.com) |
+| Enterprise & Sales | [david@replimap.com](mailto:david@replimap.com) |
+| Bug reports | [GitHub Issues](https://github.com/RepliMap/replimap/issues) |
+| Discussions | [GitHub Discussions](https://github.com/RepliMap/replimap/discussions) |
+
+## Links
+
+- Website: [replimap.com](https://replimap.com)
+- Documentation: [replimap.com/docs](https://replimap.com/docs)
+- Pricing: [replimap.com/pricing](https://replimap.com/pricing)
 
 ---
 

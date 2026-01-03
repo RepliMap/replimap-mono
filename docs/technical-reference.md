@@ -2052,9 +2052,9 @@ tracer.export_summary()  # Creates summary.json
 
 ## Support
 
-- **Documentation**: [https://docs.replimap.io](https://docs.replimap.io)
-- **Issues**: [GitHub Issues](https://github.com/replimap/replimap/issues)
-- **Email**: support@replimap.io
+- **Documentation**: [replimap.com/docs](https://replimap.com/docs)
+- **Issues**: [GitHub Issues](https://github.com/RepliMap/replimap/issues)
+- **Email**: [support@replimap.com](mailto:support@replimap.com)
 
 ## License
 

@@ -81,7 +81,7 @@ def validate_command(
     # Handle generate-defaults
     if generate_defaults:
         default_constraints = """# RepliMap Topology Constraints
-# See: https://docs.replimap.io/topology-constraints
+# See: https://replimap.com/docs/topology-constraints
 
 version: "1.0"
 

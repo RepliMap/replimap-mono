@@ -166,5 +166,5 @@ replimap scan --profile replimap --region eu-west-1
 
 ## Questions?
 
-- Open an issue on [GitHub](https://github.com/replimap/replimap/issues)
-- Email: support@replimap.io
+- Open an issue on [GitHub](https://github.com/RepliMap/replimap/issues)
+- Email: [support@replimap.com](mailto:support@replimap.com)
