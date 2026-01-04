@@ -23,10 +23,16 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/pypi/v/replimap?color=blue&label=PyPI" alt="PyPI" />
+  <a href="https://pypi.org/project/replimap/">
+    <img src="https://img.shields.io/pypi/v/replimap?color=blue&label=PyPI" alt="PyPI" />
+  </a>
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+" />
-  <img src="https://img.shields.io/github/actions/workflow/status/RepliMap/replimap/auto-release.yml?label=build" alt="Build" />
-  <img src="https://img.shields.io/badge/license-BSL--1.1-green.svg" alt="License" />
+  <a href="https://github.com/RepliMap/replimap/actions/workflows/auto-release.yml">
+    <img src="https://github.com/RepliMap/replimap/actions/workflows/auto-release.yml/badge.svg?branch=main" alt="Build" />
+  </a>
+  <a href="https://github.com/RepliMap/replimap/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-BSL--1.1-green.svg" alt="License" />
+  </a>
 </p>
 
 <p align="center">
