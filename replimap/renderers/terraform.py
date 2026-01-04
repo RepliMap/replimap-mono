@@ -236,6 +236,9 @@ class TerraformRenderer:
         self._generate_variables(graph, output_dir, written_files, all_rendered_content)
         self._generate_outputs(graph, output_dir, written_files)
 
+        # Generate Terraform 1.5+ import blocks
+        self._generate_imports(graph, output_dir, written_files)
+
         # Run terraform fmt to ensure consistent formatting
         self._run_terraform_fmt(output_dir)
 
@@ -1201,6 +1204,93 @@ locals {
 
         # Generate terraform.tfvars.example
         self._generate_tfvars_example(graph, output_dir, written_files)
+
+    def _generate_imports(
+        self,
+        graph: GraphEngine,
+        output_dir: Path,
+        written_files: dict[str, Path],
+    ) -> None:
+        """
+        Generate imports.tf with Terraform 1.5+ import blocks.
+
+        Import blocks allow Terraform to adopt existing AWS resources
+        without requiring manual `terraform import` commands.
+
+        Each scanned resource gets an import block mapping its
+        Terraform address to its AWS resource ID.
+        """
+        from replimap.renderers.import_generator import ImportBlockGenerator, ImportMapping
+
+        generator = ImportBlockGenerator()
+        mappings: list[ImportMapping] = []
+
+        # Create import mappings for all supported resources
+        for resource in graph.iter_resources():
+            # Skip resources we don't have templates for
+            if resource.resource_type not in self.TEMPLATE_MAPPING:
+                continue
+
+            # Get the Terraform resource type
+            tf_type = resource.resource_type.value
+            tf_name = resource.terraform_name
+
+            if not tf_name:
+                continue
+
+            # Build attributes dict for import ID resolution
+            attributes = {
+                "id": resource.id,
+                "name": resource.original_name or resource.terraform_name,
+            }
+
+            # Add resource-specific attributes
+            if resource.config:
+                # S3
+                if "bucket" in resource.config:
+                    attributes["bucket"] = resource.config["bucket"]
+                # RDS
+                if "db_instance_identifier" in resource.config:
+                    attributes["identifier"] = resource.config["db_instance_identifier"]
+                # EIP
+                if "allocation_id" in resource.config:
+                    attributes["allocation_id"] = resource.config["allocation_id"]
+                # ARN
+                if "arn" in resource.config:
+                    attributes["arn"] = resource.config["arn"]
+                # SQS
+                if "queue_url" in resource.config:
+                    attributes["url"] = resource.config["queue_url"]
+                # Key pair
+                if "key_name" in resource.config:
+                    attributes["key_name"] = resource.config["key_name"]
+
+            # Add ARN from resource if available
+            if resource.arn:
+                attributes["arn"] = resource.arn
+
+            # Create the import mapping
+            terraform_address = f"{tf_type}.{tf_name}"
+            mapping = ImportMapping(
+                terraform_address=terraform_address,
+                aws_id=resource.id,
+                resource_type=tf_type,
+                attributes=attributes,
+            )
+            mappings.append(mapping)
+
+        # Generate imports.tf if we have any mappings
+        if mappings:
+            imports_path = output_dir / "imports.tf"
+            generator.generate_import_file(mappings, imports_path)
+            written_files["imports.tf"] = imports_path
+            logger.info(f"Wrote imports.tf ({len(mappings)} import blocks)")
+
+            # Also generate legacy import script for TF < 1.5 compatibility
+            script_path = output_dir / "import.sh"
+            generator.generate_import_script(mappings, script_path)
+            written_files["import.sh"] = script_path
+            logger.info("Wrote import.sh (legacy import script)")
 
     def _generate_tfvars_example(
         self,

@@ -102,6 +102,38 @@ def register(app: typer.Typer) -> None:
             "--dev-strategy",
             help="Right-Sizer strategy: 'conservative' (default) or 'aggressive'",
         ),
+        # Backend options
+        backend: str = typer.Option(
+            "local",
+            "--backend",
+            "-b",
+            help="Terraform backend type: 'local' (default) or 's3'",
+        ),
+        backend_bucket: str | None = typer.Option(
+            None,
+            "--backend-bucket",
+            help="S3 bucket for state (required if --backend=s3)",
+        ),
+        backend_key: str = typer.Option(
+            "replimap/terraform.tfstate",
+            "--backend-key",
+            help="S3 key for state file",
+        ),
+        backend_region: str | None = typer.Option(
+            None,
+            "--backend-region",
+            help="S3 bucket region (defaults to scan region)",
+        ),
+        backend_dynamodb: str | None = typer.Option(
+            None,
+            "--backend-dynamodb",
+            help="DynamoDB table for state locking",
+        ),
+        backend_bootstrap: bool = typer.Option(
+            False,
+            "--backend-bootstrap",
+            help="Generate bootstrap Terraform to create S3 backend infrastructure",
+        ),
     ) -> None:
         """
         Clone AWS environment to Infrastructure-as-Code.
@@ -120,11 +152,31 @@ def register(app: typer.Typer) -> None:
         - pulumi: Pulumi Python (Pro plan and above)
 
         \b
+        Backend types (Terraform only):
+        - local: State stored locally (default)
+        - s3: State stored in S3 for team collaboration
+
+        \b
         Examples:
             replimap clone --profile prod --mode dry-run
             replimap clone --profile prod --format terraform --mode generate
             replimap clone -i  # Interactive mode
             replimap clone --profile prod --format cloudformation -o ./cfn
+
+        \b
+        S3 Backend Examples:
+            # With S3 backend
+            replimap clone -p prod -o ./terraform --mode generate \\
+                --backend s3 --backend-bucket my-terraform-state
+
+            # With DynamoDB locking (recommended for teams)
+            replimap clone -p prod -o ./terraform --mode generate \\
+                --backend s3 --backend-bucket my-state \\
+                --backend-dynamodb terraform-locks
+
+            # Generate bootstrap to create S3 backend infrastructure
+            replimap clone -p prod -o ./terraform --mode generate \\
+                --backend s3 --backend-bucket my-state --backend-bootstrap
         """
         from replimap.licensing.gates import FeatureNotAvailableError
         from replimap.renderers import CloudFormationRenderer, PulumiRenderer
@@ -171,6 +223,29 @@ def register(app: typer.Typer) -> None:
                 f"Use one of: {', '.join(valid_formats)}"
             )
             raise typer.Exit(1)
+
+        # Validate backend options
+        valid_backends = ("local", "s3")
+        if backend not in valid_backends:
+            console.print(
+                f"[red]Error:[/] Invalid backend '{backend}'. "
+                f"Use one of: {', '.join(valid_backends)}"
+            )
+            raise typer.Exit(1)
+
+        if backend == "s3" and not backend_bucket:
+            console.print(
+                "[red]Error:[/] --backend-bucket is required when using S3 backend"
+            )
+            raise typer.Exit(1)
+
+        # Backend is only applicable for Terraform format
+        if backend == "s3" and output_format != "terraform":
+            console.print(
+                f"[yellow]Warning:[/] Backend options only apply to Terraform format. "
+                f"Ignoring --backend for {output_format}."
+            )
+            backend = "local"
 
         if interactive:
             console.print(f"\n[dim]Current format: {output_format}[/]")
@@ -351,6 +426,60 @@ def register(app: typer.Typer) -> None:
                         border_style="green",
                     )
                 )
+
+                # BACKEND GENERATION (After Terraform files, before Right-Sizer)
+                if output_format == "terraform":
+                    from replimap.renderers.backend import (
+                        BackendGenerator,
+                        LocalBackendConfig,
+                        S3BackendConfig,
+                    )
+
+                    backend_generator = BackendGenerator()
+
+                    if backend == "s3":
+                        s3_config = S3BackendConfig(
+                            bucket=backend_bucket,  # type: ignore[arg-type]
+                            key=backend_key,
+                            region=backend_region or effective_region,
+                            encrypt=True,
+                            dynamodb_table=backend_dynamodb,
+                        )
+
+                        # Generate backend.tf
+                        backend_file = backend_generator.generate_s3_backend(
+                            s3_config, output_dir
+                        )
+                        console.print(
+                            f"[green]✓ Generated S3 backend:[/] {backend_file}"
+                        )
+
+                        # Generate bootstrap if requested
+                        if backend_bootstrap:
+                            bootstrap_file = backend_generator.generate_backend_bootstrap(
+                                s3_config, output_dir
+                            )
+                            console.print(
+                                f"[green]✓ Generated backend bootstrap:[/] {bootstrap_file}"
+                            )
+                            console.print()
+                            console.print(
+                                "[yellow]To create the backend infrastructure:[/]"
+                            )
+                            console.print(f"  cd {output_dir}/bootstrap")
+                            console.print("  terraform init")
+                            console.print("  terraform apply")
+                            console.print()
+
+                    else:
+                        # Local backend (explicit generation is optional)
+                        local_config = LocalBackendConfig()
+                        backend_file = backend_generator.generate_local_backend(
+                            local_config, output_dir
+                        )
+                        console.print(
+                            f"[dim]Using local backend: {backend_file}[/dim]"
+                        )
 
                 # RIGHT-SIZER INTEGRATION (After Terraform generation)
                 if dev_mode and output_format == "terraform":

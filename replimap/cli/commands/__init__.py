@@ -20,6 +20,7 @@ from replimap.cli.commands import (
     audit,
     cache,
     clone,
+    completion,
     cost,
     deps,
     dr,
@@ -73,6 +74,7 @@ def register_all_commands(app: typer.Typer) -> None:
     snapshot.register(app)
     trust_center.register(app)
     dr.register(app)
+    completion.register(app)
 
 
 __all__ = [
@@ -97,4 +99,5 @@ __all__ = [
     "snapshot",
     "trust_center",
     "dr",
+    "completion",
 ]
