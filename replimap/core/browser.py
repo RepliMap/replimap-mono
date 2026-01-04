@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -31,16 +32,88 @@ def is_wsl() -> bool:
     """
     Detect if running inside WSL/WSL2.
 
+    Uses cross-platform platform.release() for compatibility with
+    all platforms including Windows where uname is unavailable.
+
     Returns:
         True if running in WSL, False otherwise
     """
+    # Quick check: not Linux = not WSL
     if sys.platform != "linux":
         return False
+
     try:
-        release = os.uname().release.lower()
-        return "microsoft" in release or "wsl" in release
+        # Use platform.release() - works everywhere
+        release = platform.release().lower()
+
+        # WSL kernel contains "microsoft" or "wsl"
+        if "microsoft" in release or "wsl" in release:
+            return True
+
+        # Alternative: check /proc/version
+        proc_version = Path("/proc/version")
+        if proc_version.exists():
+            content = proc_version.read_text().lower()
+            if "microsoft" in content or "wsl" in content:
+                return True
+
+        return False
+
     except Exception:
         return False
+
+
+def is_remote_ssh() -> bool:
+    """
+    Detect if running in a remote SSH session.
+
+    Returns:
+        True if SSH_CLIENT or SSH_TTY environment variable is set
+    """
+    return bool(os.environ.get("SSH_CLIENT") or os.environ.get("SSH_TTY"))
+
+
+def is_container() -> bool:
+    """
+    Detect if running inside a container (Docker/Podman).
+
+    Returns:
+        True if running in a container environment
+    """
+    # Check for .dockerenv file
+    if Path("/.dockerenv").exists():
+        return True
+
+    # Check cgroup for docker/container indicators
+    try:
+        cgroup = Path("/proc/1/cgroup")
+        if cgroup.exists():
+            content = cgroup.read_text()
+            if "docker" in content or "kubepods" in content or "containerd" in content:
+                return True
+    except Exception:  # noqa: S110
+        # Silently ignore - container detection is best-effort
+        pass
+
+    return False
+
+
+def can_open_browser() -> bool:
+    """
+    Check if we can open a browser in the current environment.
+
+    Returns:
+        True if browser can likely be opened
+    """
+    # Remote SSH without X forwarding = no browser
+    if is_remote_ssh() and not os.environ.get("DISPLAY"):
+        return False
+
+    # Container without display = no browser
+    if is_container() and not os.environ.get("DISPLAY"):
+        return False
+
+    return True
 
 
 def open_in_browser(

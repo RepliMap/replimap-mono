@@ -4,13 +4,19 @@ Secret Scrubber - Detect and redact sensitive information.
 This module provides a SecretScrubber class that scans text for sensitive
 patterns (AWS keys, passwords, tokens, etc.) and replaces them with a
 redacted placeholder to prevent accidental exposure in generated Terraform.
+
+CRITICAL: For Base64-encoded fields (like UserData), we must replace the
+ENTIRE content if ANY secret is found, to preserve encoding integrity.
+Partial replacement corrupts Base64 encoding and breaks Terraform apply.
 """
 
 from __future__ import annotations
 
+import base64
 import logging
 import re
 from collections import Counter
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -20,13 +26,47 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ScrubResult:
+    """Result of a scrubbing operation with metadata."""
+
+    value: str
+    was_modified: bool
+    secrets_found: list[str] = field(default_factory=list)
+
+
 class SecretScrubber:
     """
     Detects and redacts sensitive patterns in text.
 
     Designed to be injected into TerraformGenerator to sanitize
     user_data, environment variables, and other potentially sensitive fields.
+
+    CRITICAL: For Base64-encoded fields (like UserData), we must replace
+    the ENTIRE content if ANY secret is found, to preserve encoding integrity.
     """
+
+    # Placeholder that is valid Base64 and clearly indicates redaction
+    REDACTED_USERDATA_PLACEHOLDER = """#!/bin/bash
+# ============================================
+# [REDACTED BY REPLIMAP]
+# ============================================
+# Sensitive content (credentials/secrets) was detected and removed.
+# This is a placeholder to preserve Terraform validity.
+#
+# To retrieve the actual user data:
+#   aws ec2 describe-instance-attribute \\
+#     --instance-id <INSTANCE_ID> \\
+#     --attribute userData \\
+#     --query 'UserData.Value' \\
+#     --output text | base64 -d
+# ============================================
+"""
+
+    # Fields that require special Base64 handling
+    USERDATA_FIELDS: frozenset[str] = frozenset(
+        ["user_data", "userdata", "userData", "UserData"]
+    )
 
     # Regex patterns for detecting secrets
     # Each pattern is designed to minimize false positives while catching real secrets
@@ -189,3 +229,160 @@ class SecretScrubber:
         """Reset findings and counts for a fresh scan."""
         self.findings = []
         self.counts = Counter()
+
+    def scrub_user_data(
+        self, user_data: str, resource_id: str = "unknown"
+    ) -> ScrubResult:
+        """
+        Scrub UserData field with Base64 integrity preservation.
+
+        CRITICAL: If ANY sensitive pattern is found, we replace the ENTIRE
+        UserData content to avoid corrupting Base64 encoding.
+
+        Args:
+            user_data: The UserData value (may be Base64 encoded or plain text)
+            resource_id: Resource identifier for logging
+
+        Returns:
+            ScrubResult with cleaned value and metadata
+        """
+        if not user_data:
+            return ScrubResult(value=user_data or "", was_modified=False)
+
+        # Try to decode Base64
+        is_base64 = False
+        decoded_content = user_data
+
+        try:
+            decoded_bytes = base64.b64decode(user_data, validate=True)
+            decoded_content = decoded_bytes.decode("utf-8", errors="replace")
+            is_base64 = True
+        except Exception:
+            decoded_content = user_data
+
+        # Check for sensitive patterns
+        secrets_found: list[str] = []
+        for secret_type, pattern in self.PATTERNS.items():
+            if pattern.search(decoded_content):
+                secrets_found.append(secret_type)
+
+        if secrets_found:
+            logger.warning(
+                f"Resource {resource_id}: Found sensitive data in user_data "
+                f"({', '.join(secrets_found)}). Replacing entire field."
+            )
+
+            # Record findings
+            self.findings.append(
+                {
+                    "type": "UserData (full replacement)",
+                    "context": f"{resource_id}.user_data",
+                    "secrets_found": secrets_found,
+                    "action": "full_replacement",
+                }
+            )
+            for secret_type in secrets_found:
+                self.counts[secret_type] += 1
+
+            # Replace ENTIRE content with safe placeholder
+            placeholder = self.REDACTED_USERDATA_PLACEHOLDER
+
+            if is_base64:
+                clean_value = base64.b64encode(placeholder.encode("utf-8")).decode(
+                    "utf-8"
+                )
+            else:
+                clean_value = placeholder
+
+            return ScrubResult(
+                value=clean_value,
+                was_modified=True,
+                secrets_found=secrets_found,
+            )
+
+        return ScrubResult(value=user_data, was_modified=False)
+
+    def scrub_attribute(
+        self, key: str, value: Any, resource_id: str = "unknown"
+    ) -> ScrubResult:
+        """
+        Scrub a generic attribute value.
+
+        For string values, redacts sensitive patterns inline.
+        For UserData specifically, uses full replacement strategy.
+
+        Args:
+            key: Attribute key name
+            value: Attribute value
+            resource_id: Resource identifier for logging
+
+        Returns:
+            ScrubResult with cleaned value and metadata
+        """
+        # Handle UserData specially with full replacement
+        if key.lower() in {f.lower() for f in self.USERDATA_FIELDS}:
+            if isinstance(value, str):
+                return self.scrub_user_data(value, resource_id)
+
+        # Handle other string values with inline redaction
+        if isinstance(value, str):
+            cleaned = self.clean(value, f"{resource_id}.{key}")
+            was_modified = cleaned != value
+            return ScrubResult(value=cleaned or "", was_modified=was_modified)
+
+        # Non-string values pass through unchanged
+        return ScrubResult(value=value, was_modified=False)
+
+    def scrub_resource(
+        self, resource: dict[str, Any], resource_id: str = "unknown"
+    ) -> dict[str, Any]:
+        """
+        Scrub all attributes of a resource.
+
+        Returns a new dict with sensitive data removed.
+        UserData fields get full replacement; other fields get inline redaction.
+
+        Args:
+            resource: Resource attributes dictionary
+            resource_id: Resource identifier for logging
+
+        Returns:
+            New dictionary with sensitive data removed
+        """
+        result: dict[str, Any] = {}
+
+        for key, value in resource.items():
+            if isinstance(value, dict):
+                result[key] = self.scrub_resource(value, resource_id)
+            elif isinstance(value, list):
+                result[key] = [
+                    (
+                        self.scrub_resource(item, resource_id)
+                        if isinstance(item, dict)
+                        else self.scrub_attribute(key, item, resource_id).value
+                    )
+                    for item in value
+                ]
+            else:
+                result[key] = self.scrub_attribute(key, value, resource_id).value
+
+        return result
+
+    def get_summary(self) -> dict[str, Any]:
+        """
+        Get summary of all scrubbing operations.
+
+        Returns:
+            Dictionary with total findings, by type counts, and resources affected
+        """
+        resources_affected = set()
+        for finding in self.findings:
+            context = finding.get("context", "")
+            if "." in context:
+                resources_affected.add(context.split(".")[0])
+
+        return {
+            "total_findings": len(self.findings),
+            "by_secret_type": dict(self.counts),
+            "resources_affected": len(resources_affected),
+        }

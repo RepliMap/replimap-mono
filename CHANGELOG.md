@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unified Error Collection** - ScanErrorCollector mechanism for scanner error tracking
+  - `replimap/core/errors.py` - ErrorSeverity enum (WARNING/ERROR/CRITICAL), ScanError dataclass
+  - `ScanErrorCollector` class with Rich console summary output
+  - `@handle_scan_error` decorator for automatic error capture and classification
+  - Error classification: AccessDenied, Throttled, NotFound, Timeout, generic types
+  - Global collector with `get_scan_error_collector()` and `reset_scan_error_collector()`
+  - 23 comprehensive tests in `tests/test_scan_error_collector.py`
+
+- **Enhanced Secret Scrubber** - Full-replacement strategy for Base64 UserData integrity
+  - `ScrubResult` dataclass tracking modification state and secrets found
+  - `scrub_user_data()` - Replaces ENTIRE UserData when secrets detected (preserves Base64)
+  - `scrub_attribute()` - Smart attribute-level scrubbing with result tracking
+  - `scrub_resource()` - Resource-level scrubbing with summary generation
+  - `get_summary()` - Statistics on scrubbed resources and secret types
+  - Prevents Terraform apply failures from corrupted Base64 encoding
+  - 9 new tests in `tests/test_secret_scrubber.py` for Base64 integrity
+
 - **Secret Scrubber** - Automatic detection and redaction of sensitive data in generated Terraform
   - `replimap/core/security/scrubber.py` - SecretScrubber class with regex patterns
   - Detects: AWS access keys (AKIA/ASIA), secret keys, private keys, database URLs, tokens
@@ -96,6 +113,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - XSS prevention and accessibility testing
 
 ### Fixed
+
+- **Windows/WSL Compatibility** - Fixed `AttributeError: os.uname not available on Windows`
+  - `replimap/core/browser.py` now uses `platform.release()` instead of `os.uname()`
+  - Added `is_remote_ssh()` - Detects SSH sessions via SSH_CLIENT/SSH_TTY env vars
+  - Added `is_container()` - Detects Docker/Podman via /.dockerenv and cgroups
+  - Added `can_open_browser()` - Pre-check for browser opening capability
+  - WSL detection via kernel release string ("microsoft" or "wsl") with /proc/version fallback
+  - 14 new tests in `tests/test_browser.py` for cross-platform detection
 
 - **Unused Command API** - Fixed `AttributeError: 'UnusedResourceDetector' has no attribute 'detect_from_graph'`
   - Changed constructor from `UnusedResourceDetector(session, region)` to `UnusedResourceDetector(region=, account_id=)`
