@@ -17,9 +17,11 @@ import typer
 
 # Import individual command modules
 from replimap.cli.commands import (
+    analyze,
     audit,
     cache,
     clone,
+    completion,
     cost,
     deps,
     dr,
@@ -53,6 +55,7 @@ def register_all_commands(app: typer.Typer) -> None:
     # Register main commands
     scan.register(app)
     clone.register(app)
+    analyze.register(app)
     load.register(app)
     profiles.register(app)
     audit.register(app)
@@ -73,12 +76,14 @@ def register_all_commands(app: typer.Typer) -> None:
     snapshot.register(app)
     trust_center.register(app)
     dr.register(app)
+    completion.register(app)
 
 
 __all__ = [
     "register_all_commands",
     "scan",
     "clone",
+    "analyze",
     "load",
     "profiles",
     "audit",
@@ -97,4 +102,5 @@ __all__ = [
     "snapshot",
     "trust_center",
     "dr",
+    "completion",
 ]

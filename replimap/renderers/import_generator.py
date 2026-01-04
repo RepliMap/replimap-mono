@@ -27,46 +27,229 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# Some resources need special import ID formats
+# Import ID format mappings by resource type
+#
+# Different AWS resources require different import ID formats:
+# - {id}: Use the AWS resource ID (e.g., vpc-12345, i-abcdef)
+# - {name}: Use the resource name (e.g., role name, bucket name)
+# - {arn}: Use the full ARN
+# - {identifier}: Use a specific identifier field
+# - COMPLEX_SEE_DOCS: Complex format requiring manual intervention
+#
 # LEVEL 2 INSIGHT: This list WILL be incomplete!
 # Complex resources have unpredictable formats.
 # Solution: Allow user overrides via .replimap.yaml
+#
+# Reference: https://registry.terraform.io/providers/hashicorp/aws/latest/docs
 IMPORT_ID_FORMATS: dict[str, str] = {
-    # Simple resources - just use ID
+    # ═══════════════════════════════════════════════════════════════════════════
+    # VPC and Networking
+    # ═══════════════════════════════════════════════════════════════════════════
     "aws_vpc": "{id}",
     "aws_subnet": "{id}",
     "aws_security_group": "{id}",
-    "aws_instance": "{id}",
     "aws_internet_gateway": "{id}",
     "aws_nat_gateway": "{id}",
     "aws_route_table": "{id}",
-    "aws_ebs_volume": "{id}",
-    "aws_elasticache_cluster": "{id}",
-    "aws_elasticache_subnet_group": "{name}",
     "aws_vpc_endpoint": "{id}",
+    "aws_network_interface": "{id}",
+    "aws_network_acl": "{id}",
     "aws_eip": "{allocation_id}",
+    "aws_vpn_gateway": "{id}",
+    "aws_customer_gateway": "{id}",
+    "aws_vpc_peering_connection": "{id}",
+    "aws_egress_only_internet_gateway": "{id}",
+    # Complex networking resources
+    "aws_route_table_association": "COMPLEX_SEE_DOCS",  # {subnet_id}/{route_table_id}
+    "aws_security_group_rule": "COMPLEX_SEE_DOCS",  # {sg_id}_{type}_{protocol}_{from}_{to}_{source}
+    "aws_route": "COMPLEX_SEE_DOCS",  # {route_table_id}_{destination_cidr}
+    "aws_vpc_endpoint_route_table_association": "COMPLEX_SEE_DOCS",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # EC2 Compute
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_instance": "{id}",
+    "aws_ebs_volume": "{id}",
+    "aws_key_pair": "{key_name}",
     "aws_launch_template": "{id}",
     "aws_autoscaling_group": "{name}",
+    "aws_placement_group": "{name}",
+    "aws_ami": "{id}",
+    "aws_ami_copy": "{id}",
+    "aws_spot_instance_request": "{id}",
+    "aws_volume_attachment": "COMPLEX_SEE_DOCS",  # {device_name}:{volume_id}:{instance_id}
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Load Balancing
+    # ═══════════════════════════════════════════════════════════════════════════
     "aws_lb": "{arn}",
+    "aws_alb": "{arn}",  # Alias for aws_lb
     "aws_lb_listener": "{arn}",
+    "aws_alb_listener": "{arn}",
     "aws_lb_target_group": "{arn}",
-    # Resources that use ARN or name
-    "aws_iam_role": "{name}",
-    "aws_iam_policy": "{arn}",
-    "aws_iam_instance_profile": "{name}",
-    "aws_lambda_function": "{name}",
-    "aws_s3_bucket": "{bucket}",
-    "aws_s3_bucket_policy": "{bucket}",
+    "aws_alb_target_group": "{arn}",
+    "aws_lb_target_group_attachment": "COMPLEX_SEE_DOCS",
+    "aws_lb_listener_rule": "{arn}",
+    "aws_lb_listener_certificate": "COMPLEX_SEE_DOCS",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # RDS / Database
+    # ═══════════════════════════════════════════════════════════════════════════
     "aws_db_instance": "{identifier}",
     "aws_db_subnet_group": "{name}",
     "aws_db_parameter_group": "{name}",
-    "aws_sqs_queue": "{url}",
+    "aws_db_option_group": "{name}",
+    "aws_db_cluster": "{identifier}",
+    "aws_db_cluster_parameter_group": "{name}",
+    "aws_rds_cluster": "{identifier}",
+    "aws_db_snapshot": "{identifier}",
+    "aws_db_cluster_snapshot": "{identifier}",
+    "aws_db_proxy": "{name}",
+    "aws_db_event_subscription": "{name}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ElastiCache
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_elasticache_cluster": "{id}",
+    "aws_elasticache_subnet_group": "{name}",
+    "aws_elasticache_parameter_group": "{name}",
+    "aws_elasticache_replication_group": "{id}",
+    "aws_elasticache_user": "{user_id}",
+    "aws_elasticache_user_group": "{user_group_id}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # S3
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_s3_bucket": "{bucket}",
+    "aws_s3_bucket_policy": "{bucket}",
+    "aws_s3_bucket_versioning": "{bucket}",
+    "aws_s3_bucket_acl": "{bucket}",
+    "aws_s3_bucket_cors_configuration": "{bucket}",
+    "aws_s3_bucket_lifecycle_configuration": "{bucket}",
+    "aws_s3_bucket_logging": "{bucket}",
+    "aws_s3_bucket_notification": "{bucket}",
+    "aws_s3_bucket_public_access_block": "{bucket}",
+    "aws_s3_bucket_replication_configuration": "{bucket}",
+    "aws_s3_bucket_server_side_encryption_configuration": "{bucket}",
+    "aws_s3_bucket_website_configuration": "{bucket}",
+    "aws_s3_object": "COMPLEX_SEE_DOCS",  # {bucket}/{key}
+    # ═══════════════════════════════════════════════════════════════════════════
+    # IAM
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_iam_role": "{name}",
+    "aws_iam_policy": "{arn}",
+    "aws_iam_user": "{name}",
+    "aws_iam_group": "{name}",
+    "aws_iam_instance_profile": "{name}",
+    "aws_iam_access_key": "{user_name}/{access_key_id}",
+    "aws_iam_role_policy": "{role_name}:{policy_name}",
+    "aws_iam_user_policy": "{user_name}:{policy_name}",
+    "aws_iam_group_policy": "{group_name}:{policy_name}",
+    "aws_iam_role_policy_attachment": "{role}/{policy_arn}",
+    "aws_iam_user_policy_attachment": "{user}/{policy_arn}",
+    "aws_iam_group_policy_attachment": "{group}/{policy_arn}",
+    "aws_iam_group_membership": "{group_name}",
+    "aws_iam_service_linked_role": "{arn}",
+    "aws_iam_openid_connect_provider": "{arn}",
+    "aws_iam_saml_provider": "{arn}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Lambda
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_lambda_function": "{name}",
+    "aws_lambda_alias": "{function_name}/{alias_name}",
+    "aws_lambda_event_source_mapping": "{uuid}",
+    "aws_lambda_layer_version": "{arn}",
+    "aws_lambda_permission": "{function_name}/{statement_id}",
+    "aws_lambda_provisioned_concurrency_config": "{function_name}:{qualifier}",
+    "aws_lambda_function_url": "{function_name}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CloudWatch
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_cloudwatch_log_group": "{name}",
+    "aws_cloudwatch_log_stream": "{log_group_name}:{log_stream_name}",
+    "aws_cloudwatch_metric_alarm": "{name}",
+    "aws_cloudwatch_dashboard": "{name}",
+    "aws_cloudwatch_event_rule": "{name}",
+    "aws_cloudwatch_event_target": "{rule_name}/{target_id}",
+    "aws_cloudwatch_log_metric_filter": "{log_group_name}:{name}",
+    "aws_cloudwatch_log_subscription_filter": "{log_group_name}/{filter_name}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SNS / SQS
+    # ═══════════════════════════════════════════════════════════════════════════
     "aws_sns_topic": "{arn}",
-    # Complex resources - marked for user attention
-    # These often fail and need manual intervention
-    "aws_route_table_association": "COMPLEX_SEE_DOCS",
-    "aws_security_group_rule": "COMPLEX_SEE_DOCS",
-    "aws_route": "COMPLEX_SEE_DOCS",
+    "aws_sns_topic_policy": "{arn}",
+    "aws_sns_topic_subscription": "{arn}",
+    "aws_sqs_queue": "{url}",
+    "aws_sqs_queue_policy": "{url}",
+    "aws_sqs_queue_redrive_policy": "{url}",
+    "aws_sqs_queue_redrive_allow_policy": "{url}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # KMS
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_kms_key": "{key_id}",
+    "aws_kms_alias": "{name}",
+    "aws_kms_grant": "{key_id}:{grant_id}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Route53
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_route53_zone": "{zone_id}",
+    "aws_route53_record": "{zone_id}_{name}_{type}",
+    "aws_route53_health_check": "{health_check_id}",
+    "aws_route53_resolver_endpoint": "{id}",
+    "aws_route53_resolver_rule": "{id}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # EKS / ECS
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_eks_cluster": "{name}",
+    "aws_eks_node_group": "{cluster_name}:{node_group_name}",
+    "aws_eks_fargate_profile": "{cluster_name}:{fargate_profile_name}",
+    "aws_eks_addon": "{cluster_name}:{addon_name}",
+    "aws_ecs_cluster": "{arn}",
+    "aws_ecs_service": "{cluster_arn}/{service_name}",
+    "aws_ecs_task_definition": "{arn}",
+    "aws_ecs_capacity_provider": "{name}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ECR
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_ecr_repository": "{name}",
+    "aws_ecr_repository_policy": "{name}",
+    "aws_ecr_lifecycle_policy": "{name}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Secrets Manager / Parameter Store
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_secretsmanager_secret": "{arn}",
+    "aws_secretsmanager_secret_version": "{arn}|{version_id}",
+    "aws_ssm_parameter": "{name}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ACM / Certificate Manager
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_acm_certificate": "{arn}",
+    "aws_acm_certificate_validation": "{arn}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CloudFront
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_cloudfront_distribution": "{id}",
+    "aws_cloudfront_origin_access_identity": "{id}",
+    "aws_cloudfront_origin_access_control": "{id}",
+    "aws_cloudfront_cache_policy": "{id}",
+    "aws_cloudfront_function": "{name}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # API Gateway
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_api_gateway_rest_api": "{id}",
+    "aws_api_gateway_stage": "{rest_api_id}/{stage_name}",
+    "aws_api_gateway_deployment": "{rest_api_id}/{deployment_id}",
+    "aws_api_gateway_domain_name": "{domain_name}",
+    "aws_apigatewayv2_api": "{id}",
+    "aws_apigatewayv2_stage": "{api_id}/{stage_name}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # WAF
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_wafv2_web_acl": "{id}/{name}/{scope}",
+    "aws_wafv2_ip_set": "{id}/{name}/{scope}",
+    "aws_wafv2_rule_group": "{id}/{name}/{scope}",
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Step Functions / EventBridge
+    # ═══════════════════════════════════════════════════════════════════════════
+    "aws_sfn_state_machine": "{arn}",
+    "aws_sfn_activity": "{arn}",
+    "aws_scheduler_schedule": "{group_name}/{name}",
+    "aws_scheduler_schedule_group": "{name}",
 }
 
 
