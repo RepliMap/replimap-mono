@@ -58,32 +58,24 @@ class TestImportIDFormats:
         ]
 
         for resource_type in common_types:
-            assert resource_type in IMPORT_ID_FORMATS, f"Missing format for {resource_type}"
+            assert resource_type in IMPORT_ID_FORMATS, (
+                f"Missing format for {resource_type}"
+            )
 
     def test_format_placeholders(self) -> None:
         """Verify format strings use valid placeholders."""
-        valid_placeholders = {
-            "{id}",
-            "{name}",
-            "{arn}",
-            "{bucket}",
-            "{identifier}",
-            "{url}",
-            "{allocation_id}",
-            "{key_name}",
-            "{key_id}",
-            "{user_id}",
-            "{zone_id}",
-            "{user_group_id}",
-            "COMPLEX_SEE_DOCS",
-        }
+        # Known valid placeholders (for documentation)
+        # {id}, {name}, {arn}, {bucket}, {identifier}, {url},
+        # {allocation_id}, {key_name}, {key_id}, {user_id},
+        # {zone_id}, {user_group_id}, COMPLEX_SEE_DOCS
 
         for resource_type, format_str in IMPORT_ID_FORMATS.items():
             if format_str == "COMPLEX_SEE_DOCS":
                 continue
             # Check that format uses known placeholders
-            assert format_str.startswith("{") or "/" in format_str or ":" in format_str, \
-                f"Invalid format for {resource_type}: {format_str}"
+            assert (
+                format_str.startswith("{") or "/" in format_str or ":" in format_str
+            ), f"Invalid format for {resource_type}: {format_str}"
 
 
 class TestImportMapping:
@@ -164,7 +156,9 @@ class TestImportBlockGenerator:
             terraform_address="aws_lb.main",
             aws_id="arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/my-lb/abc",
             resource_type="aws_lb",
-            attributes={"arn": "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/my-lb/abc"},
+            attributes={
+                "arn": "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/my-lb/abc"
+            },
         )
 
         import_id = generator.format_import_id(mapping)
@@ -278,9 +272,7 @@ class TestImportBlockGenerator:
         assert "# import {" in content
         assert "ATTENTION:" in content
 
-    def test_generate_import_commands(
-        self, generator: ImportBlockGenerator
-    ) -> None:
+    def test_generate_import_commands(self, generator: ImportBlockGenerator) -> None:
         """Test legacy import command generation."""
         mappings = [
             ImportMapping(
@@ -325,6 +317,7 @@ class TestImportBlockGenerator:
 
         # Check file is executable
         import os
+
         assert os.access(output_file, os.X_OK)
 
         content = output_file.read_text()
@@ -356,7 +349,9 @@ class TestImportIDResolution:
             terraform_address="aws_sqs_queue.events",
             aws_id="sqs-123",
             resource_type="aws_sqs_queue",
-            attributes={"url": "https://sqs.us-east-1.amazonaws.com/123456789012/events-queue"},
+            attributes={
+                "url": "https://sqs.us-east-1.amazonaws.com/123456789012/events-queue"
+            },
         )
 
         import_id = generator.format_import_id(mapping)

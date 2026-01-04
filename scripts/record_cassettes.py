@@ -41,7 +41,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 if TYPE_CHECKING:
-    from replimap.core import GraphEngine
+    import boto3
 
 # Import after path setup
 try:
@@ -56,16 +56,14 @@ except ImportError as e:
     sys.exit(1)
 
 
-def get_session(profile: str, region: str) -> "boto3.Session":
+def get_session(profile: str, region: str) -> boto3.Session:
     """Get boto3 session for the given profile and region."""
     import boto3
 
     return boto3.Session(profile_name=profile, region_name=region)
 
 
-async def record_vpc_cassettes(
-    profile: str, region: str, prefix: str = ""
-) -> None:
+async def record_vpc_cassettes(profile: str, region: str, prefix: str = "") -> None:
     """Record VPC scanner cassettes."""
     from replimap.core import GraphEngine
     from replimap.scanners.vpc_scanner import VPCScanner
@@ -84,9 +82,7 @@ async def record_vpc_cassettes(
         print(f"  Cassette: {CASSETTES_DIR / cassette_name}")
 
 
-async def record_ec2_cassettes(
-    profile: str, region: str, prefix: str = ""
-) -> None:
+async def record_ec2_cassettes(profile: str, region: str, prefix: str = "") -> None:
     """Record EC2 scanner cassettes."""
     from replimap.core import GraphEngine
     from replimap.scanners.ec2_scanner import EC2Scanner
@@ -105,9 +101,7 @@ async def record_ec2_cassettes(
         print(f"  Cassette: {CASSETTES_DIR / cassette_name}")
 
 
-async def record_s3_cassettes(
-    profile: str, region: str, prefix: str = ""
-) -> None:
+async def record_s3_cassettes(profile: str, region: str, prefix: str = "") -> None:
     """Record S3 scanner cassettes."""
     from replimap.core import GraphEngine
     from replimap.scanners.s3_scanner import S3Scanner
@@ -126,9 +120,7 @@ async def record_s3_cassettes(
         print(f"  Cassette: {CASSETTES_DIR / cassette_name}")
 
 
-async def record_rds_cassettes(
-    profile: str, region: str, prefix: str = ""
-) -> None:
+async def record_rds_cassettes(profile: str, region: str, prefix: str = "") -> None:
     """Record RDS scanner cassettes."""
     from replimap.core import GraphEngine
     from replimap.scanners.rds_scanner import RDSScanner
@@ -147,11 +139,9 @@ async def record_rds_cassettes(
         print(f"  Cassette: {CASSETTES_DIR / cassette_name}")
 
 
-async def record_all(
-    profile: str, region: str, prefix: str = ""
-) -> None:
+async def record_all(profile: str, region: str, prefix: str = "") -> None:
     """Record cassettes for all scanners."""
-    print(f"\nRecording all scanner cassettes")
+    print("\nRecording all scanner cassettes")
     print(f"Profile: {profile}")
     print(f"Region: {region}")
     print(f"Cassettes directory: {CASSETTES_DIR}")

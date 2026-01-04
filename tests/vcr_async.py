@@ -23,8 +23,9 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from tests.conftest import VCR_AVAILABLE, vcr_config
 
@@ -55,14 +56,21 @@ def async_vcr_cassette(cassette_name: str) -> Callable[..., Any]:
     """
     if not VCR_AVAILABLE or vcr_config is None:
         # Return a no-op decorator if VCR not available
-        def noop_decorator(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Any]:
+        def noop_decorator(
+            func: Callable[..., Coroutine[Any, Any, Any]],
+        ) -> Callable[..., Any]:
             return func
+
         return noop_decorator
 
     def decorator(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Any]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            cassette_file = f"{cassette_name}.yaml" if not cassette_name.endswith(".yaml") else cassette_name
+            cassette_file = (
+                f"{cassette_name}.yaml"
+                if not cassette_name.endswith(".yaml")
+                else cassette_name
+            )
             with vcr_config.use_cassette(cassette_file):
                 # Get or create event loop and run the coroutine
                 try:
@@ -72,7 +80,9 @@ def async_vcr_cassette(cassette_name: str) -> Callable[..., Any]:
                     asyncio.set_event_loop(loop)
 
                 return loop.run_until_complete(func(*args, **kwargs))
+
         return wrapper
+
     return decorator
 
 

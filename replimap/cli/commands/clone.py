@@ -456,8 +456,10 @@ def register(app: typer.Typer) -> None:
 
                         # Generate bootstrap if requested
                         if backend_bootstrap:
-                            bootstrap_file = backend_generator.generate_backend_bootstrap(
-                                s3_config, output_dir
+                            bootstrap_file = (
+                                backend_generator.generate_backend_bootstrap(
+                                    s3_config, output_dir
+                                )
                             )
                             console.print(
                                 f"[green]✓ Generated backend bootstrap:[/] {bootstrap_file}"
@@ -477,9 +479,7 @@ def register(app: typer.Typer) -> None:
                         backend_file = backend_generator.generate_local_backend(
                             local_config, output_dir
                         )
-                        console.print(
-                            f"[dim]Using local backend: {backend_file}[/dim]"
-                        )
+                        console.print(f"[dim]Using local backend: {backend_file}[/dim]")
 
                 # RIGHT-SIZER INTEGRATION (After Terraform generation)
                 if dev_mode and output_format == "terraform":

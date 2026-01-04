@@ -1220,7 +1220,10 @@ locals {
         Each scanned resource gets an import block mapping its
         Terraform address to its AWS resource ID.
         """
-        from replimap.renderers.import_generator import ImportBlockGenerator, ImportMapping
+        from replimap.renderers.import_generator import (
+            ImportBlockGenerator,
+            ImportMapping,
+        )
 
         generator = ImportBlockGenerator()
         mappings: list[ImportMapping] = []

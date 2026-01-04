@@ -202,11 +202,7 @@ class TestAttackSurfaceAnalyzer:
             id="sg-123",
             resource_type=ResourceType.SECURITY_GROUP,
             region="us-east-1",
-            config={
-                "IpPermissions": [
-                    {"IpRanges": [{"CidrIp": "0.0.0.0/0"}]}
-                ]
-            },
+            config={"IpPermissions": [{"IpRanges": [{"CidrIp": "0.0.0.0/0"}]}]},
             tags={},
             terraform_name="sg",
             original_name="Security Group",

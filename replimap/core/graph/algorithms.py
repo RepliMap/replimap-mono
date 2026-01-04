@@ -299,7 +299,9 @@ class GraphSimplifier:
 
         # Isolated nodes (no edges at all)
         isolated = [
-            node for node in g.nodes() if g.in_degree(node) == 0 and g.out_degree(node) == 0
+            node
+            for node in g.nodes()
+            if g.in_degree(node) == 0 and g.out_degree(node) == 0
         ]
 
         return GraphStats(

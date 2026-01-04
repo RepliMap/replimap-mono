@@ -64,7 +64,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_security_group_rule": "COMPLEX_SEE_DOCS",  # {sg_id}_{type}_{protocol}_{from}_{to}_{source}
     "aws_route": "COMPLEX_SEE_DOCS",  # {route_table_id}_{destination_cidr}
     "aws_vpc_endpoint_route_table_association": "COMPLEX_SEE_DOCS",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # EC2 Compute
     # ═══════════════════════════════════════════════════════════════════════════
@@ -78,7 +77,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_ami_copy": "{id}",
     "aws_spot_instance_request": "{id}",
     "aws_volume_attachment": "COMPLEX_SEE_DOCS",  # {device_name}:{volume_id}:{instance_id}
-
     # ═══════════════════════════════════════════════════════════════════════════
     # Load Balancing
     # ═══════════════════════════════════════════════════════════════════════════
@@ -91,7 +89,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_lb_target_group_attachment": "COMPLEX_SEE_DOCS",
     "aws_lb_listener_rule": "{arn}",
     "aws_lb_listener_certificate": "COMPLEX_SEE_DOCS",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # RDS / Database
     # ═══════════════════════════════════════════════════════════════════════════
@@ -106,7 +103,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_db_cluster_snapshot": "{identifier}",
     "aws_db_proxy": "{name}",
     "aws_db_event_subscription": "{name}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # ElastiCache
     # ═══════════════════════════════════════════════════════════════════════════
@@ -116,7 +112,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_elasticache_replication_group": "{id}",
     "aws_elasticache_user": "{user_id}",
     "aws_elasticache_user_group": "{user_group_id}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # S3
     # ═══════════════════════════════════════════════════════════════════════════
@@ -133,7 +128,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_s3_bucket_server_side_encryption_configuration": "{bucket}",
     "aws_s3_bucket_website_configuration": "{bucket}",
     "aws_s3_object": "COMPLEX_SEE_DOCS",  # {bucket}/{key}
-
     # ═══════════════════════════════════════════════════════════════════════════
     # IAM
     # ═══════════════════════════════════════════════════════════════════════════
@@ -153,7 +147,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_iam_service_linked_role": "{arn}",
     "aws_iam_openid_connect_provider": "{arn}",
     "aws_iam_saml_provider": "{arn}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # Lambda
     # ═══════════════════════════════════════════════════════════════════════════
@@ -164,7 +157,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_lambda_permission": "{function_name}/{statement_id}",
     "aws_lambda_provisioned_concurrency_config": "{function_name}:{qualifier}",
     "aws_lambda_function_url": "{function_name}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # CloudWatch
     # ═══════════════════════════════════════════════════════════════════════════
@@ -176,7 +168,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_cloudwatch_event_target": "{rule_name}/{target_id}",
     "aws_cloudwatch_log_metric_filter": "{log_group_name}:{name}",
     "aws_cloudwatch_log_subscription_filter": "{log_group_name}/{filter_name}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # SNS / SQS
     # ═══════════════════════════════════════════════════════════════════════════
@@ -187,14 +178,12 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_sqs_queue_policy": "{url}",
     "aws_sqs_queue_redrive_policy": "{url}",
     "aws_sqs_queue_redrive_allow_policy": "{url}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # KMS
     # ═══════════════════════════════════════════════════════════════════════════
     "aws_kms_key": "{key_id}",
     "aws_kms_alias": "{name}",
     "aws_kms_grant": "{key_id}:{grant_id}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # Route53
     # ═══════════════════════════════════════════════════════════════════════════
@@ -203,7 +192,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_route53_health_check": "{health_check_id}",
     "aws_route53_resolver_endpoint": "{id}",
     "aws_route53_resolver_rule": "{id}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # EKS / ECS
     # ═══════════════════════════════════════════════════════════════════════════
@@ -215,27 +203,23 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_ecs_service": "{cluster_arn}/{service_name}",
     "aws_ecs_task_definition": "{arn}",
     "aws_ecs_capacity_provider": "{name}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # ECR
     # ═══════════════════════════════════════════════════════════════════════════
     "aws_ecr_repository": "{name}",
     "aws_ecr_repository_policy": "{name}",
     "aws_ecr_lifecycle_policy": "{name}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # Secrets Manager / Parameter Store
     # ═══════════════════════════════════════════════════════════════════════════
     "aws_secretsmanager_secret": "{arn}",
     "aws_secretsmanager_secret_version": "{arn}|{version_id}",
     "aws_ssm_parameter": "{name}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # ACM / Certificate Manager
     # ═══════════════════════════════════════════════════════════════════════════
     "aws_acm_certificate": "{arn}",
     "aws_acm_certificate_validation": "{arn}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # CloudFront
     # ═══════════════════════════════════════════════════════════════════════════
@@ -244,7 +228,6 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_cloudfront_origin_access_control": "{id}",
     "aws_cloudfront_cache_policy": "{id}",
     "aws_cloudfront_function": "{name}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # API Gateway
     # ═══════════════════════════════════════════════════════════════════════════
@@ -254,14 +237,12 @@ IMPORT_ID_FORMATS: dict[str, str] = {
     "aws_api_gateway_domain_name": "{domain_name}",
     "aws_apigatewayv2_api": "{id}",
     "aws_apigatewayv2_stage": "{api_id}/{stage_name}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # WAF
     # ═══════════════════════════════════════════════════════════════════════════
     "aws_wafv2_web_acl": "{id}/{name}/{scope}",
     "aws_wafv2_ip_set": "{id}/{name}/{scope}",
     "aws_wafv2_rule_group": "{id}/{name}/{scope}",
-
     # ═══════════════════════════════════════════════════════════════════════════
     # Step Functions / EventBridge
     # ═══════════════════════════════════════════════════════════════════════════

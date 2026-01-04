@@ -49,7 +49,6 @@ import networkx as nx
 
 if TYPE_CHECKING:
     from replimap.core.graph_engine import GraphEngine
-    from replimap.core.models import ResourceNode
 
 logger = logging.getLogger(__name__)
 
@@ -605,7 +604,9 @@ class CriticalResourceFinder:
                 blast_score = min(blast.affected_count / g.number_of_nodes() * 40, 40)
                 score += blast_score
                 if blast.affected_count >= 5:
-                    factors.append(f"High blast radius ({blast.affected_count} affected)")
+                    factors.append(
+                        f"High blast radius ({blast.affected_count} affected)"
+                    )
 
             # Betweenness centrality
             node_betweenness = betweenness.get(node_id, 0)

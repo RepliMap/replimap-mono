@@ -28,7 +28,7 @@ Usage:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -193,11 +193,13 @@ class BackendGenerator:
         if config.profile:
             lines.append(f'    profile = "{config.profile}"')
 
-        lines.extend([
-            "  }",
-            "}",
-            "",
-        ])
+        lines.extend(
+            [
+                "  }",
+                "}",
+                "",
+            ]
+        )
 
         output_file = output_dir / "backend.tf"
         output_file.write_text("\n".join(lines))
@@ -313,7 +315,7 @@ class BackendGenerator:
             "  }",
             "}",
             "",
-            "provider \"aws\" {",
+            'provider "aws" {',
         ]
 
         if config.region:
@@ -322,81 +324,16 @@ class BackendGenerator:
         if config.profile:
             lines.append(f'  profile = "{config.profile}"')
 
-        lines.extend([
-            "}",
-            "",
-            "# ═══════════════════════════════════════════════════════════════════════════════",
-            "# S3 Bucket for Terraform State",
-            "# ═══════════════════════════════════════════════════════════════════════════════",
-            "",
-            "resource \"aws_s3_bucket\" \"terraform_state\" {",
-            f'  bucket = "{config.bucket}"',
-            "",
-            "  # Prevent accidental deletion",
-            "  lifecycle {",
-            "    prevent_destroy = true",
-            "  }",
-            "",
-            "  tags = {",
-            '    Name        = "Terraform State"',
-            '    ManagedBy   = "RepliMap"',
-            '    Purpose     = "Terraform remote state storage"',
-            "  }",
-            "}",
-            "",
-            "# Enable versioning for state history",
-            "resource \"aws_s3_bucket_versioning\" \"terraform_state\" {",
-            "  bucket = aws_s3_bucket.terraform_state.id",
-            "",
-            "  versioning_configuration {",
-            '    status = "Enabled"',
-            "  }",
-            "}",
-            "",
-            "# Enable server-side encryption",
-            "resource \"aws_s3_bucket_server_side_encryption_configuration\" \"terraform_state\" {",
-            "  bucket = aws_s3_bucket.terraform_state.id",
-            "",
-            "  rule {",
-            "    apply_server_side_encryption_by_default {",
-            '      sse_algorithm = "AES256"',
-            "    }",
-            "    bucket_key_enabled = true",
-            "  }",
-            "}",
-            "",
-            "# Block all public access",
-            "resource \"aws_s3_bucket_public_access_block\" \"terraform_state\" {",
-            "  bucket = aws_s3_bucket.terraform_state.id",
-            "",
-            "  block_public_acls       = true",
-            "  block_public_policy     = true",
-            "  ignore_public_acls      = true",
-            "  restrict_public_buckets = true",
-            "}",
-            "",
-        ])
-
-        # Add DynamoDB table if configured
-        if config.dynamodb_table:
-            lines.extend([
-                "# ═══════════════════════════════════════════════════════════════════════════════",
-                "# DynamoDB Table for State Locking",
-                "# ═══════════════════════════════════════════════════════════════════════════════",
-                "#",
-                "# This table prevents concurrent state modifications by acquiring locks.",
-                "# PAY_PER_REQUEST billing means you only pay for what you use.",
-                "#",
+        lines.extend(
+            [
+                "}",
                 "",
-                "resource \"aws_dynamodb_table\" \"terraform_locks\" {",
-                f'  name         = "{config.dynamodb_table}"',
-                '  billing_mode = "PAY_PER_REQUEST"',
-                '  hash_key     = "LockID"',
+                "# ═══════════════════════════════════════════════════════════════════════════════",
+                "# S3 Bucket for Terraform State",
+                "# ═══════════════════════════════════════════════════════════════════════════════",
                 "",
-                "  attribute {",
-                '    name = "LockID"',
-                '    type = "S"',
-                "  }",
+                'resource "aws_s3_bucket" "terraform_state" {',
+                f'  bucket = "{config.bucket}"',
                 "",
                 "  # Prevent accidental deletion",
                 "  lifecycle {",
@@ -404,76 +341,153 @@ class BackendGenerator:
                 "  }",
                 "",
                 "  tags = {",
-                '    Name      = "Terraform State Locks"',
-                '    ManagedBy = "RepliMap"',
-                '    Purpose   = "Terraform state locking"',
+                '    Name        = "Terraform State"',
+                '    ManagedBy   = "RepliMap"',
+                '    Purpose     = "Terraform remote state storage"',
                 "  }",
                 "}",
                 "",
-            ])
+                "# Enable versioning for state history",
+                'resource "aws_s3_bucket_versioning" "terraform_state" {',
+                "  bucket = aws_s3_bucket.terraform_state.id",
+                "",
+                "  versioning_configuration {",
+                '    status = "Enabled"',
+                "  }",
+                "}",
+                "",
+                "# Enable server-side encryption",
+                'resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" {',
+                "  bucket = aws_s3_bucket.terraform_state.id",
+                "",
+                "  rule {",
+                "    apply_server_side_encryption_by_default {",
+                '      sse_algorithm = "AES256"',
+                "    }",
+                "    bucket_key_enabled = true",
+                "  }",
+                "}",
+                "",
+                "# Block all public access",
+                'resource "aws_s3_bucket_public_access_block" "terraform_state" {',
+                "  bucket = aws_s3_bucket.terraform_state.id",
+                "",
+                "  block_public_acls       = true",
+                "  block_public_policy     = true",
+                "  ignore_public_acls      = true",
+                "  restrict_public_buckets = true",
+                "}",
+                "",
+            ]
+        )
+
+        # Add DynamoDB table if configured
+        if config.dynamodb_table:
+            lines.extend(
+                [
+                    "# ═══════════════════════════════════════════════════════════════════════════════",
+                    "# DynamoDB Table for State Locking",
+                    "# ═══════════════════════════════════════════════════════════════════════════════",
+                    "#",
+                    "# This table prevents concurrent state modifications by acquiring locks.",
+                    "# PAY_PER_REQUEST billing means you only pay for what you use.",
+                    "#",
+                    "",
+                    'resource "aws_dynamodb_table" "terraform_locks" {',
+                    f'  name         = "{config.dynamodb_table}"',
+                    '  billing_mode = "PAY_PER_REQUEST"',
+                    '  hash_key     = "LockID"',
+                    "",
+                    "  attribute {",
+                    '    name = "LockID"',
+                    '    type = "S"',
+                    "  }",
+                    "",
+                    "  # Prevent accidental deletion",
+                    "  lifecycle {",
+                    "    prevent_destroy = true",
+                    "  }",
+                    "",
+                    "  tags = {",
+                    '    Name      = "Terraform State Locks"',
+                    '    ManagedBy = "RepliMap"',
+                    '    Purpose   = "Terraform state locking"',
+                    "  }",
+                    "}",
+                    "",
+                ]
+            )
 
         # Add outputs
-        lines.extend([
-            "# ═══════════════════════════════════════════════════════════════════════════════",
-            "# Outputs",
-            "# ═══════════════════════════════════════════════════════════════════════════════",
-            "",
-            "output \"state_bucket_name\" {",
-            "  value       = aws_s3_bucket.terraform_state.id",
-            '  description = "Name of the S3 bucket for Terraform state"',
-            "}",
-            "",
-            "output \"state_bucket_arn\" {",
-            "  value       = aws_s3_bucket.terraform_state.arn",
-            '  description = "ARN of the S3 bucket for Terraform state"',
-            "}",
-            "",
-            "output \"state_bucket_region\" {",
-            "  value       = aws_s3_bucket.terraform_state.region",
-            '  description = "Region of the S3 bucket for Terraform state"',
-            "}",
-            "",
-        ])
+        lines.extend(
+            [
+                "# ═══════════════════════════════════════════════════════════════════════════════",
+                "# Outputs",
+                "# ═══════════════════════════════════════════════════════════════════════════════",
+                "",
+                'output "state_bucket_name" {',
+                "  value       = aws_s3_bucket.terraform_state.id",
+                '  description = "Name of the S3 bucket for Terraform state"',
+                "}",
+                "",
+                'output "state_bucket_arn" {',
+                "  value       = aws_s3_bucket.terraform_state.arn",
+                '  description = "ARN of the S3 bucket for Terraform state"',
+                "}",
+                "",
+                'output "state_bucket_region" {',
+                "  value       = aws_s3_bucket.terraform_state.region",
+                '  description = "Region of the S3 bucket for Terraform state"',
+                "}",
+                "",
+            ]
+        )
 
         if config.dynamodb_table:
-            lines.extend([
-                "output \"dynamodb_table_name\" {",
-                "  value       = aws_dynamodb_table.terraform_locks.name",
-                '  description = "Name of the DynamoDB table for state locking"',
-                "}",
-                "",
-                "output \"dynamodb_table_arn\" {",
-                "  value       = aws_dynamodb_table.terraform_locks.arn",
-                '  description = "ARN of the DynamoDB table for state locking"',
-                "}",
-                "",
-            ])
+            lines.extend(
+                [
+                    'output "dynamodb_table_name" {',
+                    "  value       = aws_dynamodb_table.terraform_locks.name",
+                    '  description = "Name of the DynamoDB table for state locking"',
+                    "}",
+                    "",
+                    'output "dynamodb_table_arn" {',
+                    "  value       = aws_dynamodb_table.terraform_locks.arn",
+                    '  description = "ARN of the DynamoDB table for state locking"',
+                    "}",
+                    "",
+                ]
+            )
 
         # Add backend configuration hint
-        lines.extend([
-            "# ═══════════════════════════════════════════════════════════════════════════════",
-            "# Usage Instructions",
-            "# ═══════════════════════════════════════════════════════════════════════════════",
-            "#",
-            "# After running terraform apply, add this backend config to your main project:",
-            "#",
-            "# terraform {",
-            '#   backend "s3" {',
-            f'#     bucket = "{config.bucket}"',
-            f'#     key    = "{config.key}"',
-        ])
+        lines.extend(
+            [
+                "# ═══════════════════════════════════════════════════════════════════════════════",
+                "# Usage Instructions",
+                "# ═══════════════════════════════════════════════════════════════════════════════",
+                "#",
+                "# After running terraform apply, add this backend config to your main project:",
+                "#",
+                "# terraform {",
+                '#   backend "s3" {',
+                f'#     bucket = "{config.bucket}"',
+                f'#     key    = "{config.key}"',
+            ]
+        )
 
         if config.region:
             lines.append(f'#     region = "{config.region}"')
         if config.dynamodb_table:
             lines.append(f'#     dynamodb_table = "{config.dynamodb_table}"')
 
-        lines.extend([
-            "#     encrypt = true",
-            "#   }",
-            "# }",
-            "",
-        ])
+        lines.extend(
+            [
+                "#     encrypt = true",
+                "#   }",
+                "# }",
+                "",
+            ]
+        )
 
         output_file = bootstrap_dir / "main.tf"
         output_file.write_text("\n".join(lines))

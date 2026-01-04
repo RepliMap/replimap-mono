@@ -81,8 +81,7 @@ def register(app: typer.Typer) -> None:
         """
         if shell not in ("bash", "zsh", "fish"):
             console.print(
-                f"[red]Error:[/] Unknown shell '{shell}'. "
-                "Use one of: bash, zsh, fish"
+                f"[red]Error:[/] Unknown shell '{shell}'. Use one of: bash, zsh, fish"
             )
             raise typer.Exit(1)
 

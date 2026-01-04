@@ -14,9 +14,9 @@ from replimap.core.analysis.centrality import (
     AttackSurfaceAnalyzer,
     BlastRadiusResult,
     CentralityAnalyzer,
-    CriticalResourceFinder,
     CriticalityLevel,
     CriticalityResult,
+    CriticalResourceFinder,
     SinglePointOfFailureResult,
 )
 

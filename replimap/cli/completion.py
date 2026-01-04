@@ -20,7 +20,10 @@ Usage:
 from __future__ import annotations
 
 import configparser
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def get_aws_profiles() -> list[str]:
@@ -73,12 +76,14 @@ def _parse_aws_config_profiles(path: Path, prefix: str = "") -> list[str]:
             profiles.append(name)
 
         # Also check for default (no section header in credentials)
-        if parser.has_section("default") or (path.name == "credentials" and "default" not in profiles):
+        if parser.has_section("default") or (
+            path.name == "credentials" and "default" not in profiles
+        ):
             if "default" not in profiles:
                 profiles.append("default")
 
     except Exception:
-        pass
+        logger.debug("Failed to parse AWS config file: %s", path)
 
     return profiles
 
@@ -128,7 +133,7 @@ def get_aws_regions() -> list[str]:
 
 def generate_bash_completion() -> str:
     """Generate Bash completion script."""
-    return '''# RepliMap Bash Completion
+    return """# RepliMap Bash Completion
 # Add to ~/.bashrc: eval "$(replimap completion bash)"
 
 _replimap_completion() {
@@ -201,12 +206,12 @@ _replimap_completion() {
 }
 
 complete -F _replimap_completion replimap
-'''
+"""
 
 
 def generate_zsh_completion() -> str:
     """Generate Zsh completion script."""
-    return '''#compdef replimap
+    return """#compdef replimap
 # RepliMap Zsh Completion
 # Add to ~/.zshrc: eval "$(replimap completion zsh)"
 
@@ -330,12 +335,12 @@ _replimap() {
 }
 
 _replimap "$@"
-'''
+"""
 
 
 def generate_fish_completion() -> str:
     """Generate Fish completion script."""
-    return '''# RepliMap Fish Completion
+    return """# RepliMap Fish Completion
 # Save to: ~/.config/fish/completions/replimap.fish
 
 # Disable file completion by default
@@ -403,7 +408,7 @@ complete -c replimap -s h -l help -d "Show help"
 complete -c replimap -s V -l version -d "Show version"
 complete -c replimap -s v -l verbose -d "Verbose output"
 complete -c replimap -s q -l quiet -d "Quiet mode"
-'''
+"""
 
 
 def get_install_instructions(shell: str) -> str:

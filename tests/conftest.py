@@ -92,7 +92,7 @@ def sanitize_response(response: dict[str, Any]) -> dict[str, Any]:
     return response
 
 
-def create_vcr_config() -> "vcr.VCR | None":
+def create_vcr_config() -> vcr.VCR | None:
     """
     Create VCR configuration for AWS API recording.
 
@@ -147,7 +147,7 @@ vcr_config = create_vcr_config()
 
 
 @pytest.fixture
-def vcr_cassette(request: pytest.FixtureRequest) -> "Cassette | None":
+def vcr_cassette(request: pytest.FixtureRequest) -> Cassette | None:
     """
     Fixture to use VCR cassette for a test.
 

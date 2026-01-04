@@ -180,9 +180,7 @@ def register(app: typer.Typer) -> None:
             _show_summary(graph)
 
 
-def _show_critical_analysis(
-    graph: GraphEngine, top_n: int, json_output: bool
-) -> None:
+def _show_critical_analysis(graph: GraphEngine, top_n: int, json_output: bool) -> None:
     """Display critical resource analysis."""
     finder = CriticalResourceFinder(graph)
     critical = finder.find_critical(top_n)
@@ -249,9 +247,7 @@ def _show_critical_analysis(
     console.print()
 
 
-def _show_spof_analysis(
-    graph: GraphEngine, top_n: int, json_output: bool
-) -> None:
+def _show_spof_analysis(graph: GraphEngine, top_n: int, json_output: bool) -> None:
     """Display single point of failure analysis."""
     analyzer = CentralityAnalyzer(graph)
     spofs = analyzer.find_single_points_of_failure()[:top_n]
@@ -272,9 +268,7 @@ def _show_spof_analysis(
         console.print(json.dumps(data, indent=2))
         return
 
-    console.print(
-        Panel("[bold]Single Points of Failure[/]", style="red")
-    )
+    console.print(Panel("[bold]Single Points of Failure[/]", style="red"))
 
     if not spofs:
         console.print("[green]No single points of failure detected.[/]")
@@ -298,9 +292,7 @@ def _show_spof_analysis(
     console.print()
 
 
-def _show_blast_radius(
-    graph: GraphEngine, resource_id: str, json_output: bool
-) -> None:
+def _show_blast_radius(graph: GraphEngine, resource_id: str, json_output: bool) -> None:
     """Display blast radius for a specific resource."""
     analyzer = CentralityAnalyzer(graph)
     result = analyzer.compute_blast_radius(resource_id)
@@ -320,18 +312,15 @@ def _show_blast_radius(
 
     console.print(
         Panel(
-            f"[bold]Blast Radius Analysis[/]\n"
-            f"Resource: {resource_id}",
+            f"[bold]Blast Radius Analysis[/]\nResource: {resource_id}",
             style="yellow",
         )
     )
 
     if result.affected_count == 0:
-        console.print(
-            f"[green]Resource '{resource_id}' has no dependents.[/]"
-        )
+        console.print(f"[green]Resource '{resource_id}' has no dependents.[/]")
         if resource_id not in [r.id for r in graph.get_all_resources()]:
-            console.print(f"[yellow]Note: Resource not found in graph.[/]")
+            console.print("[yellow]Note: Resource not found in graph.[/]")
         return
 
     console.print(f"[red]Affected Resources:[/] {result.affected_count}")
@@ -352,9 +341,7 @@ def _show_blast_radius(
         console.print()
 
 
-def _simplify_graph(
-    graph: GraphEngine, output: Path | None, json_output: bool
-) -> None:
+def _simplify_graph(graph: GraphEngine, output: Path | None, json_output: bool) -> None:
     """Perform transitive reduction and optionally save."""
     simplifier = GraphSimplifier(graph)
     stats_before = simplifier.compute_stats()
@@ -388,10 +375,10 @@ def _simplify_graph(
         )
         console.print()
 
-        console.print(f"Density: {stats_before.density:.4f} → {stats_after.density:.4f}")
         console.print(
-            f"Complexity Score: {simplifier.get_complexity_score():.2f}/1.00"
+            f"Density: {stats_before.density:.4f} → {stats_after.density:.4f}"
         )
+        console.print(f"Complexity Score: {simplifier.get_complexity_score():.2f}/1.00")
         console.print()
 
     if output:
@@ -492,9 +479,7 @@ def _show_graph_stats(graph: GraphEngine, json_output: bool) -> None:
         console.print(json.dumps(data, indent=2))
         return
 
-    console.print(
-        Panel("[bold]Graph Statistics[/]", style="cyan")
-    )
+    console.print(Panel("[bold]Graph Statistics[/]", style="cyan"))
 
     table = Table(show_header=False)
     table.add_column("Metric", style="cyan")
@@ -504,8 +489,13 @@ def _show_graph_stats(graph: GraphEngine, json_output: bool) -> None:
     table.add_row("Edges", str(stats.edge_count))
     table.add_row("Density", f"{stats.density:.4f}")
     table.add_row("Avg Degree", f"{stats.avg_degree:.2f}")
-    table.add_row("Max In-Degree", f"{stats.max_in_degree} ({stats.max_in_degree_node or 'N/A'})")
-    table.add_row("Max Out-Degree", f"{stats.max_out_degree} ({stats.max_out_degree_node or 'N/A'})")
+    table.add_row(
+        "Max In-Degree", f"{stats.max_in_degree} ({stats.max_in_degree_node or 'N/A'})"
+    )
+    table.add_row(
+        "Max Out-Degree",
+        f"{stats.max_out_degree} ({stats.max_out_degree_node or 'N/A'})",
+    )
     table.add_row("Has Cycles", "Yes" if stats.has_cycles else "No")
     table.add_row("Components", str(stats.connected_components))
     table.add_row("Complexity Score", f"{simplifier.get_complexity_score():.2f}/1.00")
@@ -534,7 +524,7 @@ def _show_summary(graph: GraphEngine) -> None:
     simplifier = GraphSimplifier(graph)
     stats = simplifier.compute_stats()
 
-    console.print(f"\n[dim]Quick stats:[/]")
+    console.print("\n[dim]Quick stats:[/]")
     console.print(f"  Resources: {stats.node_count}")
     console.print(f"  Dependencies: {stats.edge_count}")
     console.print(f"  Cycles: {'Yes' if stats.has_cycles else 'No'}")

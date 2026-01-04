@@ -192,9 +192,7 @@ class TestBackendGenerator:
         with pytest.raises(ValueError):
             generator.generate_s3_backend(config, temp_dir)
 
-    def test_local_backend(
-        self, generator: BackendGenerator, temp_dir: Path
-    ) -> None:
+    def test_local_backend(self, generator: BackendGenerator, temp_dir: Path) -> None:
         """Test local backend generation."""
         config = LocalBackendConfig(path="mystate.tfstate")
 

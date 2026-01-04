@@ -27,7 +27,6 @@ import pytest
 from tests.conftest import VCR_AVAILABLE, use_cassette
 from tests.vcr_async import AsyncVCRTestCase, async_vcr_cassette
 
-
 # Skip all tests in this module if VCR is not available
 pytestmark = pytest.mark.skipif(
     not VCR_AVAILABLE,
@@ -67,11 +66,7 @@ class TestVCRConfiguration:
         """Test that access keys are sanitized."""
         from tests.conftest import sanitize_response
 
-        response = {
-            "body": {
-                "string": b"key: AKIAIOSFODNN7REALKEY"
-            }
-        }
+        response = {"body": {"string": b"key: AKIAIOSFODNN7REALKEY"}}
 
         sanitized = sanitize_response(response)
         body = sanitized["body"]["string"].decode("utf-8")
@@ -123,6 +118,7 @@ class TestVCRAsyncPatterns:
         """
         # This demonstrates the pattern for async scanner tests
         import asyncio
+
         await asyncio.sleep(0)  # Minimal async operation
         assert True
 
@@ -142,6 +138,7 @@ class TestAsyncVCRTestCase(AsyncVCRTestCase):
         This test uses cassette: example_async_class_test_automatic_cassette.yaml
         """
         import asyncio
+
         await asyncio.sleep(0)
         assert True
 
@@ -179,11 +176,11 @@ class TestVPCScannerWithVCR:
         session.client.return_value = session
         session.region_name = "us-east-1"
 
-        graph = GraphEngine()
-        scanner = VPCScanner(session, "us-east-1")
+        _graph = GraphEngine()  # noqa: F841
+        _scanner = VPCScanner(session, "us-east-1")  # noqa: F841
 
         # This would use the recorded cassette
-        # scanner.scan(graph)
+        # _scanner.scan(_graph)
 
         # Assertions would verify the graph structure
         # assert graph.statistics()["total_resources"] > 0
