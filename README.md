@@ -353,6 +353,7 @@ terraform plan
 |---------|-------------|
 | `replimap scan` | Scan AWS resources and build dependency graph |
 | `replimap clone` | Clone AWS environment to Infrastructure-as-Code |
+| `replimap analyze` | Analyze graph for critical resources, SPOFs, blast radius |
 | `replimap graph` | Generate visual dependency graph |
 | `replimap deps` | Explore dependencies for a resource |
 | `replimap cost` | Estimate monthly AWS costs |
@@ -381,6 +382,7 @@ Global Options:
 Commands:
   scan        Scan AWS resources and build dependency graph
   clone       Clone AWS environment to Infrastructure-as-Code
+  analyze     Analyze graph for critical resources, SPOFs, blast radius
   graph       Generate visual dependency graph of AWS infrastructure
   deps        Explore dependencies for a resource
   cost        Estimate monthly AWS costs for your infrastructure

@@ -9,6 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Graph Algorithm Enhancements (Phase 3 v1.2)** - Advanced graph analysis for infrastructure intelligence
+  - **Transitive Reduction** (`replimap/core/graph/algorithms.py`)
+    - `TransitiveReducer` class removes redundant shortcut edges for cleaner visualization
+    - `GraphSimplifier` for high-level simplification operations
+    - `GraphStats` dataclass for comprehensive graph statistics
+    - `ReductionResult` with reduction metrics and summary
+    - Complexity score computation (0.0-1.0 scale)
+  - **Centrality Analysis** (`replimap/core/analysis/centrality.py`)
+    - `CentralityAnalyzer` with betweenness centrality and PageRank metrics
+    - `find_single_points_of_failure()` identifies resources with high in-degree
+    - `compute_blast_radius()` calculates cascade impact of resource failure
+    - `AttackSurfaceAnalyzer` for exposure, privilege, and public access detection
+    - `CriticalResourceFinder` combining all metrics into criticality scores
+    - `CriticalityLevel` enum: LOW, MEDIUM, HIGH, CRITICAL
+  - **`replimap analyze` Command** (`replimap/cli/commands/analyze.py`)
+    - `--critical, -c`: Find critical resources (SPOFs, high blast radius)
+    - `--spof`: Find single points of failure
+    - `--blast-radius <ID>`: Compute blast radius for specific resource
+    - `--simplify, -s`: Perform transitive reduction
+    - `--attack-surface, -a`: Analyze attack surface
+    - `--report, -r`: Full analysis report
+    - `--json`: JSON output format
+    - `--top, -n`: Control number of results
+    - `--output, -o`: Save simplified graph
+  - 42 new tests for graph algorithms and centrality analysis
+
+- **VCR.py Testing Infrastructure (Phase 2 v1.1)** - Record/replay AWS API for deterministic testing
+  - VCR configuration in `tests/conftest.py` with sanitization
+  - `tests/vcr_async.py` helpers for async test patterns
+  - `scripts/record_cassettes.py` for recording real AWS responses
+  - Automatic sanitization of AWS account IDs, access keys, tokens
+
+- **S3 Backend Support (Phase 2 v1.1)** - Remote state for team collaboration
+  - `S3BackendConfig` and `LocalBackendConfig` dataclasses
+  - `BackendGenerator` class for backend.tf generation
+  - Bootstrap Terraform for S3 bucket and DynamoDB table creation
+  - CLI options: `--backend`, `--backend-bucket`, `--backend-key`, etc.
+
+- **Terraform Import Blocks (Phase 2 v1.1)** - TF 1.5+ import block generation
+  - `ImportBlockGenerator` with 100+ resource type mappings
+  - Native import block format for modern Terraform
+  - Legacy `import.sh` script for TF < 1.5
+  - Complex import warnings for manual intervention cases
+
+- **Shell Completion Scripts (Phase 2 v1.1)** - CLI autocompletion support
+  - `replimap completion bash/zsh/fish` commands
+  - AWS profile and region completion
+  - `replimap completion install` for easy setup
+
 - **Unified Error Collection** - ScanErrorCollector mechanism for scanner error tracking
   - `replimap/core/errors.py` - ErrorSeverity enum (WARNING/ERROR/CRITICAL), ScanError dataclass
   - `ScanErrorCollector` class with Rich console summary output
