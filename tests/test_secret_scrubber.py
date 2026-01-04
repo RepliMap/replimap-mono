@@ -437,3 +437,194 @@ write_files:
         assert "SuperSecret123" not in result
         assert "password123" not in result
         assert scrubber.has_findings()
+
+
+class TestBase64UserDataIntegrity:
+    """Test Base64 integrity preservation for UserData fields.
+
+    CRITICAL: When secrets are found in Base64-encoded UserData,
+    the ENTIRE field must be replaced to preserve encoding validity.
+    """
+
+    def test_userdata_with_aws_key_full_replacement(self) -> None:
+        """Verify entire UserData is replaced when AWS key is found."""
+        import base64
+
+        scrubber = SecretScrubber()
+
+        # UserData containing AWS access key
+        script = """#!/bin/bash
+export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+echo "Hello World"
+"""
+        user_data = base64.b64encode(script.encode()).decode()
+
+        result = scrubber.scrub_user_data(user_data, "i-1234567890abcdef0")
+
+        assert result.was_modified is True
+        assert "AWS Access Key ID" in result.secrets_found
+
+        # Verify result is valid Base64
+        decoded = base64.b64decode(result.value).decode()
+        assert "REDACTED BY REPLIMAP" in decoded
+        assert "AKIAIOSFODNN7EXAMPLE" not in decoded
+
+    def test_userdata_base64_integrity_always_valid(self) -> None:
+        """Verify output is always valid Base64 for various secret types."""
+        import base64
+
+        scrubber = SecretScrubber()
+
+        # Various inputs with secrets
+        test_cases = [
+            "export PASSWORD=secret12345678",
+            "api_key=sk_1234567890abcdef1234",
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIE...",
+            "mysql://user:pass@localhost/db",
+        ]
+
+        for script in test_cases:
+            user_data = base64.b64encode(script.encode()).decode()
+            result = scrubber.scrub_user_data(user_data, "test")
+
+            if result.was_modified:
+                # Must be valid Base64
+                try:
+                    decoded = base64.b64decode(result.value)
+                    assert decoded is not None
+                except Exception as e:
+                    raise AssertionError(
+                        f"Invalid Base64 output for input '{script[:30]}...': {e}"
+                    )
+
+            scrubber.reset()
+
+    def test_userdata_no_secrets_unchanged(self) -> None:
+        """Verify clean UserData is not modified."""
+        import base64
+
+        scrubber = SecretScrubber()
+
+        script = """#!/bin/bash
+echo "Hello World"
+apt-get update
+"""
+        user_data = base64.b64encode(script.encode()).decode()
+
+        result = scrubber.scrub_user_data(user_data, "test")
+
+        assert result.was_modified is False
+        assert result.value == user_data
+
+    def test_userdata_plain_text_handling(self) -> None:
+        """Handle non-Base64 UserData gracefully."""
+        scrubber = SecretScrubber()
+
+        script = "export API_KEY=secret12345678901234"
+
+        result = scrubber.scrub_user_data(script, "test")
+
+        assert result.was_modified is True
+        assert "REDACTED BY REPLIMAP" in result.value
+
+    def test_scrub_attribute_userdata_detection(self) -> None:
+        """scrub_attribute recognizes UserData field names."""
+        import base64
+
+        scrubber = SecretScrubber()
+
+        script = "export PASSWORD=mysecretpassword123"
+        user_data = base64.b64encode(script.encode()).decode()
+
+        # Test various UserData field name variants
+        for field_name in ["user_data", "UserData", "userData", "userdata"]:
+            scrubber.reset()
+            result = scrubber.scrub_attribute(field_name, user_data, "test")
+
+            assert result.was_modified is True
+            # Should be valid Base64 (full replacement)
+            decoded = base64.b64decode(result.value).decode()
+            assert "REDACTED BY REPLIMAP" in decoded
+
+    def test_generic_attribute_inline_redaction(self) -> None:
+        """Non-UserData attributes use inline redaction."""
+        scrubber = SecretScrubber()
+
+        result = scrubber.scrub_attribute(
+            "description",
+            "Server with password=secret123456789",
+            "test",
+        )
+
+        assert result.was_modified is True
+        assert "REPLIMAP_REDACTED_SECRET" in result.value
+        assert "secret123456789" not in result.value
+
+    def test_scrub_resource_recursive(self) -> None:
+        """Test full resource scrubbing with nested structures."""
+        import base64
+
+        scrubber = SecretScrubber()
+
+        resource = {
+            "id": "i-1234567890abcdef0",
+            "user_data": base64.b64encode(
+                b"export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"
+            ).decode(),
+            "tags": {
+                "Name": "web-server",
+                "Password": "password=should-not-be-here-secret123",
+            },
+            "nested": {
+                "api_key": "api_key=sk_12345678901234567890",
+            },
+        }
+
+        result = scrubber.scrub_resource(resource, "i-1234567890abcdef0")
+
+        # UserData fully replaced (valid Base64)
+        decoded_userdata = base64.b64decode(result["user_data"]).decode()
+        assert "AKIAIOSFODNN7EXAMPLE" not in decoded_userdata
+        assert "REDACTED BY REPLIMAP" in decoded_userdata
+
+        # Other fields inline redacted
+        assert "secret123" not in result["tags"]["Password"]
+        assert "sk_12345678901234567890" not in result["nested"]["api_key"]
+
+    def test_scrub_resource_preserves_structure(self) -> None:
+        """Resource structure is preserved after scrubbing."""
+        scrubber = SecretScrubber()
+
+        resource = {
+            "id": "test-123",
+            "config": {
+                "items": ["a", "b", "c"],
+                "count": 42,
+                "enabled": True,
+            },
+        }
+
+        result = scrubber.scrub_resource(resource, "test")
+
+        assert result["id"] == "test-123"
+        assert result["config"]["items"] == ["a", "b", "c"]
+        assert result["config"]["count"] == 42
+        assert result["config"]["enabled"] is True
+
+    def test_findings_tracking_with_scrub_user_data(self) -> None:
+        """Verify findings are tracked correctly for UserData."""
+        import base64
+
+        scrubber = SecretScrubber()
+
+        script = "PASSWORD=secret12345678"
+        user_data = base64.b64encode(script.encode()).decode()
+
+        scrubber.scrub_user_data(user_data, "resource-1")
+        scrubber.scrub_attribute("desc", "api_key=test1234567890", "resource-2")
+
+        summary = scrubber.get_summary()
+
+        assert summary["total_findings"] == 2
+        assert summary["resources_affected"] == 2

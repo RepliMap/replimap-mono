@@ -593,3 +593,324 @@ def reset_error_aggregator() -> None:
     """Reset the global error aggregator."""
     global _global_aggregator
     _global_aggregator = ErrorAggregator()
+
+
+# =============================================================================
+# ScanErrorCollector - Simplified error collection for scanners
+# =============================================================================
+
+
+class ErrorSeverity(str, Enum):
+    """Severity levels for scan errors."""
+
+    WARNING = "warning"  # Non-critical, resource partially scanned
+    ERROR = "error"  # Resource skipped
+    CRITICAL = "critical"  # Scanner failed entirely
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass
+class ScanError:
+    """Represents a single scan error with context."""
+
+    resource_type: str
+    resource_id: str | None
+    error_type: str
+    message: str
+    severity: ErrorSeverity = ErrorSeverity.ERROR
+    recoverable: bool = True
+    details: dict[str, Any] | None = None
+
+    def __str__(self) -> str:
+        if self.resource_id:
+            return f"{self.resource_id} ({self.resource_type}): {self.message}"
+        return f"{self.resource_type}: {self.message}"
+
+
+@dataclass
+class ScanErrorCollector:
+    """
+    Collects and manages scan errors across all scanners.
+
+    Provides a simplified API for scanner error collection with:
+    - Automatic error classification
+    - Rich console summary output
+    - Severity tracking (WARNING, ERROR, CRITICAL)
+
+    Usage:
+        collector = ScanErrorCollector()
+
+        # In scanner:
+        try:
+            scan_resource(...)
+        except Exception as e:
+            collector.add_error(
+                resource_type="aws_instance",
+                resource_id="i-1234",
+                error=e
+            )
+
+        # After scan:
+        collector.print_summary(console)
+    """
+
+    errors: list[ScanError] = field(default_factory=list)
+    _max_errors: int = 1000  # Prevent memory issues
+
+    def add_error(
+        self,
+        resource_type: str,
+        resource_id: str | None,
+        error: Exception,
+        severity: ErrorSeverity = ErrorSeverity.ERROR,
+        recoverable: bool = True,
+    ) -> None:
+        """
+        Add an error to the collection.
+
+        Args:
+            resource_type: AWS resource type (e.g., "aws_instance")
+            resource_id: Resource identifier (e.g., "i-1234567890abcdef0")
+            error: The exception that occurred
+            severity: Error severity level
+            recoverable: Whether scanning can continue
+        """
+        if len(self.errors) >= self._max_errors:
+            logger.warning("Max error count reached, dropping new errors")
+            return
+
+        # Classify error type
+        error_type = self._classify_error(error)
+
+        scan_error = ScanError(
+            resource_type=resource_type,
+            resource_id=resource_id,
+            error_type=error_type,
+            message=str(error),
+            severity=severity,
+            recoverable=recoverable,
+            details=self._extract_details(error),
+        )
+
+        self.errors.append(scan_error)
+
+        # Log at appropriate level
+        if severity == ErrorSeverity.CRITICAL:
+            logger.error(f"Critical scan error: {scan_error}")
+        elif severity == ErrorSeverity.ERROR:
+            logger.warning(f"Scan error: {scan_error}")
+        else:
+            logger.debug(f"Scan warning: {scan_error}")
+
+    def _classify_error(self, error: Exception) -> str:
+        """Classify error into a category based on message and type."""
+        error_str = str(error).lower()
+        error_class = type(error).__name__
+
+        # AWS-specific errors
+        if "accessdenied" in error_str or "unauthorized" in error_str:
+            return "AccessDenied"
+        if "throttl" in error_str or "rate" in error_str:
+            return "Throttled"
+        if "not found" in error_str or "notfound" in error_str or "nosuch" in error_str:
+            return "NotFound"
+        if "timeout" in error_str:
+            return "Timeout"
+        if "connection" in error_str:
+            return "ConnectionError"
+
+        # Generic classifications
+        if "json" in error_str or "parse" in error_str:
+            return "ParseError"
+        if "validation" in error_str:
+            return "ValidationError"
+
+        return error_class
+
+    def _extract_details(self, error: Exception) -> dict[str, Any] | None:
+        """Extract additional details from error (e.g., AWS error codes)."""
+        details: dict[str, Any] = {}
+
+        # Boto3 ClientError details
+        if hasattr(error, "response"):
+            response = getattr(error, "response", {})
+            if isinstance(response, dict) and "Error" in response:
+                details["aws_error_code"] = response["Error"].get("Code")
+                details["aws_error_message"] = response["Error"].get("Message")
+
+        return details if details else None
+
+    def has_errors(self) -> bool:
+        """Check if any errors were collected."""
+        return len(self.errors) > 0
+
+    def has_critical_errors(self) -> bool:
+        """Check if any critical errors occurred."""
+        return any(e.severity == ErrorSeverity.CRITICAL for e in self.errors)
+
+    def get_error_count(self) -> int:
+        """Get total error count."""
+        return len(self.errors)
+
+    def get_errors_by_type(self) -> dict[str, int]:
+        """Get error counts grouped by type."""
+        counts: dict[str, int] = {}
+        for e in self.errors:
+            counts[e.error_type] = counts.get(e.error_type, 0) + 1
+        return counts
+
+    def get_errors_by_resource_type(self) -> dict[str, int]:
+        """Get error counts grouped by resource type."""
+        counts: dict[str, int] = {}
+        for e in self.errors:
+            counts[e.resource_type] = counts.get(e.resource_type, 0) + 1
+        return counts
+
+    def get_summary(self) -> dict[str, Any]:
+        """Get comprehensive error summary."""
+        return {
+            "total_errors": len(self.errors),
+            "by_severity": self._count_by_severity(),
+            "by_type": self.get_errors_by_type(),
+            "by_resource_type": self.get_errors_by_resource_type(),
+            "has_critical": self.has_critical_errors(),
+        }
+
+    def _count_by_severity(self) -> dict[str, int]:
+        """Count errors by severity."""
+        counts: dict[str, int] = {}
+        for e in self.errors:
+            sev = str(e.severity)
+            counts[sev] = counts.get(sev, 0) + 1
+        return counts
+
+    def print_summary(self, console: Any, verbose: bool = False) -> None:
+        """
+        Print error summary to Rich console.
+
+        Args:
+            console: Rich Console instance
+            verbose: If True, show all errors. If False, show top 5.
+        """
+        if not self.errors:
+            return
+
+        console.print()
+
+        # Header with severity-aware styling
+        error_count = len(self.errors)
+        if self.has_critical_errors():
+            console.print(
+                f"[red]⚠️  {error_count} scan errors occurred (some critical):[/red]"
+            )
+        else:
+            console.print(
+                f"[yellow]⚠️  {error_count} resources had scan errors:[/yellow]"
+            )
+
+        # Show errors (limited or full based on verbose)
+        errors_to_show = self.errors if verbose else self.errors[:5]
+
+        for error in errors_to_show:
+            severity_color = {
+                ErrorSeverity.WARNING: "yellow",
+                ErrorSeverity.ERROR: "red",
+                ErrorSeverity.CRITICAL: "bold red",
+            }.get(error.severity, "white")
+
+            console.print(f"   [{severity_color}]• {error}[/{severity_color}]")
+
+        # Show "and X more" if truncated
+        remaining = len(self.errors) - len(errors_to_show)
+        if remaining > 0:
+            console.print(
+                f"   [dim]... and {remaining} more (use --verbose to see all)[/dim]"
+            )
+
+        # Show summary by type in verbose mode
+        if verbose:
+            console.print()
+            console.print("[dim]Errors by type:[/dim]")
+            for error_type, count in self.get_errors_by_type().items():
+                console.print(f"   [dim]{error_type}: {count}[/dim]")
+
+    def clear(self) -> None:
+        """Clear all collected errors."""
+        self.errors.clear()
+
+
+# Global scan error collector
+_global_scan_collector: ScanErrorCollector | None = None
+
+
+def get_scan_error_collector() -> ScanErrorCollector:
+    """Get or create the global scan error collector."""
+    global _global_scan_collector
+    if _global_scan_collector is None:
+        _global_scan_collector = ScanErrorCollector()
+    return _global_scan_collector
+
+
+def reset_scan_error_collector() -> ScanErrorCollector:
+    """Reset and return a new scan error collector."""
+    global _global_scan_collector
+    _global_scan_collector = ScanErrorCollector()
+    return _global_scan_collector
+
+
+def handle_scan_error(
+    resource_type: str,
+    resource_id_getter: Any | None = None,
+    default_return: Any = None,
+    severity: ErrorSeverity = ErrorSeverity.ERROR,
+) -> Any:
+    """
+    Decorator to handle scan errors gracefully.
+
+    Usage:
+        @handle_scan_error(
+            resource_type="aws_instance",
+            resource_id_getter=lambda args: args[0].get('id'),
+            default_return=None
+        )
+        def process_instance(self, instance_data):
+            # ... processing that might fail ...
+            return result
+    """
+    from collections.abc import Callable
+    from functools import wraps
+    from typing import TypeVar
+
+    T = TypeVar("T")
+
+    def decorator(func: Callable[..., T]) -> Callable[..., T | None]:
+        @wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> T | None:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                # Try to get resource ID
+                resource_id = None
+                if resource_id_getter and args:
+                    try:
+                        resource_id = resource_id_getter(args)
+                    except Exception:  # noqa: S110
+                        # Silently ignore - ID extraction is best-effort
+                        pass
+
+                # Add to collector
+                collector = get_scan_error_collector()
+                collector.add_error(
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    error=e,
+                    severity=severity,
+                )
+
+                return default_return
+
+        return wrapper
+
+    return decorator
