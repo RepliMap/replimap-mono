@@ -21,9 +21,10 @@ import logging
 import sqlite3
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 from .base import Edge, GraphBackend, Node, ResourceCategory
 
@@ -39,17 +40,29 @@ class ConnectionPool:
 
     Provides separate reader and writer connections for optimal concurrency.
     Uses thread-local storage for reader connections.
+
+    Note: For :memory: mode, a single connection is shared for both reading
+    and writing, because each SQLite :memory: connection creates a separate
+    in-memory database.
     """
 
     def __init__(self, db_path: str, timeout: float = 60.0) -> None:
         self.db_path = db_path
         self.timeout = timeout
+        self.is_memory = db_path == ":memory:"
         self._local = threading.local()
         self._writer_lock = threading.Lock()
         self._writer_conn: sqlite3.Connection | None = None
 
     def get_reader(self) -> sqlite3.Connection:
         """Get a thread-local reader connection."""
+        # For memory mode, always use the shared writer connection
+        # because each :memory: connection creates a separate database
+        if self.is_memory:
+            if self._writer_conn is None:
+                self._writer_conn = self._create_connection(readonly=False)
+            return self._writer_conn
+
         if not hasattr(self._local, "conn") or self._local.conn is None:
             self._local.conn = self._create_connection(readonly=True)
         return self._local.conn
@@ -59,9 +72,7 @@ class ConnectionPool:
         """Get the exclusive writer connection."""
         acquired = self._writer_lock.acquire(timeout=self.timeout)
         if not acquired:
-            raise sqlite3.OperationalError(
-                f"Write lock timeout after {self.timeout}s"
-            )
+            raise sqlite3.OperationalError(f"Write lock timeout after {self.timeout}s")
 
         try:
             if self._writer_conn is None:
@@ -618,7 +629,10 @@ class SQLiteBackend(GraphBackend):
         out_deg_row = conn.execute(
             "SELECT COUNT(*) FROM edges WHERE source_id = ?", (node_id,)
         ).fetchone()
-        return (in_deg_row[0] if in_deg_row else 0, out_deg_row[0] if out_deg_row else 0)
+        return (
+            in_deg_row[0] if in_deg_row else 0,
+            out_deg_row[0] if out_deg_row else 0,
+        )
 
     def get_high_degree_nodes(self, top_n: int = 10) -> list[tuple[Node, int]]:
         """Get nodes with highest total degree."""

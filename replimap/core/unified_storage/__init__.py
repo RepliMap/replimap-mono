@@ -20,7 +20,7 @@ SQLite with :memory: mode provides equivalent performance
 with unified snapshot and query capabilities.
 
 Usage:
-    from replimap.core.storage import UnifiedGraphEngine, Node, Edge
+    from replimap.core.unified_storage import UnifiedGraphEngine, Node, Edge
 
     # Memory mode (ephemeral)
     engine = UnifiedGraphEngine()

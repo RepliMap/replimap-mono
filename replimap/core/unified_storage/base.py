@@ -11,9 +11,10 @@ This module defines the core abstractions:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
@@ -65,6 +66,12 @@ class Node:
         """Infer category from resource type."""
         type_lower = self.type.lower()
 
+        # Check DATABASE before COMPUTE since "rds_instance" contains "instance"
+        if any(
+            t in type_lower
+            for t in ("rds", "dynamodb", "elasticache", "redshift", "aurora")
+        ):
+            return ResourceCategory.DATABASE
         if any(
             t in type_lower
             for t in ("lambda", "instance", "ecs", "eks", "batch", "fargate")
@@ -79,11 +86,6 @@ class Node:
             return ResourceCategory.NETWORK
         if any(t in type_lower for t in ("iam", "kms", "secret", "acm", "waf")):
             return ResourceCategory.SECURITY
-        if any(
-            t in type_lower
-            for t in ("rds", "dynamodb", "elasticache", "redshift", "aurora")
-        ):
-            return ResourceCategory.DATABASE
 
         return ResourceCategory.OTHER
 

@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from replimap.core.storage import Edge, Node, SQLiteBackend, UnifiedGraphEngine
+from replimap.core.unified_storage import Edge, Node, SQLiteBackend, UnifiedGraphEngine
 
 
 class TestUnifiedBackend:
@@ -64,7 +64,7 @@ class TestUnifiedBackend:
         """Batch add operations work correctly."""
         nodes = [Node(id=f"n{i}", type="aws_instance") for i in range(100)]
         edges = [
-            Edge(source_id=f"n{i}", target_id=f"n{i+1}", relation="next")
+            Edge(source_id=f"n{i}", target_id=f"n{i + 1}", relation="next")
             for i in range(99)
         ]
 
@@ -103,13 +103,16 @@ class TestUnifiedBackend:
 
         results = backend.search_nodes("web")
         assert len(results) >= 1
-        assert any("web" in r.id.lower() or (r.name and "web" in r.name.lower()) for r in results)
+        assert any(
+            "web" in r.id.lower() or (r.name and "web" in r.name.lower())
+            for r in results
+        )
 
     def test_path_finding(self, backend: SQLiteBackend) -> None:
         """Path finding with recursive CTE works."""
         nodes = [Node(id=f"p{i}", type="aws_instance") for i in range(5)]
         edges = [
-            Edge(source_id=f"p{i}", target_id=f"p{i+1}", relation="next")
+            Edge(source_id=f"p{i}", target_id=f"p{i + 1}", relation="next")
             for i in range(4)
         ]
 
@@ -236,15 +239,19 @@ class TestSnapshot:
     def test_snapshot_preserves_edges(self, tmp_path: Path) -> None:
         """Snapshot preserves edge relationships."""
         backend = SQLiteBackend(db_path=":memory:")
-        backend.add_nodes_batch([
-            Node(id="a", type="aws_vpc"),
-            Node(id="b", type="aws_subnet"),
-            Node(id="c", type="aws_instance"),
-        ])
-        backend.add_edges_batch([
-            Edge(source_id="b", target_id="a", relation="belongs_to"),
-            Edge(source_id="c", target_id="b", relation="in_subnet"),
-        ])
+        backend.add_nodes_batch(
+            [
+                Node(id="a", type="aws_vpc"),
+                Node(id="b", type="aws_subnet"),
+                Node(id="c", type="aws_instance"),
+            ]
+        )
+        backend.add_edges_batch(
+            [
+                Edge(source_id="b", target_id="a", relation="belongs_to"),
+                Edge(source_id="c", target_id="b", relation="in_subnet"),
+            ]
+        )
 
         snapshot_path = str(tmp_path / "with_edges.db")
         backend.snapshot(snapshot_path)
@@ -299,7 +306,7 @@ class TestUnifiedGraphEngine:
 
         nodes = [Node(id=f"nx{i}", type="aws_instance") for i in range(10)]
         edges = [
-            Edge(source_id=f"nx{i}", target_id=f"nx{i+1}", relation="next")
+            Edge(source_id=f"nx{i}", target_id=f"nx{i + 1}", relation="next")
             for i in range(9)
         ]
 
@@ -479,15 +486,19 @@ class TestEdgeCases:
         """Adding duplicate edges is silently ignored."""
         backend = SQLiteBackend(db_path=":memory:")
 
-        backend.add_nodes_batch([
-            Node(id="a", type="aws_vpc"),
-            Node(id="b", type="aws_subnet"),
-        ])
+        backend.add_nodes_batch(
+            [
+                Node(id="a", type="aws_vpc"),
+                Node(id="b", type="aws_subnet"),
+            ]
+        )
 
         backend.add_edge(Edge(source_id="b", target_id="a", relation="belongs_to"))
-        backend.add_edges_batch([
-            Edge(source_id="b", target_id="a", relation="belongs_to")  # Duplicate
-        ])
+        backend.add_edges_batch(
+            [
+                Edge(source_id="b", target_id="a", relation="belongs_to")  # Duplicate
+            ]
+        )
 
         assert backend.edge_count() == 1
 
@@ -498,7 +509,7 @@ class TestEdgeCases:
         # Create chain: 0 -> 1 -> 2 -> 3 -> 4 -> 5
         nodes = [Node(id=f"d{i}", type="aws_instance") for i in range(6)]
         edges = [
-            Edge(source_id=f"d{i}", target_id=f"d{i+1}", relation="next")
+            Edge(source_id=f"d{i}", target_id=f"d{i + 1}", relation="next")
             for i in range(5)
         ]
         backend.add_nodes_batch(nodes)
