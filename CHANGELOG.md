@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Advanced Offline Drift Detection (Phase 3 v1.4)** - Production-grade drift detection without AWS connection
+  - **Core Detector** (`replimap/core/drift/detector.py`)
+    - `OfflineDriftDetector` - Main engine comparing cached scans against Terraform state
+    - `TerraformStateLoader` - Robust parsing of TF state v3/v4 formats with count/for_each support
+    - `AttributeNormalizer` - Intelligent normalization (CamelCase→snake_case, Tags array→object)
+    - `AttributeComparator` - Deep comparison with type coercion and severity classification
+    - `DriftFilter` - Configurable ignore rules with `.replimapignore` file support
+    - `ScanComparator` - Compare two RepliMap scans to detect changes over time
+  - **Drift Types and Severity**:
+    - UNMANAGED: Ghost resources in AWS not managed by Terraform
+    - MISSING: Resources deleted manually outside Terraform
+    - DRIFTED: Configuration differences between AWS and Terraform
+    - CRITICAL: Security fields (ingress/egress, IAM policies, encryption)
+    - HIGH: Infrastructure fields (instance_type, AMI, networking)
+  - **SARIF Output** (`replimap/core/formatters/sarif.py`)
+    - GitHub Security integration via SARIF 2.1.0 format
+    - Security severity scores for GitHub Code Scanning
+  - **`replimap drift-offline` Commands** (`replimap/cli/commands/drift.py`)
+    - `replimap drift-offline offline -p <profile> -s <state>`: Offline drift detection
+    - `--sarif`: Output SARIF for GitHub Security
+    - `--fail-on-drift`: CI/CD exit code 1 on drift
+    - `--severity`: Filter by minimum severity
+    - `--ignore`: Custom .replimapignore file
+    - `replimap drift-offline compare-scans`: Compare scans over time
+  - **Benign Drift Filtering**:
+    - Auto-ignore Kubernetes-managed resources (kubernetes.io/*, k8s.io/*)
+    - Auto-ignore AWS-managed tags (aws:*)
+    - Auto-ignore ASG desired_capacity and ECS desired_count (auto-scaling)
+  - Remediation hints for each drift finding
+  - 39 comprehensive tests in `tests/test_offline_drift_detector.py`
+
 - **Graph-Aware IAM Least Privilege Generator (Phase 3 v1.3)** - Generate precise, resource-level IAM policies
   - **Core Generator** (`replimap/core/security/iam_generator.py`)
     - `GraphAwareIAMGenerator` - Main policy generator with boundary-aware traversal
