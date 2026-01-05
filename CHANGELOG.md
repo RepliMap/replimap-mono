@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Graph-Aware IAM Least Privilege Generator (Phase 3 v1.3)** - Generate precise, resource-level IAM policies
+  - **Core Generator** (`replimap/core/security/iam_generator.py`)
+    - `GraphAwareIAMGenerator` - Main policy generator with boundary-aware traversal
+    - `TraversalController` - Controls graph traversal with resource boundary model:
+      - TERMINAL: Block traversal at other compute (Lambda, EC2, ECS)
+      - DATA: Grant permissions but don't traverse (S3, SQS, DynamoDB)
+      - SECURITY: Always traverse for encryption deps (KMS, Secrets Manager)
+      - TRANSITIVE: Pass through without permissions (VPC, Subnet)
+    - `IntentAwareActionMapper` - Maps actions based on access role (Producer/Consumer/Controller)
+    - `ARNBuilder` - Precise ARN construction with partition detection (aws, aws-cn, aws-us-gov)
+    - `SafeResourceCompressor` - Safe ARN compression respecting security boundaries
+    - `PolicyOptimizer` - Policy size optimization with sharding for 6KB limit
+    - `IAMPolicy` and `IAMStatement` dataclasses with Terraform output generation
+  - **`replimap iam` Command** (`replimap/cli/commands/iam.py`)
+    - `replimap iam for-resource -r <id>`: Generate policy for compute resource
+    - `--scope`: runtime_read, runtime_write, runtime_full, infra_deploy
+    - `--format`: json or terraform output
+    - `--create-role`: Generate complete Terraform Role + Policy + Attachment
+    - `--include-networking`: Include VPC/Subnet resources
+    - `replimap iam list-compute`: List available compute resources
+  - Prevents over-connectivity (Lambda A → SQS → Lambda B ≠ Lambda A gets DynamoDB permissions)
+  - Cross-account resource detection with warnings
+  - 47 comprehensive tests in `tests/test_iam_generator.py`
+
 - **Graph Algorithm Enhancements (Phase 3 v1.2)** - Advanced graph analysis for infrastructure intelligence
   - **Transitive Reduction** (`replimap/core/graph/algorithms.py`)
     - `TransitiveReducer` class removes redundant shortcut edges for cleaner visualization
