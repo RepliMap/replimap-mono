@@ -9,6 +9,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Robust SARIF Generator for CI/CD Integration (Phase 3 v1.5)** - Production-grade SARIF output for GitHub Security
+  - **Enhanced SARIF Generator** (`replimap/core/formatters/sarif.py`)
+    - `SARIFGenerator` - Full GitHub Advanced Security compatibility
+    - `RuleRegistry` - Dynamic rule registry with 16 predefined rules (AUDIT001-008, DRIFT001-004, ANALYSIS001-004)
+    - `SARIFRule` - Rich rule definitions with CWE relationships and help markdown
+    - `SARIFLocation` - Hybrid locations (file + cloud resources)
+    - `SARIFResult` - Stable SHA-256 fingerprinting for GitHub deduplication
+    - `MarkdownBuilder` - Rich markdown generation for GitHub display
+  - **Predefined Rules**:
+    - AUDIT001-008: Security audit rules (public access, encryption, IAM, security groups, logging)
+    - DRIFT001-004: Drift detection rules (unmanaged, missing, config drift, security drift)
+    - ANALYSIS001-004: Graph analysis rules (attack paths, blast radius, orphans, circular deps)
+  - **GitHub Integration Features**:
+    - Stable fingerprints prevent duplicate alerts across scans
+    - Code flows for attack path visualization
+    - Rich markdown messages with severity badges and change tables
+    - CWE relationship mappings for security rules
+  - 55 comprehensive tests in `tests/test_sarif_generator.py`
+
+- **Advanced Offline Drift Detection (Phase 3 v1.4)** - Production-grade drift detection without AWS connection
+  - **Core Detector** (`replimap/core/drift/detector.py`)
+    - `OfflineDriftDetector` - Main engine comparing cached scans against Terraform state
+    - `TerraformStateLoader` - Robust parsing of TF state v3/v4 formats with count/for_each support
+    - `AttributeNormalizer` - Intelligent normalization (CamelCase→snake_case, Tags array→object)
+    - `AttributeComparator` - Deep comparison with type coercion and severity classification
+    - `DriftFilter` - Configurable ignore rules with `.replimapignore` file support
+    - `ScanComparator` - Compare two RepliMap scans to detect changes over time
+  - **Drift Types and Severity**:
+    - UNMANAGED: Ghost resources in AWS not managed by Terraform
+    - MISSING: Resources deleted manually outside Terraform
+    - DRIFTED: Configuration differences between AWS and Terraform
+    - CRITICAL: Security fields (ingress/egress, IAM policies, encryption)
+    - HIGH: Infrastructure fields (instance_type, AMI, networking)
+  - **SARIF Output**: Now uses enhanced SARIFGenerator (see Phase 3 v1.5 above)
+  - **`replimap drift-offline` Commands** (`replimap/cli/commands/drift.py`)
+    - `replimap drift-offline offline -p <profile> -s <state>`: Offline drift detection
+    - `--sarif`: Output SARIF for GitHub Security
+    - `--fail-on-drift`: CI/CD exit code 1 on drift
+    - `--severity`: Filter by minimum severity
+    - `--ignore`: Custom .replimapignore file
+    - `replimap drift-offline compare-scans`: Compare scans over time
+  - **Benign Drift Filtering**:
+    - Auto-ignore Kubernetes-managed resources (kubernetes.io/*, k8s.io/*)
+    - Auto-ignore AWS-managed tags (aws:*)
+    - Auto-ignore ASG desired_capacity and ECS desired_count (auto-scaling)
+  - Remediation hints for each drift finding
+  - 39 comprehensive tests in `tests/test_offline_drift_detector.py`
+
+- **Graph-Aware IAM Least Privilege Generator (Phase 3 v1.3)** - Generate precise, resource-level IAM policies
+  - **Core Generator** (`replimap/core/security/iam_generator.py`)
+    - `GraphAwareIAMGenerator` - Main policy generator with boundary-aware traversal
+    - `TraversalController` - Controls graph traversal with resource boundary model:
+      - TERMINAL: Block traversal at other compute (Lambda, EC2, ECS)
+      - DATA: Grant permissions but don't traverse (S3, SQS, DynamoDB)
+      - SECURITY: Always traverse for encryption deps (KMS, Secrets Manager)
+      - TRANSITIVE: Pass through without permissions (VPC, Subnet)
+    - `IntentAwareActionMapper` - Maps actions based on access role (Producer/Consumer/Controller)
+    - `ARNBuilder` - Precise ARN construction with partition detection (aws, aws-cn, aws-us-gov)
+    - `SafeResourceCompressor` - Safe ARN compression respecting security boundaries
+    - `PolicyOptimizer` - Policy size optimization with sharding for 6KB limit
+    - `IAMPolicy` and `IAMStatement` dataclasses with Terraform output generation
+  - **`replimap iam` Command** (`replimap/cli/commands/iam.py`)
+    - `replimap iam for-resource -r <id>`: Generate policy for compute resource
+    - `--scope`: runtime_read, runtime_write, runtime_full, infra_deploy
+    - `--format`: json or terraform output
+    - `--create-role`: Generate complete Terraform Role + Policy + Attachment
+    - `--include-networking`: Include VPC/Subnet resources
+    - `replimap iam list-compute`: List available compute resources
+  - Prevents over-connectivity (Lambda A → SQS → Lambda B ≠ Lambda A gets DynamoDB permissions)
+  - Cross-account resource detection with warnings
+  - 47 comprehensive tests in `tests/test_iam_generator.py`
+
 - **Graph Algorithm Enhancements (Phase 3 v1.2)** - Advanced graph analysis for infrastructure intelligence
   - **Transitive Reduction** (`replimap/core/graph/algorithms.py`)
     - `TransitiveReducer` class removes redundant shortcut edges for cleaner visualization

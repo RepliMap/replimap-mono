@@ -27,6 +27,7 @@ from replimap.cli.commands import (
     dr,
     drift,
     graph,
+    iam,
     license,
     load,
     profiles,
@@ -71,6 +72,7 @@ def register_all_commands(app: typer.Typer) -> None:
 
     # Register sub-command groups
     cache.register(app)
+    iam.register(app)
     license.register(app)
     upgrade.register(app)
     snapshot.register(app)
@@ -97,6 +99,7 @@ __all__ = [
     "trends",
     "transfer",
     "cache",
+    "iam",
     "license",
     "upgrade",
     "snapshot",

@@ -2,15 +2,24 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
+from rich import box
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.table import Table
 
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core.browser import open_in_browser
 from replimap.licensing import check_drift_allowed
+
+# Create a Typer app for drift subcommands
+drift_app = typer.Typer(
+    help="Infrastructure drift detection commands",
+    no_args_is_help=False,
+)
 
 
 def drift_command(
@@ -332,6 +341,407 @@ def drift_command(
         raise typer.Exit(exit_code)
 
 
+@drift_app.command("offline")
+def offline_detect_command(
+    profile: str = typer.Option(
+        "default",
+        "-p",
+        "--profile",
+        help="RepliMap profile (cached scan)",
+    ),
+    state_file: str = typer.Option(
+        "./terraform.tfstate",
+        "-s",
+        "--state",
+        help="Path to terraform.tfstate",
+    ),
+    output: str | None = typer.Option(
+        None,
+        "-o",
+        "--output",
+        help="Output JSON report file",
+    ),
+    sarif: str | None = typer.Option(
+        None,
+        "--sarif",
+        help="Output SARIF file for GitHub Security",
+    ),
+    fail_on_drift: bool = typer.Option(
+        False,
+        "--fail-on-drift",
+        help="Exit code 1 if drift detected (for CI/CD)",
+    ),
+    severity: str = typer.Option(
+        "low",
+        "--severity",
+        help="Minimum severity to report: critical, high, medium, low",
+    ),
+    ignore_config: str | None = typer.Option(
+        None,
+        "--ignore",
+        help="Path to .replimapignore file",
+    ),
+    quiet: bool = typer.Option(
+        False,
+        "-q",
+        "--quiet",
+        help="Minimal output (for scripts)",
+    ),
+) -> None:
+    """
+    Offline drift detection using cached RepliMap scan.
+
+    This is an "offline terraform plan" - faster and doesn't require
+    AWS connection or Terraform installation. Uses cached scan data.
+
+    \b
+    Examples:
+        # Basic offline drift detection
+        replimap drift offline -p prod -s ./terraform.tfstate
+
+        # For CI/CD (fail on drift)
+        replimap drift offline -p prod --fail-on-drift
+
+        # Only critical/high severity
+        replimap drift offline -p prod --severity high
+
+        # With custom ignore rules
+        replimap drift offline -p prod --ignore .replimapignore
+
+        # Output for GitHub Security
+        replimap drift offline -p prod --sarif drift-results.sarif
+    """
+    from replimap.core.cache_manager import get_cache_path
+    from replimap.core.drift import DriftFilter, DriftSeverity, OfflineDriftDetector
+    from replimap.core.graph_engine import GraphEngine
+
+    state_path = Path(state_file)
+
+    if not state_path.exists():
+        console.print(f"[red]State file not found: {state_path}[/red]")
+        console.print()
+        console.print("[dim]To create the state file:[/dim]")
+        console.print("  terraform state pull > terraform.tfstate")
+        raise typer.Exit(1)
+
+    # Load cached scan
+    try:
+        cache_path = get_cache_path(profile)
+        if not cache_path.exists():
+            console.print(f"[red]No cached scan found for profile '{profile}'.[/red]")
+            console.print(f"Run 'replimap scan -p {profile}' first.")
+            raise typer.Exit(1)
+
+        graph = GraphEngine.load(cache_path)
+        resources = list(graph.get_all_resources())
+    except Exception as e:
+        console.print(f"[red]Failed to load cached scan: {e}[/red]")
+        raise typer.Exit(1)
+
+    # Convert resources to dict format for detector
+    live_resources = []
+    for resource in resources:
+        resource_dict = {
+            "id": resource.id,
+            "type": getattr(resource, "terraform_type", str(resource.resource_type)),
+            "name": getattr(resource, "original_name", resource.id),
+            "attributes": getattr(resource, "config", {}) or {},
+        }
+        live_resources.append(resource_dict)
+
+    # Load ignore rules
+    drift_filter = None
+    if ignore_config:
+        ignore_path = Path(ignore_config)
+        if ignore_path.exists():
+            drift_filter = DriftFilter.from_config(ignore_path)
+            if not quiet:
+                console.print(f"[dim]Loaded ignore rules from {ignore_config}[/dim]")
+
+    if not quiet:
+        console.print(
+            f"[dim]Comparing {len(live_resources)} cached resources "
+            f"against Terraform state...[/dim]"
+        )
+
+    # Run detection
+    detector = OfflineDriftDetector(ignore_filter=drift_filter)
+    report = detector.detect(live_resources, state_path)
+
+    # Filter by severity
+    severity_map = {
+        "critical": DriftSeverity.CRITICAL,
+        "high": DriftSeverity.HIGH,
+        "medium": DriftSeverity.MEDIUM,
+        "low": DriftSeverity.LOW,
+    }
+    min_severity = severity_map.get(severity.lower(), DriftSeverity.LOW)
+
+    severity_order = [
+        DriftSeverity.CRITICAL,
+        DriftSeverity.HIGH,
+        DriftSeverity.MEDIUM,
+        DriftSeverity.LOW,
+        DriftSeverity.INFO,
+    ]
+    min_index = severity_order.index(min_severity)
+
+    report.findings = [
+        f
+        for f in report.findings
+        if severity_order.index(f.max_change_severity) <= min_index
+    ]
+
+    # Output JSON
+    if output:
+        Path(output).write_text(report.to_json())
+        if not quiet:
+            console.print(f"[green]Report saved to {output}[/green]")
+
+    # Output SARIF
+    if sarif:
+        sarif_data = report.to_sarif()
+        Path(sarif).write_text(json.dumps(sarif_data, indent=2))
+        if not quiet:
+            console.print(f"[green]SARIF saved to {sarif}[/green]")
+
+    # Display report
+    if not quiet:
+        _display_offline_report(report)
+    else:
+        _display_quiet(report)
+
+    # Exit code
+    if fail_on_drift and report.has_drift:
+        raise typer.Exit(1)
+
+
+@drift_app.command("compare-scans")
+def compare_scans_command(
+    profile: str = typer.Option(
+        "default",
+        "-p",
+        "--profile",
+        help="Current RepliMap profile",
+    ),
+    previous: str = typer.Option(
+        ...,
+        "--previous",
+        help="Path to previous scan cache file",
+    ),
+    output: str | None = typer.Option(
+        None,
+        "-o",
+        "--output",
+        help="Output JSON report file",
+    ),
+) -> None:
+    """
+    Compare current scan against a previous scan.
+
+    Useful for detecting AWS changes over time without Terraform.
+
+    \b
+    Example:
+        # Save current scan
+        cp ~/.replimap/cache/prod.json ~/.replimap/cache/prod-baseline.json
+
+        # Later, compare
+        replimap drift compare-scans -p prod --previous ~/.replimap/cache/prod-baseline.json
+    """
+    from replimap.core.cache_manager import get_cache_path
+    from replimap.core.drift import ScanComparator
+    from replimap.core.graph_engine import GraphEngine
+
+    try:
+        cache_path = get_cache_path(profile)
+        if not cache_path.exists():
+            console.print(f"[red]No cached scan found for profile '{profile}'.[/red]")
+            raise typer.Exit(1)
+
+        current_graph = GraphEngine.load(cache_path)
+    except Exception as e:
+        console.print(f"[red]Failed to load current scan: {e}[/red]")
+        raise typer.Exit(1)
+
+    prev_path = Path(previous)
+    if not prev_path.exists():
+        console.print(f"[red]Previous scan not found: {previous}[/red]")
+        raise typer.Exit(1)
+
+    try:
+        prev_graph = GraphEngine.load(prev_path)
+    except Exception as e:
+        console.print(f"[red]Failed to load previous scan: {e}[/red]")
+        raise typer.Exit(1)
+
+    current_resources = list(current_graph.get_all_resources())
+    prev_resources = list(prev_graph.get_all_resources())
+
+    console.print(
+        f"[dim]Comparing {len(current_resources)} current vs "
+        f"{len(prev_resources)} previous resources...[/dim]"
+    )
+
+    # Convert to dict format
+    def resources_to_list(resources):
+        result = []
+        for r in resources:
+            result.append(
+                {
+                    "id": r.id,
+                    "type": getattr(r, "terraform_type", str(r.resource_type)),
+                    "name": getattr(r, "original_name", r.id),
+                    "attributes": getattr(r, "config", {}) or {},
+                }
+            )
+        return result
+
+    comparator = ScanComparator()
+    report = comparator.compare(
+        resources_to_list(current_resources),
+        resources_to_list(prev_resources),
+    )
+
+    if output:
+        Path(output).write_text(report.to_json())
+        console.print(f"[green]Report saved to {output}[/green]")
+
+    _display_offline_report(report)
+
+
+def _display_offline_report(report) -> None:
+    """Display drift report with rich formatting."""
+    from replimap.core.drift import DriftType
+
+    console.print()
+
+    if not report.has_drift:
+        console.print(
+            Panel(
+                "[bold green]No drift detected![/bold green]\n\n"
+                "Infrastructure is in sync.",
+                title="Drift Report",
+                border_style="green",
+            )
+        )
+        return
+
+    # Summary panel
+    summary = report.summary
+    border_color = "red" if report.critical_count > 0 else "yellow"
+
+    unmanaged = summary.get("by_drift_type", {}).get("unmanaged", 0)
+    missing = summary.get("by_drift_type", {}).get("missing", 0)
+    drifted = summary.get("by_drift_type", {}).get("drifted", 0)
+
+    critical = summary.get("by_severity", {}).get("critical", 0)
+    high = summary.get("by_severity", {}).get("high", 0)
+    medium = summary.get("by_severity", {}).get("medium", 0)
+    low = summary.get("by_severity", {}).get("low", 0)
+
+    console.print(
+        Panel(
+            f"[bold]Found {len(report.findings)} drift findings[/bold]\n\n"
+            f"By Type:\n"
+            f"   Unmanaged: {unmanaged}\n"
+            f"   Missing: {missing}\n"
+            f"   Drifted: {drifted}\n\n"
+            f"By Severity:\n"
+            f"   Critical: {critical}\n"
+            f"   High: {high}\n"
+            f"   Medium: {medium}\n"
+            f"   Low: {low}",
+            title="Drift Report",
+            border_style=border_color,
+        )
+    )
+
+    # Group findings by type
+    by_type: dict = {}
+    for finding in report.findings:
+        if finding.drift_type not in by_type:
+            by_type[finding.drift_type] = []
+        by_type[finding.drift_type].append(finding)
+
+    # Display each type
+    for drift_type in [DriftType.MISSING, DriftType.DRIFTED, DriftType.UNMANAGED]:
+        findings = by_type.get(drift_type, [])
+        if not findings:
+            continue
+
+        console.print()
+        console.print(f"[bold]{drift_type.value.upper()} ({len(findings)})[/bold]")
+
+        table = Table(box=box.ROUNDED, show_header=True)
+        table.add_column("Resource", style="cyan", width=35)
+        table.add_column("Type", width=25)
+        table.add_column("Changes / Status", width=45)
+
+        for finding in findings[:10]:
+            # Build changes display
+            if finding.changes:
+                changes_text = ""
+                for c in finding.changes[:3]:
+                    changes_text += (
+                        f"[{c.severity.value}] {c.field}: "
+                        f"[red]{_truncate(c.expected)}[/] -> "
+                        f"[green]{_truncate(c.actual)}[/]\n"
+                    )
+                if len(finding.changes) > 3:
+                    changes_text += f"[dim]...and {len(finding.changes) - 3} more[/dim]"
+            else:
+                changes_text = f"[dim]{drift_type.value}[/dim]"
+
+            # Resource info
+            resource_text = finding.resource_name
+            if finding.terraform_address:
+                resource_text += f"\n[dim]{finding.terraform_address}[/dim]"
+            resource_id_display = finding.resource_id
+            if len(resource_id_display) > 40:
+                resource_id_display = resource_id_display[:40] + "..."
+            resource_text += f"\n[dim]{resource_id_display}[/dim]"
+
+            table.add_row(
+                resource_text,
+                finding.resource_type,
+                changes_text.strip(),
+            )
+
+        console.print(table)
+
+        if len(findings) > 10:
+            console.print(f"[dim]  ...and {len(findings) - 10} more[/dim]")
+
+        # Remediation hint
+        console.print()
+        console.print(f"   [dim]{findings[0].remediation_hint}[/dim]")
+
+
+def _display_quiet(report) -> None:
+    """Minimal output for scripts."""
+    if not report.has_drift:
+        console.print("NO_DRIFT")
+        return
+
+    console.print(f"DRIFT_FOUND:{len(report.findings)}")
+    console.print(f"CRITICAL:{report.critical_count}")
+    console.print(f"HIGH:{report.high_count}")
+
+
+def _truncate(val, max_len: int = 25) -> str:
+    """Truncate value for display."""
+    if val is None:
+        return "null"
+    s = str(val)
+    if len(s) > max_len:
+        return s[: max_len - 3] + "..."
+    return s
+
+
 def register(app: typer.Typer) -> None:
     """Register the drift command with the Typer app."""
+    # Register the main drift command (online detection)
     app.command(name="drift")(drift_command)
+    # Also add drift as a subcommand group for offline detection
+    app.add_typer(drift_app, name="drift-offline", help="Offline drift detection")
