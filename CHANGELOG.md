@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unified SQLite Graph Backend (Prompt 3.7)** - Single SQLite backend replaces hybrid NetworkX/SQLite design
+  - **Core Storage Package** (`replimap/core/unified_storage/`)
+    - `Node` and `Edge` dataclasses with automatic resource categorization
+    - `SQLiteBackend` - Unified backend for both `:memory:` (ephemeral) and file (persistent) modes
+    - `UnifiedGraphEngine` - High-level facade for all graph operations
+    - `ConnectionPool` - Thread-safe connection management with reader/writer separation
+  - **Storage Features**:
+    - WAL mode for concurrent read/write operations
+    - FTS5 full-text search for resource discovery
+    - Recursive CTEs for path finding and dependency traversal
+    - Native SQLite `backup()` API for snapshots
+    - Backpressure control for batch operations
+  - **Resource Categories**: Automatic inference (COMPUTE, STORAGE, NETWORK, SECURITY, DATABASE, OTHER)
+  - Tests: 42 comprehensive tests in `tests/test_unified_backend.py`
+
+- **Legacy Logic Migration & Optimizations (Prompt 3.7.1)** - Graph algorithms migrated to UnifiedGraphEngine
+  - **Dependency Traversal** (SQL CTE optimized - 10-100x faster than Python recursion)
+    - `get_dependencies()` - Get resources this resource depends on
+    - `get_dependents()` - Get resources that depend on this resource
+    - Both support `recursive=True` for transitive dependencies
+  - **Topological Sort & Ordering**:
+    - `topological_sort()` - Dependency order for DAGs
+    - `safe_apply_order()` - Terraform apply order (dependencies first)
+    - `safe_destroy_order()` - Terraform destroy order (dependents first)
+  - **Cycle Detection**:
+    - `has_cycles()` - Check if graph contains cycles
+    - `find_cycles()` - Find all cycles (with configurable limit)
+  - **Strongly Connected Components** (via NetworkX projection):
+    - `strongly_connected_components()` - Tarjan's algorithm
+    - `get_largest_scc()` - Find largest SCC
+  - **Subgraph Extraction**:
+    - `get_subgraph()` - Extract nodes and their connecting edges
+    - `get_connected_subgraph()` - Extract neighborhood around a node
+  - **Centrality Metrics**:
+    - `get_centrality()` - degree, betweenness, pagerank, closeness algorithms
+    - `get_most_critical_resources()` - Top N resources by centrality
+  - **Graph Operations**:
+    - `merge_from()` - Merge another graph's nodes and edges
+    - `remove_node()` - Remove node with cascade edge deletion
+  - Tests: 26 comprehensive tests in `tests/test_legacy_migration.py`
+
 - **Robust SARIF Generator for CI/CD Integration (Phase 3 v1.5)** - Production-grade SARIF output for GitHub Security
   - **Enhanced SARIF Generator** (`replimap/core/formatters/sarif.py`)
     - `SARIFGenerator` - Full GitHub Advanced Security compatibility

@@ -1836,13 +1836,13 @@ RepliMap is designed with security as a priority:
 
 ## Architecture
 
-RepliMap uses a **graph-based engine** with an enhanced rendering pipeline:
+RepliMap uses a **graph-based engine** with unified SQLite storage and an enhanced rendering pipeline:
 
 ```
-┌─────────────┐    ┌─────────────┐    ┌───────────────┐    ┌────────────────────┐
-│   Scanners  │───▶│ Graph Engine│───▶│ Transformers  │───▶│ Enhanced Renderer  │
-│  (AWS API)  │    │ (NetworkX)  │    │  (Pipeline)   │    │   (Terraform v2)   │
-└─────────────┘    └─────────────┘    └───────────────┘    └────────────────────┘
+┌─────────────┐    ┌──────────────────┐    ┌───────────────┐    ┌────────────────────┐
+│   Scanners  │───▶│ UnifiedGraphEngine│───▶│ Transformers  │───▶│ Enhanced Renderer  │
+│  (AWS API)  │    │ (SQLite Backend) │    │  (Pipeline)   │    │   (Terraform v2)   │
+└─────────────┘    └──────────────────┘    └───────────────┘    └────────────────────┘
                                                                      │
                    ┌─────────────────────────────────────────────────┼─────────────────────────────────────────────────┐
                    │                                                 │                                                 │
@@ -1862,9 +1862,45 @@ RepliMap uses a **graph-based engine** with an enhanced rendering pipeline:
 ### Core Pipeline
 
 1. **Scanners**: Query AWS APIs for VPC, EC2, RDS, S3 resources
-2. **Graph Engine**: Build dependency graph with NetworkX
+2. **UnifiedGraphEngine**: Build dependency graph with SQLite backend
+   - `:memory:` mode for ephemeral/fast scans
+   - File mode for persistent/large scans
+   - NetworkX projection on-demand for complex algorithms
 3. **Transformers**: Apply sanitization, downsizing, renaming
 4. **Enhanced Renderer**: Generate production-ready Terraform with intelligent features
+
+### Unified Storage System
+
+RepliMap uses a unified SQLite-based storage layer (`replimap/core/unified_storage/`) that provides:
+
+| Feature | Description |
+|---------|-------------|
+| **Single Backend** | SQLite for ALL scales (no separate in-memory vs file backends) |
+| **Memory Mode** | `:memory:` for ephemeral, fast operations |
+| **File Mode** | Persistent storage with WAL for concurrency |
+| **FTS5 Search** | Full-text search for resource discovery |
+| **Recursive CTEs** | Fast path finding and dependency traversal |
+| **Snapshots** | Native SQLite `backup()` API for point-in-time captures |
+| **NetworkX Projection** | On-demand graph projection for complex algorithms |
+
+```python
+from replimap.core.unified_storage import UnifiedGraphEngine, Node, Edge
+
+# Memory mode (ephemeral)
+engine = UnifiedGraphEngine()
+
+# File mode (persistent)
+engine = UnifiedGraphEngine(cache_dir="~/.replimap/cache/profile")
+
+# Add resources
+engine.add_nodes([Node(id="vpc-1", type="aws_vpc")])
+engine.add_edges([Edge(source_id="subnet-1", target_id="vpc-1", relation="in")])
+
+# Graph algorithms
+order = engine.safe_apply_order()  # Terraform apply order
+deps = engine.get_dependencies("subnet-1", recursive=True)
+critical = engine.get_most_critical_resources(top_n=10)
+```
 
 ### Enhanced Renderer Components (Level 2-5)
 
@@ -1913,7 +1949,12 @@ replimap/
 │   ├── __init__.py
 │   ├── main.py              # Typer CLI entry point
 │   ├── core/
-│   │   ├── graph_engine.py  # NetworkX graph wrapper
+│   │   ├── graph_engine.py  # Legacy NetworkX graph wrapper
+│   │   ├── unified_storage/  # Unified SQLite graph storage
+│   │   │   ├── __init__.py   # Package exports
+│   │   │   ├── base.py       # Node, Edge, ResourceCategory, GraphBackend
+│   │   │   ├── sqlite_backend.py  # SQLite backend with FTS5, CTEs
+│   │   │   └── engine.py     # UnifiedGraphEngine facade
 │   │   ├── models.py        # ResourceNode dataclass
 │   │   ├── config.py        # ConfigLoader - .replimap.yaml support
 │   │   ├── scope.py         # ScopeEngine - boundary recognition
