@@ -462,6 +462,109 @@ Resource IDs are automatically sanitized for valid Terraform names:
 - Leading digits → prefixed with `r_` (e.g., `123-bucket` → `r_123_bucket`)
 - Shell special characters in IDs are properly quoted
 
+### Offline Drift Detection (Advanced)
+
+Detect drift using cached RepliMap scans without requiring AWS connection. This is the "offline terraform plan" - faster and works in air-gapped environments.
+
+```bash
+# Offline drift detection using cached scan
+replimap drift-offline offline -p prod -s ./terraform.tfstate
+
+# Output SARIF for GitHub Security integration
+replimap drift-offline offline -p prod -s ./terraform.tfstate --sarif
+
+# CI/CD mode with severity filtering
+replimap drift-offline offline -p prod -s ./terraform.tfstate \
+  --fail-on-drift --severity high
+
+# Use custom ignore rules
+replimap drift-offline offline -p prod -s ./terraform.tfstate \
+  --ignore .replimapignore
+
+# Compare two scans over time
+replimap drift-offline compare-scans -p prod \
+  --current ./scan-today.json --previous ./scan-yesterday.json
+```
+
+#### Drift Types
+
+| Type | Description | Remediation |
+|------|-------------|-------------|
+| **UNMANAGED** | Resource exists in AWS but not in Terraform | `terraform import` or delete |
+| **MISSING** | Resource in Terraform state was deleted from AWS | `terraform apply` or `terraform state rm` |
+| **DRIFTED** | Configuration differs between AWS and Terraform | `terraform apply` or update .tf files |
+
+#### Severity Classification
+
+| Severity | Fields | Example |
+|----------|--------|---------|
+| **CRITICAL** | Security fields (ingress/egress, IAM policies, encryption) | Security group rules, KMS keys |
+| **HIGH** | Infrastructure fields (instance_type, AMI, networking) | EC2 instance type, subnet IDs |
+| **MEDIUM** | Configuration settings | Most resource attributes |
+| **LOW** | Metadata (tags, descriptions) | Resource tags |
+
+#### .replimapignore File
+
+Create a `.replimapignore` file to suppress benign drifts:
+
+```bash
+# Ignore specific resource types
+aws_cloudwatch_log_group
+
+# Ignore specific fields (resource_type:field)
+aws_autoscaling_group:desired_capacity
+aws_ecs_service:desired_count
+
+# Ignore specific resource IDs
+i-1234567890abcdef0
+
+# Wildcard field ignore
+*:last_modified
+```
+
+Default ignore rules (always applied):
+- Kubernetes-managed resources (`kubernetes.io/*`, `k8s.io/*` tags)
+- AWS-managed tags (`aws:*` tags)
+- Auto-scaling fields (`desired_capacity`, `desired_count`)
+
+### SARIF Output for GitHub Security
+
+RepliMap generates SARIF 2.1.0 output compatible with GitHub Advanced Security. Upload to GitHub's Code Scanning for drift alerts in your Security tab.
+
+```bash
+# Generate SARIF output
+replimap drift-offline offline -p prod -s ./terraform.tfstate --sarif > drift.sarif
+
+# Upload to GitHub (in GitHub Actions)
+- name: Upload SARIF
+  uses: github/codeql-action/upload-sarif@v2
+  with:
+    sarif_file: drift.sarif
+```
+
+#### SARIF Features
+
+- **Stable Fingerprinting**: SHA-256 fingerprints prevent duplicate alerts across scans
+- **Rich Markdown**: Severity badges, change tables, remediation hints
+- **Hybrid Locations**: Both file (terraform.tfstate) and cloud resource (ARN) locations
+- **Predefined Rules**: 16 rules covering audit, drift, and analysis findings
+- **CWE Mappings**: Security rules include Common Weakness Enumeration references
+
+#### Predefined Rules
+
+| Rule ID | Category | Description |
+|---------|----------|-------------|
+| DRIFT001 | Drift | Unmanaged resource detected |
+| DRIFT002 | Drift | Terraform resource missing from AWS |
+| DRIFT003 | Drift | Resource configuration has drifted |
+| DRIFT004 | Drift | Security-critical configuration has drifted |
+| AUDIT001 | Security | Resource is publicly accessible |
+| AUDIT002 | Security | Resource lacks encryption |
+| AUDIT003 | Security | IAM permissions are overly permissive |
+| AUDIT004 | Security | Security group allows unrestricted access |
+| ANALYSIS001 | Graph | Potential attack path identified |
+| ANALYSIS002 | Graph | Resource has high blast radius |
+
 ## Dependency Explorer
 
 Explore what resources may be affected before modifying or deleting a resource.
