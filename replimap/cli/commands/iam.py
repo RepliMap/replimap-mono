@@ -142,8 +142,9 @@ def create_iam_app() -> typer.Typer:
             # Full access policy
             replimap iam for-resource -p prod -r my-lambda -s runtime_full
 
-            # Generate Terraform with role
-            replimap iam for-resource -r func -f terraform --create-role
+            # Generate Terraform with role creation
+            replimap iam for-resource -p prod -r my-lambda -f terraform
+                --create-role --role-name my-lambda-role
 
             # Save to file
             replimap iam for-resource -p prod -r my-lambda -o policy.json
