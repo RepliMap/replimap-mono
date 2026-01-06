@@ -15,7 +15,21 @@ Test Coverage:
 - Graph algorithms with scan context
 - Snapshot functionality
 - Error handling
-- CLI command integration patterns
+- CLI command integration patterns for ALL commands:
+  * scan - Resource scanning workflow
+  * analyze - Critical resource and SPOF analysis
+  * deps - Dependency traversal
+  * graph - Resource export for visualization
+  * snapshot - State snapshot save/list/diff
+  * clone - Terraform generation from graph
+  * audit - Security scanning and findings
+  * drift - Configuration drift detection
+  * cost - Cost estimation from resource attributes
+  * dr - Disaster recovery readiness assessment
+  * transfer - Cross-AZ data transfer analysis
+  * unused - Unused resource detection
+  * validate - Topology constraint validation
+  * iam - Least-privilege IAM policy generation
 """
 
 from __future__ import annotations
@@ -25,7 +39,6 @@ import shutil
 import tempfile
 import time
 import zlib
-from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -33,7 +46,6 @@ import pytest
 from replimap.core.unified_storage import (
     Edge,
     Node,
-    ScanSession,
     ScanStatus,
     SQLiteBackend,
     UnifiedGraphEngine,
@@ -303,7 +315,11 @@ class TestCrossAccountDependencies:
 
         # Add edge to phantom
         engine.add_edge(
-            Edge(source_id="pcx-abc123", target_id="vpc-other-account", relation="peers_with")
+            Edge(
+                source_id="pcx-abc123",
+                target_id="vpc-other-account",
+                relation="peers_with",
+            )
         )
 
         engine.end_scan(session.id)
@@ -357,7 +373,9 @@ class TestCrossAccountDependencies:
         )
         engine.add_edge(
             Edge(
-                source_id="sg-local", target_id="sg-cross-account", relation="references"
+                source_id="sg-local",
+                target_id="sg-cross-account",
+                relation="references",
             )
         )
         engine.end_scan(session1.id)
@@ -418,7 +436,11 @@ class TestLargeScaleScenarios:
 
         # Add edges (subnets -> VPC)
         subnet_edges = [
-            Edge(source_id=f"subnet-{i:04d}", target_id="vpc-enterprise", relation="in_vpc")
+            Edge(
+                source_id=f"subnet-{i:04d}",
+                target_id="vpc-enterprise",
+                relation="in_vpc",
+            )
             for i in range(100)
         ]
         engine.add_edges(subnet_edges)
@@ -564,7 +586,10 @@ class TestCompressionScenarios:
                     id="sg-rules",
                     type="aws_security_group",
                     name="complex-sg",
-                    attributes={"ingress_rules": large_rules, "egress_rules": large_rules},
+                    attributes={
+                        "ingress_rules": large_rules,
+                        "egress_rules": large_rules,
+                    },
                 )
             )
 
@@ -587,7 +612,10 @@ class TestCompressionScenarios:
                     id="sg-rules",
                     type="aws_security_group",
                     name="complex-sg",
-                    attributes={"ingress_rules": large_rules, "egress_rules": large_rules},
+                    attributes={
+                        "ingress_rules": large_rules,
+                        "egress_rules": large_rules,
+                    },
                 )
             )
 
@@ -598,9 +626,9 @@ class TestCompressionScenarios:
 
             # Compressed should be smaller (at least some compression)
             compression_ratio = compressed_size / uncompressed_size
-            assert (
-                compression_ratio < 0.9
-            ), f"Expected some compression, got {(1 - compression_ratio) * 100:.1f}%"
+            assert compression_ratio < 0.9, (
+                f"Expected some compression, got {(1 - compression_ratio) * 100:.1f}%"
+            )
 
             # Cleanup
             shutil.rmtree(uncompressed_dir)
@@ -656,7 +684,9 @@ class TestSchemaMigrationScenarios:
                     ),
                 ]
             )
-            engine.add_edge(Edge(source_id="node-2", target_id="node-1", relation="in_vpc"))
+            engine.add_edge(
+                Edge(source_id="node-2", target_id="node-1", relation="in_vpc")
+            )
             engine.close()
 
             # Reopen - migration should be idempotent
@@ -690,9 +720,7 @@ class TestSchemaMigrationScenarios:
         with tempfile.TemporaryDirectory() as tmpdir:
             for i in range(5):
                 engine = UnifiedGraphEngine(cache_dir=tmpdir)
-                engine.add_node(
-                    Node(id=f"node-{i}", type="aws_vpc", name=f"VPC {i}")
-                )
+                engine.add_node(Node(id=f"node-{i}", type="aws_vpc", name=f"VPC {i}"))
                 count = engine.node_count()
                 engine.close()
 
@@ -721,7 +749,9 @@ class TestGraphAlgorithmsWithScanContext:
         # Add dependencies
         engine.add_edges(
             [
-                Edge(source_id="i-instance", target_id="subnet-a", relation="in_subnet"),
+                Edge(
+                    source_id="i-instance", target_id="subnet-a", relation="in_subnet"
+                ),
                 Edge(source_id="i-instance", target_id="sg-web", relation="uses_sg"),
                 Edge(source_id="subnet-a", target_id="vpc-main", relation="in_vpc"),
                 Edge(source_id="sg-web", target_id="vpc-main", relation="in_vpc"),
@@ -1102,8 +1132,12 @@ class TestCLICommandIntegrationPatterns:
                 Edge(source_id="subnet-priv", target_id="vpc-main", relation="in_vpc"),
                 Edge(source_id="nat-gw", target_id="subnet-pub", relation="in_subnet"),
                 Edge(source_id="igw", target_id="vpc-main", relation="attached_to"),
-                Edge(source_id="web-server", target_id="subnet-pub", relation="in_subnet"),
-                Edge(source_id="db-server", target_id="subnet-priv", relation="in_subnet"),
+                Edge(
+                    source_id="web-server", target_id="subnet-pub", relation="in_subnet"
+                ),
+                Edge(
+                    source_id="db-server", target_id="subnet-priv", relation="in_subnet"
+                ),
             ]
         )
 
@@ -1309,6 +1343,973 @@ class TestMetadata:
             engine2 = UnifiedGraphEngine(cache_dir=tmpdir)
             assert engine2.get_metadata("key1") == "value1"
             engine2.close()
+
+
+class TestCLICommandIntegrationPatternsExtended:
+    """Additional tests covering ALL CLI commands that use the storage layer."""
+
+    def test_clone_command_pattern(self) -> None:
+        """Simulate clone command workflow (Terraform generation from graph)."""
+        engine = UnifiedGraphEngine()
+
+        session = engine.start_scan(profile="prod", region="us-east-1")
+
+        # Add resources typical for clone command (VPC, subnets, instances)
+        engine.add_nodes(
+            [
+                Node(
+                    id="vpc-prod",
+                    type="aws_vpc",
+                    name="production-vpc",
+                    attributes={
+                        "cidr_block": "10.0.0.0/16",
+                        "enable_dns_hostnames": True,
+                        "enable_dns_support": True,
+                        "tags": {"Name": "production-vpc", "Environment": "prod"},
+                    },
+                ),
+                Node(
+                    id="subnet-pub-1",
+                    type="aws_subnet",
+                    name="public-subnet-1",
+                    attributes={
+                        "vpc_id": "vpc-prod",
+                        "cidr_block": "10.0.1.0/24",
+                        "availability_zone": "us-east-1a",
+                        "map_public_ip_on_launch": True,
+                    },
+                ),
+                Node(
+                    id="i-web-01",
+                    type="aws_instance",
+                    name="web-server-01",
+                    attributes={
+                        "instance_type": "t3.small",
+                        "ami": "ami-12345678",
+                        "subnet_id": "subnet-pub-1",
+                        "key_name": "prod-key",
+                        "tags": {"Name": "web-server-01", "Role": "web"},
+                    },
+                ),
+                Node(
+                    id="sg-web",
+                    type="aws_security_group",
+                    name="web-security-group",
+                    attributes={
+                        "vpc_id": "vpc-prod",
+                        "description": "Web server security group",
+                        "ingress": [
+                            {
+                                "from_port": 80,
+                                "to_port": 80,
+                                "protocol": "tcp",
+                                "cidr_blocks": ["0.0.0.0/0"],
+                            },
+                            {
+                                "from_port": 443,
+                                "to_port": 443,
+                                "protocol": "tcp",
+                                "cidr_blocks": ["0.0.0.0/0"],
+                            },
+                        ],
+                    },
+                ),
+            ]
+        )
+
+        # Add dependencies
+        engine.add_edges(
+            [
+                Edge(source_id="subnet-pub-1", target_id="vpc-prod", relation="in_vpc"),
+                Edge(
+                    source_id="i-web-01", target_id="subnet-pub-1", relation="in_subnet"
+                ),
+                Edge(source_id="i-web-01", target_id="sg-web", relation="uses_sg"),
+                Edge(source_id="sg-web", target_id="vpc-prod", relation="in_vpc"),
+            ]
+        )
+
+        engine.end_scan(session.id)
+
+        # Clone command would get all resources for Terraform generation
+        all_resources = engine.get_all_resources()
+        assert len(all_resources) == 4
+
+        # Verify resource attributes are preserved (needed for Terraform output)
+        vpc = engine.get_node("vpc-prod")
+        assert vpc is not None
+        assert vpc.attributes["cidr_block"] == "10.0.0.0/16"
+        assert vpc.attributes["tags"]["Environment"] == "prod"
+
+        # Get safe apply order (Terraform apply order)
+        apply_order = engine.safe_apply_order()
+        vpc_idx = apply_order.index("vpc-prod")
+        subnet_idx = apply_order.index("subnet-pub-1")
+        instance_idx = apply_order.index("i-web-01")
+        assert vpc_idx < subnet_idx < instance_idx
+
+        engine.close()
+
+    def test_audit_command_pattern(self) -> None:
+        """Simulate audit command workflow (security scanning with graph)."""
+        engine = UnifiedGraphEngine()
+
+        session = engine.start_scan(profile="prod", region="us-east-1")
+
+        # Add resources with security-relevant attributes
+        engine.add_nodes(
+            [
+                Node(
+                    id="s3-logs",
+                    type="aws_s3_bucket",
+                    name="company-logs",
+                    attributes={
+                        "bucket": "company-logs-bucket",
+                        "acl": "private",
+                        "versioning": {"enabled": True},
+                        "server_side_encryption_configuration": {
+                            "rule": {
+                                "apply_server_side_encryption_by_default": {
+                                    "sse_algorithm": "AES256"
+                                }
+                            }
+                        },
+                    },
+                ),
+                Node(
+                    id="s3-public",
+                    type="aws_s3_bucket",
+                    name="public-assets",
+                    attributes={
+                        "bucket": "public-assets-bucket",
+                        "acl": "public-read",  # Security finding!
+                        "versioning": {"enabled": False},
+                    },
+                ),
+                Node(
+                    id="rds-main",
+                    type="aws_db_instance",
+                    name="main-database",
+                    attributes={
+                        "engine": "postgres",
+                        "storage_encrypted": True,
+                        "publicly_accessible": False,
+                        "backup_retention_period": 7,
+                        "multi_az": True,
+                    },
+                ),
+                Node(
+                    id="rds-dev",
+                    type="aws_db_instance",
+                    name="dev-database",
+                    attributes={
+                        "engine": "mysql",
+                        "storage_encrypted": False,  # Security finding!
+                        "publicly_accessible": True,  # Security finding!
+                        "backup_retention_period": 0,  # Security finding!
+                    },
+                ),
+            ]
+        )
+
+        engine.end_scan(session.id)
+
+        # Audit command queries resources and checks attributes
+        all_nodes = engine.get_all_nodes()
+
+        # Count security issues (simulating audit checks)
+        security_findings = []
+        for node in all_nodes:
+            if node.type == "aws_s3_bucket":
+                if node.attributes.get("acl") == "public-read":
+                    security_findings.append(f"{node.id}: Public S3 bucket")
+            elif node.type == "aws_db_instance":
+                if not node.attributes.get("storage_encrypted"):
+                    security_findings.append(f"{node.id}: Unencrypted RDS")
+                if node.attributes.get("publicly_accessible"):
+                    security_findings.append(f"{node.id}: Public RDS instance")
+                if node.attributes.get("backup_retention_period", 0) == 0:
+                    security_findings.append(f"{node.id}: No backups enabled")
+
+        # Should find 4 security issues
+        assert len(security_findings) == 4
+
+        engine.close()
+
+    def test_drift_command_pattern(self) -> None:
+        """Simulate drift command workflow (comparing state to live resources)."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            engine = UnifiedGraphEngine(cache_dir=tmpdir)
+
+            # Simulate "Terraform state" as baseline scan
+            session1 = engine.start_scan(profile="prod", region="us-east-1")
+            engine.add_nodes(
+                [
+                    Node(
+                        id="i-baseline",
+                        type="aws_instance",
+                        name="web-server",
+                        attributes={
+                            "instance_type": "t3.medium",
+                            "ami": "ami-12345678",
+                        },
+                    ),
+                    Node(
+                        id="sg-baseline",
+                        type="aws_security_group",
+                        name="web-sg",
+                        attributes={
+                            "ingress": [{"from_port": 80, "to_port": 80}],
+                        },
+                    ),
+                ]
+            )
+            engine.end_scan(session1.id)
+
+            # Create snapshot as "baseline" state
+            baseline_path = str(Path(tmpdir) / "baseline.db")
+            engine.snapshot(baseline_path)
+
+            # Now simulate "live" AWS state with drift
+            session2 = engine.start_scan(profile="prod", region="us-east-1")
+            engine.add_nodes(
+                [
+                    Node(
+                        id="i-baseline",
+                        type="aws_instance",
+                        name="web-server",
+                        attributes={
+                            "instance_type": "t3.large",  # DRIFTED - changed!
+                            "ami": "ami-12345678",
+                        },
+                    ),
+                    Node(
+                        id="sg-baseline",
+                        type="aws_security_group",
+                        name="web-sg",
+                        attributes={
+                            "ingress": [
+                                {"from_port": 80, "to_port": 80},
+                                {"from_port": 22, "to_port": 22},  # DRIFTED - new rule!
+                            ],
+                        },
+                    ),
+                    Node(
+                        id="i-unmanaged",
+                        type="aws_instance",
+                        name="rogue-server",  # DRIFTED - new resource!
+                        attributes={"instance_type": "t2.micro"},
+                    ),
+                ]
+            )
+            engine.end_scan(session2.id)
+            engine.cleanup_stale_resources(session2.id)
+
+            # Drift detection: Load baseline and compare
+            baseline_engine = UnifiedGraphEngine(db_path=baseline_path)
+
+            baseline_nodes = {n.id: n for n in baseline_engine.get_all_nodes()}
+            live_nodes = {n.id: n for n in engine.get_all_nodes()}
+
+            # Detect drift
+            added = set(live_nodes.keys()) - set(baseline_nodes.keys())
+            removed = set(baseline_nodes.keys()) - set(live_nodes.keys())
+            modified = []
+            for node_id in set(baseline_nodes.keys()) & set(live_nodes.keys()):
+                if baseline_nodes[node_id].attributes != live_nodes[node_id].attributes:
+                    modified.append(node_id)
+
+            assert "i-unmanaged" in added  # New unmanaged resource
+            assert len(removed) == 0  # Nothing removed
+            assert "i-baseline" in modified  # Instance type changed
+            assert "sg-baseline" in modified  # Ingress rules changed
+
+            baseline_engine.close()
+            engine.close()
+
+    def test_cost_command_pattern(self) -> None:
+        """Simulate cost command workflow (cost estimation from graph)."""
+        engine = UnifiedGraphEngine()
+
+        session = engine.start_scan(profile="prod", region="us-east-1")
+
+        # Add resources with cost-relevant attributes
+        engine.add_nodes(
+            [
+                Node(
+                    id="i-large-1",
+                    type="aws_instance",
+                    name="compute-heavy-1",
+                    attributes={
+                        "instance_type": "c5.4xlarge",
+                        "state": "running",
+                    },
+                ),
+                Node(
+                    id="i-large-2",
+                    type="aws_instance",
+                    name="compute-heavy-2",
+                    attributes={
+                        "instance_type": "c5.4xlarge",
+                        "state": "running",
+                    },
+                ),
+                Node(
+                    id="rds-main",
+                    type="aws_db_instance",
+                    name="production-db",
+                    attributes={
+                        "db_instance_class": "db.r5.2xlarge",
+                        "engine": "postgres",
+                        "multi_az": True,
+                        "allocated_storage": 500,
+                    },
+                ),
+                Node(
+                    id="nat-1",
+                    type="aws_nat_gateway",
+                    name="nat-gateway-1",
+                    attributes={"state": "available"},
+                ),
+                Node(
+                    id="ebs-vol-1",
+                    type="aws_ebs_volume",
+                    name="data-volume",
+                    attributes={
+                        "volume_type": "gp3",
+                        "size": 1000,
+                        "iops": 3000,
+                    },
+                ),
+            ]
+        )
+
+        engine.end_scan(session.id)
+
+        # Cost command would iterate resources and calculate estimates
+        all_nodes = engine.get_all_nodes()
+
+        # Simulate cost calculation based on resource types
+        cost_by_type: dict[str, float] = {}
+        for node in all_nodes:
+            if node.type == "aws_instance":
+                # Simplified pricing
+                instance_type = node.attributes.get("instance_type", "")
+                if "4xlarge" in instance_type:
+                    cost = 500.0  # Monthly estimate
+                elif "xlarge" in instance_type:
+                    cost = 200.0
+                else:
+                    cost = 50.0
+                cost_by_type.setdefault("EC2", 0.0)
+                cost_by_type["EC2"] += cost
+            elif node.type == "aws_db_instance":
+                cost_by_type.setdefault("RDS", 0.0)
+                cost_by_type["RDS"] += 800.0  # Multi-AZ r5.2xlarge estimate
+            elif node.type == "aws_nat_gateway":
+                cost_by_type.setdefault("NAT Gateway", 0.0)
+                cost_by_type["NAT Gateway"] += 45.0  # Base monthly cost
+            elif node.type == "aws_ebs_volume":
+                size = node.attributes.get("size", 0)
+                cost_by_type.setdefault("EBS", 0.0)
+                cost_by_type["EBS"] += size * 0.08  # GP3 pricing
+
+        assert cost_by_type["EC2"] == 1000.0  # 2 x c5.4xlarge
+        assert cost_by_type["RDS"] == 800.0
+        assert cost_by_type["NAT Gateway"] == 45.0
+        assert cost_by_type["EBS"] == 80.0  # 1000GB x $0.08
+
+        engine.close()
+
+    def test_dr_command_pattern(self) -> None:
+        """Simulate DR (disaster recovery) command workflow."""
+        engine = UnifiedGraphEngine()
+
+        session = engine.start_scan(profile="prod", region="us-east-1")
+
+        # Add resources with DR-relevant attributes
+        engine.add_nodes(
+            [
+                Node(
+                    id="rds-primary",
+                    type="aws_db_instance",
+                    name="primary-db",
+                    attributes={
+                        "engine": "postgres",
+                        "multi_az": True,
+                        "backup_retention_period": 7,
+                        "storage_encrypted": True,
+                        "availability_zone": "us-east-1a",
+                    },
+                ),
+                Node(
+                    id="rds-replica",
+                    type="aws_db_instance",
+                    name="replica-db",
+                    attributes={
+                        "engine": "postgres",
+                        "replicate_source_db": "rds-primary",
+                        "availability_zone": "us-west-2a",  # Cross-region replica
+                    },
+                ),
+                Node(
+                    id="s3-backup",
+                    type="aws_s3_bucket",
+                    name="backup-bucket",
+                    attributes={
+                        "bucket": "prod-backups",
+                        "versioning": {"enabled": True},
+                        "replication_configuration": {
+                            "rules": [
+                                {"destination": {"bucket": "arn:aws:s3:::dr-backups"}}
+                            ]
+                        },
+                    },
+                ),
+                Node(
+                    id="asg-web",
+                    type="aws_autoscaling_group",
+                    name="web-asg",
+                    attributes={
+                        "min_size": 2,
+                        "max_size": 10,
+                        "desired_capacity": 4,
+                        "availability_zones": ["us-east-1a", "us-east-1b"],
+                    },
+                ),
+            ]
+        )
+
+        engine.add_edge(
+            Edge(
+                source_id="rds-replica", target_id="rds-primary", relation="replicates"
+            )
+        )
+
+        engine.end_scan(session.id)
+
+        # DR assessment: Check for DR capabilities
+        dr_score = 0
+        dr_findings = []
+
+        for node in engine.get_all_nodes():
+            if node.type == "aws_db_instance":
+                if node.attributes.get("multi_az"):
+                    dr_score += 20
+                    dr_findings.append(f"{node.id}: Multi-AZ enabled")
+                if node.attributes.get("backup_retention_period", 0) > 0:
+                    dr_score += 10
+                    dr_findings.append(f"{node.id}: Backups enabled")
+                if node.attributes.get("replicate_source_db"):
+                    dr_score += 30  # Cross-region replica
+                    dr_findings.append(f"{node.id}: Cross-region replica")
+            elif node.type == "aws_s3_bucket":
+                if node.attributes.get("replication_configuration"):
+                    dr_score += 15
+                    dr_findings.append(f"{node.id}: S3 replication enabled")
+            elif node.type == "aws_autoscaling_group":
+                azs = node.attributes.get("availability_zones", [])
+                if len(azs) >= 2:
+                    dr_score += 15
+                    dr_findings.append(f"{node.id}: Multi-AZ ASG")
+
+        assert dr_score == 90  # Good DR posture
+        assert len(dr_findings) == 5
+
+        engine.close()
+
+    def test_transfer_command_pattern(self) -> None:
+        """Simulate transfer command workflow (data transfer cost analysis)."""
+        engine = UnifiedGraphEngine()
+
+        session = engine.start_scan(profile="prod", region="us-east-1")
+
+        # Add resources with networking topology for transfer analysis
+        engine.add_nodes(
+            [
+                Node(
+                    id="vpc-main",
+                    type="aws_vpc",
+                    name="main-vpc",
+                    attributes={"cidr_block": "10.0.0.0/16"},
+                ),
+                Node(
+                    id="subnet-pub-1a",
+                    type="aws_subnet",
+                    name="public-1a",
+                    attributes={
+                        "vpc_id": "vpc-main",
+                        "availability_zone": "us-east-1a",
+                    },
+                ),
+                Node(
+                    id="subnet-priv-1a",
+                    type="aws_subnet",
+                    name="private-1a",
+                    attributes={
+                        "vpc_id": "vpc-main",
+                        "availability_zone": "us-east-1a",
+                    },
+                ),
+                Node(
+                    id="subnet-priv-1b",
+                    type="aws_subnet",
+                    name="private-1b",
+                    attributes={
+                        "vpc_id": "vpc-main",
+                        "availability_zone": "us-east-1b",  # Different AZ!
+                    },
+                ),
+                Node(
+                    id="nat-1",
+                    type="aws_nat_gateway",
+                    name="nat-gateway",
+                    attributes={"subnet_id": "subnet-pub-1a"},
+                ),
+                Node(
+                    id="i-app-1a",
+                    type="aws_instance",
+                    name="app-server-1a",
+                    attributes={
+                        "subnet_id": "subnet-priv-1a",
+                        "availability_zone": "us-east-1a",
+                    },
+                ),
+                Node(
+                    id="i-app-1b",
+                    type="aws_instance",
+                    name="app-server-1b",
+                    attributes={
+                        "subnet_id": "subnet-priv-1b",
+                        "availability_zone": "us-east-1b",
+                    },
+                ),
+            ]
+        )
+
+        engine.add_edges(
+            [
+                Edge(
+                    source_id="subnet-pub-1a", target_id="vpc-main", relation="in_vpc"
+                ),
+                Edge(
+                    source_id="subnet-priv-1a", target_id="vpc-main", relation="in_vpc"
+                ),
+                Edge(
+                    source_id="subnet-priv-1b", target_id="vpc-main", relation="in_vpc"
+                ),
+                Edge(
+                    source_id="nat-1", target_id="subnet-pub-1a", relation="in_subnet"
+                ),
+                Edge(
+                    source_id="i-app-1a",
+                    target_id="subnet-priv-1a",
+                    relation="in_subnet",
+                ),
+                Edge(
+                    source_id="i-app-1b",
+                    target_id="subnet-priv-1b",
+                    relation="in_subnet",
+                ),
+                Edge(
+                    source_id="i-app-1a",
+                    target_id="i-app-1b",
+                    relation="communicates_with",
+                ),
+            ]
+        )
+
+        engine.end_scan(session.id)
+
+        # Transfer analysis: Find cross-AZ communication
+        # Iterate through all nodes and check their outgoing edges
+        cross_az_pairs = []
+        for node in engine.get_all_nodes():
+            for edge in engine.get_edges_from(node.id):
+                if edge.relation == "communicates_with":
+                    source = engine.get_node(edge.source_id)
+                    target = engine.get_node(edge.target_id)
+                    if source and target:
+                        source_az = source.attributes.get("availability_zone", "")
+                        target_az = target.attributes.get("availability_zone", "")
+                        if source_az and target_az and source_az != target_az:
+                            cross_az_pairs.append((edge.source_id, edge.target_id))
+
+        # Should detect cross-AZ communication
+        assert len(cross_az_pairs) == 1
+        assert ("i-app-1a", "i-app-1b") in cross_az_pairs
+
+        # Count NAT gateways (potential internet egress cost)
+        nat_count = len(
+            [n for n in engine.get_all_nodes() if n.type == "aws_nat_gateway"]
+        )
+        assert nat_count == 1
+
+        engine.close()
+
+    def test_unused_command_pattern(self) -> None:
+        """Simulate unused command workflow (unused resource detection)."""
+        engine = UnifiedGraphEngine()
+
+        session = engine.start_scan(profile="prod", region="us-east-1")
+
+        # Add resources with varying utilization
+        engine.add_nodes(
+            [
+                # Active resources
+                Node(
+                    id="i-active",
+                    type="aws_instance",
+                    name="active-server",
+                    attributes={
+                        "instance_type": "t3.medium",
+                        "state": "running",
+                    },
+                ),
+                # Stopped instance (potentially unused)
+                Node(
+                    id="i-stopped",
+                    type="aws_instance",
+                    name="stopped-server",
+                    attributes={
+                        "instance_type": "t3.large",
+                        "state": "stopped",
+                    },
+                ),
+                # Unattached EBS volume (unused)
+                Node(
+                    id="vol-unattached",
+                    type="aws_ebs_volume",
+                    name="orphan-volume",
+                    attributes={
+                        "volume_type": "gp3",
+                        "size": 500,
+                        "state": "available",  # Not attached
+                    },
+                ),
+                # Attached EBS volume (used)
+                Node(
+                    id="vol-attached",
+                    type="aws_ebs_volume",
+                    name="active-volume",
+                    attributes={
+                        "volume_type": "gp3",
+                        "size": 100,
+                        "state": "in-use",
+                    },
+                ),
+                # Unused elastic IP
+                Node(
+                    id="eip-unused",
+                    type="aws_eip",
+                    name="orphan-eip",
+                    attributes={
+                        "public_ip": "3.4.5.6",
+                        "association_id": None,  # Not associated
+                    },
+                ),
+                # Used elastic IP
+                Node(
+                    id="eip-used",
+                    type="aws_eip",
+                    name="active-eip",
+                    attributes={
+                        "public_ip": "1.2.3.4",
+                        "association_id": "eipassoc-12345",
+                    },
+                ),
+            ]
+        )
+
+        # Add edge for attached volume
+        engine.add_edge(
+            Edge(source_id="vol-attached", target_id="i-active", relation="attached_to")
+        )
+
+        engine.end_scan(session.id)
+
+        # Unused detection logic
+        unused_resources = []
+        for node in engine.get_all_nodes():
+            if node.type == "aws_instance":
+                if node.attributes.get("state") == "stopped":
+                    unused_resources.append((node.id, "Stopped instance"))
+            elif node.type == "aws_ebs_volume":
+                if node.attributes.get("state") == "available":
+                    unused_resources.append((node.id, "Unattached volume"))
+            elif node.type == "aws_eip":
+                if not node.attributes.get("association_id"):
+                    unused_resources.append((node.id, "Unassociated EIP"))
+
+        # Should find 3 unused resources
+        assert len(unused_resources) == 3
+        unused_ids = [r[0] for r in unused_resources]
+        assert "i-stopped" in unused_ids
+        assert "vol-unattached" in unused_ids
+        assert "eip-unused" in unused_ids
+
+        engine.close()
+
+    def test_validate_command_pattern(self) -> None:
+        """Simulate validate command workflow (topology constraint validation)."""
+        engine = UnifiedGraphEngine()
+
+        session = engine.start_scan(profile="prod", region="us-east-1")
+
+        # Add resources to validate against constraints
+        engine.add_nodes(
+            [
+                Node(
+                    id="rds-encrypted",
+                    type="aws_db_instance",
+                    name="secure-db",
+                    attributes={
+                        "storage_encrypted": True,
+                        "publicly_accessible": False,
+                        "tags": {"Environment": "prod", "Owner": "team-a"},
+                    },
+                ),
+                Node(
+                    id="rds-unencrypted",
+                    type="aws_db_instance",
+                    name="insecure-db",
+                    attributes={
+                        "storage_encrypted": False,  # Violates constraint
+                        "publicly_accessible": True,  # Violates constraint
+                        "tags": {},  # Missing required tags
+                    },
+                ),
+                Node(
+                    id="s3-encrypted",
+                    type="aws_s3_bucket",
+                    name="secure-bucket",
+                    attributes={
+                        "server_side_encryption": "AES256",
+                        "tags": {"Environment": "prod", "Owner": "team-b"},
+                    },
+                ),
+                Node(
+                    id="s3-unencrypted",
+                    type="aws_s3_bucket",
+                    name="insecure-bucket",
+                    attributes={
+                        "server_side_encryption": None,  # Violates constraint
+                        "tags": {"Environment": "prod"},  # Missing Owner tag
+                    },
+                ),
+            ]
+        )
+
+        engine.end_scan(session.id)
+
+        # Simulate constraint validation
+        violations = []
+
+        # Constraint 1: RDS must be encrypted
+        for node in engine.get_all_nodes():
+            if node.type == "aws_db_instance":
+                if not node.attributes.get("storage_encrypted"):
+                    violations.append(
+                        {
+                            "constraint": "require-rds-encryption",
+                            "resource": node.id,
+                            "severity": "critical",
+                        }
+                    )
+                if node.attributes.get("publicly_accessible"):
+                    violations.append(
+                        {
+                            "constraint": "prohibit-public-rds",
+                            "resource": node.id,
+                            "severity": "critical",
+                        }
+                    )
+            elif node.type == "aws_s3_bucket":
+                if not node.attributes.get("server_side_encryption"):
+                    violations.append(
+                        {
+                            "constraint": "require-s3-encryption",
+                            "resource": node.id,
+                            "severity": "critical",
+                        }
+                    )
+
+        # Constraint 2: Required tags
+        for node in engine.get_all_nodes():
+            tags = node.attributes.get("tags", {})
+            if "Environment" not in tags:
+                violations.append(
+                    {
+                        "constraint": "require-environment-tag",
+                        "resource": node.id,
+                        "severity": "high",
+                    }
+                )
+            if "Owner" not in tags:
+                violations.append(
+                    {
+                        "constraint": "require-owner-tag",
+                        "resource": node.id,
+                        "severity": "medium",
+                    }
+                )
+
+        # Should find violations
+        assert len(violations) >= 4  # At least encryption and public access issues
+
+        critical_violations = [v for v in violations if v["severity"] == "critical"]
+        assert (
+            len(critical_violations) >= 3
+        )  # RDS encryption, public access, S3 encryption
+
+        engine.close()
+
+    def test_iam_command_pattern(self) -> None:
+        """Simulate IAM command workflow (least-privilege policy generation)."""
+        engine = UnifiedGraphEngine()
+
+        session = engine.start_scan(profile="prod", region="us-east-1")
+
+        # Add compute resource with dependencies
+        engine.add_nodes(
+            [
+                Node(
+                    id="lambda-processor",
+                    type="aws_lambda_function",
+                    name="data-processor",
+                    attributes={
+                        "function_name": "data-processor",
+                        "runtime": "python3.11",
+                        "handler": "handler.main",
+                    },
+                ),
+                Node(
+                    id="sqs-input",
+                    type="aws_sqs_queue",
+                    name="input-queue",
+                    attributes={
+                        "queue_name": "data-input-queue",
+                        "arn": "arn:aws:sqs:us-east-1:123456789012:data-input-queue",
+                    },
+                ),
+                Node(
+                    id="s3-output",
+                    type="aws_s3_bucket",
+                    name="output-bucket",
+                    attributes={
+                        "bucket": "processed-data-output",
+                        "arn": "arn:aws:s3:::processed-data-output",
+                    },
+                ),
+                Node(
+                    id="dynamodb-state",
+                    type="aws_dynamodb_table",
+                    name="state-table",
+                    attributes={
+                        "table_name": "processor-state",
+                        "arn": "arn:aws:dynamodb:us-east-1:123456789012:table/processor-state",
+                    },
+                ),
+                Node(
+                    id="kms-key",
+                    type="aws_kms_key",
+                    name="encryption-key",
+                    attributes={
+                        "key_id": "12345678-1234-1234-1234-123456789012",
+                        "arn": "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012",
+                    },
+                ),
+            ]
+        )
+
+        # Lambda dependencies
+        engine.add_edges(
+            [
+                Edge(
+                    source_id="lambda-processor",
+                    target_id="sqs-input",
+                    relation="reads_from",
+                ),
+                Edge(
+                    source_id="lambda-processor",
+                    target_id="s3-output",
+                    relation="writes_to",
+                ),
+                Edge(
+                    source_id="lambda-processor",
+                    target_id="dynamodb-state",
+                    relation="uses",
+                ),
+                Edge(
+                    source_id="lambda-processor",
+                    target_id="kms-key",
+                    relation="uses_key",
+                ),
+            ]
+        )
+
+        engine.end_scan(session.id)
+
+        # IAM policy generation: Get dependencies
+        lambda_deps = engine.get_dependencies("lambda-processor")
+        dep_ids = {n.id for n in lambda_deps}
+
+        assert "sqs-input" in dep_ids
+        assert "s3-output" in dep_ids
+        assert "dynamodb-state" in dep_ids
+        assert "kms-key" in dep_ids
+
+        # Generate policy statements based on resource types
+        policy_statements = []
+        for dep in lambda_deps:
+            if dep.type == "aws_sqs_queue":
+                policy_statements.append(
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "sqs:ReceiveMessage",
+                            "sqs:DeleteMessage",
+                            "sqs:GetQueueAttributes",
+                        ],
+                        "Resource": dep.attributes.get("arn", "*"),
+                    }
+                )
+            elif dep.type == "aws_s3_bucket":
+                policy_statements.append(
+                    {
+                        "Effect": "Allow",
+                        "Action": ["s3:PutObject", "s3:GetObject"],
+                        "Resource": [
+                            dep.attributes.get("arn", "*"),
+                            f"{dep.attributes.get('arn', '*')}/*",
+                        ],
+                    }
+                )
+            elif dep.type == "aws_dynamodb_table":
+                policy_statements.append(
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "dynamodb:GetItem",
+                            "dynamodb:PutItem",
+                            "dynamodb:UpdateItem",
+                        ],
+                        "Resource": dep.attributes.get("arn", "*"),
+                    }
+                )
+            elif dep.type == "aws_kms_key":
+                policy_statements.append(
+                    {
+                        "Effect": "Allow",
+                        "Action": ["kms:Decrypt", "kms:Encrypt", "kms:GenerateDataKey"],
+                        "Resource": dep.attributes.get("arn", "*"),
+                    }
+                )
+
+        # Should generate 4 policy statements (one per dependency)
+        assert len(policy_statements) == 4
+
+        engine.close()
 
 
 class TestNetworkXProjection:
