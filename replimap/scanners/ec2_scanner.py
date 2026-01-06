@@ -39,10 +39,13 @@ class EC2Scanner(BaseScanner):
 
     resource_types: ClassVar[list[str]] = ["aws_instance"]
 
-    # EC2 instances reference subnets and security groups for dependency edges
+    # EC2 instances reference subnets, security groups, EBS volumes, and IAM profiles
+    # These must be scanned first so instance → resource edges can be created
     depends_on_types: ClassVar[list[str]] = [
         "aws_subnet",
         "aws_security_group",
+        "aws_ebs_volume",
+        "aws_iam_instance_profile",
     ]
 
     def scan(self, graph: GraphEngine) -> None:
@@ -184,6 +187,7 @@ class EC2Scanner(BaseScanner):
         - EC2 -> Subnet (belongs_to)
         - EC2 -> Security Groups (uses)
         - EC2 -> EBS Volumes (uses)
+        - EC2 -> IAM Instance Profile (uses)
         """
         instance_id = node.id
         config = node.config
@@ -208,6 +212,13 @@ class EC2Scanner(BaseScanner):
             volume_id = bd.get("volume_id")
             if volume_id and graph.get_resource(volume_id):
                 graph.add_dependency(instance_id, volume_id, DependencyType.USES)
+
+        # IAM Instance Profile dependency
+        iam_profile = config.get("iam_instance_profile")
+        if iam_profile:
+            profile_name = iam_profile.get("name")
+            if profile_name and graph.get_resource(profile_name):
+                graph.add_dependency(instance_id, profile_name, DependencyType.USES)
 
     def _extract_iam_profile(
         self, profile: dict[str, Any] | None

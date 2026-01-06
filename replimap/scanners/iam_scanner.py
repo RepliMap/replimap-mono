@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from botocore.exceptions import ClientError
 
-from replimap.core.models import ResourceNode, ResourceType
+from replimap.core.models import DependencyType, ResourceNode, ResourceType
 from replimap.scanners.base import BaseScanner, ScannerRegistry
 
 if TYPE_CHECKING:
@@ -190,5 +190,11 @@ class IAMInstanceProfileScanner(BaseScanner):
         )
 
         graph.add_resource(node)
+
+        # Add dependency edges to associated IAM roles
+        for role_name in roles:
+            if role_name and graph.get_resource(role_name):
+                graph.add_dependency(profile_name, role_name, DependencyType.USES)
+
         logger.debug(f"Added IAM Instance Profile: {profile_name}")
         return True

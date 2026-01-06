@@ -106,6 +106,8 @@ class TraversalController:
         "aws_kms_alias": ResourceBoundary.SECURITY,
         "aws_secretsmanager_secret": ResourceBoundary.SECURITY,
         "aws_ssm_parameter": ResourceBoundary.SECURITY,
+        "aws_iam_instance_profile": ResourceBoundary.SECURITY,
+        "aws_iam_role": ResourceBoundary.SECURITY,
         # TRANSITIVE - Networking (transparent)
         "aws_vpc": ResourceBoundary.TRANSITIVE,
         "aws_subnet": ResourceBoundary.TRANSITIVE,
@@ -375,6 +377,28 @@ class IntentAwareActionMapper:
                 ],
             },
         },
+        "aws_ssm_parameter": {
+            PolicyScope.RUNTIME_READ: {
+                AccessRole.CONSUMER: [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:GetParametersByPath",
+                ],
+            },
+            PolicyScope.RUNTIME_WRITE: {
+                AccessRole.PRODUCER: [
+                    "ssm:PutParameter",
+                ],
+            },
+            PolicyScope.RUNTIME_FULL: {
+                AccessRole.BIDIRECTIONAL: [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:GetParametersByPath",
+                    "ssm:PutParameter",
+                ],
+            },
+        },
         "aws_cloudwatch_log_group": {
             PolicyScope.RUNTIME_WRITE: {
                 AccessRole.PRODUCER: [
@@ -416,6 +440,24 @@ class IntentAwareActionMapper:
             },
             PolicyScope.RUNTIME_FULL: {
                 AccessRole.BIDIRECTIONAL: ["elasticache:DescribeCacheClusters"],
+            },
+        },
+        "aws_ebs_volume": {
+            PolicyScope.RUNTIME_READ: {
+                AccessRole.CONSUMER: ["ec2:DescribeVolumes"],
+            },
+            PolicyScope.RUNTIME_FULL: {
+                AccessRole.BIDIRECTIONAL: ["ec2:DescribeVolumes"],
+            },
+            PolicyScope.INFRA_DEPLOY: {
+                AccessRole.CONTROLLER: [
+                    "ec2:CreateVolume",
+                    "ec2:DeleteVolume",
+                    "ec2:AttachVolume",
+                    "ec2:DetachVolume",
+                    "ec2:ModifyVolume",
+                    "ec2:DescribeVolumes",
+                ],
             },
         },
     }
@@ -620,6 +662,14 @@ class ARNBuilder:
                 f"{self.account_id}:secret:{secret}*"
             ]
 
+        # SSM Parameter Store
+        if resource_type == "aws_ssm_parameter":
+            param = attributes.get("name") or attributes.get("Name") or name
+            return [
+                f"arn:{self.partition}:ssm:{self.region}:"
+                f"{self.account_id}:parameter{param}"
+            ]
+
         # CloudWatch Logs
         if resource_type == "aws_cloudwatch_log_group":
             log_group = attributes.get("name") or attributes.get("logGroupName") or name
@@ -656,6 +706,14 @@ class ARNBuilder:
             return [
                 f"arn:{self.partition}:elasticache:{self.region}:"
                 f"{self.account_id}:cluster:{cluster_id}"
+            ]
+
+        # EBS Volume
+        if resource_type == "aws_ebs_volume":
+            volume_id = resource_id  # EBS volume IDs are already like "vol-xxx"
+            return [
+                f"arn:{self.partition}:ec2:{self.region}:"
+                f"{self.account_id}:volume/{volume_id}"
             ]
 
         # Fallback
