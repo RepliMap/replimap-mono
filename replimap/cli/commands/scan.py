@@ -186,7 +186,7 @@ def register(app: typer.Typer) -> None:
 
             replimap scan -i  # Interactive mode
 
-            replimap scan --profile prod --output graph.json
+            replimap scan --profile prod --output graph.db
 
         \b
 
