@@ -107,6 +107,17 @@ def create_iam_app() -> typer.Typer:
             "-v",
             help="Show detailed traversal information for debugging",
         ),
+        enrich: bool = typer.Option(
+            False,
+            "--enrich",
+            "-E",
+            help="Run graph enrichment to discover implicit dependencies",
+        ),
+        no_baseline: bool = typer.Option(
+            False,
+            "--no-baseline",
+            help="Don't generate baseline policy when no dependencies found",
+        ),
     ) -> None:
         """
         Generate IAM policy for a specific compute resource.
@@ -135,6 +146,12 @@ def create_iam_app() -> typer.Typer:
 
             # Save to file
             replimap iam for-resource -p prod -r my-lambda -o policy.json
+
+            # With graph enrichment (discovers implicit dependencies)
+            replimap iam for-resource -p prod -r i-abc123 -E -v
+
+            # Without baseline fallback (fail if no deps found)
+            replimap iam for-resource -p prod -r i-abc123 --no-baseline
         """
         # Parse scope
         scope_map = {
@@ -225,6 +242,8 @@ def create_iam_app() -> typer.Typer:
                 max_depth,
                 include_networking,
                 verbose=verbose,
+                use_baseline_fallback=not no_baseline,
+                enrich_graph=enrich,
             )
         except ValueError as e:
             console.print(f"[red]Error: {e}[/red]")

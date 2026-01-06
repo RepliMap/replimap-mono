@@ -1030,6 +1030,130 @@ class PolicyOptimizer:
 
 
 # ============================================================
+# BASELINE POLICY GENERATOR
+# ============================================================
+
+
+class BaselinePolicyGenerator:
+    """
+    Generates baseline IAM policies for isolated compute resources.
+
+    When a compute resource has no data dependencies (only TRANSITIVE connections
+    like VPC/Subnet/SG), we provide a safe baseline policy with common patterns:
+
+    1. CloudWatch Logs (write) - for logging
+    2. SSM Parameter Store (read) - for configuration
+    3. KMS (encrypt/decrypt) - for encryption
+    4. EC2 Describe (read) - for instance metadata
+
+    This prevents completely empty policies while still being least-privilege.
+    """
+
+    def __init__(self, arn_builder: ARNBuilder):
+        self.arn_builder = arn_builder
+
+    def generate_baseline(
+        self,
+        principal_name: str,
+        principal_type: str,
+        scope: PolicyScope,
+    ) -> list[IAMStatement]:
+        """
+        Generate baseline statements for a compute resource.
+
+        Args:
+            principal_name: Name of the compute resource
+            principal_type: Type of compute resource (aws_instance, etc.)
+            scope: Policy scope (runtime_read, runtime_write, etc.)
+
+        Returns:
+            List of baseline IAM statements
+        """
+        statements: list[IAMStatement] = []
+
+        # CloudWatch Logs - always needed for observability
+        if scope in (
+            PolicyScope.RUNTIME_READ,
+            PolicyScope.RUNTIME_WRITE,
+            PolicyScope.RUNTIME_FULL,
+        ):
+            log_group = f"/aws/{self._get_log_prefix(principal_type)}/{principal_name}"
+            statements.append(
+                IAMStatement(
+                    sid="BaselineCloudWatchLogs",
+                    actions=[
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                    ],
+                    resources=[
+                        f"arn:{self.arn_builder.partition}:logs:"
+                        f"{self.arn_builder.region}:{self.arn_builder.account_id}:"
+                        f"log-group:{log_group}",
+                        f"arn:{self.arn_builder.partition}:logs:"
+                        f"{self.arn_builder.region}:{self.arn_builder.account_id}:"
+                        f"log-group:{log_group}:*",
+                    ],
+                )
+            )
+
+        # SSM Parameter Store - common for config (scoped to prefix)
+        if scope in (PolicyScope.RUNTIME_READ, PolicyScope.RUNTIME_FULL):
+            statements.append(
+                IAMStatement(
+                    sid="BaselineSSMParameters",
+                    actions=[
+                        "ssm:GetParameter",
+                        "ssm:GetParameters",
+                        "ssm:GetParametersByPath",
+                    ],
+                    resources=[
+                        f"arn:{self.arn_builder.partition}:ssm:"
+                        f"{self.arn_builder.region}:{self.arn_builder.account_id}:"
+                        f"parameter/{principal_name}/*",
+                    ],
+                )
+            )
+
+        # EC2 Describe - for instance metadata (EC2 only)
+        if principal_type == "aws_instance" and scope in (
+            PolicyScope.RUNTIME_READ,
+            PolicyScope.RUNTIME_FULL,
+        ):
+            statements.append(
+                IAMStatement(
+                    sid="BaselineEC2Describe",
+                    actions=[
+                        "ec2:DescribeInstances",
+                        "ec2:DescribeTags",
+                        "ec2:DescribeVolumes",
+                    ],
+                    resources=["*"],
+                    conditions=[
+                        {
+                            "StringEquals": {
+                                "ec2:ResourceTag/Name": principal_name,
+                            }
+                        }
+                    ],
+                )
+            )
+
+        return statements
+
+    def _get_log_prefix(self, principal_type: str) -> str:
+        """Get CloudWatch Logs prefix for principal type."""
+        prefix_map = {
+            "aws_lambda_function": "lambda",
+            "aws_instance": "ec2",
+            "aws_ecs_service": "ecs",
+            "aws_ecs_task_definition": "ecs",
+            "aws_eks_node_group": "eks",
+        }
+        return prefix_map.get(principal_type, "compute")
+
+
+# ============================================================
 # MAIN GENERATOR
 # ============================================================
 
@@ -1061,6 +1185,7 @@ class GraphAwareIAMGenerator:
         self.mapper = IntentAwareActionMapper()
         self.arn_builder = ARNBuilder(account_id, region)
         self.optimizer = PolicyOptimizer(strict_compression=strict_mode)
+        self.baseline_generator = BaselinePolicyGenerator(self.arn_builder)
 
     def generate_for_principal(
         self,
@@ -1070,6 +1195,8 @@ class GraphAwareIAMGenerator:
         include_networking: bool = False,
         optimize: bool = True,
         verbose: bool = False,
+        use_baseline_fallback: bool = True,
+        enrich_graph: bool = False,
     ) -> list[IAMPolicy]:
         """
         Generate IAM policy for a compute resource.
@@ -1081,6 +1208,8 @@ class GraphAwareIAMGenerator:
             include_networking: Include VPC/Subnet resources
             optimize: Apply size optimization
             verbose: Print diagnostic information
+            use_baseline_fallback: Generate baseline policy if no deps found
+            enrich_graph: Run graph enrichment to discover implicit dependencies
 
         Returns:
             List of IAM policies (usually 1, multiple if sharded)
@@ -1088,6 +1217,26 @@ class GraphAwareIAMGenerator:
         principal = self.graph.get_resource(principal_resource_id)
         if not principal:
             raise ValueError(f"Resource not found: {principal_resource_id}")
+
+        # Optional: Run graph enrichment to discover implicit dependencies
+        if enrich_graph:
+            try:
+                from replimap.core.enrichment import GraphEnricher
+
+                enricher = GraphEnricher(self.graph)
+                result = enricher.enrich()
+                if verbose and result.total_edges > 0:
+                    print(f"\nEnrichment found {result.total_edges} deps:")
+                    for edge in result.edges_added:
+                        ev = edge.evidence[:35]
+                        src = edge.source_id
+                        tgt = edge.target_id
+                        conf = edge.confidence
+                        print(f"  + {src} -> {tgt} [{conf}]")
+                        print(f"    ({ev})")
+                    print()
+            except ImportError:
+                logger.warning("Graph enrichment module not available")
 
         controller = TraversalController(
             include_networking=include_networking,
@@ -1102,22 +1251,38 @@ class GraphAwareIAMGenerator:
         logger.info(f"Found {len(connections)} resources for {principal_resource_id}")
 
         if verbose:
-            print(f"\nTraversal found {len(connections)} resources for policy generation:")
+            print(f"\nTraversal found {len(connections)} resources:")
             if connections:
                 for conn in connections:
                     boundary = controller.get_boundary(conn["type"])
                     actions = self.mapper.get_actions(conn["type"], scope)
-                    action_info = f"{len(actions)} actions" if actions else "no actions mapped"
-                    print(f"  ✓ {conn['id']} ({conn['type']}) - {boundary.value}, {action_info}")
+                    n_actions = len(actions) if actions else 0
+                    print(f"  + {conn['id']} ({conn['type']})")
+                    print(f"    boundary={boundary.value}, actions={n_actions}")
             else:
-                print("  (none - all dependencies were TRANSITIVE or TERMINAL)")
+                print("  (none - all deps were TRANSITIVE or TERMINAL)")
             print()
 
         # Build statements
         statements = self._build_statements(principal, connections, scope)
 
-        # Add CloudWatch Logs for Lambda
+        # Fallback to baseline policy if no data dependencies found
         principal_type = str(principal.resource_type)
+        principal_name = principal.original_name or principal_resource_id.split(":")[-1]
+
+        if not statements and use_baseline_fallback:
+            if verbose:
+                print("\nNo data dependencies found. Generating baseline policy...")
+            statements = self.baseline_generator.generate_baseline(
+                principal_name, principal_type, scope
+            )
+            if verbose:
+                print(f"Baseline policy has {len(statements)} statements:")
+                for stmt in statements:
+                    print(f"  - {stmt.sid}: {len(stmt.actions)} actions")
+                print()
+
+        # Add CloudWatch Logs for Lambda (if not already in baseline)
         if principal_type == "aws_lambda_function" and scope in (
             PolicyScope.RUNTIME_READ,
             PolicyScope.RUNTIME_WRITE,
@@ -1128,12 +1293,13 @@ class GraphAwareIAMGenerator:
                 statements.append(log_stmt)
 
         # Create policy
-        name = principal.original_name or principal_resource_id.split(":")[-1]
+        is_baseline = not connections and use_baseline_fallback
+        policy_suffix = "-baseline" if is_baseline else ""
         policy = IAMPolicy(
-            name=f"{name}-{scope.value}",
+            name=f"{principal_name}-{scope.value}{policy_suffix}",
             description=(
-                f"Least privilege {scope.value} policy for {name}. "
-                f"Generated by RepliMap."
+                f"{'Baseline ' if is_baseline else ''}Least privilege {scope.value} "
+                f"policy for {principal_name}. Generated by RepliMap."
             ),
             statements=statements,
         )
@@ -1356,5 +1522,6 @@ __all__ = [
     "IAMStatement",
     "IAMPolicy",
     "PolicyOptimizer",
+    "BaselinePolicyGenerator",
     "GraphAwareIAMGenerator",
 ]
