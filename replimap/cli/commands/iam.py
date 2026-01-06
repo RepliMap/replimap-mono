@@ -101,6 +101,12 @@ def create_iam_app() -> typer.Typer:
             "-R",
             help="Force fresh AWS scan (ignore cached graph)",
         ),
+        verbose: bool = typer.Option(
+            False,
+            "--verbose",
+            "-v",
+            help="Show detailed traversal information for debugging",
+        ),
     ) -> None:
         """
         Generate IAM policy for a specific compute resource.
@@ -190,6 +196,20 @@ def create_iam_app() -> typer.Typer:
                 _suggest_resources(cached_graph, resource_id)
                 raise typer.Exit(1)
 
+        # Show verbose dependency info
+        if verbose:
+            console.print()
+            console.print("[bold]Direct dependencies:[/bold]")
+            deps = cached_graph.get_dependencies(resource_id)
+            if deps:
+                for dep in deps:
+                    console.print(
+                        f"  → {dep.id} [dim]({dep.resource_type})[/dim]"
+                    )
+            else:
+                console.print("  [dim]None found[/dim]")
+            console.print()
+
         # Generate policy
         try:
             generator = GraphAwareIAMGenerator(
@@ -204,6 +224,7 @@ def create_iam_app() -> typer.Typer:
                 policy_scope,
                 max_depth,
                 include_networking,
+                verbose=verbose,
             )
         except ValueError as e:
             console.print(f"[red]Error: {e}[/red]")

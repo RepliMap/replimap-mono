@@ -1069,6 +1069,7 @@ class GraphAwareIAMGenerator:
         max_depth: int = 3,
         include_networking: bool = False,
         optimize: bool = True,
+        verbose: bool = False,
     ) -> list[IAMPolicy]:
         """
         Generate IAM policy for a compute resource.
@@ -1079,6 +1080,7 @@ class GraphAwareIAMGenerator:
             max_depth: Traversal depth limit
             include_networking: Include VPC/Subnet resources
             optimize: Apply size optimization
+            verbose: Print diagnostic information
 
         Returns:
             List of IAM policies (usually 1, multiple if sharded)
@@ -1094,10 +1096,22 @@ class GraphAwareIAMGenerator:
 
         # Boundary-aware traversal
         connections = self._traverse_with_boundaries(
-            principal_resource_id, controller, max_depth
+            principal_resource_id, controller, max_depth, verbose
         )
 
         logger.info(f"Found {len(connections)} resources for {principal_resource_id}")
+
+        if verbose:
+            print(f"\nTraversal found {len(connections)} resources for policy generation:")
+            if connections:
+                for conn in connections:
+                    boundary = controller.get_boundary(conn["type"])
+                    actions = self.mapper.get_actions(conn["type"], scope)
+                    action_info = f"{len(actions)} actions" if actions else "no actions mapped"
+                    print(f"  ✓ {conn['id']} ({conn['type']}) - {boundary.value}, {action_info}")
+            else:
+                print("  (none - all dependencies were TRANSITIVE or TERMINAL)")
+            print()
 
         # Build statements
         statements = self._build_statements(principal, connections, scope)
@@ -1131,10 +1145,12 @@ class GraphAwareIAMGenerator:
         start_id: str,
         controller: TraversalController,
         max_depth: int,
+        verbose: bool = False,
     ) -> list[dict[str, Any]]:
         """BFS traversal with boundary control."""
         connections: list[dict[str, Any]] = []
         visited: set[str] = set()
+        skipped: list[tuple[str, str, str]] = []  # (id, type, reason)
         # Queue: (node_id, depth, edge_type)
         queue: list[tuple[str, int, str | None]] = [(start_id, 0, None)]
 
@@ -1166,6 +1182,9 @@ class GraphAwareIAMGenerator:
                             "edge_type": edge_type,
                         }
                     )
+                else:
+                    boundary = controller.get_boundary(node_type)
+                    skipped.append((node_id, node_type, f"boundary={boundary.value}"))
 
             # Continue traversal if allowed
             if not controller.should_traverse_through(node_type, depth, edge_type):
@@ -1177,6 +1196,11 @@ class GraphAwareIAMGenerator:
                     # Get edge relation from graph
                     relation = self._get_edge_relation(node_id, dep)
                     queue.append((dep, depth + 1, relation))
+
+        if verbose and skipped:
+            print("Skipped resources (TRANSITIVE/TERMINAL boundary):")
+            for sid, stype, reason in skipped:
+                print(f"  ✗ {sid} ({stype}) - {reason}")
 
         return connections
 
