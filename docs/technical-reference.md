@@ -2100,7 +2100,7 @@ replimap/
 │       ├── prompts.py       # License prompts
 │       └── tracker.py       # Usage tracking
 ├── templates/               # Jinja2 templates
-├── tests/                   # pytest test suite (900+ tests)
+├── tests/                   # pytest test suite (2100+ tests)
 ├── .github/workflows/       # CI/CD
 ├── .replimap.yaml           # Project configuration (optional)
 ├── pyproject.toml
