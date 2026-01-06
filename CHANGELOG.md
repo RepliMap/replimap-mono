@@ -50,6 +50,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `remove_node()` - Remove node with cascade edge deletion
   - Tests: 26 comprehensive tests in `tests/test_legacy_migration.py`
 
+- **Storage Enhancements (Prompt 3.7.2)** - Scan sessions, compression, and schema migrations
+  - **Scan Session Management (Ghost Fix)**:
+    - `ScanSession` dataclass for tracking scan lifecycle
+    - `start_scan()` / `end_scan()` - Manage scan sessions with auto resource tagging
+    - `cleanup_stale_resources()` - Remove resources not seen in current scan
+    - `add_phantom_node()` / `resolve_phantom()` - Handle cross-account references
+    - `get_phantom_nodes()` - List all placeholder nodes
+    - All nodes/edges automatically tagged with `scan_id`
+    - `is_phantom` and `phantom_reason` fields on Node for tracking missing dependencies
+  - **zlib Compression** (80-90% disk savings):
+    - Attributes JSON automatically compressed on write, decompressed on read
+    - `enable_compression` parameter (default: True)
+    - Backwards compatible - handles both compressed and uncompressed data
+  - **Schema Migration System**:
+    - Version-tracked schema (current: v2)
+    - Auto-migration on database open
+    - Idempotent migrations (safe to re-run)
+    - `get_schema_version()` - Check current schema version
+  - Tests: 30 comprehensive tests in `tests/test_storage_enhancements.py`
+
 - **Robust SARIF Generator for CI/CD Integration (Phase 3 v1.5)** - Production-grade SARIF output for GitHub Security
   - **Enhanced SARIF Generator** (`replimap/core/formatters/sarif.py`)
     - `SARIFGenerator` - Full GitHub Advanced Security compatibility
