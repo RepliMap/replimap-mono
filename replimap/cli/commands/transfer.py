@@ -54,17 +54,17 @@ def transfer_command(
 ) -> None:
     """Analyze data transfer costs and optimization opportunities.
 
-        \b
+    \b
 
-        Identifies costly data transfer patterns.
+    Identifies costly data transfer patterns.
 
-        \b
+    \b
 
-        Examples:
+    Examples:
 
-            replimap transfer -r us-east-1
+        replimap transfer -r us-east-1
 
-            replimap transfer -r us-east-1 -f json -o transfer.json
+        replimap transfer -r us-east-1 -f json -o transfer.json
     """
     from replimap.cost.transfer_analyzer import DataTransferAnalyzer
     from replimap.licensing import check_cost_allowed

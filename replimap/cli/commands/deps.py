@@ -210,46 +210,46 @@ def deps_command(
 ) -> None:
     """Explore dependencies for a resource.
 
-        \b
+    \b
 
-        Shows what resources MAY be affected if you modify or delete a resource.
-        This analysis is based on AWS API metadata only.
+    Shows what resources MAY be affected if you modify or delete a resource.
+    This analysis is based on AWS API metadata only.
 
-        \b
+    \b
 
-        IMPORTANT: Application-level dependencies (hardcoded IPs, DNS, config files)
-        are NOT detected. Always validate all dependencies before making
-        infrastructure changes.
+    IMPORTANT: Application-level dependencies (hardcoded IPs, DNS, config files)
+    are NOT detected. Always validate all dependencies before making
+    infrastructure changes.
 
-        \b
+    \b
 
-        This is a Pro+ feature.
+    This is a Pro+ feature.
 
-        \b
+    \b
 
-        Output formats:
+    Output formats:
 
-        - console: Rich terminal output with summary (default)
+    - console: Rich terminal output with summary (default)
 
-        - tree: Tree view of dependencies
+    - tree: Tree view of dependencies
 
-        - table: Table of affected resources
+    - table: Table of affected resources
 
-        - html: Interactive HTML report with D3.js visualization
+    - html: Interactive HTML report with D3.js visualization
 
-        - json: Machine-readable JSON
+    - json: Machine-readable JSON
 
-        \b
+    \b
 
-        Examples:
+    Examples:
 
-            replimap deps sg-12345 -r us-east-1              # Security group deps
+        replimap deps sg-12345 -r us-east-1              # Security group deps
 
-            replimap deps vpc-abc123 -r us-east-1 -f tree    # Tree view
+        replimap deps vpc-abc123 -r us-east-1 -f tree    # Tree view
 
-            replimap deps i-xyz789 -r us-east-1 -f html -o deps.html
+        replimap deps i-xyz789 -r us-east-1 -f html -o deps.html
 
-            replimap deps vpc-12345 -r us-east-1 --depth 3   # Limit depth
+        replimap deps vpc-12345 -r us-east-1 --depth 3   # Limit depth
     """
     from replimap.dependencies import (
         DISCLAIMER_SHORT,

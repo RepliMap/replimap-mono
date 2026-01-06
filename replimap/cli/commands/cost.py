@@ -83,52 +83,52 @@ def cost_command(
 ) -> None:
     """Estimate monthly AWS costs for your infrastructure.
 
-        \b
+    \b
 
-        IMPORTANT: These are rough estimates only. Actual AWS costs may
-        differ by 20-40% depending on usage patterns, data transfer, and
-        pricing agreements.
+    IMPORTANT: These are rough estimates only. Actual AWS costs may
+    differ by 20-40% depending on usage patterns, data transfer, and
+    pricing agreements.
 
-        \b
+    \b
 
-        Provides cost breakdown by category, resource, and region with
-        optimization recommendations. This is a Pro+ feature.
+    Provides cost breakdown by category, resource, and region with
+    optimization recommendations. This is a Pro+ feature.
 
-        \b
+    \b
 
-        Output formats:
+    Output formats:
 
-        - console: Rich terminal output with summary (default)
+    - console: Rich terminal output with summary (default)
 
-        - table: Full table of all resource costs
+    - table: Full table of all resource costs
 
-        - html: Interactive HTML report with charts
+    - html: Interactive HTML report with charts
 
-        - json: Machine-readable JSON
+    - json: Machine-readable JSON
 
-        - csv: Spreadsheet-compatible CSV
+    - csv: Spreadsheet-compatible CSV
 
-        - markdown: Markdown report
+    - markdown: Markdown report
 
-        \b
+    \b
 
-        Examples:
+    Examples:
 
-            replimap cost -r us-east-1
+        replimap cost -r us-east-1
 
-            replimap cost -r us-east-1 --vpc vpc-12345
+        replimap cost -r us-east-1 --vpc vpc-12345
 
-            replimap cost -r us-east-1 -f html -o cost-report.html
+        replimap cost -r us-east-1 -f html -o cost-report.html
 
-            replimap cost -r us-east-1 -f json -o costs.json --acknowledge
+        replimap cost -r us-east-1 -f json -o costs.json --acknowledge
 
-        \b
+    \b
 
-        RI-Aware Pricing:
+    RI-Aware Pricing:
 
-            replimap cost -r us-east-1 --ri-aware
+        replimap cost -r us-east-1 --ri-aware
 
-            replimap cost -r us-east-1 --ri-aware --show-reservations
+        replimap cost -r us-east-1 --ri-aware --show-reservations
     """
     from replimap.cost import CostEstimator, CostReporter
     from replimap.licensing import check_cost_allowed

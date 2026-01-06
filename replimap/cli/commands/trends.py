@@ -45,19 +45,19 @@ def trends_command(
 ) -> None:
     """Analyze AWS cost trends and detect anomalies.
 
-        \b
+    \b
 
-        Uses AWS Cost Explorer to analyze historical spending patterns.
+    Uses AWS Cost Explorer to analyze historical spending patterns.
 
-        \b
+    \b
 
-        Examples:
+    Examples:
 
-            replimap trends
+        replimap trends
 
-            replimap trends --days 90
+        replimap trends --days 90
 
-            replimap trends -f json -o trends.json
+        replimap trends -f json -o trends.json
     """
     from replimap.cost.trends import CostTrendAnalyzer
     from replimap.licensing import check_cost_allowed

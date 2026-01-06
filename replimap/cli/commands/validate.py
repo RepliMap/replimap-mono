@@ -58,25 +58,25 @@ def validate_command(
 ) -> None:
     """Validate infrastructure against topology constraints.
 
-        \b
+    \b
 
-        Checks your AWS infrastructure against policy rules defined in a
-        constraints YAML file. Perfect for enforcing security policies,
-        tagging standards, and architectural patterns.
+    Checks your AWS infrastructure against policy rules defined in a
+    constraints YAML file. Perfect for enforcing security policies,
+    tagging standards, and architectural patterns.
 
-        \b
+    \b
 
-        Examples:
+    Examples:
 
-            replimap validate --generate-defaults              # Generate defaults
+        replimap validate --generate-defaults              # Generate defaults
 
-            replimap validate -p prod -r us-east-1             # Validate
+        replimap validate -p prod -r us-east-1             # Validate
 
-            replimap validate -p prod -r us-east-1 -c my.yaml  # Custom config
+        replimap validate -p prod -r us-east-1 -c my.yaml  # Custom config
 
-            replimap validate -p prod -r us-east-1 --fail-on high  # CI/CD
+        replimap validate -p prod -r us-east-1 --fail-on high  # CI/CD
 
-            replimap validate -p prod -r us-east-1 -o report.json
+        replimap validate -p prod -r us-east-1 -o report.json
     """
     from replimap.core.topology_constraints import (
         ConstraintSeverity,

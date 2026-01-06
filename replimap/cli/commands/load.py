@@ -33,8 +33,8 @@ def _load_graph(graph_file: Path):
                     from replimap.core.unified_storage import GraphEngineAdapter
 
                     return GraphEngineAdapter(db_path=str(graph_file))
-        except Exception:
-            pass
+        except (OSError, ValueError):
+            pass  # Fall through to JSON loader
         from replimap.core.graph_engine import GraphEngine
 
         return GraphEngine.load(graph_file)

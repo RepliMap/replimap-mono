@@ -36,8 +36,8 @@ def _load_graph(graph_file: Path):
                     from replimap.core.unified_storage import GraphEngineAdapter
 
                     return GraphEngineAdapter(db_path=str(graph_file))
-        except Exception:
-            pass
+        except (OSError, ValueError):
+            pass  # Fall through to JSON loader
         from replimap.core.graph_engine import GraphEngine
 
         return GraphEngine.load(graph_file)
@@ -126,43 +126,43 @@ def drift_command(
 ) -> None:
     """Detect infrastructure drift between Terraform state and AWS.
 
-        \b
+    \b
 
-        Compares your Terraform state file against the actual AWS resources
-        to identify changes made outside of Terraform (console, CLI, etc).
+    Compares your Terraform state file against the actual AWS resources
+    to identify changes made outside of Terraform (console, CLI, etc).
 
-        \b
+    \b
 
-        State Sources:
+    State Sources:
 
-        - Local file: --state ./terraform.tfstate
+    - Local file: --state ./terraform.tfstate
 
-        - S3 remote: --state-bucket my-bucket --state-key path/terraform.tfstate
+    - S3 remote: --state-bucket my-bucket --state-key path/terraform.tfstate
 
-        \b
+    \b
 
-        Output formats:
+    Output formats:
 
-        - console: Rich terminal output (default)
+    - console: Rich terminal output (default)
 
-        - html: Professional HTML report
+    - html: Professional HTML report
 
-        - json: Machine-readable JSON
+    - json: Machine-readable JSON
 
-        \b
+    \b
 
-        Examples:
+    Examples:
 
-            replimap drift -r us-east-1 -s ./terraform.tfstate
+        replimap drift -r us-east-1 -s ./terraform.tfstate
 
-            replimap drift -r us-east-1 --state-bucket my-bucket
-                --state-key prod/tf.tfstate
+        replimap drift -r us-east-1 --state-bucket my-bucket
+            --state-key prod/tf.tfstate
 
-            replimap drift -r us-east-1 -s ./tf.tfstate -f html -o report.html
+        replimap drift -r us-east-1 -s ./tf.tfstate -f html -o report.html
 
-            replimap drift -r us-east-1 -s ./tf.tfstate --fail-on-drift --no-open
+        replimap drift -r us-east-1 -s ./tf.tfstate --fail-on-drift --no-open
 
-            replimap drift -r us-east-1 -s ./tf.tfstate --fail-on-high --no-open
+        replimap drift -r us-east-1 -s ./tf.tfstate --fail-on-high --no-open
     """
     from replimap.drift import DriftEngine, DriftReporter
 
@@ -432,29 +432,29 @@ def offline_detect_command(
 ) -> None:
     """Offline drift detection using cached RepliMap scan.
 
-        \b
+    \b
 
-        This is an "offline terraform plan" - faster and doesn't require
-        AWS connection or Terraform installation. Uses cached scan data.
+    This is an "offline terraform plan" - faster and doesn't require
+    AWS connection or Terraform installation. Uses cached scan data.
 
-        \b
+    \b
 
-        Examples:
+    Examples:
 
-            # Basic offline drift detection
-            replimap drift offline -p prod -s ./terraform.tfstate
+        # Basic offline drift detection
+        replimap drift offline -p prod -s ./terraform.tfstate
 
-            # For CI/CD (fail on drift)
-            replimap drift offline -p prod --fail-on-drift
+        # For CI/CD (fail on drift)
+        replimap drift offline -p prod --fail-on-drift
 
-            # Only critical/high severity
-            replimap drift offline -p prod --severity high
+        # Only critical/high severity
+        replimap drift offline -p prod --severity high
 
-            # With custom ignore rules
-            replimap drift offline -p prod --ignore .replimapignore
+        # With custom ignore rules
+        replimap drift offline -p prod --ignore .replimapignore
 
-            # Output for GitHub Security
-            replimap drift offline -p prod --sarif drift-results.sarif
+        # Output for GitHub Security
+        replimap drift offline -p prod --sarif drift-results.sarif
     """
     from replimap.core.cache_manager import get_cache_path
     from replimap.core.drift import DriftFilter, DriftSeverity, OfflineDriftDetector

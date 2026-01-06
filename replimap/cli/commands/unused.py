@@ -68,22 +68,22 @@ def unused_command(
 ) -> None:
     """Detect unused and underutilized AWS resources.
 
-        \b
+    \b
 
-        Identifies resources that may be candidates for termination
-        or optimization to reduce costs.
+    Identifies resources that may be candidates for termination
+    or optimization to reduce costs.
 
-        \b
+    \b
 
-        Examples:
+    Examples:
 
-            replimap unused -r us-east-1
+        replimap unused -r us-east-1
 
-            replimap unused -r us-east-1 --confidence high
+        replimap unused -r us-east-1 --confidence high
 
-            replimap unused -r us-east-1 --types ec2,ebs
+        replimap unused -r us-east-1 --types ec2,ebs
 
-            replimap unused -r us-east-1 -f json -o unused.json
+        replimap unused -r us-east-1 -f json -o unused.json
     """
     from replimap.cost.unused_detector import (
         ConfidenceLevel,
