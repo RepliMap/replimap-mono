@@ -1882,6 +1882,10 @@ RepliMap uses a unified SQLite-based storage layer (`replimap/core/unified_stora
 | **Recursive CTEs** | Fast path finding and dependency traversal |
 | **Snapshots** | Native SQLite `backup()` API for point-in-time captures |
 | **NetworkX Projection** | On-demand graph projection for complex algorithms |
+| **Scan Sessions** | Ghost Fix: track resource lifecycle with `scan_id` tagging |
+| **Phantom Nodes** | Placeholder nodes for cross-account/missing dependencies |
+| **zlib Compression** | 80-90% disk savings for JSON attributes |
+| **Schema Migration** | Version-based schema upgrades with idempotent migrations |
 
 ```python
 from replimap.core.unified_storage import UnifiedGraphEngine, Node, Edge
@@ -1900,6 +1904,14 @@ engine.add_edges([Edge(source_id="subnet-1", target_id="vpc-1", relation="in")])
 order = engine.safe_apply_order()  # Terraform apply order
 deps = engine.get_dependencies("subnet-1", recursive=True)
 critical = engine.get_most_critical_resources(top_n=10)
+
+# Scan session management (Ghost Fix)
+session = engine.start_scan(profile="prod", region="us-east-1")
+engine.add_nodes([Node(id="vpc-2", type="aws_vpc")])  # Auto-tagged with scan_id
+engine.end_scan(session.id)
+
+# Cleanup stale resources from previous scans
+removed = engine.cleanup_stale_resources(session.id)
 ```
 
 ### Enhanced Renderer Components (Level 2-5)

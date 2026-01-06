@@ -762,6 +762,78 @@ class UnifiedGraphEngine:
         return self._backend.get_stats()
 
     # =========================================================
+    # SCAN SESSION MANAGEMENT (Ghost Fix)
+    # =========================================================
+
+    def start_scan(self, profile: str | None = None, region: str | None = None) -> Any:
+        """
+        Start a new scan session.
+
+        Creates a scan session record and sets the current scan ID.
+        All nodes/edges added during this session will be tagged with scan_id.
+
+        Args:
+            profile: AWS profile being scanned
+            region: AWS region being scanned
+
+        Returns:
+            ScanSession object with unique ID
+        """
+        return self._backend.start_scan(profile=profile, region=region)
+
+    def end_scan(
+        self, scan_id: str, success: bool = True, error: str | None = None
+    ) -> None:
+        """
+        End a scan session.
+
+        Updates the session status and resource count.
+
+        Args:
+            scan_id: The scan session ID to end
+            success: Whether the scan completed successfully
+            error: Error message if failed
+        """
+        self._backend.end_scan(scan_id, success=success, error=error)
+
+    def get_scan_session(self, scan_id: str) -> Any:
+        """Get a scan session by ID."""
+        return self._backend.get_scan_session(scan_id)
+
+    def get_phantom_nodes(self) -> list[Node]:
+        """Get all phantom (placeholder) nodes."""
+        return self._backend.get_phantom_nodes()
+
+    def cleanup_stale_resources(self, current_scan_id: str) -> int:
+        """
+        Remove resources not seen in the current scan (Ghost Fix).
+
+        Args:
+            current_scan_id: The current scan session ID
+
+        Returns:
+            Number of resources removed
+        """
+        return self._backend.cleanup_stale_resources(current_scan_id)
+
+    def add_phantom_node(
+        self,
+        node_id: str,
+        node_type: str,
+        reason: str = "cross-account reference",
+    ) -> Node:
+        """Add a phantom (placeholder) node for a missing dependency."""
+        return self._backend.add_phantom_node(node_id, node_type, reason)
+
+    def resolve_phantom(self, node_id: str, real_node: Node) -> bool:
+        """Replace a phantom node with a real node."""
+        return self._backend.resolve_phantom(node_id, real_node)
+
+    def get_schema_version(self) -> int:
+        """Get current database schema version."""
+        return self._backend.get_schema_version()
+
+    # =========================================================
     # CLASS METHODS
     # =========================================================
 

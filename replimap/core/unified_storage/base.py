@@ -6,13 +6,16 @@ This module defines the core abstractions:
 - Edge: Represents a graph edge (resource relationship)
 - ResourceCategory: Enum for resource categorization
 - GraphBackend: Abstract interface for storage backends
+- ScanSession: Scan session lifecycle management
 """
 
 from __future__ import annotations
 
+import uuid
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -31,6 +34,88 @@ class ResourceCategory(Enum):
     OTHER = "other"
 
 
+class ScanStatus(Enum):
+    """Status of a scan session."""
+
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass
+class ScanSession:
+    """
+    Represents a scan session for tracking resource lifecycle.
+
+    Used for Ghost Fix: tracking which resources belong to which scan,
+    enabling cleanup of stale (phantom) resources from previous scans.
+
+    Attributes:
+        id: Unique scan session ID
+        profile: AWS profile used
+        region: AWS region scanned
+        status: Current scan status
+        started_at: When the scan started
+        completed_at: When the scan completed (if finished)
+        resource_count: Number of resources discovered
+        error_message: Error details if failed
+    """
+
+    id: str = field(default_factory=lambda: f"scan-{uuid.uuid4().hex[:12]}")
+    profile: str | None = None
+    region: str | None = None
+    status: ScanStatus = ScanStatus.RUNNING
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    completed_at: datetime | None = None
+    resource_count: int = 0
+    error_message: str | None = None
+
+    def complete(self, resource_count: int = 0) -> None:
+        """Mark session as completed."""
+        self.status = ScanStatus.COMPLETED
+        self.completed_at = datetime.now(UTC)
+        self.resource_count = resource_count
+
+    def fail(self, error: str) -> None:
+        """Mark session as failed."""
+        self.status = ScanStatus.FAILED
+        self.completed_at = datetime.now(UTC)
+        self.error_message = error
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to serializable dictionary."""
+        return {
+            "id": self.id,
+            "profile": self.profile,
+            "region": self.region,
+            "status": self.status.value,
+            "started_at": self.started_at.isoformat(),
+            "completed_at": self.completed_at.isoformat()
+            if self.completed_at
+            else None,
+            "resource_count": self.resource_count,
+            "error_message": self.error_message,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ScanSession:
+        """Create ScanSession from dictionary."""
+        return cls(
+            id=data["id"],
+            profile=data.get("profile"),
+            region=data.get("region"),
+            status=ScanStatus(data["status"]),
+            started_at=datetime.fromisoformat(data["started_at"]),
+            completed_at=(
+                datetime.fromisoformat(data["completed_at"])
+                if data.get("completed_at")
+                else None
+            ),
+            resource_count=data.get("resource_count", 0),
+            error_message=data.get("error_message"),
+        )
+
+
 @dataclass
 class Node:
     """
@@ -43,6 +128,9 @@ class Node:
         region: AWS region
         account_id: AWS account ID
         attributes: Additional attributes as key-value pairs
+        scan_id: ID of the scan session that discovered this resource
+        is_phantom: True if this is a placeholder for a missing dependency
+        phantom_reason: Why this node is a phantom (e.g., "cross-account reference")
     """
 
     id: str
@@ -51,6 +139,9 @@ class Node:
     region: str | None = None
     account_id: str | None = None
     attributes: dict[str, Any] = field(default_factory=dict)
+    scan_id: str | None = None
+    is_phantom: bool = False
+    phantom_reason: str | None = None
 
     _category: ResourceCategory | None = field(default=None, repr=False, compare=False)
 
@@ -99,6 +190,9 @@ class Node:
             "account_id": self.account_id,
             "attributes": self.attributes,
             "category": self.category.value,
+            "scan_id": self.scan_id,
+            "is_phantom": self.is_phantom,
+            "phantom_reason": self.phantom_reason,
         }
 
     @classmethod
@@ -111,6 +205,9 @@ class Node:
             region=data.get("region"),
             account_id=data.get("account_id"),
             attributes=data.get("attributes", {}),
+            scan_id=data.get("scan_id"),
+            is_phantom=data.get("is_phantom", False),
+            phantom_reason=data.get("phantom_reason"),
         )
 
     def __hash__(self) -> int:
@@ -131,6 +228,7 @@ class Edge:
         relation: Type of relationship (e.g., 'belongs_to', 'uses')
         attributes: Additional edge attributes
         weight: Edge weight for weighted graph algorithms
+        scan_id: ID of the scan session that discovered this edge
     """
 
     source_id: str
@@ -138,6 +236,7 @@ class Edge:
     relation: str
     attributes: dict[str, Any] = field(default_factory=dict)
     weight: float = 1.0
+    scan_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to serializable dictionary."""
@@ -147,6 +246,7 @@ class Edge:
             "relation": self.relation,
             "attributes": self.attributes,
             "weight": self.weight,
+            "scan_id": self.scan_id,
         }
 
     @classmethod
@@ -158,6 +258,7 @@ class Edge:
             relation=data["relation"],
             attributes=data.get("attributes", {}),
             weight=data.get("weight", 1.0),
+            scan_id=data.get("scan_id"),
         )
 
     def __hash__(self) -> int:
@@ -295,4 +396,39 @@ class GraphBackend(ABC):
     @abstractmethod
     def get_metadata(self, key: str) -> str | None:
         """Get a metadata value by key."""
+        ...
+
+    # Scan Session Management
+    @abstractmethod
+    def start_scan(
+        self, profile: str | None = None, region: str | None = None
+    ) -> ScanSession:
+        """Start a new scan session."""
+        ...
+
+    @abstractmethod
+    def end_scan(
+        self, scan_id: str, success: bool = True, error: str | None = None
+    ) -> None:
+        """End a scan session."""
+        ...
+
+    @abstractmethod
+    def get_scan_session(self, scan_id: str) -> ScanSession | None:
+        """Get a scan session by ID."""
+        ...
+
+    @abstractmethod
+    def get_phantom_nodes(self) -> list[Node]:
+        """Get all phantom (placeholder) nodes."""
+        ...
+
+    @abstractmethod
+    def cleanup_stale_resources(self, current_scan_id: str) -> int:
+        """Remove resources not seen in current scan. Returns count removed."""
+        ...
+
+    @abstractmethod
+    def get_schema_version(self) -> int:
+        """Get current database schema version."""
         ...
