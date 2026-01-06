@@ -300,7 +300,9 @@ class GraphEnricher:
         """
         # Check confidence level
         confidence_order = [
-            ConfidenceLevel.LOW, ConfidenceLevel.MEDIUM, ConfidenceLevel.HIGH
+            ConfidenceLevel.LOW,
+            ConfidenceLevel.MEDIUM,
+            ConfidenceLevel.HIGH,
         ]
         edge_idx = confidence_order.index(edge.confidence)
         min_idx = confidence_order.index(min_confidence)

@@ -101,12 +101,6 @@ def create_iam_app() -> typer.Typer:
             "-R",
             help="Force fresh AWS scan (ignore cached graph)",
         ),
-        verbose: bool = typer.Option(
-            False,
-            "--verbose",
-            "-v",
-            help="Show detailed traversal information for debugging",
-        ),
         enrich: bool = typer.Option(
             False,
             "--enrich",
@@ -148,7 +142,7 @@ def create_iam_app() -> typer.Typer:
             replimap iam for-resource -p prod -r my-lambda -o policy.json
 
             # With graph enrichment (discovers implicit dependencies)
-            replimap iam for-resource -p prod -r i-abc123 -E -v
+            replimap iam for-resource -p prod -r i-abc123 -E
 
             # Without baseline fallback (fail if no deps found)
             replimap iam for-resource -p prod -r i-abc123 --no-baseline
@@ -213,20 +207,6 @@ def create_iam_app() -> typer.Typer:
                 _suggest_resources(cached_graph, resource_id)
                 raise typer.Exit(1)
 
-        # Show verbose dependency info
-        if verbose:
-            console.print()
-            console.print("[bold]Direct dependencies:[/bold]")
-            deps = cached_graph.get_dependencies(resource_id)
-            if deps:
-                for dep in deps:
-                    console.print(
-                        f"  → {dep.id} [dim]({dep.resource_type})[/dim]"
-                    )
-            else:
-                console.print("  [dim]None found[/dim]")
-            console.print()
-
         # Generate policy
         try:
             generator = GraphAwareIAMGenerator(
@@ -241,7 +221,6 @@ def create_iam_app() -> typer.Typer:
                 policy_scope,
                 max_depth,
                 include_networking,
-                verbose=verbose,
                 use_baseline_fallback=not no_baseline,
                 enrich_graph=enrich,
             )

@@ -66,9 +66,7 @@ PATTERNS = {
         re.I,
     ),
     # SNS topic references
-    "sns_arn": re.compile(
-        r"arn:aws:sns:[a-z]{2}-[a-z]+-\d:\d{12}:([a-zA-Z0-9_-]+)"
-    ),
+    "sns_arn": re.compile(r"arn:aws:sns:[a-z]{2}-[a-z]+-\d:\d{12}:([a-zA-Z0-9_-]+)"),
     "sns_name": re.compile(
         r"(?:SNS[_\-]?TOPIC[_\-]?(?:NAME|ARN)?|TOPIC[_\-]?NAME)\s*[=:]\s*['\"]?([a-zA-Z0-9_-]+)['\"]?",
         re.I,
@@ -178,9 +176,9 @@ class MetadataExtractor:
         # ElastiCache clusters
         for node in self.graph.get_resources_by_type(ResourceType.ELASTICACHE_CLUSTER):
             cluster_id = node.config.get("cluster_id", node.id)
-            self._resource_index.setdefault("elasticache", {})[
-                cluster_id.lower()
-            ] = node.id
+            self._resource_index.setdefault("elasticache", {})[cluster_id.lower()] = (
+                node.id
+            )
 
         # SQS queues
         for node in self.graph.get_resources_by_type(ResourceType.SQS_QUEUE):

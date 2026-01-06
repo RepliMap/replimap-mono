@@ -318,9 +318,7 @@ class NetworkReachabilityAnalyzer:
 
         return edges
 
-    def _get_port_service(
-        self, from_port: int, to_port: int
-    ) -> tuple[str, str] | None:
+    def _get_port_service(self, from_port: int, to_port: int) -> tuple[str, str] | None:
         """
         Get service info for a port range.
 

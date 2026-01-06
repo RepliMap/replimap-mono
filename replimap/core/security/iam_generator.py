@@ -1194,7 +1194,6 @@ class GraphAwareIAMGenerator:
         max_depth: int = 3,
         include_networking: bool = False,
         optimize: bool = True,
-        verbose: bool = False,
         use_baseline_fallback: bool = True,
         enrich_graph: bool = False,
     ) -> list[IAMPolicy]:
@@ -1207,7 +1206,6 @@ class GraphAwareIAMGenerator:
             max_depth: Traversal depth limit
             include_networking: Include VPC/Subnet resources
             optimize: Apply size optimization
-            verbose: Print diagnostic information
             use_baseline_fallback: Generate baseline policy if no deps found
             enrich_graph: Run graph enrichment to discover implicit dependencies
 
@@ -1224,17 +1222,7 @@ class GraphAwareIAMGenerator:
                 from replimap.core.enrichment import GraphEnricher
 
                 enricher = GraphEnricher(self.graph)
-                result = enricher.enrich()
-                if verbose and result.total_edges > 0:
-                    print(f"\nEnrichment found {result.total_edges} deps:")
-                    for edge in result.edges_added:
-                        ev = edge.evidence[:35]
-                        src = edge.source_id
-                        tgt = edge.target_id
-                        conf = edge.confidence
-                        print(f"  + {src} -> {tgt} [{conf}]")
-                        print(f"    ({ev})")
-                    print()
+                enricher.enrich()
             except ImportError:
                 logger.warning("Graph enrichment module not available")
 
@@ -1245,23 +1233,10 @@ class GraphAwareIAMGenerator:
 
         # Boundary-aware traversal
         connections = self._traverse_with_boundaries(
-            principal_resource_id, controller, max_depth, verbose
+            principal_resource_id, controller, max_depth
         )
 
         logger.info(f"Found {len(connections)} resources for {principal_resource_id}")
-
-        if verbose:
-            print(f"\nTraversal found {len(connections)} resources:")
-            if connections:
-                for conn in connections:
-                    boundary = controller.get_boundary(conn["type"])
-                    actions = self.mapper.get_actions(conn["type"], scope)
-                    n_actions = len(actions) if actions else 0
-                    print(f"  + {conn['id']} ({conn['type']})")
-                    print(f"    boundary={boundary.value}, actions={n_actions}")
-            else:
-                print("  (none - all deps were TRANSITIVE or TERMINAL)")
-            print()
 
         # Build statements
         statements = self._build_statements(principal, connections, scope)
@@ -1271,16 +1246,9 @@ class GraphAwareIAMGenerator:
         principal_name = principal.original_name or principal_resource_id.split(":")[-1]
 
         if not statements and use_baseline_fallback:
-            if verbose:
-                print("\nNo data dependencies found. Generating baseline policy...")
             statements = self.baseline_generator.generate_baseline(
                 principal_name, principal_type, scope
             )
-            if verbose:
-                print(f"Baseline policy has {len(statements)} statements:")
-                for stmt in statements:
-                    print(f"  - {stmt.sid}: {len(stmt.actions)} actions")
-                print()
 
         # Add CloudWatch Logs for Lambda (if not already in baseline)
         if principal_type == "aws_lambda_function" and scope in (
@@ -1311,12 +1279,10 @@ class GraphAwareIAMGenerator:
         start_id: str,
         controller: TraversalController,
         max_depth: int,
-        verbose: bool = False,
     ) -> list[dict[str, Any]]:
         """BFS traversal with boundary control."""
         connections: list[dict[str, Any]] = []
         visited: set[str] = set()
-        skipped: list[tuple[str, str, str]] = []  # (id, type, reason)
         # Queue: (node_id, depth, edge_type)
         queue: list[tuple[str, int, str | None]] = [(start_id, 0, None)]
 
@@ -1348,9 +1314,6 @@ class GraphAwareIAMGenerator:
                             "edge_type": edge_type,
                         }
                     )
-                else:
-                    boundary = controller.get_boundary(node_type)
-                    skipped.append((node_id, node_type, f"boundary={boundary.value}"))
 
             # Continue traversal if allowed
             if not controller.should_traverse_through(node_type, depth, edge_type):
@@ -1362,11 +1325,6 @@ class GraphAwareIAMGenerator:
                     # Get edge relation from graph
                     relation = self._get_edge_relation(node_id, dep)
                     queue.append((dep, depth + 1, relation))
-
-        if verbose and skipped:
-            print("Skipped resources (TRANSITIVE/TERMINAL boundary):")
-            for sid, stype, reason in skipped:
-                print(f"  ✗ {sid} ({stype}) - {reason}")
 
         return connections
 

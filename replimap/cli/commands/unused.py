@@ -237,9 +237,7 @@ def unused_command(
                     r.resource_name[:30] if r.resource_name else "-",
                     r.reason.description[:40],
                     f"[{conf_style}]{r.confidence.value}[/]",
-                    f"${r.potential_savings:.2f}"
-                    if r.potential_savings
-                    else "-",
+                    f"${r.potential_savings:.2f}" if r.potential_savings else "-",
                 )
 
             console.print(table)
@@ -266,9 +264,7 @@ def unused_command(
                     "reason": r.reason.value,
                     "confidence": r.confidence.value,
                     "details": r.details,
-                    "potential_savings": float(
-                        r.potential_savings or 0
-                    ),
+                    "potential_savings": float(r.potential_savings or 0),
                 }
                 for r in unused_resources
             ],
