@@ -15,6 +15,34 @@ from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core.browser import open_in_browser
 from replimap.licensing import check_drift_allowed
 
+
+def _load_graph(graph_file: Path):
+    """Load a graph from file (supports both JSON and SQLite formats)."""
+    suffix = graph_file.suffix.lower()
+
+    if suffix == ".db":
+        from replimap.core.unified_storage import GraphEngineAdapter
+
+        return GraphEngineAdapter(db_path=str(graph_file))
+    elif suffix == ".json":
+        from replimap.core.graph_engine import GraphEngine
+
+        return GraphEngine.load(graph_file)
+    else:
+        # Try SQLite first
+        try:
+            with open(graph_file, "rb") as f:
+                if f.read(16).startswith(b"SQLite format"):
+                    from replimap.core.unified_storage import GraphEngineAdapter
+
+                    return GraphEngineAdapter(db_path=str(graph_file))
+        except Exception:
+            pass
+        from replimap.core.graph_engine import GraphEngine
+
+        return GraphEngine.load(graph_file)
+
+
 # Create a Typer app for drift subcommands
 drift_app = typer.Typer(
     help="Infrastructure drift detection commands",
@@ -413,7 +441,6 @@ def offline_detect_command(
     """
     from replimap.core.cache_manager import get_cache_path
     from replimap.core.drift import DriftFilter, DriftSeverity, OfflineDriftDetector
-    from replimap.core.graph_engine import GraphEngine
 
     state_path = Path(state_file)
 
@@ -432,7 +459,7 @@ def offline_detect_command(
             console.print(f"Run 'replimap scan -p {profile}' first.")
             raise typer.Exit(1)
 
-        graph = GraphEngine.load(cache_path)
+        graph = _load_graph(cache_path)
         resources = list(graph.get_all_resources())
     except Exception as e:
         console.print(f"[red]Failed to load cached scan: {e}[/red]")
@@ -536,22 +563,16 @@ def compare_scans_command(
         help="Output JSON report file",
     ),
 ) -> None:
-    """
-    Compare current scan against a previous scan.
+    """Compare current scan against a previous scan.
 
     Useful for detecting AWS changes over time without Terraform.
 
-    \b
     Example:
-        # Save current scan
-        cp ~/.replimap/cache/prod.json ~/.replimap/cache/prod-baseline.json
 
-        # Later, compare
-        replimap drift compare-scans -p prod --previous ~/.replimap/cache/prod-baseline.json
+        replimap drift compare-scans -p prod --previous baseline.db
     """
     from replimap.core.cache_manager import get_cache_path
     from replimap.core.drift import ScanComparator
-    from replimap.core.graph_engine import GraphEngine
 
     try:
         cache_path = get_cache_path(profile)
@@ -559,7 +580,7 @@ def compare_scans_command(
             console.print(f"[red]No cached scan found for profile '{profile}'.[/red]")
             raise typer.Exit(1)
 
-        current_graph = GraphEngine.load(cache_path)
+        current_graph = _load_graph(cache_path)
     except Exception as e:
         console.print(f"[red]Failed to load current scan: {e}[/red]")
         raise typer.Exit(1)
@@ -570,7 +591,7 @@ def compare_scans_command(
         raise typer.Exit(1)
 
     try:
-        prev_graph = GraphEngine.load(prev_path)
+        prev_graph = _load_graph(prev_path)
     except Exception as e:
         console.print(f"[red]Failed to load previous scan: {e}[/red]")
         raise typer.Exit(1)

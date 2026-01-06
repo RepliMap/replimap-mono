@@ -11,7 +11,33 @@ from rich.panel import Panel
 from rich.table import Table
 
 from replimap.cli.utils import console, print_graph_stats
-from replimap.core import GraphEngine
+
+
+def _load_graph(graph_file: Path):
+    """Load a graph from file (supports both JSON and SQLite formats)."""
+    suffix = graph_file.suffix.lower()
+
+    if suffix == ".db":
+        from replimap.core.unified_storage import GraphEngineAdapter
+
+        return GraphEngineAdapter(db_path=str(graph_file))
+    elif suffix == ".json":
+        from replimap.core.graph_engine import GraphEngine
+
+        return GraphEngine.load(graph_file)
+    else:
+        # Try SQLite first
+        try:
+            with open(graph_file, "rb") as f:
+                if f.read(16).startswith(b"SQLite format"):
+                    from replimap.core.unified_storage import GraphEngineAdapter
+
+                    return GraphEngineAdapter(db_path=str(graph_file))
+        except Exception:
+            pass
+        from replimap.core.graph_engine import GraphEngine
+
+        return GraphEngine.load(graph_file)
 
 
 def register(app: typer.Typer) -> None:
@@ -21,21 +47,22 @@ def register(app: typer.Typer) -> None:
     def load(
         input_file: Path = typer.Argument(
             ...,
-            help="Path to graph JSON file",
+            help="Path to graph file (.db for SQLite, .json for legacy)",
         ),
     ) -> None:
-        """
-        Load and display a saved graph.
+        """Load and display a saved graph.
 
-        \b
         Examples:
+
+            replimap load graph.db
+
             replimap load graph.json
         """
         if not input_file.exists():
             console.print(f"[red]Error:[/] File not found: {input_file}")
             raise typer.Exit(1)
 
-        graph = GraphEngine.load(input_file)
+        graph = _load_graph(input_file)
 
         console.print(
             Panel(

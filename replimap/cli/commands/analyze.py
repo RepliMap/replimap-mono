@@ -9,22 +9,24 @@ Provides infrastructure analysis capabilities:
 - Attack surface analysis
 
 Usage:
-    # Analyze a saved graph
+    # Analyze a saved graph (JSON or SQLite)
+    replimap analyze graph.db --critical
     replimap analyze graph.json --critical
 
     # Compute blast radius for a resource
-    replimap analyze graph.json --blast-radius vpc-12345
+    replimap analyze graph.db --blast-radius vpc-12345
 
     # Simplify graph (transitive reduction)
-    replimap analyze graph.json --simplify --output reduced.json
+    replimap analyze graph.db --simplify --output reduced.db
 
     # Full analysis report
-    replimap analyze graph.json --report
+    replimap analyze graph.db --report
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import typer
 from rich.console import Console
@@ -38,9 +40,56 @@ from replimap.core.analysis.centrality import (
     CriticalResourceFinder,
 )
 from replimap.core.graph.algorithms import GraphSimplifier, TransitiveReducer
-from replimap.core.graph_engine import GraphEngine
+
+if TYPE_CHECKING:
+    # Use union type for type hints since we support both
+    from replimap.core.graph_engine import GraphEngine
+    from replimap.core.unified_storage import GraphEngineAdapter
+
+    GraphType = GraphEngine | GraphEngineAdapter
 
 console = Console()
+
+
+def _load_graph(graph_file: Path):
+    """
+    Load a graph from file (supports both JSON and SQLite formats).
+
+    Args:
+        graph_file: Path to the graph file (.json or .db)
+
+    Returns:
+        GraphEngine or GraphEngineAdapter instance
+    """
+    suffix = graph_file.suffix.lower()
+
+    if suffix == ".db":
+        # SQLite format - use new adapter
+        from replimap.core.unified_storage import GraphEngineAdapter
+
+        return GraphEngineAdapter(db_path=str(graph_file))
+    elif suffix == ".json":
+        # Legacy JSON format - use old GraphEngine
+        from replimap.core.graph_engine import GraphEngine
+
+        return GraphEngine.load(graph_file)
+    else:
+        # Try to detect format by content
+        try:
+            # Try SQLite first (check for SQLite header)
+            with open(graph_file, "rb") as f:
+                header = f.read(16)
+                if header.startswith(b"SQLite format"):
+                    from replimap.core.unified_storage import GraphEngineAdapter
+
+                    return GraphEngineAdapter(db_path=str(graph_file))
+        except Exception:
+            pass
+
+        # Default to JSON
+        from replimap.core.graph_engine import GraphEngine
+
+        return GraphEngine.load(graph_file)
 
 
 def register(app: typer.Typer) -> None:
@@ -50,7 +99,7 @@ def register(app: typer.Typer) -> None:
     def analyze_command(
         graph_file: Path = typer.Argument(
             ...,
-            help="Path to the graph JSON file (from 'replimap scan --save')",
+            help="Path to graph file (.db for SQLite, .json for legacy)",
             exists=True,
         ),
         critical: bool = typer.Option(
@@ -106,33 +155,27 @@ def register(app: typer.Typer) -> None:
             help="Output results as JSON",
         ),
     ) -> None:
-        """
-        Analyze a resource dependency graph for critical infrastructure.
+        """Analyze a resource dependency graph for critical infrastructure.
 
         This command loads a previously saved graph and performs various
         analyses to identify critical resources, single points of failure,
         and attack surface exposure.
 
-        \\b
         Examples:
-            # Find critical resources
-            replimap analyze graph.json --critical
 
-            # Find single points of failure
-            replimap analyze graph.json --spof
+            replimap analyze graph.db --critical
 
-            # Check blast radius of VPC failure
-            replimap analyze graph.json --blast-radius vpc-12345
+            replimap analyze graph.db --spof
 
-            # Simplify graph and save
-            replimap analyze graph.json --simplify --output simplified.json
+            replimap analyze graph.db --blast-radius vpc-12345
 
-            # Full report
-            replimap analyze graph.json --report
+            replimap analyze graph.db --simplify --output simplified.db
+
+            replimap analyze graph.db --report
         """
         # Load the graph
         try:
-            graph = GraphEngine.load(graph_file)
+            graph = _load_graph(graph_file)
         except Exception as e:
             console.print(f"[red]Error loading graph:[/] {e}")
             raise typer.Exit(1)
@@ -180,7 +223,7 @@ def register(app: typer.Typer) -> None:
             _show_summary(graph)
 
 
-def _show_critical_analysis(graph: GraphEngine, top_n: int, json_output: bool) -> None:
+def _show_critical_analysis(graph: Any, top_n: int, json_output: bool) -> None:
     """Display critical resource analysis."""
     finder = CriticalResourceFinder(graph)
     critical = finder.find_critical(top_n)
@@ -247,7 +290,7 @@ def _show_critical_analysis(graph: GraphEngine, top_n: int, json_output: bool) -
     console.print()
 
 
-def _show_spof_analysis(graph: GraphEngine, top_n: int, json_output: bool) -> None:
+def _show_spof_analysis(graph: Any, top_n: int, json_output: bool) -> None:
     """Display single point of failure analysis."""
     analyzer = CentralityAnalyzer(graph)
     spofs = analyzer.find_single_points_of_failure()[:top_n]
@@ -292,7 +335,7 @@ def _show_spof_analysis(graph: GraphEngine, top_n: int, json_output: bool) -> No
     console.print()
 
 
-def _show_blast_radius(graph: GraphEngine, resource_id: str, json_output: bool) -> None:
+def _show_blast_radius(graph: Any, resource_id: str, json_output: bool) -> None:
     """Display blast radius for a specific resource."""
     analyzer = CentralityAnalyzer(graph)
     result = analyzer.compute_blast_radius(resource_id)
@@ -341,7 +384,7 @@ def _show_blast_radius(graph: GraphEngine, resource_id: str, json_output: bool) 
         console.print()
 
 
-def _simplify_graph(graph: GraphEngine, output: Path | None, json_output: bool) -> None:
+def _simplify_graph(graph: Any, output: Path | None, json_output: bool) -> None:
     """Perform transitive reduction and optionally save."""
     simplifier = GraphSimplifier(graph)
     stats_before = simplifier.compute_stats()
@@ -387,7 +430,7 @@ def _simplify_graph(graph: GraphEngine, output: Path | None, json_output: bool) 
         console.print()
 
 
-def _show_attack_surface(graph: GraphEngine, json_output: bool) -> None:
+def _show_attack_surface(graph: Any, json_output: bool) -> None:
     """Display attack surface analysis."""
     analyzer = AttackSurfaceAnalyzer(graph)
     result = analyzer.compute_attack_surface()
@@ -457,7 +500,7 @@ def _show_attack_surface(graph: GraphEngine, json_output: bool) -> None:
     console.print()
 
 
-def _show_graph_stats(graph: GraphEngine, json_output: bool) -> None:
+def _show_graph_stats(graph: Any, json_output: bool) -> None:
     """Display graph statistics."""
     simplifier = GraphSimplifier(graph)
     stats = simplifier.compute_stats()
@@ -504,7 +547,7 @@ def _show_graph_stats(graph: GraphEngine, json_output: bool) -> None:
     console.print()
 
 
-def _show_summary(graph: GraphEngine) -> None:
+def _show_summary(graph: Any) -> None:
     """Show a summary when no specific analysis is requested."""
     console.print(
         Panel(
