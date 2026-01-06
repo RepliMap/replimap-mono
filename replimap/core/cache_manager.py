@@ -3,6 +3,9 @@ Graph caching layer for RepliMap CLI.
 
 Enables instant graph/deps/clone/cost/audit after initial scan by caching
 the scan results to disk. Cache is per profile/region/vpc combination.
+
+Storage: Uses SQLite via UnifiedGraphEngine for persistent storage.
+Legacy JSON files are auto-migrated on first read.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ from rich.table import Table
 if TYPE_CHECKING:
     from rich.console import Console
 
-    from replimap.core import GraphEngine
+    from replimap.core.unified_storage import GraphEngineAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +33,9 @@ GRAPH_CACHE_DIR = CACHE_DIR / "graphs"
 # Default cache TTL: 1 hour
 DEFAULT_CACHE_TTL = 3600
 
-# Cache format version
-CACHE_VERSION = "1.0"
+# Cache format version (incremented for SQLite migration)
+CACHE_VERSION = "2.0"
+LEGACY_CACHE_VERSION = "1.0"
 
 
 class CacheManager:
@@ -64,50 +68,96 @@ class CacheManager:
         # Build cache filename (sanitize profile name)
         safe_profile = self.profile.replace("/", "_").replace("\\", "_")
         if vpc:
-            filename = f"graph_{safe_profile}_{region}_{vpc}.json"
+            base_filename = f"graph_{safe_profile}_{region}_{vpc}"
         else:
-            filename = f"graph_{safe_profile}_{region}.json"
+            base_filename = f"graph_{safe_profile}_{region}"
 
-        self.cache_path = GRAPH_CACHE_DIR / filename
+        # New SQLite path (primary)
+        self.cache_path = GRAPH_CACHE_DIR / f"{base_filename}.db"
+        # Legacy JSON path (for migration)
+        self.legacy_json_path = GRAPH_CACHE_DIR / f"{base_filename}.json"
 
-    def save(self, graph: GraphEngine, metadata: dict[str, Any] | None = None) -> bool:
+    def save(
+        self,
+        graph: GraphEngineAdapter,
+        metadata: dict[str, Any] | None = None,
+    ) -> bool:
         """
-        Save GraphEngine to JSON cache file.
+        Save graph to SQLite cache file.
 
         Args:
-            graph: The GraphEngine to cache
+            graph: The GraphEngineAdapter to cache
             metadata: Optional additional metadata
 
         Returns:
             True if successful, False otherwise
         """
-        from replimap.core.graph_engine import RepliMapJSONEncoder
+        from replimap.core.unified_storage import GraphEngineAdapter, UnifiedGraphEngine
 
         try:
             start = time.time()
 
-            # Get graph data using existing to_dict method
-            graph_data = graph.to_dict()
+            # Get resource counts
+            node_count = graph.node_count
+            edge_count = graph.edge_count
 
-            payload = {
-                "meta": {
-                    "version": CACHE_VERSION,
-                    "timestamp": time.time(),
-                    "profile": self.profile,
-                    "region": self.region,
-                    "vpc": self.vpc,
-                    "account_id": self.account_id,
-                    "resource_count": graph.node_count,
-                    "dependency_count": graph.edge_count,
-                    **(metadata or {}),
-                },
-                "graph": graph_data,
-            }
+            # Create new SQLite database for cache
+            # Use temporary path then rename for atomicity
+            temp_path = self.cache_path.with_suffix(".tmp.db")
+            if temp_path.exists():
+                temp_path.unlink()
 
-            # Write atomically (temp file + rename)
-            temp_path = self.cache_path.with_suffix(".tmp")
-            with open(temp_path, "w", encoding="utf-8") as f:
-                json.dump(payload, f, cls=RepliMapJSONEncoder)
+            engine = UnifiedGraphEngine(db_path=str(temp_path))
+
+            try:
+                # Copy all nodes and edges
+                if isinstance(graph, GraphEngineAdapter):
+                    # Copy from adapter's internal engine
+                    for node in graph._engine.get_all_nodes():
+                        engine.add_node(node)
+                    for source_id in [n.id for n in graph._engine.get_all_nodes()]:
+                        for edge in graph._engine.get_edges_from(source_id):
+                            engine.add_edge(edge)
+                else:
+                    # Legacy GraphEngine - convert to dict and load
+                    data = graph.to_dict()
+                    from replimap.core.unified_storage.base import Edge
+                    from replimap.core.unified_storage.migrate import _convert_node_data
+
+                    for node_data in data.get("nodes", []):
+                        node = _convert_node_data(node_data)
+                        engine.add_node(node)
+                    for edge_data in data.get("edges", []):
+                        edge = Edge(
+                            source_id=edge_data["source"],
+                            target_id=edge_data["target"],
+                            relation=edge_data.get("relation", "belongs_to"),
+                        )
+                        engine.add_edge(edge)
+
+                # Store metadata
+                engine.set_metadata("version", CACHE_VERSION)
+                engine.set_metadata("timestamp", str(time.time()))
+                engine.set_metadata("profile", self.profile)
+                engine.set_metadata("region", self.region)
+                if self.vpc:
+                    engine.set_metadata("vpc", self.vpc)
+                if self.account_id:
+                    engine.set_metadata("account_id", self.account_id)
+                engine.set_metadata("resource_count", str(node_count))
+                engine.set_metadata("dependency_count", str(edge_count))
+
+                # Store additional metadata
+                if metadata:
+                    for key, value in metadata.items():
+                        engine.set_metadata(f"extra_{key}", str(value))
+
+            finally:
+                engine.close()
+
+            # Atomic rename
+            if self.cache_path.exists():
+                self.cache_path.unlink()
             temp_path.rename(self.cache_path)
 
             duration = time.time() - start
@@ -116,86 +166,201 @@ class CacheManager:
 
         except Exception as e:
             logger.warning(f"Failed to cache graph: {e}")
+            # Clean up temp file if it exists
+            if temp_path.exists():
+                temp_path.unlink()
             return False
 
     def load(
         self, max_age: int = DEFAULT_CACHE_TTL
-    ) -> tuple[GraphEngine, dict[str, Any]] | None:
+    ) -> tuple[GraphEngineAdapter, dict[str, Any]] | None:
         """
         Load graph from cache if valid.
+
+        Supports both SQLite (new) and JSON (legacy) formats.
+        Legacy JSON files are auto-migrated to SQLite on read.
 
         Args:
             max_age: Maximum cache age in seconds
 
         Returns:
-            Tuple of (GraphEngine, meta_info) if cache valid, None otherwise
+            Tuple of (GraphEngineAdapter, meta_info) if cache valid, None otherwise
         """
-        from replimap.core import GraphEngine
 
-        if not self.cache_path.exists():
-            logger.debug(f"Cache miss: {self.cache_path} does not exist")
-            return None
+        # Try SQLite cache first
+        if self.cache_path.exists():
+            result = self._load_sqlite(max_age)
+            if result:
+                return result
+
+        # Try legacy JSON and migrate
+        if self.legacy_json_path.exists():
+            result = self._load_and_migrate_json(max_age)
+            if result:
+                return result
+
+        logger.debug(f"Cache miss: no cache found for {self.profile}/{self.region}")
+        return None
+
+    def _load_sqlite(
+        self, max_age: int
+    ) -> tuple[GraphEngineAdapter, dict[str, Any]] | None:
+        """Load from SQLite cache."""
+        from replimap.core.unified_storage import GraphEngineAdapter, UnifiedGraphEngine
 
         try:
-            with open(self.cache_path, encoding="utf-8") as f:
-                payload = json.load(f)
+            engine = UnifiedGraphEngine(db_path=str(self.cache_path))
 
-            meta = payload.get("meta", {})
+            # Read metadata
+            version = engine.get_metadata("version")
+            timestamp_str = engine.get_metadata("timestamp")
+            profile = engine.get_metadata("profile")
+            region = engine.get_metadata("region")
+            vpc = engine.get_metadata("vpc")
+            resource_count_str = engine.get_metadata("resource_count")
+            dependency_count_str = engine.get_metadata("dependency_count")
 
             # Version check
-            if meta.get("version") != CACHE_VERSION:
+            if version != CACHE_VERSION:
                 logger.debug("Cache version mismatch, invalidating")
+                engine.close()
                 return None
 
             # Expiry check
-            age = time.time() - meta.get("timestamp", 0)
+            timestamp = float(timestamp_str) if timestamp_str else 0
+            age = time.time() - timestamp
             if age > max_age:
                 logger.debug(f"Cache expired (age: {age:.0f}s > {max_age}s)")
+                engine.close()
                 return None
 
             # Profile/region match
-            if meta.get("profile") != self.profile or meta.get("region") != self.region:
+            if profile != self.profile or region != self.region:
                 logger.debug("Cache profile/region mismatch")
+                engine.close()
                 return None
 
             # VPC match (if specified)
-            if self.vpc and meta.get("vpc") != self.vpc:
+            if self.vpc and vpc != self.vpc:
                 logger.debug("Cache VPC mismatch")
+                engine.close()
                 return None
 
-            # Reconstruct GraphEngine using existing from_dict method
-            graph = GraphEngine.from_dict(payload["graph"])
+            # Create adapter from loaded engine
+            adapter = GraphEngineAdapter(db_path=str(self.cache_path))
 
-            # Add computed fields to meta
-            meta["age_seconds"] = age
-            meta["age_human"] = self._format_age(age)
-            meta["cache_path"] = str(self.cache_path)
+            # Build metadata dict
+            meta = {
+                "version": version,
+                "timestamp": timestamp,
+                "profile": profile,
+                "region": region,
+                "vpc": vpc,
+                "account_id": engine.get_metadata("account_id"),
+                "resource_count": int(resource_count_str) if resource_count_str else 0,
+                "dependency_count": (
+                    int(dependency_count_str) if dependency_count_str else 0
+                ),
+                "age_seconds": age,
+                "age_human": self._format_age(age),
+                "cache_path": str(self.cache_path),
+                "format": "sqlite",
+            }
+
+            engine.close()
 
             logger.debug(
                 f"Cache hit: {meta['resource_count']} resources, {meta['age_human']}"
             )
-            return graph, meta
+            return adapter, meta
+
+        except Exception as e:
+            logger.warning(f"Error loading SQLite cache: {e}")
+            return None
+
+    def _load_and_migrate_json(
+        self, max_age: int
+    ) -> tuple[GraphEngineAdapter, dict[str, Any]] | None:
+        """Load from legacy JSON and migrate to SQLite."""
+        from replimap.core.unified_storage import GraphEngineAdapter
+        from replimap.core.unified_storage.migrate import migrate_json_to_sqlite
+
+        try:
+            # First check if JSON is valid and not expired
+            with open(self.legacy_json_path, encoding="utf-8") as f:
+                payload = json.load(f)
+
+            meta = payload.get("meta", {})
+
+            # Expiry check
+            age = time.time() - meta.get("timestamp", 0)
+            if age > max_age:
+                logger.debug(f"Legacy cache expired (age: {age:.0f}s > {max_age}s)")
+                return None
+
+            # Profile/region match
+            if meta.get("profile") != self.profile or meta.get("region") != self.region:
+                logger.debug("Legacy cache profile/region mismatch")
+                return None
+
+            # VPC match (if specified)
+            if self.vpc and meta.get("vpc") != self.vpc:
+                logger.debug("Legacy cache VPC mismatch")
+                return None
+
+            # Migrate JSON to SQLite
+            logger.info(
+                f"Migrating legacy JSON cache to SQLite: {self.legacy_json_path}"
+            )
+            migrate_json_to_sqlite(
+                self.legacy_json_path,
+                self.cache_path,
+                delete_json=False,  # Keep JSON for now, user can delete manually
+            )
+
+            # Now load from SQLite (skip age check since we just migrated)
+            adapter = GraphEngineAdapter(db_path=str(self.cache_path))
+
+            # Update metadata
+            meta["age_seconds"] = age
+            meta["age_human"] = self._format_age(age)
+            meta["cache_path"] = str(self.cache_path)
+            meta["format"] = "sqlite"
+            meta["migrated_from"] = str(self.legacy_json_path)
+
+            logger.debug(
+                f"Cache hit (migrated): {meta['resource_count']} resources, "
+                f"{meta['age_human']}"
+            )
+            return adapter, meta
 
         except (json.JSONDecodeError, KeyError, TypeError) as e:
-            logger.warning(f"Corrupt cache file: {e}")
-            self.invalidate()
+            logger.warning(f"Corrupt legacy cache file: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error migrating legacy cache: {e}")
             return None
 
     def invalidate(self) -> None:
-        """Delete cached graph."""
+        """Delete cached graph (both SQLite and legacy JSON)."""
         if self.cache_path.exists():
             self.cache_path.unlink()
             logger.debug(f"Cache invalidated: {self.cache_path}")
+        if self.legacy_json_path.exists():
+            self.legacy_json_path.unlink()
+            logger.debug(f"Legacy cache invalidated: {self.legacy_json_path}")
 
     def exists(self) -> bool:
-        """Check if cache file exists."""
-        return self.cache_path.exists()
+        """Check if cache file exists (SQLite or legacy JSON)."""
+        return self.cache_path.exists() or self.legacy_json_path.exists()
 
     def get_age(self) -> float | None:
         """Get cache age in seconds, or None if no cache."""
-        if not self.cache_path.exists():
-            return None
-        return time.time() - self.cache_path.stat().st_mtime
+        if self.cache_path.exists():
+            return time.time() - self.cache_path.stat().st_mtime
+        if self.legacy_json_path.exists():
+            return time.time() - self.legacy_json_path.stat().st_mtime
+        return None
 
     def _format_age(self, seconds: float) -> str:
         """Format age as human-readable string."""
@@ -209,13 +374,18 @@ class CacheManager:
     @classmethod
     def clear_all(cls) -> int:
         """
-        Clear all cached graphs.
+        Clear all cached graphs (both SQLite and legacy JSON).
 
         Returns:
             Number of cache files deleted
         """
         count = 0
         if GRAPH_CACHE_DIR.exists():
+            # Clear SQLite files
+            for f in GRAPH_CACHE_DIR.glob("graph_*.db"):
+                f.unlink()
+                count += 1
+            # Clear legacy JSON files
             for f in GRAPH_CACHE_DIR.glob("graph_*.json"):
                 f.unlink()
                 count += 1
@@ -230,9 +400,60 @@ class CacheManager:
         Returns:
             List of cache info dictionaries
         """
+        from replimap.core.unified_storage import UnifiedGraphEngine
+
         caches = []
         if GRAPH_CACHE_DIR.exists():
+            # List SQLite caches
+            for f in sorted(GRAPH_CACHE_DIR.glob("graph_*.db")):
+                try:
+                    engine = UnifiedGraphEngine(db_path=str(f))
+                    timestamp_str = engine.get_metadata("timestamp")
+                    timestamp = float(timestamp_str) if timestamp_str else 0
+                    age = time.time() - timestamp
+                    resource_count_str = engine.get_metadata("resource_count")
+                    dependency_count_str = engine.get_metadata("dependency_count")
+
+                    caches.append(
+                        {
+                            "path": f,
+                            "filename": f.name,
+                            "size_kb": f.stat().st_size / 1024,
+                            "profile": engine.get_metadata("profile") or "?",
+                            "region": engine.get_metadata("region") or "?",
+                            "vpc": engine.get_metadata("vpc"),
+                            "resource_count": (
+                                int(resource_count_str) if resource_count_str else 0
+                            ),
+                            "dependency_count": (
+                                int(dependency_count_str) if dependency_count_str else 0
+                            ),
+                            "age_seconds": age,
+                            "age_human": cls._format_age(cls, age),
+                            "expired": age > DEFAULT_CACHE_TTL,
+                            "format": "sqlite",
+                        }
+                    )
+                    engine.close()
+                except Exception:
+                    # Corrupt cache file
+                    caches.append(
+                        {
+                            "path": f,
+                            "filename": f.name,
+                            "size_kb": f.stat().st_size / 1024,
+                            "error": "corrupt",
+                            "format": "sqlite",
+                        }
+                    )
+
+            # List legacy JSON caches (that don't have corresponding SQLite)
             for f in sorted(GRAPH_CACHE_DIR.glob("graph_*.json")):
+                # Skip if SQLite version exists
+                sqlite_version = f.with_suffix(".db")
+                if sqlite_version.exists():
+                    continue
+
                 try:
                     with open(f, encoding="utf-8") as fp:
                         payload = json.load(fp)
@@ -251,6 +472,7 @@ class CacheManager:
                             "age_seconds": age,
                             "age_human": cls._format_age(cls, age),
                             "expired": age > DEFAULT_CACHE_TTL,
+                            "format": "json (legacy)",
                         }
                     )
                 except (json.JSONDecodeError, OSError):
@@ -261,6 +483,7 @@ class CacheManager:
                             "filename": f.name,
                             "size_kb": f.stat().st_size / 1024,
                             "error": "corrupt",
+                            "format": "json (legacy)",
                         }
                     )
         return caches
@@ -274,7 +497,7 @@ def get_or_load_graph(
     cache_ttl: int = DEFAULT_CACHE_TTL,
     vpc: str | None = None,
     account_id: str | None = None,
-) -> tuple[GraphEngine | None, dict[str, Any] | None]:
+) -> tuple[GraphEngineAdapter | None, dict[str, Any] | None]:
     """
     Try to load graph from cache.
 
@@ -291,7 +514,7 @@ def get_or_load_graph(
         account_id: Optional AWS account ID
 
     Returns:
-        Tuple of (GraphEngine, meta) if cache hit, (None, None) if miss
+        Tuple of (GraphEngineAdapter, meta) if cache hit, (None, None) if miss
     """
     if refresh:
         console.print("[dim]--refresh specified, ignoring cache...[/dim]")
@@ -314,7 +537,7 @@ def get_or_load_graph(
 
 
 def save_graph_to_cache(
-    graph: GraphEngine,
+    graph: GraphEngineAdapter,
     profile: str,
     region: str,
     console: Console,
@@ -326,7 +549,7 @@ def save_graph_to_cache(
     Save graph to cache after a scan.
 
     Args:
-        graph: The GraphEngine to cache
+        graph: The GraphEngineAdapter to cache
         profile: AWS profile name
         region: AWS region
         console: Rich console for output
@@ -358,6 +581,7 @@ def print_cache_status(console: Console) -> None:
     table.add_column("Resources", justify="right")
     table.add_column("Size", justify="right")
     table.add_column("Age")
+    table.add_column("Format", style="dim")
     table.add_column("Status")
 
     for cache in caches:
@@ -368,6 +592,7 @@ def print_cache_status(console: Console) -> None:
                 "",
                 f"{cache['size_kb']:.1f} KB",
                 "",
+                cache.get("format", "?"),
                 "[red]corrupt[/red]",
             )
         else:
@@ -380,6 +605,7 @@ def print_cache_status(console: Console) -> None:
                 f"{cache['resource_count']:,}",
                 f"{cache['size_kb']:.1f} KB",
                 cache["age_human"],
+                cache.get("format", "?"),
                 status,
             )
 
