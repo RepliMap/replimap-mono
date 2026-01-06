@@ -183,15 +183,11 @@ def register(app: typer.Typer) -> None:
 
         S3 Backend Examples:
 
-            replimap clone -p prod -o ./terraform --mode generate
-                --backend s3 --backend-bucket my-terraform-state
+            replimap clone -p prod -o ./tf --backend s3 --backend-bucket my-state
 
-            replimap clone -p prod -o ./terraform --mode generate
-                --backend s3 --backend-bucket my-state
-                --backend-dynamodb terraform-locks
+            replimap clone -p prod -o ./tf --backend s3 --backend-bucket my-state --backend-dynamodb locks
 
-            replimap clone -p prod -o ./terraform --mode generate
-                --backend s3 --backend-bucket my-state --backend-bootstrap
+            replimap clone -p prod -o ./tf --backend s3 --backend-bucket my-state --backend-bootstrap
         """
         from replimap.licensing.gates import FeatureNotAvailableError
         from replimap.renderers import CloudFormationRenderer, PulumiRenderer

@@ -157,9 +157,13 @@ def register(app: typer.Typer) -> None:
     ) -> None:
         """Analyze a resource dependency graph for critical infrastructure.
 
+        \b
+
         This command loads a previously saved graph and performs various
         analyses to identify critical resources, single points of failure,
         and attack surface exposure.
+
+        \b
 
         Examples:
 
