@@ -56,20 +56,26 @@ def validate_command(
         help="Force fresh AWS scan (ignore cached graph)",
     ),
 ) -> None:
-    """
-    Validate infrastructure against topology constraints.
+    """Validate infrastructure against topology constraints.
 
     \b
+
     Checks your AWS infrastructure against policy rules defined in a
     constraints YAML file. Perfect for enforcing security policies,
     tagging standards, and architectural patterns.
 
     \b
+
     Examples:
+
         replimap validate --generate-defaults              # Generate defaults
+
         replimap validate -p prod -r us-east-1             # Validate
+
         replimap validate -p prod -r us-east-1 -c my.yaml  # Custom config
+
         replimap validate -p prod -r us-east-1 --fail-on high  # CI/CD
+
         replimap validate -p prod -r us-east-1 -o report.json
     """
     from replimap.core.topology_constraints import (

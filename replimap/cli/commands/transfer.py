@@ -52,15 +52,18 @@ def transfer_command(
         help="Force fresh AWS scan (ignore cached graph)",
     ),
 ) -> None:
-    """
-    Analyze data transfer costs and optimization opportunities.
+    """Analyze data transfer costs and optimization opportunities.
 
     \b
+
     Identifies costly data transfer patterns.
 
     \b
+
     Examples:
+
         replimap transfer -r us-east-1
+
         replimap transfer -r us-east-1 -f json -o transfer.json
     """
     from replimap.cost.transfer_analyzer import DataTransferAnalyzer

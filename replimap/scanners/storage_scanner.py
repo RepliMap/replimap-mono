@@ -36,10 +36,9 @@ class EBSScanner(BaseScanner):
         "aws_ebs_volume",
     ]
 
-    # EBS volumes reference EC2 instances for attachment dependencies
-    depends_on_types: ClassVar[list[str]] = [
-        "aws_instance",
-    ]
+    # No dependencies - EBS volumes should be scanned BEFORE EC2 instances
+    # so that EC2Scanner can create instance → volume dependency edges
+    depends_on_types: ClassVar[list[str]] = []
 
     def scan(self, graph: GraphEngine) -> None:
         """Scan all EBS Volumes and add to graph."""

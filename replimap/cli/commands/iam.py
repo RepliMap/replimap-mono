@@ -101,22 +101,41 @@ def create_iam_app() -> typer.Typer:
             "-R",
             help="Force fresh AWS scan (ignore cached graph)",
         ),
+        enrich: bool = typer.Option(
+            False,
+            "--enrich",
+            "-E",
+            help="Run graph enrichment to discover implicit dependencies",
+        ),
+        no_baseline: bool = typer.Option(
+            False,
+            "--no-baseline",
+            help="Don't generate baseline policy when no dependencies found",
+        ),
     ) -> None:
-        """
-        Generate IAM policy for a specific compute resource.
+        """Generate IAM policy for a specific compute resource.
+
+        \b
 
         Uses graph analysis to find connected resources and generates
         permissions ONLY for those specific resources with precise ARNs.
 
         \b
+
         This prevents over-permissioning by using boundary-aware traversal:
+
         - TERMINAL resources (other Lambda/EC2) block traversal
+
         - DATA resources (S3, SQS, DynamoDB) grant permissions but don't continue
+
         - SECURITY resources (KMS, Secrets) always include encryption deps
+
         - TRANSITIVE resources (VPC, Subnet) pass through without permissions
 
         \b
+
         Examples:
+
             # Read-only policy for Lambda
             replimap iam for-resource -p prod -r my-lambda -s runtime_read
 
@@ -124,11 +143,17 @@ def create_iam_app() -> typer.Typer:
             replimap iam for-resource -p prod -r my-lambda -s runtime_full
 
             # Generate Terraform with role creation
-            replimap iam for-resource -p prod -r my-lambda \\
-                -f terraform --create-role --role-name my-lambda-role
+            replimap iam for-resource -p prod -r my-lambda -f terraform
+                --create-role --role-name my-lambda-role
 
             # Save to file
             replimap iam for-resource -p prod -r my-lambda -o policy.json
+
+            # With graph enrichment (discovers implicit dependencies)
+            replimap iam for-resource -p prod -r i-abc123 -E
+
+            # Without baseline fallback (fail if no deps found)
+            replimap iam for-resource -p prod -r i-abc123 --no-baseline
         """
         # Parse scope
         scope_map = {
@@ -204,6 +229,8 @@ def create_iam_app() -> typer.Typer:
                 policy_scope,
                 max_depth,
                 include_networking,
+                use_baseline_fallback=not no_baseline,
+                enrich_graph=enrich,
             )
         except ValueError as e:
             console.print(f"[red]Error: {e}[/red]")
@@ -259,14 +286,17 @@ def create_iam_app() -> typer.Typer:
             help="AWS region",
         ),
     ) -> None:
-        """
-        List compute resources that can have IAM policies generated.
-
-        Shows Lambda functions, EC2 instances, ECS tasks, etc. that
-        can be used with 'replimap iam for-resource'.
+        """List compute resources that can have IAM policies generated.
 
         \b
+
+        Shows Lambda functions, EC2 instances, ECS tasks, etc. that can be used
+        with 'replimap iam for-resource'.
+
+        \b
+
         Examples:
+
             replimap iam list-compute -p prod
         """
         # Determine region

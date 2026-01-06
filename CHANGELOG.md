@@ -309,6 +309,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Changed method from `detect_from_graph(graph)` to async `scan(graph, check_metrics=True)`
   - Returns `UnusedResourcesReport` with `.unused_resources` list
 
+- **CLI Help Text Formatting** - Fixed `\b` markers displaying literally in help output
+  - Standardized docstring formatting across all CLI commands with proper `\b` + blank line pattern
+  - Fixed help text for: scan, clone, analyze, audit, drift, deps, unused, validate, cost, transfer, trends, dr, iam, profiles, remediate, completion, graph
+  - Properly formats Examples, Output formats, and other sections in terminal help
+
+- **SQLite Migration Completeness** - Updated CLI examples and cache commands for unified SQLite backend
+  - Updated `replimap scan --output` example to use `.db` extension (SQLite format)
+  - Updated tips to suggest `.db` format for graph exports
+  - Enhanced `scan-cache status` to show both Graph Cache (SQLite .db) and Incremental Scan Cache (JSON)
+  - Enhanced `scan-cache clear` with `--graph-only` and `--incremental-only` options
+  - Graph cache now displays profile, region, resource count, and file size
+
 - **Trends Command API** - Fixed `analyze() got an unexpected keyword argument 'days'`
   - Changed constructor from `CostTrendAnalyzer(session)` to `CostTrendAnalyzer(region=, account_id=)`
   - Changed parameter from `days=` to `lookback_days=`

@@ -15,6 +15,34 @@ from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core.browser import open_in_browser
 from replimap.licensing import check_drift_allowed
 
+
+def _load_graph(graph_file: Path):
+    """Load a graph from file (supports both JSON and SQLite formats)."""
+    suffix = graph_file.suffix.lower()
+
+    if suffix == ".db":
+        from replimap.core.unified_storage import GraphEngineAdapter
+
+        return GraphEngineAdapter(db_path=str(graph_file))
+    elif suffix == ".json":
+        from replimap.core.graph_engine import GraphEngine
+
+        return GraphEngine.load(graph_file)
+    else:
+        # Try SQLite first
+        try:
+            with open(graph_file, "rb") as f:
+                if f.read(16).startswith(b"SQLite format"):
+                    from replimap.core.unified_storage import GraphEngineAdapter
+
+                    return GraphEngineAdapter(db_path=str(graph_file))
+        except (OSError, ValueError):
+            pass  # Fall through to JSON loader
+        from replimap.core.graph_engine import GraphEngine
+
+        return GraphEngine.load(graph_file)
+
+
 # Create a Typer app for drift subcommands
 drift_app = typer.Typer(
     help="Infrastructure drift detection commands",
@@ -96,30 +124,44 @@ def drift_command(
         help="Force fresh AWS scan (ignore cached graph)",
     ),
 ) -> None:
-    """
-    Detect infrastructure drift between Terraform state and AWS.
+    """Detect infrastructure drift between Terraform state and AWS.
 
     \b
+
     Compares your Terraform state file against the actual AWS resources
     to identify changes made outside of Terraform (console, CLI, etc).
 
     \b
+
     State Sources:
+
     - Local file: --state ./terraform.tfstate
+
     - S3 remote: --state-bucket my-bucket --state-key path/terraform.tfstate
 
     \b
+
     Output formats:
+
     - console: Rich terminal output (default)
+
     - html: Professional HTML report
+
     - json: Machine-readable JSON
 
     \b
+
     Examples:
+
         replimap drift -r us-east-1 -s ./terraform.tfstate
-        replimap drift -r us-east-1 --state-bucket my-bucket --state-key prod/tf.tfstate
+
+        replimap drift -r us-east-1 --state-bucket my-bucket
+            --state-key prod/tf.tfstate
+
         replimap drift -r us-east-1 -s ./tf.tfstate -f html -o report.html
+
         replimap drift -r us-east-1 -s ./tf.tfstate --fail-on-drift --no-open
+
         replimap drift -r us-east-1 -s ./tf.tfstate --fail-on-high --no-open
     """
     from replimap.drift import DriftEngine, DriftReporter
@@ -388,14 +430,17 @@ def offline_detect_command(
         help="Minimal output (for scripts)",
     ),
 ) -> None:
-    """
-    Offline drift detection using cached RepliMap scan.
+    """Offline drift detection using cached RepliMap scan.
+
+    \b
 
     This is an "offline terraform plan" - faster and doesn't require
     AWS connection or Terraform installation. Uses cached scan data.
 
     \b
+
     Examples:
+
         # Basic offline drift detection
         replimap drift offline -p prod -s ./terraform.tfstate
 
@@ -413,7 +458,6 @@ def offline_detect_command(
     """
     from replimap.core.cache_manager import get_cache_path
     from replimap.core.drift import DriftFilter, DriftSeverity, OfflineDriftDetector
-    from replimap.core.graph_engine import GraphEngine
 
     state_path = Path(state_file)
 
@@ -432,7 +476,7 @@ def offline_detect_command(
             console.print(f"Run 'replimap scan -p {profile}' first.")
             raise typer.Exit(1)
 
-        graph = GraphEngine.load(cache_path)
+        graph = _load_graph(cache_path)
         resources = list(graph.get_all_resources())
     except Exception as e:
         console.print(f"[red]Failed to load cached scan: {e}[/red]")
@@ -536,22 +580,16 @@ def compare_scans_command(
         help="Output JSON report file",
     ),
 ) -> None:
-    """
-    Compare current scan against a previous scan.
+    """Compare current scan against a previous scan.
 
     Useful for detecting AWS changes over time without Terraform.
 
-    \b
     Example:
-        # Save current scan
-        cp ~/.replimap/cache/prod.json ~/.replimap/cache/prod-baseline.json
 
-        # Later, compare
-        replimap drift compare-scans -p prod --previous ~/.replimap/cache/prod-baseline.json
+        replimap drift compare-scans -p prod --previous baseline.db
     """
     from replimap.core.cache_manager import get_cache_path
     from replimap.core.drift import ScanComparator
-    from replimap.core.graph_engine import GraphEngine
 
     try:
         cache_path = get_cache_path(profile)
@@ -559,7 +597,7 @@ def compare_scans_command(
             console.print(f"[red]No cached scan found for profile '{profile}'.[/red]")
             raise typer.Exit(1)
 
-        current_graph = GraphEngine.load(cache_path)
+        current_graph = _load_graph(cache_path)
     except Exception as e:
         console.print(f"[red]Failed to load current scan: {e}[/red]")
         raise typer.Exit(1)
@@ -570,7 +608,7 @@ def compare_scans_command(
         raise typer.Exit(1)
 
     try:
-        prev_graph = GraphEngine.load(prev_path)
+        prev_graph = _load_graph(prev_path)
     except Exception as e:
         console.print(f"[red]Failed to load previous scan: {e}[/red]")
         raise typer.Exit(1)

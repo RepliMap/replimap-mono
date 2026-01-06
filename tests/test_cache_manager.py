@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -12,6 +11,7 @@ from replimap.core.cache_manager import (
     get_or_load_graph,
     save_graph_to_cache,
 )
+from replimap.core.unified_storage import GraphEngineAdapter
 
 
 class TestCacheManager:
@@ -30,11 +30,11 @@ class TestCacheManager:
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
             # Without VPC
             cache = CacheManager("prod", "us-west-2")
-            assert cache.cache_path.name == "graph_prod_us-west-2.json"
+            assert cache.cache_path.name == "graph_prod_us-west-2.db"
 
             # With VPC
             cache_vpc = CacheManager("prod", "us-west-2", vpc="vpc-123")
-            assert cache_vpc.cache_path.name == "graph_prod_us-west-2_vpc-123.json"
+            assert cache_vpc.cache_path.name == "graph_prod_us-west-2_vpc-123.db"
 
     def test_cache_path_sanitizes_profile(self, tmp_path: Path) -> None:
         """Test that profile names with slashes are sanitized."""
@@ -45,12 +45,11 @@ class TestCacheManager:
 
     def test_save_and_load_graph(self, tmp_path: Path) -> None:
         """Test saving and loading a graph."""
-        from replimap.core import GraphEngine
         from replimap.core.models import ResourceNode, ResourceType
 
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
             # Create a test graph
-            graph = GraphEngine()
+            graph = GraphEngineAdapter()
             node = ResourceNode(
                 id="vpc-123",
                 resource_type=ResourceType.VPC,
@@ -83,47 +82,41 @@ class TestCacheManager:
 
     def test_load_returns_none_if_expired(self, tmp_path: Path) -> None:
         """Test that load returns None if cache is expired."""
-        from replimap.core import GraphEngine
+        from replimap.core.unified_storage import UnifiedGraphEngine
 
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
-            graph = GraphEngine()
+            graph = GraphEngineAdapter()
             cache = CacheManager("test", "us-east-1")
             cache.save(graph)
 
-            # Manually modify timestamp to be old
-            with open(cache.cache_path) as f:
-                data = json.load(f)
-            data["meta"]["timestamp"] = time.time() - 7200  # 2 hours ago
-            with open(cache.cache_path, "w") as f:
-                json.dump(data, f)
+            # Manually modify timestamp to be old using SQLite
+            engine = UnifiedGraphEngine(db_path=str(cache.cache_path))
+            engine.set_metadata("timestamp", str(time.time() - 7200))  # 2 hours ago
+            engine.close()
 
             # Should return None due to expiry
             assert cache.load(max_age=3600) is None
 
     def test_load_returns_none_if_version_mismatch(self, tmp_path: Path) -> None:
         """Test that load returns None if version doesn't match."""
-        from replimap.core import GraphEngine
+        from replimap.core.unified_storage import UnifiedGraphEngine
 
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
-            graph = GraphEngine()
+            graph = GraphEngineAdapter()
             cache = CacheManager("test", "us-east-1")
             cache.save(graph)
 
-            # Modify version
-            with open(cache.cache_path) as f:
-                data = json.load(f)
-            data["meta"]["version"] = "0.0.0"
-            with open(cache.cache_path, "w") as f:
-                json.dump(data, f)
+            # Modify version using SQLite
+            engine = UnifiedGraphEngine(db_path=str(cache.cache_path))
+            engine.set_metadata("version", "0.0.0")
+            engine.close()
 
             assert cache.load() is None
 
     def test_invalidate_deletes_cache(self, tmp_path: Path) -> None:
         """Test that invalidate deletes the cache file."""
-        from replimap.core import GraphEngine
-
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
-            graph = GraphEngine()
+            graph = GraphEngineAdapter()
             cache = CacheManager("test", "us-east-1")
             cache.save(graph)
             assert cache.cache_path.exists()
@@ -133,26 +126,22 @@ class TestCacheManager:
 
     def test_clear_all(self, tmp_path: Path) -> None:
         """Test clearing all caches."""
-        from replimap.core import GraphEngine
-
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
             # Create multiple caches
-            graph = GraphEngine()
+            graph = GraphEngineAdapter()
             CacheManager("p1", "us-east-1").save(graph)
             CacheManager("p2", "us-west-2").save(graph)
 
-            assert len(list((tmp_path / "graphs").glob("graph_*.json"))) == 2
+            assert len(list((tmp_path / "graphs").glob("graph_*.db"))) == 2
 
             count = CacheManager.clear_all()
             assert count == 2
-            assert len(list((tmp_path / "graphs").glob("graph_*.json"))) == 0
+            assert len(list((tmp_path / "graphs").glob("graph_*.db"))) == 0
 
     def test_list_all(self, tmp_path: Path) -> None:
         """Test listing all caches."""
-        from replimap.core import GraphEngine
-
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
-            graph = GraphEngine()
+            graph = GraphEngineAdapter()
             CacheManager("prod", "us-east-1").save(graph)
             CacheManager("dev", "eu-west-1").save(graph)
 
@@ -190,11 +179,9 @@ class TestHelperFunctions:
 
     def test_get_or_load_graph_returns_cached(self, tmp_path: Path) -> None:
         """Test that cached graph is returned."""
-        from replimap.core import GraphEngine
-
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
             # Create cache
-            graph = GraphEngine()
+            graph = GraphEngineAdapter()
             CacheManager("test", "us-east-1").save(graph)
 
             console = MagicMock()
@@ -209,10 +196,8 @@ class TestHelperFunctions:
 
     def test_save_graph_to_cache(self, tmp_path: Path) -> None:
         """Test save_graph_to_cache function."""
-        from replimap.core import GraphEngine
-
         with patch("replimap.core.cache_manager.GRAPH_CACHE_DIR", tmp_path / "graphs"):
-            graph = GraphEngine()
+            graph = GraphEngineAdapter()
             console = MagicMock()
 
             result = save_graph_to_cache(
@@ -222,4 +207,4 @@ class TestHelperFunctions:
                 console=console,
             )
             assert result is True
-            assert (tmp_path / "graphs" / "graph_test_us-east-1.json").exists()
+            assert (tmp_path / "graphs" / "graph_test_us-east-1.db").exists()

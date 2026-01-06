@@ -66,18 +66,23 @@ def unused_command(
         help="Force fresh AWS scan (ignore cached graph)",
     ),
 ) -> None:
-    """
-    Detect unused and underutilized AWS resources.
+    """Detect unused and underutilized AWS resources.
 
     \b
+
     Identifies resources that may be candidates for termination
     or optimization to reduce costs.
 
     \b
+
     Examples:
+
         replimap unused -r us-east-1
+
         replimap unused -r us-east-1 --confidence high
+
         replimap unused -r us-east-1 --types ec2,ebs
+
         replimap unused -r us-east-1 -f json -o unused.json
     """
     from replimap.cost.unused_detector import (
@@ -237,9 +242,7 @@ def unused_command(
                     r.resource_name[:30] if r.resource_name else "-",
                     r.reason.description[:40],
                     f"[{conf_style}]{r.confidence.value}[/]",
-                    f"${r.estimated_monthly_savings:.2f}"
-                    if r.estimated_monthly_savings
-                    else "-",
+                    f"${r.potential_savings:.2f}" if r.potential_savings else "-",
                 )
 
             console.print(table)
@@ -247,7 +250,7 @@ def unused_command(
                 console.print(f"  ... and {len(resources) - 10} more")
             console.print()
 
-        total_savings = sum(r.estimated_monthly_savings or 0 for r in unused_resources)
+        total_savings = sum(r.potential_savings or 0 for r in unused_resources)
         if total_savings > 0:
             console.print(
                 f"[bold green]Potential monthly savings: ${total_savings:.2f}[/bold green]"
@@ -266,9 +269,7 @@ def unused_command(
                     "reason": r.reason.value,
                     "confidence": r.confidence.value,
                     "details": r.details,
-                    "estimated_monthly_savings": float(
-                        r.estimated_monthly_savings or 0
-                    ),
+                    "potential_savings": float(r.potential_savings or 0),
                 }
                 for r in unused_resources
             ],
@@ -301,7 +302,7 @@ def unused_command(
                         r.reason.value,
                         r.confidence.value,
                         r.details,
-                        r.estimated_monthly_savings or 0,
+                        r.potential_savings or 0,
                     ]
                 )
         console.print(f"[green]✓ Saved to {output_path}[/]")
@@ -317,7 +318,7 @@ def unused_command(
             for r in unused_resources:
                 f.write(
                     f"| {r.resource_id} | {r.resource_type} | {r.reason.value} | "
-                    f"{r.confidence.value} | ${r.estimated_monthly_savings or 0:.2f} |\n"
+                    f"{r.confidence.value} | ${r.potential_savings or 0:.2f} |\n"
                 )
         console.print(f"[green]✓ Saved to {output_path}[/]")
 

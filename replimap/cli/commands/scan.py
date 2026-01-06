@@ -162,55 +162,87 @@ def register(app: typer.Typer) -> None:
             help="Use incremental scanning (only detect changes since last scan)",
         ),
     ) -> None:
-        """
-        Scan AWS resources and build dependency graph.
+        """Scan AWS resources and build dependency graph.
 
         \b
+
         The region is determined in this order:
+
         1. --region flag (if provided)
+
         2. Profile's configured region (from ~/.aws/config)
+
         3. AWS_DEFAULT_REGION environment variable
+
         4. us-east-1 (fallback)
 
         \b
+
         Examples:
+
             replimap scan --profile prod
+
             replimap scan --profile prod --region us-west-2
+
             replimap scan -i  # Interactive mode
-            replimap scan --profile prod --output graph.json
+
+            replimap scan --profile prod --output graph.db
 
         \b
+
         Selection Examples (Graph-Based - Recommended):
+
             replimap scan --profile prod --scope vpc:vpc-12345678
+
             replimap scan --profile prod --scope vpc-name:Production*
+
             replimap scan --profile prod --entry alb:my-app-alb
+
             replimap scan --profile prod --entry tag:Application=MyApp
+
             replimap scan --profile prod --tag Environment=Production
 
         \b
+
         Filter Examples (Legacy, still supported):
+
             replimap scan --profile prod --vpc vpc-12345678
+
             replimap scan --profile prod --types vpc,subnet,ec2,rds
+
             replimap scan --profile prod --exclude-types sns,sqs
 
         \b
+
         Advanced Examples:
-            replimap scan --profile prod --scope vpc:vpc-123 --exclude-patterns "test-*"
+
+            replimap scan --profile prod --scope vpc:vpc-123
+                --exclude-patterns "test-*"
+
             replimap scan --profile prod --config selection.yaml
 
         \b
+
         Cache Examples:
+
             replimap scan --profile prod --cache  # Use cached results
+
             replimap scan --profile prod --cache --refresh-cache  # Force refresh
 
         \b
+
         Trust Center Examples:
+
             replimap scan --profile prod --trust-center  # Enable API auditing
+
             replimap trust-center report  # Generate compliance report
 
         \b
+
         Incremental Scanning Examples:
+
             replimap scan --profile prod  # First scan (full)
+
             replimap scan --profile prod --incremental  # Subsequent scans (fast)
         """
         # Interactive mode - prompt for missing options

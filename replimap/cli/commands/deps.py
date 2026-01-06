@@ -208,34 +208,47 @@ def deps_command(
         help="Use deep analyzer mode with categorized output (EC2, SG, IAM Role)",
     ),
 ) -> None:
-    """
-    Explore dependencies for a resource.
+    """Explore dependencies for a resource.
 
     \b
+
     Shows what resources MAY be affected if you modify or delete a resource.
     This analysis is based on AWS API metadata only.
 
     \b
-    IMPORTANT: Application-level dependencies (hardcoded IPs, DNS,
-    config files) are NOT detected. Always validate all dependencies
-    before making infrastructure changes.
+
+    IMPORTANT: Application-level dependencies (hardcoded IPs, DNS, config files)
+    are NOT detected. Always validate all dependencies before making
+    infrastructure changes.
 
     \b
+
     This is a Pro+ feature.
 
     \b
+
     Output formats:
+
     - console: Rich terminal output with summary (default)
+
     - tree: Tree view of dependencies
+
     - table: Table of affected resources
+
     - html: Interactive HTML report with D3.js visualization
+
     - json: Machine-readable JSON
 
     \b
+
     Examples:
+
         replimap deps sg-12345 -r us-east-1              # Security group deps
+
         replimap deps vpc-abc123 -r us-east-1 -f tree    # Tree view
+
         replimap deps i-xyz789 -r us-east-1 -f html -o deps.html
+
         replimap deps vpc-12345 -r us-east-1 --depth 3   # Limit depth
     """
     from replimap.dependencies import (

@@ -156,45 +156,87 @@ def create_scan_cache_app() -> typer.Typer:
             replimap scan-cache status
         """
         from replimap.core.cache import DEFAULT_CACHE_DIR
+        from replimap.core.cache_manager import GRAPH_CACHE_DIR
 
-        if not DEFAULT_CACHE_DIR.exists():
-            console.print("[dim]No scan cache found.[/]")
-            return
+        has_any_cache = False
 
-        cache_files = list(DEFAULT_CACHE_DIR.glob("scan-*.json"))
-        if not cache_files:
-            console.print("[dim]No scan cache found.[/]")
-            return
+        # Show graph cache (SQLite .db files)
+        if GRAPH_CACHE_DIR.exists():
+            graph_files = list(GRAPH_CACHE_DIR.glob("graph_*.db"))
+            if graph_files:
+                has_any_cache = True
+                table = Table(
+                    title="Graph Cache (SQLite)",
+                    show_header=True,
+                    header_style="bold cyan",
+                )
+                table.add_column("Profile")
+                table.add_column("Region")
+                table.add_column("Resources", justify="right")
+                table.add_column("Size", justify="right")
 
-        table = Table(
-            title="Scan Cache Status",
-            show_header=True,
-            header_style="bold cyan",
-        )
-        table.add_column("Account")
-        table.add_column("Region")
-        table.add_column("Resources", justify="right")
-        table.add_column("Last Updated", style="dim")
+                for graph_file in graph_files:
+                    # Parse filename: graph_{profile}_{region}.db
+                    parts = graph_file.stem.replace("graph_", "").rsplit("_", 1)
+                    profile = parts[0] if len(parts) > 1 else "default"
+                    region = parts[1] if len(parts) > 1 else parts[0]
+                    size_mb = graph_file.stat().st_size / (1024 * 1024)
 
-        total_resources = 0
-        for cache_file in cache_files:
-            try:
-                with open(cache_file) as f:
-                    cache_data = json.load(f)
-                account = cache_data.get("account_id", "unknown")
-                region = cache_data.get("region", "unknown")
-                resources = len(cache_data.get("resources", {}))
-                updated = cache_data.get("last_updated", "unknown")
-                if updated != "unknown":
-                    updated = datetime.fromisoformat(updated).strftime("%Y-%m-%d %H:%M")
-                table.add_row(account, region, str(resources), updated)
-                total_resources += resources
-            except (json.JSONDecodeError, FileNotFoundError):
-                continue
+                    # Try to get resource count from the database
+                    try:
+                        from replimap.core.unified_storage import GraphEngineAdapter
 
-        console.print(table)
-        console.print(f"\n[dim]Total cached resources: {total_resources}[/]")
-        console.print()
+                        adapter = GraphEngineAdapter(db_path=str(graph_file))
+                        resources = adapter.node_count
+                    except Exception:
+                        resources = "?"
+
+                    table.add_row(profile, region, str(resources), f"{size_mb:.1f} MB")
+
+                console.print(table)
+                console.print()
+
+        # Show incremental scan cache (JSON files)
+        if DEFAULT_CACHE_DIR.exists():
+            cache_files = list(DEFAULT_CACHE_DIR.glob("scan-*.json"))
+            if cache_files:
+                has_any_cache = True
+                table = Table(
+                    title="Incremental Scan Cache (JSON)",
+                    show_header=True,
+                    header_style="bold cyan",
+                )
+                table.add_column("Account")
+                table.add_column("Region")
+                table.add_column("Resources", justify="right")
+                table.add_column("Last Updated", style="dim")
+
+                total_resources = 0
+                for cache_file in cache_files:
+                    try:
+                        with open(cache_file) as f:
+                            cache_data = json.load(f)
+                        account = cache_data.get("account_id", "unknown")
+                        region = cache_data.get("region", "unknown")
+                        resources = len(cache_data.get("resources", {}))
+                        updated = cache_data.get("last_updated", "unknown")
+                        if updated != "unknown":
+                            updated = datetime.fromisoformat(updated).strftime(
+                                "%Y-%m-%d %H:%M"
+                            )
+                        table.add_row(account, region, str(resources), updated)
+                        total_resources += resources
+                    except (json.JSONDecodeError, FileNotFoundError):
+                        continue
+
+                console.print(table)
+                console.print(
+                    f"\n[dim]Total incrementally cached resources: {total_resources}[/]"
+                )
+                console.print()
+
+        if not has_any_cache:
+            console.print("[dim]No cache found.[/]")
 
     @scan_cache_app.command("clear")
     def scan_cache_clear(
@@ -210,6 +252,16 @@ def create_scan_cache_app() -> typer.Typer:
             "-y",
             help="Skip confirmation",
         ),
+        graph_only: bool = typer.Option(
+            False,
+            "--graph-only",
+            help="Only clear graph cache (SQLite .db files)",
+        ),
+        incremental_only: bool = typer.Option(
+            False,
+            "--incremental-only",
+            help="Only clear incremental scan cache (JSON files)",
+        ),
     ) -> None:
         """
         Clear scan result cache.
@@ -217,40 +269,50 @@ def create_scan_cache_app() -> typer.Typer:
         Examples:
             replimap scan-cache clear
             replimap scan-cache clear --region us-west-2
+            replimap scan-cache clear --graph-only
         """
         from replimap.core.cache import DEFAULT_CACHE_DIR
+        from replimap.core.cache_manager import GRAPH_CACHE_DIR
 
-        if not DEFAULT_CACHE_DIR.exists():
-            console.print("[dim]No scan cache found.[/]")
-            return
+        files_to_delete: list = []
 
-        if region:
-            cache_files = list(DEFAULT_CACHE_DIR.glob(f"scan-*-{region}.json"))
-        else:
-            cache_files = list(DEFAULT_CACHE_DIR.glob("scan-*.json"))
+        # Collect graph cache files
+        if not incremental_only and GRAPH_CACHE_DIR.exists():
+            if region:
+                graph_files = list(GRAPH_CACHE_DIR.glob(f"graph_*_{region}.db"))
+            else:
+                graph_files = list(GRAPH_CACHE_DIR.glob("graph_*.db"))
+            files_to_delete.extend(graph_files)
 
-        if not cache_files:
-            console.print("[dim]No scan cache found.[/]")
+        # Collect incremental scan cache files
+        if not graph_only and DEFAULT_CACHE_DIR.exists():
+            if region:
+                scan_files = list(DEFAULT_CACHE_DIR.glob(f"scan-*-{region}.json"))
+            else:
+                scan_files = list(DEFAULT_CACHE_DIR.glob("scan-*.json"))
+            files_to_delete.extend(scan_files)
+
+        if not files_to_delete:
+            console.print("[dim]No cache found.[/]")
             return
 
         if not yes:
             if region:
                 confirm = Confirm.ask(
-                    f"Clear scan cache for region '{region}' "
-                    f"({len(cache_files)} files)?"
+                    f"Clear cache for region '{region}' ({len(files_to_delete)} files)?"
                 )
             else:
                 confirm = Confirm.ask(
-                    f"Clear all scan cache ({len(cache_files)} files)?"
+                    f"Clear all cache ({len(files_to_delete)} files)?"
                 )
             if not confirm:
                 console.print("[dim]Cancelled.[/]")
                 raise typer.Exit(0)
 
-        for cache_file in cache_files:
+        for cache_file in files_to_delete:
             cache_file.unlink()
 
-        console.print(f"[green]Cleared {len(cache_files)} cache files.[/]")
+        console.print(f"[green]Cleared {len(files_to_delete)} cache files.[/]")
 
     @scan_cache_app.command("info")
     def scan_cache_info(

@@ -20,7 +20,7 @@ TIPS = [
     "Find security issues: [bold]replimap audit[/bold]",
     "Analyze blast radius: [bold]replimap deps <resource-id>[/bold]",
     "Use [bold]--quiet[/bold] for cleaner output in scripts",
-    "Export to JSON: [bold]replimap scan -o graph.json[/bold]",
+    "Save graph to file: [bold]replimap scan -o graph.db[/bold]",
     "Enable shell completion: [bold]replimap --install-completion[/bold]",
     "Filter by VPC: [bold]replimap scan --vpc vpc-xxx[/bold]",
     "Filter by tag: [bold]replimap scan --tag Environment=prod[/bold]",

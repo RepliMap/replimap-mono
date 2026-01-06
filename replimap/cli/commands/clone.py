@@ -135,48 +135,59 @@ def register(app: typer.Typer) -> None:
             help="Generate bootstrap Terraform to create S3 backend infrastructure",
         ),
     ) -> None:
-        """
-        Clone AWS environment to Infrastructure-as-Code.
+        """Clone AWS environment to Infrastructure-as-Code.
 
         \b
+
         The region is determined in this order:
+
         1. --region flag (if provided)
+
         2. Profile's configured region (from ~/.aws/config)
+
         3. AWS_DEFAULT_REGION environment variable
+
         4. us-east-1 (fallback)
 
         \b
+
         Output formats:
+
         - terraform: Terraform HCL (Free tier and above)
+
         - cloudformation: AWS CloudFormation YAML (Solo plan and above)
+
         - pulumi: Pulumi Python (Pro plan and above)
 
         \b
+
         Backend types (Terraform only):
+
         - local: State stored locally (default)
+
         - s3: State stored in S3 for team collaboration
 
         \b
+
         Examples:
+
             replimap clone --profile prod --mode dry-run
+
             replimap clone --profile prod --format terraform --mode generate
+
             replimap clone -i  # Interactive mode
+
             replimap clone --profile prod --format cloudformation -o ./cfn
 
         \b
+
         S3 Backend Examples:
-            # With S3 backend
-            replimap clone -p prod -o ./terraform --mode generate \\
-                --backend s3 --backend-bucket my-terraform-state
 
-            # With DynamoDB locking (recommended for teams)
-            replimap clone -p prod -o ./terraform --mode generate \\
-                --backend s3 --backend-bucket my-state \\
-                --backend-dynamodb terraform-locks
+            replimap clone -p prod -o ./tf --backend s3 --backend-bucket my-state
 
-            # Generate bootstrap to create S3 backend infrastructure
-            replimap clone -p prod -o ./terraform --mode generate \\
-                --backend s3 --backend-bucket my-state --backend-bootstrap
+            replimap clone -p prod -o ./tf --backend s3 --backend-bucket my-state --backend-dynamodb locks
+
+            replimap clone -p prod -o ./tf --backend s3 --backend-bucket my-state --backend-bootstrap
         """
         from replimap.licensing.gates import FeatureNotAvailableError
         from replimap.renderers import CloudFormationRenderer, PulumiRenderer

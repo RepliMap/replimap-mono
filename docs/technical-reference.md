@@ -689,6 +689,83 @@ The blast radius level is determined by:
 - **MEDIUM** (score 30-59): Supporting resources
 - **LOW** (score 1-29): Peripheral resources
 
+## IAM Policy Generation
+
+Generate least-privilege IAM policies from graph analysis with intelligent boundary control and implicit dependency discovery.
+
+### CLI Usage
+
+```bash
+# Generate read-only policy for a Lambda function
+replimap iam for-resource -p prod -r my-lambda -s runtime_read
+
+# Generate full-access policy for an EC2 instance
+replimap iam for-resource -p prod -r i-abc123 -s runtime_full
+
+# With graph enrichment (discovers implicit dependencies)
+replimap iam for-resource -p prod -r i-abc123 -E
+
+# Generate Terraform output with IAM role
+replimap iam for-resource -p prod -r my-lambda \
+  -f terraform --create-role --role-name my-lambda-role
+
+# Save policy to file
+replimap iam for-resource -p prod -r my-lambda -o policy.json
+
+# List available compute resources
+replimap iam list-compute -p prod
+```
+
+### Policy Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `runtime_read` | Read-only access for runtime operations |
+| `runtime_write` | Write access for runtime operations |
+| `runtime_full` | Full read/write access for runtime |
+| `infra_read` | Read access for infrastructure inspection |
+| `infra_deploy` | Full access for infrastructure deployment |
+
+### Graph Enrichment
+
+The `--enrich` flag enables automatic discovery of implicit dependencies that AWS infrastructure doesn't expose directly:
+
+| Source | Confidence | What's Detected |
+|--------|------------|-----------------|
+| Security Group Rules | HIGH | Network connectivity via SG egress rules |
+| UserData/Env Vars | MEDIUM | Resource references in EC2 UserData |
+| Tag Hints | HIGH | Explicit `replimap:depends-on` tags |
+
+**Security Group Analysis**: If an EC2 instance's Security Group allows egress on port 3306 to an RDS instance's Security Group, the enricher infers a database dependency.
+
+**UserData Extraction**: The enricher parses EC2 UserData for S3 bucket URIs, RDS endpoints, SQS queue URLs, and other resource references.
+
+**Tag Hints**: Explicitly declare dependencies with tags:
+```
+replimap:depends-on = "s3-bucket-id,sqs-queue-id"
+```
+
+### Baseline Policy Fallback
+
+When a compute resource has no data dependencies (only infrastructure like VPC/Subnet/SG), RepliMap generates a baseline policy with common patterns:
+
+- **CloudWatch Logs** - Write access for logging
+- **SSM Parameter Store** - Read access for configuration (scoped by resource name)
+- **EC2 Describe** - Read access for instance metadata (EC2 only)
+
+Use `--no-baseline` to disable this behavior and return an empty policy instead.
+
+### Boundary-Aware Traversal
+
+The IAM generator uses intelligent boundary control to prevent over-permissioning:
+
+| Boundary | Resources | Behavior |
+|----------|-----------|----------|
+| TERMINAL | Lambda, EC2, ECS | Blocks traversal (other compute) |
+| DATA | S3, SQS, DynamoDB | Grants permissions, stops traversal |
+| SECURITY | KMS, Secrets, IAM | Always includes encryption deps |
+| TRANSITIVE | VPC, Subnet, SG | Passes through, no permissions |
+
 ## Cost Estimation
 
 Estimate monthly AWS costs for your infrastructure with optimization recommendations.
@@ -1587,6 +1664,27 @@ replimap dr assess [OPTIONS]
 replimap dr scorecard [OPTIONS]
   --profile, -p TEXT       AWS profile name
   --output, -o PATH        Output file path
+
+# IAM policy generation
+replimap iam for-resource [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --resource, -r TEXT      Resource ID (Lambda function name, EC2 instance ID, etc.)
+  --scope, -s TEXT         Scope: runtime_read, runtime_write, runtime_full, infra_deploy
+  --output, -o PATH        Output file path
+  --format, -f TEXT        Output format: json, terraform [default: json]
+  --depth INT              Maximum traversal depth [default: 3]
+  --include-networking     Include networking resources (VPC, Subnet, etc.)
+  --create-role            Generate IAM role in Terraform output
+  --role-name TEXT         Role name for Terraform output
+  --region TEXT            AWS region
+  --account-id TEXT        AWS account ID
+  --refresh, -R            Force fresh AWS scan (ignore cached graph)
+  --enrich, -E             Run graph enrichment to discover implicit dependencies
+  --no-baseline            Don't generate baseline policy when no dependencies found
+
+replimap iam list-compute [OPTIONS]
+  --profile, -p TEXT       AWS profile name
+  --region TEXT            AWS region
 
 # Trust Center commands (Enterprise)
 replimap trust-center report [OPTIONS]

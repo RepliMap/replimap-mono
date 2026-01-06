@@ -49,6 +49,7 @@ Usage:
     G = engine.to_networkx()
 """
 
+from .adapter import GraphEngineAdapter, SCCResult
 from .base import Edge, GraphBackend, Node, ResourceCategory, ScanSession, ScanStatus
 from .engine import UnifiedGraphEngine
 from .sqlite_backend import SQLiteBackend
@@ -67,4 +68,7 @@ __all__ = [
     "SQLiteBackend",
     # High-level engine
     "UnifiedGraphEngine",
+    # Backward compatibility adapter
+    "GraphEngineAdapter",
+    "SCCResult",
 ]

@@ -106,6 +106,8 @@ class TraversalController:
         "aws_kms_alias": ResourceBoundary.SECURITY,
         "aws_secretsmanager_secret": ResourceBoundary.SECURITY,
         "aws_ssm_parameter": ResourceBoundary.SECURITY,
+        "aws_iam_instance_profile": ResourceBoundary.SECURITY,
+        "aws_iam_role": ResourceBoundary.SECURITY,
         # TRANSITIVE - Networking (transparent)
         "aws_vpc": ResourceBoundary.TRANSITIVE,
         "aws_subnet": ResourceBoundary.TRANSITIVE,
@@ -375,6 +377,28 @@ class IntentAwareActionMapper:
                 ],
             },
         },
+        "aws_ssm_parameter": {
+            PolicyScope.RUNTIME_READ: {
+                AccessRole.CONSUMER: [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:GetParametersByPath",
+                ],
+            },
+            PolicyScope.RUNTIME_WRITE: {
+                AccessRole.PRODUCER: [
+                    "ssm:PutParameter",
+                ],
+            },
+            PolicyScope.RUNTIME_FULL: {
+                AccessRole.BIDIRECTIONAL: [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters",
+                    "ssm:GetParametersByPath",
+                    "ssm:PutParameter",
+                ],
+            },
+        },
         "aws_cloudwatch_log_group": {
             PolicyScope.RUNTIME_WRITE: {
                 AccessRole.PRODUCER: [
@@ -416,6 +440,24 @@ class IntentAwareActionMapper:
             },
             PolicyScope.RUNTIME_FULL: {
                 AccessRole.BIDIRECTIONAL: ["elasticache:DescribeCacheClusters"],
+            },
+        },
+        "aws_ebs_volume": {
+            PolicyScope.RUNTIME_READ: {
+                AccessRole.CONSUMER: ["ec2:DescribeVolumes"],
+            },
+            PolicyScope.RUNTIME_FULL: {
+                AccessRole.BIDIRECTIONAL: ["ec2:DescribeVolumes"],
+            },
+            PolicyScope.INFRA_DEPLOY: {
+                AccessRole.CONTROLLER: [
+                    "ec2:CreateVolume",
+                    "ec2:DeleteVolume",
+                    "ec2:AttachVolume",
+                    "ec2:DetachVolume",
+                    "ec2:ModifyVolume",
+                    "ec2:DescribeVolumes",
+                ],
             },
         },
     }
@@ -620,6 +662,14 @@ class ARNBuilder:
                 f"{self.account_id}:secret:{secret}*"
             ]
 
+        # SSM Parameter Store
+        if resource_type == "aws_ssm_parameter":
+            param = attributes.get("name") or attributes.get("Name") or name
+            return [
+                f"arn:{self.partition}:ssm:{self.region}:"
+                f"{self.account_id}:parameter{param}"
+            ]
+
         # CloudWatch Logs
         if resource_type == "aws_cloudwatch_log_group":
             log_group = attributes.get("name") or attributes.get("logGroupName") or name
@@ -656,6 +706,14 @@ class ARNBuilder:
             return [
                 f"arn:{self.partition}:elasticache:{self.region}:"
                 f"{self.account_id}:cluster:{cluster_id}"
+            ]
+
+        # EBS Volume
+        if resource_type == "aws_ebs_volume":
+            volume_id = resource_id  # EBS volume IDs are already like "vol-xxx"
+            return [
+                f"arn:{self.partition}:ec2:{self.region}:"
+                f"{self.account_id}:volume/{volume_id}"
             ]
 
         # Fallback
@@ -972,6 +1030,130 @@ class PolicyOptimizer:
 
 
 # ============================================================
+# BASELINE POLICY GENERATOR
+# ============================================================
+
+
+class BaselinePolicyGenerator:
+    """
+    Generates baseline IAM policies for isolated compute resources.
+
+    When a compute resource has no data dependencies (only TRANSITIVE connections
+    like VPC/Subnet/SG), we provide a safe baseline policy with common patterns:
+
+    1. CloudWatch Logs (write) - for logging
+    2. SSM Parameter Store (read) - for configuration
+    3. KMS (encrypt/decrypt) - for encryption
+    4. EC2 Describe (read) - for instance metadata
+
+    This prevents completely empty policies while still being least-privilege.
+    """
+
+    def __init__(self, arn_builder: ARNBuilder):
+        self.arn_builder = arn_builder
+
+    def generate_baseline(
+        self,
+        principal_name: str,
+        principal_type: str,
+        scope: PolicyScope,
+    ) -> list[IAMStatement]:
+        """
+        Generate baseline statements for a compute resource.
+
+        Args:
+            principal_name: Name of the compute resource
+            principal_type: Type of compute resource (aws_instance, etc.)
+            scope: Policy scope (runtime_read, runtime_write, etc.)
+
+        Returns:
+            List of baseline IAM statements
+        """
+        statements: list[IAMStatement] = []
+
+        # CloudWatch Logs - always needed for observability
+        if scope in (
+            PolicyScope.RUNTIME_READ,
+            PolicyScope.RUNTIME_WRITE,
+            PolicyScope.RUNTIME_FULL,
+        ):
+            log_group = f"/aws/{self._get_log_prefix(principal_type)}/{principal_name}"
+            statements.append(
+                IAMStatement(
+                    sid="BaselineCloudWatchLogs",
+                    actions=[
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                    ],
+                    resources=[
+                        f"arn:{self.arn_builder.partition}:logs:"
+                        f"{self.arn_builder.region}:{self.arn_builder.account_id}:"
+                        f"log-group:{log_group}",
+                        f"arn:{self.arn_builder.partition}:logs:"
+                        f"{self.arn_builder.region}:{self.arn_builder.account_id}:"
+                        f"log-group:{log_group}:*",
+                    ],
+                )
+            )
+
+        # SSM Parameter Store - common for config (scoped to prefix)
+        if scope in (PolicyScope.RUNTIME_READ, PolicyScope.RUNTIME_FULL):
+            statements.append(
+                IAMStatement(
+                    sid="BaselineSSMParameters",
+                    actions=[
+                        "ssm:GetParameter",
+                        "ssm:GetParameters",
+                        "ssm:GetParametersByPath",
+                    ],
+                    resources=[
+                        f"arn:{self.arn_builder.partition}:ssm:"
+                        f"{self.arn_builder.region}:{self.arn_builder.account_id}:"
+                        f"parameter/{principal_name}/*",
+                    ],
+                )
+            )
+
+        # EC2 Describe - for instance metadata (EC2 only)
+        if principal_type == "aws_instance" and scope in (
+            PolicyScope.RUNTIME_READ,
+            PolicyScope.RUNTIME_FULL,
+        ):
+            statements.append(
+                IAMStatement(
+                    sid="BaselineEC2Describe",
+                    actions=[
+                        "ec2:DescribeInstances",
+                        "ec2:DescribeTags",
+                        "ec2:DescribeVolumes",
+                    ],
+                    resources=["*"],
+                    conditions=[
+                        {
+                            "StringEquals": {
+                                "ec2:ResourceTag/Name": principal_name,
+                            }
+                        }
+                    ],
+                )
+            )
+
+        return statements
+
+    def _get_log_prefix(self, principal_type: str) -> str:
+        """Get CloudWatch Logs prefix for principal type."""
+        prefix_map = {
+            "aws_lambda_function": "lambda",
+            "aws_instance": "ec2",
+            "aws_ecs_service": "ecs",
+            "aws_ecs_task_definition": "ecs",
+            "aws_eks_node_group": "eks",
+        }
+        return prefix_map.get(principal_type, "compute")
+
+
+# ============================================================
 # MAIN GENERATOR
 # ============================================================
 
@@ -1003,6 +1185,7 @@ class GraphAwareIAMGenerator:
         self.mapper = IntentAwareActionMapper()
         self.arn_builder = ARNBuilder(account_id, region)
         self.optimizer = PolicyOptimizer(strict_compression=strict_mode)
+        self.baseline_generator = BaselinePolicyGenerator(self.arn_builder)
 
     def generate_for_principal(
         self,
@@ -1011,6 +1194,8 @@ class GraphAwareIAMGenerator:
         max_depth: int = 3,
         include_networking: bool = False,
         optimize: bool = True,
+        use_baseline_fallback: bool = True,
+        enrich_graph: bool = False,
     ) -> list[IAMPolicy]:
         """
         Generate IAM policy for a compute resource.
@@ -1021,6 +1206,8 @@ class GraphAwareIAMGenerator:
             max_depth: Traversal depth limit
             include_networking: Include VPC/Subnet resources
             optimize: Apply size optimization
+            use_baseline_fallback: Generate baseline policy if no deps found
+            enrich_graph: Run graph enrichment to discover implicit dependencies
 
         Returns:
             List of IAM policies (usually 1, multiple if sharded)
@@ -1028,6 +1215,16 @@ class GraphAwareIAMGenerator:
         principal = self.graph.get_resource(principal_resource_id)
         if not principal:
             raise ValueError(f"Resource not found: {principal_resource_id}")
+
+        # Optional: Run graph enrichment to discover implicit dependencies
+        if enrich_graph:
+            try:
+                from replimap.core.enrichment import GraphEnricher
+
+                enricher = GraphEnricher(self.graph)
+                enricher.enrich()
+            except ImportError:
+                logger.warning("Graph enrichment module not available")
 
         controller = TraversalController(
             include_networking=include_networking,
@@ -1044,8 +1241,16 @@ class GraphAwareIAMGenerator:
         # Build statements
         statements = self._build_statements(principal, connections, scope)
 
-        # Add CloudWatch Logs for Lambda
+        # Fallback to baseline policy if no data dependencies found
         principal_type = str(principal.resource_type)
+        principal_name = principal.original_name or principal_resource_id.split(":")[-1]
+
+        if not statements and use_baseline_fallback:
+            statements = self.baseline_generator.generate_baseline(
+                principal_name, principal_type, scope
+            )
+
+        # Add CloudWatch Logs for Lambda (if not already in baseline)
         if principal_type == "aws_lambda_function" and scope in (
             PolicyScope.RUNTIME_READ,
             PolicyScope.RUNTIME_WRITE,
@@ -1056,12 +1261,13 @@ class GraphAwareIAMGenerator:
                 statements.append(log_stmt)
 
         # Create policy
-        name = principal.original_name or principal_resource_id.split(":")[-1]
+        is_baseline = not connections and use_baseline_fallback
+        policy_suffix = "-baseline" if is_baseline else ""
         policy = IAMPolicy(
-            name=f"{name}-{scope.value}",
+            name=f"{principal_name}-{scope.value}{policy_suffix}",
             description=(
-                f"Least privilege {scope.value} policy for {name}. "
-                f"Generated by RepliMap."
+                f"{'Baseline ' if is_baseline else ''}Least privilege {scope.value} "
+                f"policy for {principal_name}. Generated by RepliMap."
             ),
             statements=statements,
         )
@@ -1274,5 +1480,6 @@ __all__ = [
     "IAMStatement",
     "IAMPolicy",
     "PolicyOptimizer",
+    "BaselinePolicyGenerator",
     "GraphAwareIAMGenerator",
 ]

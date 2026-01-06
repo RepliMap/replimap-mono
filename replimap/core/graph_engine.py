@@ -1,6 +1,20 @@
 """
 Graph Engine for RepliMap.
 
+.. deprecated::
+    GraphEngine is deprecated and will be removed in a future release.
+    Use GraphEngineAdapter from replimap.core.unified_storage instead,
+    which provides the same API with SQLite-based storage.
+
+    Migration example:
+        # Old:
+        from replimap.core.graph_engine import GraphEngine
+        graph = GraphEngine()
+
+        # New:
+        from replimap.core.unified_storage import GraphEngineAdapter
+        graph = GraphEngineAdapter()
+
 The GraphEngine is the core data structure that maintains the dependency
 graph of AWS resources. It wraps networkx.DiGraph and provides domain-specific
 methods for resource management and traversal.
@@ -23,6 +37,7 @@ import json
 import logging
 import re
 import threading
+import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,6 +50,8 @@ from .models import DependencyType, ResourceNode, ResourceType
 from .sanitizer import sanitize_resource_config
 
 logger = logging.getLogger(__name__)
+
+_DEPRECATION_WARNED = False
 
 
 class RepliMapJSONEncoder(json.JSONEncoder):
@@ -219,10 +236,25 @@ class GraphEngine:
         """
         Initialize an empty graph.
 
+        .. deprecated::
+            GraphEngine is deprecated. Use GraphEngineAdapter from
+            replimap.core.unified_storage instead.
+
         Args:
             create_phantom_nodes: If True, automatically create phantom nodes
                 for missing dependencies instead of raising errors.
         """
+        global _DEPRECATION_WARNED
+        if not _DEPRECATION_WARNED:
+            warnings.warn(
+                "GraphEngine is deprecated and will be removed in a future release. "
+                "Use GraphEngineAdapter from replimap.core.unified_storage instead, "
+                "which provides the same API with SQLite-based storage.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            _DEPRECATION_WARNED = True
+
         self._graph: nx.DiGraph = nx.DiGraph()
         self._resources: dict[str, ResourceNode] = {}
         self._lock: threading.RLock = threading.RLock()

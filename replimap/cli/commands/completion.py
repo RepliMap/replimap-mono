@@ -74,9 +74,13 @@ def register(app: typer.Typer) -> None:
         """Show installation instructions for shell completion.
 
         \b
+
         Examples:
+
             replimap completion install bash
+
             replimap completion install zsh
+
             replimap completion install fish
         """
         if shell not in ("bash", "zsh", "fish"):
