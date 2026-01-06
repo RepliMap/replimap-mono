@@ -66,19 +66,24 @@ def unused_command(
         help="Force fresh AWS scan (ignore cached graph)",
     ),
 ) -> None:
-    """
-    Detect unused and underutilized AWS resources.
+    """Detect unused and underutilized AWS resources.
 
-    \b
-    Identifies resources that may be candidates for termination
-    or optimization to reduce costs.
+        \b
 
-    \b
-    Examples:
-        replimap unused -r us-east-1
-        replimap unused -r us-east-1 --confidence high
-        replimap unused -r us-east-1 --types ec2,ebs
-        replimap unused -r us-east-1 -f json -o unused.json
+        Identifies resources that may be candidates for termination
+        or optimization to reduce costs.
+
+        \b
+
+        Examples:
+
+            replimap unused -r us-east-1
+
+            replimap unused -r us-east-1 --confidence high
+
+            replimap unused -r us-east-1 --types ec2,ebs
+
+            replimap unused -r us-east-1 -f json -o unused.json
     """
     from replimap.cost.unused_detector import (
         ConfidenceLevel,

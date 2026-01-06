@@ -113,21 +113,29 @@ def create_iam_app() -> typer.Typer:
             help="Don't generate baseline policy when no dependencies found",
         ),
     ) -> None:
-        """
-        Generate IAM policy for a specific compute resource.
+        """Generate IAM policy for a specific compute resource.
+
+        \b
 
         Uses graph analysis to find connected resources and generates
         permissions ONLY for those specific resources with precise ARNs.
 
         \b
+
         This prevents over-permissioning by using boundary-aware traversal:
+
         - TERMINAL resources (other Lambda/EC2) block traversal
+
         - DATA resources (S3, SQS, DynamoDB) grant permissions but don't continue
+
         - SECURITY resources (KMS, Secrets) always include encryption deps
+
         - TRANSITIVE resources (VPC, Subnet) pass through without permissions
 
         \b
+
         Examples:
+
             # Read-only policy for Lambda
             replimap iam for-resource -p prod -r my-lambda -s runtime_read
 
@@ -135,8 +143,8 @@ def create_iam_app() -> typer.Typer:
             replimap iam for-resource -p prod -r my-lambda -s runtime_full
 
             # Generate Terraform with role creation
-            replimap iam for-resource -p prod -r my-lambda \\
-                -f terraform --create-role --role-name my-lambda-role
+            replimap iam for-resource -p prod -r my-lambda -f terraform
+                --create-role --role-name my-lambda-role
 
             # Save to file
             replimap iam for-resource -p prod -r my-lambda -o policy.json
@@ -278,14 +286,17 @@ def create_iam_app() -> typer.Typer:
             help="AWS region",
         ),
     ) -> None:
-        """
-        List compute resources that can have IAM policies generated.
-
-        Shows Lambda functions, EC2 instances, ECS tasks, etc. that
-        can be used with 'replimap iam for-resource'.
+        """List compute resources that can have IAM policies generated.
 
         \b
+
+        Shows Lambda functions, EC2 instances, ECS tasks, etc. that can be used
+        with 'replimap iam for-resource'.
+
+        \b
+
         Examples:
+
             replimap iam list-compute -p prod
         """
         # Determine region

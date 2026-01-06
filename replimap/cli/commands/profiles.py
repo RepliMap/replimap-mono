@@ -20,14 +20,16 @@ def register(app: typer.Typer) -> None:
 
     @app.command()
     def profiles() -> None:
-        """
-        List available AWS profiles.
+        """List available AWS profiles.
 
         \b
+
         Shows all configured AWS profiles from ~/.aws/config and ~/.aws/credentials.
 
         \b
+
         Examples:
+
             replimap profiles
         """
         available = get_available_profiles()

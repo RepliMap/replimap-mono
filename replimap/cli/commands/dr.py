@@ -33,16 +33,21 @@ def create_dr_app() -> typer.Typer:
             None, "--region", "-r", help="Primary AWS region"
         ),
     ) -> None:
-        """
-        Disaster Recovery readiness assessment.
+        """Disaster Recovery readiness assessment.
+
+        \b
 
         Common options (--profile, --region) can be specified before the subcommand
         or at the global level (e.g., replimap -p prod dr assess).
 
         \b
+
         Examples:
+
             replimap -p prod dr assess
+
             replimap dr -p prod assess
+
             replimap dr -p prod scorecard
         """
         ctx.ensure_object(dict)

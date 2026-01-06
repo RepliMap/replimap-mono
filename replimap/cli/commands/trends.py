@@ -43,17 +43,21 @@ def trends_command(
         help="Don't use cached credentials",
     ),
 ) -> None:
-    """
-    Analyze AWS cost trends and detect anomalies.
+    """Analyze AWS cost trends and detect anomalies.
 
-    \b
-    Uses AWS Cost Explorer to analyze historical spending patterns.
+        \b
 
-    \b
-    Examples:
-        replimap trends
-        replimap trends --days 90
-        replimap trends -f json -o trends.json
+        Uses AWS Cost Explorer to analyze historical spending patterns.
+
+        \b
+
+        Examples:
+
+            replimap trends
+
+            replimap trends --days 90
+
+            replimap trends -f json -o trends.json
     """
     from replimap.cost.trends import CostTrendAnalyzer
     from replimap.licensing import check_cost_allowed

@@ -86,34 +86,50 @@ def graph_command(
         help="Force fresh AWS scan (ignore cached graph)",
     ),
 ) -> None:
-    """
-    Generate visual dependency graph of AWS infrastructure.
+    """Generate visual dependency graph of AWS infrastructure.
 
-    \b
-    Scans your AWS environment and generates an interactive visualization
-    showing resources and their dependencies.
+        \b
 
-    \b
-    By default, the graph is simplified for readability:
-    - Noisy resources (SG rules, routes) are hidden
-    - Large groups of similar resources are collapsed
+        Scans your AWS environment and generates an interactive visualization
+        showing resources and their dependencies.
 
-    \b
-    Output formats:
-    - html: Interactive D3.js force-directed graph (default)
-    - mermaid: Mermaid diagram syntax for documentation
-    - json: Raw JSON data for integration
+        \b
 
-    \b
-    Examples:
-        replimap graph --region us-east-1
-        replimap graph -p prod -r us-west-2 -v vpc-abc123
-        replimap graph -r us-east-1 --all           # Show everything
-        replimap graph -r us-east-1 --sg-rules      # Include SG rules
-        replimap graph -r us-east-1 --routes        # Include routes
-        replimap graph -r us-east-1 --no-collapse   # No grouping
-        replimap graph -r us-east-1 --security      # Security focus
-        replimap graph -r us-east-1 --format mermaid -o docs/graph.md
+        By default, the graph is simplified for readability:
+
+        - Noisy resources (SG rules, routes) are hidden
+
+        - Large groups of similar resources are collapsed
+
+        \b
+
+        Output formats:
+
+        - html: Interactive D3.js force-directed graph (default)
+
+        - mermaid: Mermaid diagram syntax for documentation
+
+        - json: Raw JSON data for integration
+
+        \b
+
+        Examples:
+
+            replimap graph --region us-east-1
+
+            replimap graph -p prod -r us-west-2 -v vpc-abc123
+
+            replimap graph -r us-east-1 --all           # Show everything
+
+            replimap graph -r us-east-1 --sg-rules      # Include SG rules
+
+            replimap graph -r us-east-1 --routes        # Include routes
+
+            replimap graph -r us-east-1 --no-collapse   # No grouping
+
+            replimap graph -r us-east-1 --security      # Security focus
+
+            replimap graph -r us-east-1 --format mermaid -o docs/graph.md
     """
     from replimap.graph import GraphVisualizer, OutputFormat
 

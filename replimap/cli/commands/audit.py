@@ -290,27 +290,37 @@ def audit_command(
         help="Show all findings in terminal (default: summary only)",
     ),
 ) -> None:
-    """
-    Run security audit on AWS infrastructure.
+    """Run security audit on AWS infrastructure.
 
-    \b
-    Scans your AWS environment, generates a forensic Terraform snapshot,
-    runs Checkov security analysis, and produces an HTML report with
-    findings mapped to SOC2 controls.
+        \b
 
-    \b
-    Requires Checkov to be installed: pip install checkov
+        Scans your AWS environment, generates a forensic Terraform snapshot,
+        runs Checkov security analysis, and produces an HTML report with
+        findings mapped to SOC2 controls.
 
-    \b
-    Examples:
-        replimap audit --region us-east-1
-        replimap audit -p prod -r ap-southeast-2 -v vpc-abc123
-        replimap audit -r us-west-2 --no-open
-        replimap audit -r us-east-1 --fail-on-high --no-open  # CI/CD mode
-        replimap audit -r us-east-1 --fail-on-score 70 --no-open
-        replimap audit -r us-east-1 --format json
-        replimap audit -r us-east-1 --fix --fix-output ./remediation
-        replimap audit -r us-east-1 --verbose  # Show all findings
+        \b
+
+        Requires Checkov to be installed: pip install checkov
+
+        \b
+
+        Examples:
+
+            replimap audit --region us-east-1
+
+            replimap audit -p prod -r ap-southeast-2 -v vpc-abc123
+
+            replimap audit -r us-west-2 --no-open
+
+            replimap audit -r us-east-1 --fail-on-high --no-open  # CI/CD mode
+
+            replimap audit -r us-east-1 --fail-on-score 70 --no-open
+
+            replimap audit -r us-east-1 --format json
+
+            replimap audit -r us-east-1 --fix --fix-output ./remediation
+
+            replimap audit -r us-east-1 --verbose  # Show all findings
     """
     from replimap.audit import AuditEngine, CheckovNotInstalledError
 
