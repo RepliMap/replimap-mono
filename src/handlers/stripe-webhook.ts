@@ -2,12 +2,20 @@
  * Stripe Webhook Handler
  * POST /v1/webhooks/stripe
  *
- * Handles Stripe subscription lifecycle events
+ * Handles Stripe subscription lifecycle events AND one-time lifetime payments.
+ *
+ * Flow for Subscriptions:
+ *   checkout.session.completed (mode=subscription) → Creates user
+ *   customer.subscription.created → Creates license
+ *
+ * Flow for Lifetime Deals:
+ *   checkout.session.completed (mode=payment) → Creates user + license immediately
+ *   charge.refunded → Revokes lifetime license
  */
 
 import type { Env } from '../types/env';
-import { generateLicenseKey, timestampToISO } from '../lib/license';
-import { getPlanFromPriceId, isPlanDowngrade } from '../lib/constants';
+import { generateLicenseKey, timestampToISO, nowISO } from '../lib/license';
+import { getPlanFromPriceId, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY } from '../lib/constants';
 import {
   createDb,
   type DrizzleDb,
@@ -15,8 +23,12 @@ import {
   getUserByStripeCustomerId,
   createLicense,
   getLicenseBySubscriptionId,
+  getLicenseBySessionId,
+  getLifetimeLicenseByUserId,
   updateLicensePlan,
   updateLicenseStatus,
+  revokeLicense,
+  cancelLicense,
   isEventProcessed,
   markEventProcessed,
   deactivateAllDevices,
@@ -32,7 +44,8 @@ type StripeEventType =
   | 'customer.subscription.deleted'
   | 'customer.deleted'
   | 'invoice.paid'
-  | 'invoice.payment_failed';
+  | 'invoice.payment_failed'
+  | 'charge.refunded';
 
 interface StripeEvent {
   id: string;
@@ -77,8 +90,23 @@ interface StripeCheckoutSession {
   id: string;
   customer: string;
   customer_email: string;
-  subscription: string;
-  mode: string;
+  subscription: string | null;
+  mode: 'subscription' | 'payment' | 'setup';
+  metadata?: Record<string, string>;
+  line_items?: {
+    data: Array<{
+      price: {
+        id: string;
+      };
+    }>;
+  };
+}
+
+interface StripeCharge {
+  id: string;
+  customer: string | null;
+  metadata?: Record<string, string>;
+  payment_intent?: string;
 }
 
 /**
@@ -146,18 +174,96 @@ async function verifyStripeSignature(
 
 /**
  * Handle checkout.session.completed
- * Creates user if needed, prepares for subscription creation
+ *
+ * For subscription mode: Creates user, waits for subscription.created event
+ * For payment mode (lifetime): Creates user + license immediately
  */
 async function handleCheckoutCompleted(
   db: DrizzleDb,
-  session: StripeCheckoutSession
+  session: StripeCheckoutSession,
+  env: Env
 ): Promise<void> {
-  if (session.mode !== 'subscription') {
-    return; // Only handle subscription checkouts
+  console.log(`[Stripe] Checkout completed: ${session.id}, mode: ${session.mode}`);
+
+  // Find or create user first (needed for both modes)
+  const user = await findOrCreateUser(db, session.customer_email, session.customer);
+
+  if (session.mode === 'subscription') {
+    // For subscriptions, just ensure user exists. License created in subscription.created event.
+    console.log(`[Stripe] Subscription checkout for user ${user.id}, waiting for subscription.created`);
+    return;
   }
 
-  // Find or create user
-  await findOrCreateUser(db, session.customer_email, session.customer);
+  if (session.mode === 'payment') {
+    // For one-time payments (lifetime deals), create license immediately
+    await createLifetimeLicense(db, session, user, env);
+    return;
+  }
+
+  console.log(`[Stripe] Ignoring checkout mode: ${session.mode}`);
+}
+
+/**
+ * Create a lifetime license from a one-time payment.
+ * Uses session ID for idempotency.
+ */
+async function createLifetimeLicense(
+  db: DrizzleDb,
+  session: StripeCheckoutSession,
+  user: { id: string; email: string },
+  env: Env
+): Promise<void> {
+  // Idempotency check - ensure we don't process the same session twice
+  const existingLicense = await getLicenseBySessionId(db, session.id);
+  if (existingLicense) {
+    console.log(`[Stripe] Session ${session.id} already processed, skipping`);
+    return;
+  }
+
+  // Resolve plan from price mapping
+  const priceMapping = getStripePriceMapping(env);
+  let plan: 'free' | 'solo' | 'pro' | 'team' = 'solo';
+  let priceId: string | null = null;
+
+  // Try to get price from metadata first
+  if (session.metadata?.plan) {
+    plan = session.metadata.plan as typeof plan;
+  }
+
+  // Try to get from line items
+  if (session.line_items?.data?.[0]?.price?.id) {
+    priceId = session.line_items.data[0].price.id;
+    const planInfo = priceMapping[priceId];
+    if (planInfo) {
+      plan = planInfo.plan;
+    }
+  }
+
+  console.log(`[Stripe] Creating Lifetime license: user=${user.id}, plan=${plan}`);
+
+  // Create lifetime license
+  try {
+    await createLicense(db, {
+      userId: user.id,
+      licenseKey: generateLicenseKey(),
+      plan,
+      planType: 'lifetime',
+      stripeSessionId: session.id,
+      stripePriceId: priceId ?? undefined,
+      currentPeriodStart: nowISO(),
+      currentPeriodEnd: LIFETIME_EXPIRY,
+    });
+
+    console.log(`[Stripe] Lifetime license created for user ${user.id} (session ${session.id})`);
+  } catch (error) {
+    // Handle race condition: if UNIQUE constraint fails, check if license exists
+    const existingAfterRace = await getLicenseBySessionId(db, session.id);
+    if (existingAfterRace) {
+      console.log(`[Stripe] License created by concurrent request for session ${session.id}`);
+      return;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -310,7 +416,8 @@ async function handleSubscriptionDeleted(
     return;
   }
 
-  await updateLicenseStatus(db, license.id, 'canceled');
+  await cancelLicense(db, license.id);
+  console.log(`[Stripe] License ${license.id} canceled`);
 }
 
 /**
@@ -397,6 +504,56 @@ async function handleCustomerDeleted(
 }
 
 /**
+ * Handle charge.refunded
+ * Revokes lifetime licenses when payment is refunded.
+ *
+ * NOTE: This only affects lifetime licenses. Subscription refunds are handled
+ * through subscription.deleted event which is triggered by Stripe when a
+ * subscription is canceled after refund.
+ */
+async function handleChargeRefunded(
+  db: DrizzleDb,
+  charge: StripeCharge
+): Promise<void> {
+  console.log(`[Stripe] Charge refunded: ${charge.id}`);
+
+  if (!charge.customer) {
+    console.warn(`[Stripe] No customer on refunded charge ${charge.id}`);
+    return;
+  }
+
+  // Get user by Stripe customer ID
+  const user = await getUserByStripeCustomerId(db, charge.customer);
+  if (!user) {
+    console.warn(`[Stripe] No user found for refunded charge customer ${charge.customer}`);
+    return;
+  }
+
+  // Find the most recent lifetime license for this user
+  const license = await getLifetimeLicenseByUserId(db, user.id);
+
+  if (!license) {
+    console.log(`[Stripe] No lifetime license found for user ${user.id}, ignoring refund`);
+    return;
+  }
+
+  // Only revoke if it's an active lifetime license
+  if (license.planType !== 'lifetime') {
+    console.log(`[Stripe] License ${license.id} is not lifetime (${license.planType}), ignoring refund`);
+    return;
+  }
+
+  if (license.status !== 'active') {
+    console.log(`[Stripe] License ${license.id} already ${license.status}, ignoring refund`);
+    return;
+  }
+
+  // Revoke the license
+  await revokeLicense(db, license.id, `Refunded: charge_${charge.id}`);
+  console.log(`[Stripe] Lifetime license ${license.id} revoked due to refund`);
+}
+
+/**
  * Main webhook handler
  */
 export async function handleStripeWebhook(
@@ -460,7 +617,8 @@ export async function handleStripeWebhook(
       case 'checkout.session.completed':
         await handleCheckoutCompleted(
           db,
-          event.data.object as unknown as StripeCheckoutSession
+          event.data.object as unknown as StripeCheckoutSession,
+          env
         );
         break;
 
@@ -514,6 +672,13 @@ export async function handleStripeWebhook(
         await handleCustomerDeleted(
           db,
           event.data.object as unknown as StripeCustomer
+        );
+        break;
+
+      case 'charge.refunded':
+        await handleChargeRefunded(
+          db,
+          event.data.object as unknown as StripeCharge
         );
         break;
 

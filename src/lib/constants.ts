@@ -3,12 +3,21 @@
  */
 
 import type { PlanFeatures } from '../types';
+import type { Env } from '../types/env';
 
 // ============================================================================
 // Plan Configuration
 // ============================================================================
 
 export type PlanType = 'free' | 'solo' | 'pro' | 'team';
+export type PlanBillingType = 'free' | 'monthly' | 'annual' | 'lifetime';
+
+// ============================================================================
+// Lifetime Plan Constants
+// ============================================================================
+
+/** Far future expiry date for lifetime licenses - effectively "never expires" */
+export const LIFETIME_EXPIRY = '2099-12-31T23:59:59.000Z';
 
 export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
   free: {
@@ -228,6 +237,92 @@ export const PLAN_TO_STRIPE_ANNUAL_PRICE: Record<string, string> = {
  */
 export function getPlanFromPriceId(priceId: string): PlanType {
   return STRIPE_PRICE_TO_PLAN[priceId] ?? 'free';
+}
+
+// ============================================================================
+// Lifetime Price ID Configuration
+// ============================================================================
+
+/**
+ * Stripe Lifetime Price ID to Plan mapping.
+ * These are one-time payment products, not subscriptions.
+ *
+ * Structure: { priceId: { plan, billingType } }
+ */
+export const STRIPE_LIFETIME_PRICE_TO_PLAN: Record<string, { plan: PlanType; billingType: PlanBillingType }> = {
+  // Development/test lifetime price IDs
+  'price_test_solo_lifetime': { plan: 'solo', billingType: 'lifetime' },
+  'price_test_pro_lifetime': { plan: 'pro', billingType: 'lifetime' },
+  // Production lifetime price IDs - will be added from env
+};
+
+/**
+ * Check if a price ID is for a lifetime deal.
+ */
+export function isLifetimePriceId(priceId: string): boolean {
+  return priceId in STRIPE_LIFETIME_PRICE_TO_PLAN;
+}
+
+/**
+ * Get plan info from price ID, including billing type.
+ * Checks both subscription and lifetime price mappings.
+ */
+export function getPlanInfoFromPriceId(priceId: string): { plan: PlanType; billingType: PlanBillingType } {
+  // Check lifetime prices first
+  if (priceId in STRIPE_LIFETIME_PRICE_TO_PLAN) {
+    return STRIPE_LIFETIME_PRICE_TO_PLAN[priceId];
+  }
+
+  // Check annual prices
+  const annualPrices = Object.values(PLAN_TO_STRIPE_ANNUAL_PRICE);
+  if (annualPrices.includes(priceId)) {
+    return { plan: STRIPE_PRICE_TO_PLAN[priceId] ?? 'free', billingType: 'annual' };
+  }
+
+  // Default to monthly subscription
+  return { plan: STRIPE_PRICE_TO_PLAN[priceId] ?? 'free', billingType: 'monthly' };
+}
+
+/**
+ * Get dynamic Stripe price mapping from environment variables.
+ * This allows configuring lifetime price IDs without code changes.
+ */
+export function getStripePriceMapping(env: Env): Record<string, { plan: PlanType; billingType: PlanBillingType }> {
+  const mapping: Record<string, { plan: PlanType; billingType: PlanBillingType }> = {
+    ...STRIPE_LIFETIME_PRICE_TO_PLAN,
+  };
+
+  // Add monthly subscriptions
+  for (const [priceId, plan] of Object.entries(STRIPE_PRICE_TO_PLAN)) {
+    mapping[priceId] = { plan, billingType: 'monthly' };
+  }
+
+  // Add annual subscriptions
+  for (const [plan, priceId] of Object.entries(PLAN_TO_STRIPE_ANNUAL_PRICE)) {
+    if (priceId) {
+      mapping[priceId] = { plan: plan as PlanType, billingType: 'annual' };
+    }
+  }
+
+  // Add lifetime prices from environment if configured
+  if (env.STRIPE_SOLO_LIFETIME_PRICE_ID) {
+    mapping[env.STRIPE_SOLO_LIFETIME_PRICE_ID] = { plan: 'solo', billingType: 'lifetime' };
+  }
+  if (env.STRIPE_PRO_LIFETIME_PRICE_ID) {
+    mapping[env.STRIPE_PRO_LIFETIME_PRICE_ID] = { plan: 'pro', billingType: 'lifetime' };
+  }
+
+  return mapping;
+}
+
+/**
+ * Get lifetime price IDs from environment.
+ */
+export function getLifetimePriceIds(env: Env): string[] {
+  const ids: string[] = [];
+  if (env.STRIPE_SOLO_LIFETIME_PRICE_ID) ids.push(env.STRIPE_SOLO_LIFETIME_PRICE_ID);
+  if (env.STRIPE_PRO_LIFETIME_PRICE_ID) ids.push(env.STRIPE_PRO_LIFETIME_PRICE_ID);
+  return ids;
 }
 
 // ============================================================================
