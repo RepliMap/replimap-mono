@@ -1,0 +1,48 @@
+---
+title: Quick Start
+description: Run your first RepliMap scan in under 2 minutes
+---
+
+# Quick Start
+
+Get started with RepliMap in under 2 minutes.
+
+## Run Your First Scan
+
+```bash
+replimap scan --profile default --region us-east-1
+```
+
+Output:
+
+```
+Scanning: VPC, EC2, RDS, Lambda, S3...
+✓ Found 1,847 resources
+✓ Mapped 2,156 dependencies
+✓ Generated Terraform in ./output/
+```
+
+## Review Generated Code
+
+```
+output/
+├── main.tf
+├── variables.tf
+├── vpc.tf
+├── ec2.tf
+└── iam.tf
+```
+
+## Common Options
+
+| Flag | Description |
+|------|-------------|
+| `--profile` | AWS profile name |
+| `--region` | AWS region to scan |
+| `--output` | Output directory |
+| `--format` | Output format: terraform, json |
+
+## Need Help?
+
+- Check [Pricing](/#pricing) for export options
+- Contact us at hello@replimap.com
