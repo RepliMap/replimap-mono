@@ -1,0 +1,111 @@
+---
+title: Contributing
+description: How to contribute to RepliMap
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+Thank you for your interest in contributing to RepliMap!
+
+## Getting Started
+
+1. **Fork the repository**
+
+2. **Clone your fork:**
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/replimap.git
+   cd replimap
+   ```
+
+3. **Install development dependencies:**
+   ```bash
+   pip install -e ".[dev]"
+   ```
+
+4. **Create a feature branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+## Development Workflow
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=replimap
+
+# Run specific test file
+pytest tests/test_scanner.py
+```
+
+### Code Style
+
+We use `ruff` for linting and formatting:
+
+```bash
+# Check for issues
+ruff check .
+
+# Auto-fix issues
+ruff check --fix .
+
+# Format code
+ruff format .
+```
+
+### Type Checking
+
+```bash
+mypy replimap
+```
+
+## Pull Request Guidelines
+
+1. Create a feature branch from `main`
+2. Make your changes with clear commit messages
+3. Add tests for new functionality
+4. Ensure all tests pass
+5. Update documentation if needed
+6. Submit a pull request with a clear description
+
+### Commit Message Format
+
+```
+type: short description
+
+Longer description if needed.
+
+Fixes #123
+```
+
+Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+
+## Reporting Issues
+
+### Bug Reports
+
+Open an issue on [GitHub](https://github.com/RepliMap/replimap/issues) with:
+- Description of the bug
+- Steps to reproduce
+- Expected vs actual behavior
+- RepliMap version (`replimap --version`)
+- Python version
+- OS
+
+### Security Issues
+
+<Callout type="warn">
+  **Do not open public issues for security vulnerabilities.**
+  
+  Email [support@replimap.com](mailto:support@replimap.com) instead.
+</Callout>
+
+## Questions?
+
+- **General**: [hello@replimap.com](mailto:hello@replimap.com)
+- **Technical Support**: [support@replimap.com](mailto:support@replimap.com)
+- **Discussions**: [GitHub Discussions](https://github.com/RepliMap/replimap/discussions)
