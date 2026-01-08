@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, BookOpen, Copy, Check } from "lucide-react"
+import { WaitlistModal } from "@/components/waitlist-modal"
 import { useState } from "react"
 
 export function CallToAction() {
@@ -25,12 +26,12 @@ export function CallToAction() {
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button asChild size="lg" className="bg-emerald-500 hover:bg-emerald-600 h-12 px-8">
-            <Link href="#pricing">
+          <WaitlistModal source="footer_cta">
+            <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 h-12 px-8">
               Get Started Free
               <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+            </Button>
+          </WaitlistModal>
           <Button
             asChild
             size="lg"

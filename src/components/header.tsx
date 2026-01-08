@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Github, Menu, Terminal, Star } from "lucide-react"
+import { WaitlistModal } from "@/components/waitlist-modal"
 
 export function Header() {
   // Controlled state for mobile sheet - ensures it closes on navigation
@@ -60,10 +61,12 @@ export function Header() {
             </Badge>
           </Link>
 
-          {/* Primary CTA - Links to pricing instead of non-existent sign-up */}
-          <Button asChild size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-            <Link href="#pricing">Get Started</Link>
-          </Button>
+          {/* Primary CTA */}
+          <WaitlistModal source="nav">
+            <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
+              Get Started
+            </Button>
+          </WaitlistModal>
 
           {/* Mobile Menu */}
           <Sheet open={open} onOpenChange={setOpen}>
@@ -96,13 +99,14 @@ export function Header() {
                     <Github className="w-4 h-4" />
                     View on GitHub
                   </Link>
-                  <Button
-                    asChild
-                    className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                    onClick={handleLinkClick}
-                  >
-                    <Link href="#pricing">Get Started</Link>
-                  </Button>
+                  <WaitlistModal source="nav_mobile">
+                    <Button
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                      onClick={handleLinkClick}
+                    >
+                      Get Started
+                    </Button>
+                  </WaitlistModal>
                 </div>
               </nav>
             </SheetContent>
