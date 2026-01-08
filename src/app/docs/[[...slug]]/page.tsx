@@ -25,7 +25,7 @@ export default async function Page(props: {
   const page = source.getPage(params.slug)
   if (!page) notFound()
 
-  const data = page.data as ExtendedPageData
+  const data = page.data as unknown as ExtendedPageData
   const MDX = data.body
 
   return (
@@ -50,7 +50,7 @@ export async function generateMetadata(props: {
   const page = source.getPage(params.slug)
   if (!page) notFound()
 
-  const data = page.data as ExtendedPageData
+  const data = page.data as unknown as ExtendedPageData
 
   return {
     title: `${data.title} | RepliMap Docs`,
