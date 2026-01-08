@@ -14,6 +14,7 @@ import { generateId, nowISO, normalizeLicenseKey, normalizeMachineId } from './l
 export type {
   License,
   LicenseMachine,
+  LicensePlanType,
   User,
   UsageLog,
   ProcessedEvent,
@@ -285,7 +286,8 @@ export async function getActiveCIDeviceCount(
 // ============================================================================
 
 /**
- * Create a new license
+ * Create a new license.
+ * Supports both subscription-based and lifetime licenses.
  */
 export async function createLicense(
   db: DrizzleDb,
@@ -293,8 +295,10 @@ export async function createLicense(
     userId: string;
     licenseKey: string;
     plan: schema.LicensePlan;
+    planType?: schema.LicensePlanType;
     stripeSubscriptionId?: string;
     stripePriceId?: string;
+    stripeSessionId?: string;  // For lifetime idempotency
     currentPeriodStart?: string;
     currentPeriodEnd?: string;
   }
@@ -307,9 +311,11 @@ export async function createLicense(
     userId: data.userId,
     licenseKey: data.licenseKey,
     plan: data.plan,
+    planType: data.planType ?? 'monthly',
     status: 'active',
     stripeSubscriptionId: data.stripeSubscriptionId ?? null,
     stripePriceId: data.stripePriceId ?? null,
+    stripeSessionId: data.stripeSessionId ?? null,
     currentPeriodStart: data.currentPeriodStart ?? null,
     currentPeriodEnd: data.currentPeriodEnd ?? null,
     createdAt: now,
@@ -345,6 +351,7 @@ export async function updateLicensePlan(
   licenseId: string,
   data: {
     plan?: schema.LicensePlan;
+    planType?: schema.LicensePlanType;
     status?: schema.LicenseStatus;
     stripePriceId?: string;
     currentPeriodStart?: string;
@@ -354,6 +361,7 @@ export async function updateLicensePlan(
   const updates: Partial<schema.License> = { updatedAt: nowISO() };
 
   if (data.plan) updates.plan = data.plan;
+  if (data.planType) updates.planType = data.planType;
   if (data.status) updates.status = data.status;
   if (data.stripePriceId) updates.stripePriceId = data.stripePriceId;
   if (data.currentPeriodStart) updates.currentPeriodStart = data.currentPeriodStart;
@@ -791,4 +799,84 @@ export async function deactivateAllDevices(
     );
 
   return result.meta?.changes ?? 0;
+}
+
+// ============================================================================
+// Lifetime License Support
+// ============================================================================
+
+/**
+ * Get license by Stripe checkout session ID.
+ * Used for idempotency check on lifetime purchases.
+ */
+export async function getLicenseBySessionId(
+  db: DrizzleDb,
+  sessionId: string
+): Promise<schema.License | null> {
+  const result = await db.query.licenses.findFirst({
+    where: eq(schema.licenses.stripeSessionId, sessionId),
+  });
+
+  return result ?? null;
+}
+
+/**
+ * Get the most recent lifetime license for a user.
+ * Used for refund processing when charge.refunded doesn't include session ID.
+ */
+export async function getLifetimeLicenseByUserId(
+  db: DrizzleDb,
+  userId: string
+): Promise<schema.License | null> {
+  const result = await db.query.licenses.findFirst({
+    where: and(
+      eq(schema.licenses.userId, userId),
+      eq(schema.licenses.planType, 'lifetime')
+    ),
+    orderBy: desc(schema.licenses.createdAt),
+  });
+
+  return result ?? null;
+}
+
+/**
+ * Revoke a license (for refund handling).
+ * Sets status to 'revoked' with reason and timestamp.
+ */
+export async function revokeLicense(
+  db: DrizzleDb,
+  licenseId: string,
+  reason: string
+): Promise<void> {
+  const now = nowISO();
+
+  await db
+    .update(schema.licenses)
+    .set({
+      status: 'revoked',
+      revokedAt: now,
+      revokedReason: reason,
+      updatedAt: now,
+    })
+    .where(eq(schema.licenses.id, licenseId));
+}
+
+/**
+ * Cancel a license (for subscription cancellation).
+ * Sets status to 'canceled' with timestamp.
+ */
+export async function cancelLicense(
+  db: DrizzleDb,
+  licenseId: string
+): Promise<void> {
+  const now = nowISO();
+
+  await db
+    .update(schema.licenses)
+    .set({
+      status: 'canceled',
+      canceledAt: now,
+      updatedAt: now,
+    })
+    .where(eq(schema.licenses.id, licenseId));
 }

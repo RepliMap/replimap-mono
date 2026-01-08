@@ -12,6 +12,11 @@ import {
   getPlanFromPriceId,
   STRIPE_PRICE_TO_PLAN,
   PLAN_TO_STRIPE_PRICE,
+  LIFETIME_EXPIRY,
+  getPlanInfoFromPriceId,
+  isLifetimePriceId,
+  getStripePriceMapping,
+  getLifetimePriceIds,
 } from '../src/lib/constants';
 
 describe('Plan Features', () => {
@@ -118,5 +123,115 @@ describe('Stripe Price Mapping', () => {
     expect(getPlanFromPriceId('price_test_solo')).toBe('solo');
     expect(getPlanFromPriceId('price_test_pro')).toBe('pro');
     expect(getPlanFromPriceId('price_test_team')).toBe('team');
+  });
+});
+
+describe('Lifetime Plan Constants', () => {
+  describe('LIFETIME_EXPIRY', () => {
+    it('should be defined as far future date', () => {
+      expect(LIFETIME_EXPIRY).toBe('2099-12-31T23:59:59.000Z');
+    });
+
+    it('should be a valid ISO date string', () => {
+      const date = new Date(LIFETIME_EXPIRY);
+      expect(date.toString()).not.toBe('Invalid Date');
+      expect(date.getFullYear()).toBe(2099);
+    });
+  });
+
+  describe('isLifetimePriceId', () => {
+    it('should return true for test lifetime price IDs', () => {
+      expect(isLifetimePriceId('price_test_solo_lifetime')).toBe(true);
+      expect(isLifetimePriceId('price_test_pro_lifetime')).toBe(true);
+    });
+
+    it('should return false for subscription price IDs', () => {
+      expect(isLifetimePriceId('price_test_solo')).toBe(false);
+      expect(isLifetimePriceId('price_test_pro')).toBe(false);
+    });
+
+    it('should return false for unknown price IDs', () => {
+      expect(isLifetimePriceId('unknown')).toBe(false);
+    });
+  });
+
+  describe('getPlanInfoFromPriceId', () => {
+    it('should return lifetime billing type for lifetime prices', () => {
+      const result = getPlanInfoFromPriceId('price_test_solo_lifetime');
+      expect(result.plan).toBe('solo');
+      expect(result.billingType).toBe('lifetime');
+    });
+
+    it('should return monthly billing type for subscription prices', () => {
+      const result = getPlanInfoFromPriceId('price_test_solo');
+      expect(result.plan).toBe('solo');
+      expect(result.billingType).toBe('monthly');
+    });
+
+    it('should return free plan for unknown prices', () => {
+      const result = getPlanInfoFromPriceId('unknown');
+      expect(result.plan).toBe('free');
+      expect(result.billingType).toBe('monthly');
+    });
+  });
+
+  describe('getStripePriceMapping', () => {
+    it('should include test lifetime prices', () => {
+      const mapping = getStripePriceMapping({});
+      expect(mapping['price_test_solo_lifetime']).toBeDefined();
+      expect(mapping['price_test_solo_lifetime'].billingType).toBe('lifetime');
+    });
+
+    it('should include environment-configured lifetime prices', () => {
+      const env = {
+        STRIPE_SOLO_LIFETIME_PRICE_ID: 'price_live_solo_lt',
+        STRIPE_PRO_LIFETIME_PRICE_ID: 'price_live_pro_lt',
+      };
+      const mapping = getStripePriceMapping(env);
+
+      expect(mapping['price_live_solo_lt']).toEqual({
+        plan: 'solo',
+        billingType: 'lifetime',
+      });
+      expect(mapping['price_live_pro_lt']).toEqual({
+        plan: 'pro',
+        billingType: 'lifetime',
+      });
+    });
+
+    it('should include subscription prices as monthly', () => {
+      const mapping = getStripePriceMapping({});
+      expect(mapping['price_test_solo']).toBeDefined();
+      expect(mapping['price_test_solo'].billingType).toBe('monthly');
+    });
+  });
+
+  describe('getLifetimePriceIds', () => {
+    it('should return empty array when no lifetime prices configured', () => {
+      const ids = getLifetimePriceIds({});
+      expect(ids).toEqual([]);
+    });
+
+    it('should return configured lifetime price IDs', () => {
+      const env = {
+        STRIPE_SOLO_LIFETIME_PRICE_ID: 'price_solo_lt',
+        STRIPE_PRO_LIFETIME_PRICE_ID: 'price_pro_lt',
+      };
+      const ids = getLifetimePriceIds(env);
+
+      expect(ids).toContain('price_solo_lt');
+      expect(ids).toContain('price_pro_lt');
+      expect(ids.length).toBe(2);
+    });
+
+    it('should handle partial configuration', () => {
+      const env = {
+        STRIPE_SOLO_LIFETIME_PRICE_ID: 'price_solo_lt',
+      };
+      const ids = getLifetimePriceIds(env);
+
+      expect(ids).toContain('price_solo_lt');
+      expect(ids.length).toBe(1);
+    });
   });
 });

@@ -183,6 +183,10 @@ export const creditTransaction = sqliteTable("credit_transaction", {
 /**
  * Licenses - Core licensing for RepliMap CLI
  * userId references MkSaaS `user` table (unified auth)
+ *
+ * Supports both subscription-based and one-time (lifetime) purchases.
+ * - Subscriptions: stripeSubscriptionId is set, planType is 'monthly' or 'annual'
+ * - Lifetime: stripeSessionId is set, planType is 'lifetime', currentPeriodEnd is '2099-12-31T23:59:59.000Z'
  */
 export const licenses = sqliteTable("licenses", {
     id: text("id").primaryKey(),
@@ -190,27 +194,46 @@ export const licenses = sqliteTable("licenses", {
         .notNull()
         .references(() => user.id, { onDelete: "cascade" }),
     licenseKey: text("license_key").unique().notNull(),
+
+    // Plan information
     plan: text("plan", { enum: ["free", "solo", "pro", "team"] })
         .default("free")
         .notNull(),
+    planType: text("plan_type", { enum: ["free", "monthly", "annual", "lifetime"] })
+        .default("monthly")
+        .notNull(),
+
+    // Status
     status: text("status", { enum: ["active", "canceled", "expired", "past_due", "revoked"] })
         .default("active")
         .notNull(),
+
+    // Stripe references
     stripeSubscriptionId: text("stripe_subscription_id").unique(),
     stripePriceId: text("stripe_price_id"),
+    stripeSessionId: text("stripe_session_id").unique(),  // For lifetime idempotency
+
+    // Validity period
     currentPeriodStart: text("current_period_start"),
-    currentPeriodEnd: text("current_period_end"),
+    currentPeriodEnd: text("current_period_end"),  // '2099-12-31T23:59:59.000Z' for lifetime
+
+    // Timestamps
     createdAt: text("created_at")
         .default(sql`(datetime('now'))`)
         .notNull(),
     updatedAt: text("updated_at")
         .default(sql`(datetime('now'))`)
         .notNull(),
+    canceledAt: text("canceled_at"),
+    revokedAt: text("revoked_at"),
+    revokedReason: text("revoked_reason"),
 }, (table) => ({
     licensesUserIdIdx: index("licenses_user_id_idx").on(table.userId),
     licensesLicenseKeyIdx: index("licenses_license_key_idx").on(table.licenseKey),
     licensesPlanIdx: index("licenses_plan_idx").on(table.plan),
+    licensesPlanTypeIdx: index("licenses_plan_type_idx").on(table.planType),
     licensesStatusIdx: index("licenses_status_idx").on(table.status),
+    licensesSessionIdIdx: index("licenses_session_id_idx").on(table.stripeSessionId),
 }));
 
 /**
@@ -525,6 +548,7 @@ export type License = typeof licenses.$inferSelect;
 export type NewLicense = typeof licenses.$inferInsert;
 
 export type LicensePlan = License["plan"];
+export type LicensePlanType = License["planType"];
 export type LicenseStatus = License["status"];
 
 export type LicenseMachine = typeof licenseMachines.$inferSelect;

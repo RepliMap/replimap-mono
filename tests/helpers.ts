@@ -175,12 +175,55 @@ export const mockLicense = {
   license_key: 'RM-TEST-1234-5678-ABCD',
   user_id: 'user_test_123',
   plan: 'pro',
+  plan_type: 'monthly',
   status: 'active',
   current_period_start: new Date().toISOString(),
   current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
   stripe_subscription_id: 'sub_test_123',
+  stripe_session_id: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
+  canceled_at: null,
+  revoked_at: null,
+  revoked_reason: null,
+};
+
+/** Mock lifetime license for testing one-time purchases */
+export const mockLifetimeLicense = {
+  id: 'lic_lifetime_123',
+  license_key: 'RM-LIFE-1234-5678-ABCD',
+  user_id: 'user_test_123',
+  plan: 'solo',
+  plan_type: 'lifetime',
+  status: 'active',
+  current_period_start: new Date().toISOString(),
+  current_period_end: '2099-12-31T23:59:59.000Z',
+  stripe_subscription_id: null,
+  stripe_session_id: 'cs_lifetime_123',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  canceled_at: null,
+  revoked_at: null,
+  revoked_reason: null,
+};
+
+/** Mock revoked lifetime license (after refund) */
+export const mockRevokedLicense = {
+  id: 'lic_revoked_123',
+  license_key: 'RM-REVK-1234-5678-ABCD',
+  user_id: 'user_test_123',
+  plan: 'solo',
+  plan_type: 'lifetime',
+  status: 'revoked',
+  current_period_start: new Date().toISOString(),
+  current_period_end: '2099-12-31T23:59:59.000Z',
+  stripe_subscription_id: null,
+  stripe_session_id: 'cs_revoked_123',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  canceled_at: null,
+  revoked_at: new Date().toISOString(),
+  revoked_reason: 'Refunded: charge_ch_test_123',
 };
 
 export const mockUser = {

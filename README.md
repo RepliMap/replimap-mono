@@ -65,7 +65,8 @@ replimap-backend/
 │   ├── 004_blast_to_deps_rename.sql
 │   ├── 005_add_usage_daily.sql     # Telemetry aggregation table
 │   ├── 006_add_last_seen_index.sql # Device activity queries
-│   └── 007_add_billing_index.sql   # Quota/billing queries
+│   ├── 007_add_billing_index.sql   # Quota/billing queries
+│   └── 008_add_lifetime_support.sql # Lifetime plan support
 ├── schema.sql                # Full database schema
 └── wrangler.toml             # Cloudflare config
 ```
@@ -327,6 +328,7 @@ wrangler d1 execute replimap-prod --remote --file=migrations/004_blast_to_deps_r
 wrangler d1 execute replimap-prod --remote --file=migrations/005_add_usage_daily.sql
 wrangler d1 execute replimap-prod --remote --file=migrations/006_add_last_seen_index.sql
 wrangler d1 execute replimap-prod --remote --file=migrations/007_add_billing_index.sql
+wrangler d1 execute replimap-prod --remote --file=migrations/008_add_lifetime_support.sql
 
 # Deploy
 wrangler deploy
@@ -357,6 +359,8 @@ Set via `wrangler secret put <NAME>`:
 | `STRIPE_SECRET_KEY` | Stripe API key | No |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | No |
 | `ADMIN_API_KEY` | Admin endpoint auth | Yes |
+| `STRIPE_SOLO_LIFETIME_PRICE_ID` | Stripe price ID for Solo lifetime plan | No |
+| `STRIPE_PRO_LIFETIME_PRICE_ID` | Stripe price ID for Pro lifetime plan | No |
 
 ## Database Schema
 
@@ -407,6 +411,28 @@ curl -X POST https://your-api.workers.dev/v1/usage/track \
 ```
 
 ## Changelog
+
+### v2.3.0 (2026-01)
+
+**Lifetime Plan Support:**
+- Added one-time payment (lifetime) license support alongside subscriptions
+- Stripe webhook handles `checkout.session.completed` in both `subscription` and `payment` modes
+- Lifetime licenses use `stripe_session_id` for idempotency (vs `stripe_subscription_id` for subscriptions)
+- Added `charge.refunded` handler to revoke lifetime licenses on payment refund
+- New license status: `revoked` with `revoked_at` and `revoked_reason` fields
+- Plan type tracking: `free`, `monthly`, `annual`, `lifetime`
+
+**Schema Changes:**
+- Added `plan_type` column to licenses table
+- Added `stripe_session_id` column (unique, for lifetime idempotency)
+- Added `canceled_at`, `revoked_at`, `revoked_reason` status tracking columns
+
+**Environment Variables:**
+- `STRIPE_SOLO_LIFETIME_PRICE_ID` - Configure Solo plan lifetime price
+- `STRIPE_PRO_LIFETIME_PRICE_ID` - Configure Pro plan lifetime price
+
+**Migrations:**
+- `008_add_lifetime_support.sql` - Schema changes for lifetime plans
 
 ### v2.2.0 (2025-12)
 
