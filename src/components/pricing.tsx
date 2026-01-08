@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Check, X, Sparkles } from "lucide-react"
+import { WaitlistModal } from "@/components/waitlist-modal"
 import { PLANS, ENTERPRISE_FEATURES, type PlanName, type BillingPeriod } from "@/lib/pricing"
 
 // Transform PLANS object to array for rendering, excluding enterprise (shown separately)
@@ -117,17 +118,19 @@ export function Pricing() {
               <p className="text-muted-foreground text-sm mt-2 mb-6">{plan.description}</p>
 
               {/* CTA Button */}
-              <Button
-                disabled={billingPeriod === "lifetime" && !plan.hasLifetime}
-                className={`w-full mb-6 ${
-                  plan.highlighted ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""
-                }`}
-                variant={plan.highlighted ? "default" : "outline"}
-              >
-                {billingPeriod === "lifetime" && !plan.hasLifetime
-                  ? "No Lifetime Option"
-                  : plan.cta}
-              </Button>
+              <WaitlistModal source={`pricing_${plan.key}`}>
+                <Button
+                  disabled={billingPeriod === "lifetime" && !plan.hasLifetime}
+                  className={`w-full mb-6 ${
+                    plan.highlighted ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""
+                  }`}
+                  variant={plan.highlighted ? "default" : "outline"}
+                >
+                  {billingPeriod === "lifetime" && !plan.hasLifetime
+                    ? "No Lifetime Option"
+                    : "Join Waitlist"}
+                </Button>
+              </WaitlistModal>
 
               {/* Features List */}
               <ul className="space-y-3 flex-1">
@@ -183,8 +186,10 @@ export function Pricing() {
               ))}
             </div>
             <div className="lg:w-auto">
-              <Button className="bg-purple-500 hover:bg-purple-600 text-white">
-                Contact Sales
+              <Button asChild className="bg-purple-500 hover:bg-purple-600 text-white">
+                <a href="mailto:david@replimap.com?subject=RepliMap Enterprise Inquiry">
+                  Contact Sales
+                </a>
               </Button>
             </div>
           </div>
