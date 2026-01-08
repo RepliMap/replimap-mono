@@ -1,0 +1,128 @@
+---
+title: Quick Start
+description: Run your first scan and generate Terraform in 2 minutes
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Step, Steps } from 'fumadocs-ui/components/steps'
+
+Get started with RepliMap in under 2 minutes.
+
+<Steps>
+  <Step>
+    ## Install RepliMap
+
+    ```bash
+    pip install replimap
+    ```
+  </Step>
+  
+  <Step>
+    ## Scan Your Infrastructure
+
+    Run a scan to build the dependency graph of your AWS account:
+
+    ```bash
+    replimap scan --profile prod --region us-east-1
+    ```
+
+    You'll see output like:
+
+    ```
+    Scanning: VPC, EC2, RDS, Lambda, S3...
+    ✓ Scanned 847 resources in 23.4s
+    ✓ Mapped 1,203 dependencies
+    ```
+  </Step>
+
+  <Step>
+    ## Generate Terraform
+
+    Turn that scan into production-ready Terraform code:
+
+    ```bash
+    # Preview what will be generated (dry run)
+    replimap clone --profile prod --mode dry-run
+
+    # Generate Terraform files
+    replimap clone --profile prod --mode generate --output-dir ./terraform
+    ```
+  </Step>
+
+  <Step>
+    ## Review Generated Code
+
+    Navigate to the output directory:
+
+    ```
+    terraform/
+    ├── main.tf           # All resources
+    ├── variables.tf      # Extracted variables
+    ├── outputs.tf        # Useful outputs
+    ├── providers.tf      # AWS provider config
+    ├── data.tf           # Data sources
+    └── terraform.tfvars.example
+    ```
+  </Step>
+</Steps>
+
+## Common Scan Options
+
+```bash
+# Scan a specific VPC
+replimap scan --profile prod --scope vpc:vpc-12345678
+
+# Scan resources by tag
+replimap scan --profile prod --entry tag:Application=MyApp
+
+# Scan from an entry point (ALB)
+replimap scan --profile prod --entry alb:my-app-alb
+
+# Use cache for faster incremental scans
+replimap scan --profile prod --cache
+```
+
+## Clone with Transformations
+
+```bash
+# Clone prod to staging with cost optimization
+replimap clone --profile prod \
+  --output-dir ./staging-tf \
+  --rename-pattern "prod:staging" \
+  --downsize \
+  --mode generate
+```
+
+<Callout type="info">
+  The `--downsize` flag enables the Right-Sizer engine, which automatically reduces EC2/RDS instance sizes for non-production environments.
+</Callout>
+
+## Visualize Your Infrastructure
+
+Generate an interactive HTML graph:
+
+```bash
+replimap graph --profile prod --format html --output architecture.html
+open architecture.html
+```
+
+## Apply to Staging (Optional)
+
+```bash
+cd ./terraform
+
+# Initialize Terraform
+terraform init
+
+# Review the plan
+terraform plan
+
+# Apply
+terraform apply
+```
+
+## Next Steps
+
+- [CLI Reference](/docs/cli-reference) — Full command documentation
+- [IAM Policy](/docs/iam-policy) — Required AWS permissions
+- [Security](/docs/security) — How we handle your data

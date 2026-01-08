@@ -1,0 +1,328 @@
+---
+title: CLI Reference
+description: Complete guide to RepliMap commands
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+## Global Options
+
+These options work with all commands:
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile` | `-p` | AWS profile name from `~/.aws/credentials` |
+| `--region` | `-r` | AWS region (e.g., `us-east-1`) |
+| `--quiet` | `-q` | Suppress verbose output |
+| `--version` | | Show version info |
+| `--help` | `-h` | Show help for command |
+
+---
+
+## scan
+
+Scans AWS resources and builds the dependency graph.
+
+```bash
+replimap scan --profile prod --region us-east-1
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--scope` | Limit to VPC: `vpc:vpc-12345678` or `vpc-name:Production*` |
+| `--entry` | Start from entry point: `alb:my-alb` or `tag:App=MyApp` |
+| `--tag` | Filter by tag: `Environment=Production` |
+| `--cache` | Use cached results for incremental scans |
+| `--trust-center` | Enable Trust Center auditing (Enterprise) |
+
+### Examples
+
+```bash
+# Scan a specific VPC
+replimap scan -p prod --scope vpc:vpc-12345678
+
+# Scan by tag
+replimap scan -p prod --entry tag:Application=MyApp
+
+# Scan from an ALB entry point
+replimap scan -p prod --entry alb:my-app-alb
+
+# Use cache for faster incremental scans
+replimap scan -p prod --cache
+```
+
+---
+
+## clone
+
+Generates Infrastructure-as-Code from the scanned graph.
+
+```bash
+replimap clone --profile prod --mode generate --output-dir ./terraform
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--mode` | `dry-run` (preview) or `generate` (write files) |
+| `--output-dir` | Output directory for generated code |
+| `--dev-mode` | Enable Right-Sizer for non-prod environments |
+| `--downsize` | Automatically downsize instance types |
+| `--rename-pattern` | Rename resources: `prod:staging` |
+
+### Examples
+
+```bash
+# Preview what will be generated
+replimap clone -p prod --mode dry-run
+
+# Generate Terraform with cost optimization
+replimap clone -p prod \
+  --mode generate \
+  --output-dir ./staging-tf \
+  --rename-pattern "prod:staging" \
+  --downsize
+```
+
+### Generated Files
+
+```
+output/
+├── main.tf           # All resources
+├── variables.tf      # Extracted variables
+├── outputs.tf        # Useful outputs
+├── providers.tf      # AWS provider config
+├── data.tf           # Data sources
+├── imports.tf        # TF 1.5+ import blocks
+└── terraform.tfvars.example
+```
+
+---
+
+## graph
+
+Generates infrastructure visualizations.
+
+```bash
+replimap graph --profile prod --format html --output infra.html
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--format` | `html`, `mermaid`, `json` |
+| `--output` | Output file path |
+| `--vpc` | Scope to specific VPC |
+| `--all` | Show all resources (no filtering) |
+| `--sg-rules` | Include security group rules |
+| `--routes` | Include route tables |
+| `--no-collapse` | Disable resource grouping |
+| `--security` | Security-focused view |
+
+### Interactive Graph Features
+
+The HTML graph includes:
+
+| Feature | Description |
+|---------|-------------|
+| **Link Classification** | Toggle traffic vs. dependency views |
+| **Cost Overlay** | Heat map by monthly cost |
+| **Blast Radius** | Click resource to see impact |
+| **Orphan Detection** | Highlight unused resources |
+| **Drift Visualization** | Show drifted resources |
+
+---
+
+## audit
+
+Runs security and compliance checks.
+
+```bash
+replimap audit --profile prod --format html --output audit.html
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--format` | `console`, `html`, `json` |
+| `--output` | Output file path |
+| `--ci` | Exit with non-zero code on failures |
+| `--scope` | Scope to VPC: `vpc:vpc-12345678` |
+
+### Compliance Frameworks
+
+- SOC 2 Type II
+- CIS AWS Foundations Benchmark
+- AWS Well-Architected Framework
+
+---
+
+## drift
+
+Detects drift between Terraform state and AWS.
+
+```bash
+replimap drift --profile prod --state ./terraform.tfstate
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--state` | Path to local tfstate file |
+| `--remote-bucket` | S3 bucket for remote state |
+| `--remote-key` | S3 key for remote state |
+| `--format` | `console`, `html`, `json` |
+| `--ci` | Exit code reflects drift status |
+
+### Exit Codes (CI Mode)
+
+| Code | Meaning |
+|------|---------|
+| 0 | No drift detected |
+| 1 | Drift detected |
+| 2 | Error during detection |
+
+### Offline Drift Detection
+
+```bash
+# Offline drift using cached scan
+replimap drift-offline offline -p prod -s ./terraform.tfstate
+
+# Output SARIF for GitHub Security
+replimap drift-offline offline -p prod -s ./terraform.tfstate --sarif
+
+# Compare scans over time
+replimap drift-offline compare-scans -p prod \
+  --current ./scan-today.json \
+  --previous ./scan-yesterday.json
+```
+
+---
+
+## deps
+
+Explores resource dependencies and blast radius.
+
+```bash
+replimap deps sg-12345 --region us-east-1
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--format` | `console`, `tree`, `table`, `html`, `json` |
+| `--depth` | Limit analysis depth |
+| `--analyze` | Deep analysis with specialized analyzers |
+| `--vpc` | Scope to specific VPC |
+
+### Impact Levels
+
+| Level | Score | Description |
+|-------|-------|-------------|
+| CRITICAL | 90-100 | Core infrastructure (VPC, main DB) |
+| HIGH | 70-89 | Production services |
+| MEDIUM | 40-69 | Supporting resources |
+| LOW | 1-39 | Peripheral resources |
+
+<Callout type="warn">
+  Impact estimates are based on AWS API metadata only. Application-level dependencies (hardcoded IPs, config files) are NOT detected.
+</Callout>
+
+---
+
+## iam
+
+Generates least-privilege IAM policies.
+
+```bash
+replimap iam for-resource -p prod -r my-lambda -s runtime_read
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-r, --resource` | Resource ID or name |
+| `-s, --scope` | Policy scope (see below) |
+| `-E, --enrich` | Enable graph enrichment |
+| `-f, --format` | `json` or `terraform` |
+| `--create-role` | Generate IAM role |
+
+### Policy Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `runtime_read` | Read-only for runtime operations |
+| `runtime_write` | Write access for runtime |
+| `runtime_full` | Full read/write for runtime |
+| `infra_read` | Read access for infrastructure |
+| `infra_deploy` | Full access for deployment |
+
+---
+
+## cost
+
+Estimates monthly AWS costs.
+
+```bash
+replimap cost --region us-east-1
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--vpc` | Scope to specific VPC |
+| `--format` | `table`, `html`, `csv`, `json`, `markdown` |
+| `--output` | Output file path |
+| `--acknowledge` | Skip confirmation prompt |
+
+<Callout type="info">
+  Cost estimates are for planning only. Actual costs may differ due to data transfer, API calls, reserved instances, and other factors.
+</Callout>
+
+---
+
+## license
+
+Manage your RepliMap license.
+
+```bash
+# View license status
+replimap license status
+
+# View usage statistics  
+replimap license usage
+
+# Activate a license key
+replimap license activate RM-XXXX-XXXX-XXXX-XXXX
+
+# Deactivate license
+replimap license deactivate
+```
+
+---
+
+## trust-center
+
+Enterprise audit mode for compliance.
+
+```bash
+# Check status
+replimap trust-center status
+
+# Generate compliance report
+replimap trust-center report
+replimap trust-center report -f json -o audit.json
+replimap trust-center report -f csv -o api-calls.csv
+
+# Clear audit sessions
+replimap trust-center clear
+```

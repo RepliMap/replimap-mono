@@ -1,0 +1,92 @@
+---
+title: Introduction
+description: RepliMap - AWS Infrastructure Intelligence Engine
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
+
+# Welcome to RepliMap
+
+**RepliMap** is an AWS Infrastructure Intelligence Engine that reverse-engineers your AWS infrastructure into Terraform code. Visualize dependencies, audit security, and optimize costs in minutes.
+
+<Callout type="info">
+  **100% Local Execution:** RepliMap runs entirely on your machine. Your AWS credentials and infrastructure data never leave your environment.
+</Callout>
+
+## The Problem
+
+You inherited an AWS account. Or maybe you built it yourself over 3 years of "just one more click."
+
+Now you have:
+- **500+ resources** and no idea what connects to what
+- **No Terraform** — everything was ClickOps
+- **Oversized instances** burning money 24/7
+- **SOC2 audit next month** — good luck
+
+## The Solution
+
+RepliMap scans your AWS, builds a dependency graph, and gives you superpowers:
+
+```bash
+$ replimap -p prod scan
+
+✓ Scanned 847 resources in 23.4s
+✓ Mapped 1,203 dependencies
+✓ Found 12 compliance issues
+✓ Identified $2,847/month in savings
+```
+
+## Key Features
+
+<Cards>
+  <Card
+    title="Generate IaC"
+    href="/docs/quick-start"
+    description="From ClickOps to Terraform in minutes. No manual import required."
+  />
+  <Card
+    title="Visualize Dependencies"
+    href="/docs/cli-reference#graph"
+    description="Understand what connects to what. Avoid breaking prod."
+  />
+  <Card
+    title="Optimize Costs"
+    href="/docs/cli-reference#cost"
+    description="Right-Sizer analyzes usage and recommends cheaper instance types."
+  />
+  <Card
+    title="Audit Compliance"
+    href="/docs/security"
+    description="Find SOC2/CIS compliance gaps before your auditor does."
+  />
+</Cards>
+
+## Core Principles
+
+| Principle | Description |
+|-----------|-------------|
+| **🔒 Read-Only** | We only require read permissions. We never modify your resources. |
+| **📍 Local Processing** | All data stays on your machine. No SaaS cloud to trust. |
+| **⚡ Lightning Fast** | Scan thousands of resources in seconds using parallel execution. |
+| **🔄 Drift Detection** | Know when reality diverges from your Terraform code. |
+
+## Supported Resources
+
+RepliMap supports 24+ AWS resource types:
+
+| Category | Resources |
+|----------|-----------|
+| **Compute** | EC2, Lambda, ECS, EKS, Auto Scaling Groups |
+| **Database** | RDS, Aurora, DynamoDB, ElastiCache |
+| **Network** | VPC, Subnet, Security Group, Route Table, NAT Gateway, ALB/NLB |
+| **Storage** | S3, EBS, EFS |
+| **Security** | IAM Role, IAM Policy, KMS Key, Secrets Manager |
+| **Messaging** | SQS, SNS |
+
+## Next Steps
+
+<Cards>
+  <Card title="Installation" href="/docs/installation" description="Install RepliMap CLI on your machine" />
+  <Card title="Quick Start" href="/docs/quick-start" description="Run your first scan in 2 minutes" />
+</Cards>
