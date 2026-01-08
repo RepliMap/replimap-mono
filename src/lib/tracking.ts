@@ -47,7 +47,7 @@ export function captureAttribution(): void {
   // Store in localStorage
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(attribution));
-  } catch (e) {
+  } catch {
     // localStorage might be unavailable
     console.warn("Failed to store attribution:", e);
   }
@@ -59,7 +59,7 @@ export function getAttribution(): Attribution {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : {};
-  } catch (e) {
+  } catch {
     return {};
   }
 }
@@ -84,7 +84,7 @@ export function clearAttribution(): void {
 
   try {
     localStorage.removeItem(STORAGE_KEY);
-  } catch (e) {
+  } catch {
     console.warn("Failed to clear attribution:", e);
   }
 }
