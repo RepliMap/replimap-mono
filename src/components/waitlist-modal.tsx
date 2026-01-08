@@ -9,7 +9,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
-const BASE_TALLY_URL = "https://tally.so/r/2EaYae?transparentBackground=1"
+const TALLY_FORM_ID = "2EaYae"
+const BASE_TALLY_URL = `https://tally.so/r/${TALLY_FORM_ID}?transparentBackground=1&hideTitle=1`
 
 interface WaitlistModalProps {
   children: React.ReactNode
@@ -27,14 +28,14 @@ export function WaitlistModal({ children, source = "generic" }: WaitlistModalPro
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent
-        className="sm:max-w-[500px] p-0 overflow-hidden bg-background border-border"
+        className="sm:max-w-[550px] p-0 overflow-hidden bg-background border-border"
         showCloseButton={true}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Join the Waitlist</DialogTitle>
         </DialogHeader>
         {/* Dark background prevents white flash while iframe loads */}
-        <div className="w-full h-[480px] relative bg-background">
+        <div className="w-full h-[750px] relative bg-background">
           {/* Loading spinner */}
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
