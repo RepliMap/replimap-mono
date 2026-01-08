@@ -6,10 +6,15 @@ import { source } from '@/lib/source'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <RootProvider>
+    <RootProvider
+      theme={{
+        enabled: false, // Disable Fumadocs theme management, use root ThemeProvider
+      }}
+    >
       <DocsLayout
         tree={source.pageTree}
         {...baseOptions}
+        themeSwitch={{ enabled: false }} // Hide theme switch button
       >
         {children}
       </DocsLayout>
