@@ -18,10 +18,10 @@ export function Header() {
   }
 
   const navLinks = [
-    { href: "#features", label: "Features" },
-    { href: "#pricing", label: "Pricing" },
+    { href: "/#features", label: "Features" },
+    { href: "/#pricing", label: "Pricing" },
     { href: "/docs", label: "Docs" },
-    { href: "/changelog", label: "Changelog" },
+    { href: "/docs/changelog", label: "Changelog" },
   ]
 
   return (
