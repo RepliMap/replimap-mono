@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 
 const TALLY_FORM_ID = "2EaYae"
+// Note: Dark mode must be configured in Tally dashboard (Settings → Design), not via URL
 const BASE_TALLY_URL = `https://tally.so/r/${TALLY_FORM_ID}?transparentBackground=1&hideTitle=1`
 
 interface WaitlistModalProps {
