@@ -356,7 +356,7 @@ The backend tracks AWS accounts per license but does not currently integrate wit
 | Variable | Development | Production |
 |----------|-------------|------------|
 | `ENVIRONMENT` | "development" | "production" |
-| `CORS_ORIGIN` | "*" | "https://replimap.io" |
+| `CORS_ORIGIN` | "*" | "https://replimap.com" |
 | `API_VERSION` | "v1" | "v1" |
 
 ### Secrets (via `wrangler secret put`)

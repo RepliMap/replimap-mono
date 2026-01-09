@@ -57,7 +57,7 @@ describe('Admin Endpoints', () => {
     });
 
     it('should reject invalid JSON body', async () => {
-      const request = new Request('https://api.replimap.io/v1/admin/licenses', {
+      const request = new Request('https://api.replimap.com/v1/admin/licenses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
