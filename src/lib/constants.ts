@@ -330,10 +330,10 @@ export function getLifetimePriceIds(env: Env): string[] {
 // ============================================================================
 
 export const REPLIMAP_URLS = {
-  dashboard: 'https://replimap.io/dashboard',
-  renew: 'https://replimap.io/renew',
-  upgrade: 'https://replimap.io/upgrade',
-  support: 'https://replimap.io/support',
+  dashboard: 'https://replimap.com/dashboard',
+  renew: 'https://replimap.com/renew',
+  upgrade: 'https://replimap.com/upgrade',
+  support: 'https://replimap.com/support',
 } as const;
 
 // ============================================================================
@@ -359,7 +359,7 @@ export function checkCliVersion(version: string | undefined): {
   latest_version: string;
   upgrade_url: string;
 } {
-  const upgradeUrl = 'https://replimap.io/docs/upgrade';
+  const upgradeUrl = 'https://replimap.com/docs/upgrade';
 
   if (!version) {
     return {

@@ -128,7 +128,7 @@ export function createRequest(
   body?: unknown,
   headers: Record<string, string> = {}
 ): Request {
-  const url = `https://api.replimap.io${path}`;
+  const url = `https://api.replimap.com${path}`;
   const init: RequestInit = {
     method,
     headers: {

@@ -1,6 +1,7 @@
 name = "replimap-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
+# Enable Node.js compatibility (Critical for Stripe and Clerk SDKs)
 compatibility_flags = ["nodejs_compat"]
 
 # ============================================================================
@@ -9,6 +10,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "development"
+# Allow all origins in dev for localhost debugging
 CORS_ORIGIN = "*"
 API_VERSION = "v1"
 
@@ -33,8 +35,12 @@ name = "replimap-api-prod"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-CORS_ORIGIN = "https://replimap.io"
+CORS_ORIGIN = "https://replimap.com"
 API_VERSION = "v1"
+
+routes = [
+  { pattern = "api.replimap.com", custom_domain = true }
+]
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -46,8 +52,15 @@ binding = "CACHE"
 id = "705a8c1a808a4656894a0c787787b76c" # remote prod
 
 # ============================================================================
-# Secrets (set via: wrangler secret put <NAME>)
+# Secrets Checklist (Run these commands manually in terminal!)
 # ============================================================================
-# STRIPE_SECRET_KEY        - Stripe API key
-# STRIPE_WEBHOOK_SECRET    - Stripe webhook signing secret
-# ADMIN_API_KEY           - Admin API authentication key
+# 1. Stripe Payments
+# npx wrangler secret put STRIPE_SECRET_KEY --env production
+# npx wrangler secret put STRIPE_WEBHOOK_SECRET --env production
+
+# 2. Clerk Authentication
+# npx wrangler secret put CLERK_SECRET_KEY --env production
+# npx wrangler secret put CLERK_PUBLISHABLE_KEY --env production
+
+# 3. Admin Tools
+# npx wrangler secret put ADMIN_API_KEY --env production

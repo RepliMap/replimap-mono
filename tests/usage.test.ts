@@ -33,7 +33,7 @@ describe('Usage Endpoints', () => {
 
   describe('POST /v1/usage/sync', () => {
     it('should reject invalid JSON body', async () => {
-      const request = new Request('https://api.replimap.io/v1/usage/sync', {
+      const request = new Request('https://api.replimap.com/v1/usage/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not json',
@@ -143,7 +143,7 @@ describe('Usage Endpoints', () => {
 
   describe('POST /v1/usage/check-quota', () => {
     it('should reject invalid JSON body', async () => {
-      const request = new Request('https://api.replimap.io/v1/usage/check-quota', {
+      const request = new Request('https://api.replimap.com/v1/usage/check-quota', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not json',

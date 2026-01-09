@@ -25,7 +25,7 @@ describe('POST /v1/license/validate', () => {
 
   describe('request validation', () => {
     it('should reject invalid JSON body', async () => {
-      const request = new Request('https://api.replimap.io/v1/license/validate', {
+      const request = new Request('https://api.replimap.com/v1/license/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not json',

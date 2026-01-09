@@ -175,7 +175,7 @@ export const Errors = {
       'AWS_ACCOUNT_LIMIT_EXCEEDED',
       `AWS account limit (${limit}) reached for your plan`,
       403,
-      { action: 'Upgrade at https://replimap.io/upgrade', limit }
+      { action: 'Upgrade at https://replimap.com/upgrade', limit }
     );
   },
 

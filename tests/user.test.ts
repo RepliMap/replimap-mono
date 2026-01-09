@@ -203,7 +203,7 @@ describe('User Self-Service Endpoints', () => {
 
   describe('POST /v1/me/resend-key', () => {
     it('should reject invalid JSON body', async () => {
-      const request = new Request('https://api.replimap.io/v1/me/resend-key', {
+      const request = new Request('https://api.replimap.com/v1/me/resend-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not json',

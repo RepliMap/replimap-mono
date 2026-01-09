@@ -49,7 +49,7 @@ describe('Billing Endpoints', () => {
     });
 
     it('should reject invalid JSON body', async () => {
-      const request = new Request('https://api.replimap.io/v1/checkout/session', {
+      const request = new Request('https://api.replimap.com/v1/checkout/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not json',

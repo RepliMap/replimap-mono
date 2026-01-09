@@ -29,7 +29,7 @@ describe('AWS Account Endpoints', () => {
 
   describe('POST /v1/aws-accounts/track', () => {
     it('should reject invalid JSON body', async () => {
-      const request = new Request('https://api.replimap.io/v1/aws-accounts/track', {
+      const request = new Request('https://api.replimap.com/v1/aws-accounts/track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: 'not json',
