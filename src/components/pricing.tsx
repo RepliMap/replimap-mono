@@ -4,8 +4,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Check, X, Sparkles } from "lucide-react"
-import { WaitlistModal } from "@/components/waitlist-modal"
 import { PLANS, ENTERPRISE_FEATURES, type PlanName, type BillingPeriod } from "@/lib/pricing"
+
+const TALLY_FORM_URL = "https://tally.so/r/2EaYae"
 
 // Transform PLANS object to array for rendering, excluding enterprise (shown separately)
 const plansList = (Object.entries(PLANS) as [PlanName, (typeof PLANS)[PlanName]][])
@@ -118,19 +119,31 @@ export function Pricing() {
               <p className="text-muted-foreground text-sm mt-2 mb-6">{plan.description}</p>
 
               {/* CTA Button */}
-              <WaitlistModal source={`pricing_${plan.key}`}>
+              {billingPeriod === "lifetime" && !plan.hasLifetime ? (
                 <Button
-                  disabled={billingPeriod === "lifetime" && !plan.hasLifetime}
-                  className={`w-full mb-6 ${
-                    plan.highlighted ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""
-                  }`}
-                  variant={plan.highlighted ? "default" : "outline"}
+                  disabled
+                  className="w-full mb-6"
+                  variant="outline"
                 >
-                  {billingPeriod === "lifetime" && !plan.hasLifetime
-                    ? "No Lifetime Option"
-                    : "Join Waitlist"}
+                  No Lifetime Option
                 </Button>
-              </WaitlistModal>
+              ) : (
+                <a
+                  href={`${TALLY_FORM_URL}?source=pricing_${plan.key}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full mb-6"
+                >
+                  <Button
+                    className={`w-full ${
+                      plan.highlighted ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""
+                    }`}
+                    variant={plan.highlighted ? "default" : "outline"}
+                  >
+                    Join Waitlist
+                  </Button>
+                </a>
+              )}
 
               {/* Features List */}
               <ul className="space-y-3 flex-1">

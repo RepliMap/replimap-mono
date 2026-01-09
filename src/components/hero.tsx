@@ -5,7 +5,8 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowRight, Github, Terminal } from "lucide-react"
-import { WaitlistModal } from "@/components/waitlist-modal"
+
+const TALLY_FORM_URL = "https://tally.so/r/2EaYae"
 
 export function Hero() {
   // Typewriter animation state
@@ -92,12 +93,16 @@ export function Hero() {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <WaitlistModal source="hero">
+          <a
+            href={`${TALLY_FORM_URL}?source=hero`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Button className="bg-emerald-500 hover:bg-emerald-600 text-white h-12 px-8">
               Get Started Free
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </WaitlistModal>
+          </a>
           <Button
             asChild
             variant="outline"

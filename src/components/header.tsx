@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Github, Menu, Terminal, Star } from "lucide-react"
-import { WaitlistModal } from "@/components/waitlist-modal"
+
+const TALLY_FORM_URL = "https://tally.so/r/2EaYae"
 
 export function Header() {
   // Controlled state for mobile sheet - ensures it closes on navigation
@@ -89,11 +90,15 @@ export function Header() {
                   Sign In
                 </Button>
               </SignInButton>
-              <WaitlistModal source="nav">
+              <a
+                href={`${TALLY_FORM_URL}?source=nav`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
                   Get Started
                 </Button>
-              </WaitlistModal>
+              </a>
             </SignedOut>
           </div>
 
@@ -163,14 +168,16 @@ export function Header() {
                         Sign In
                       </Button>
                     </SignInButton>
-                    <WaitlistModal source="nav_mobile">
-                      <Button
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                        onClick={handleLinkClick}
-                      >
+                    <a
+                      href={`${TALLY_FORM_URL}?source=nav_mobile`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={handleLinkClick}
+                    >
+                      <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
                         Get Started
                       </Button>
-                    </WaitlistModal>
+                    </a>
                   </SignedOut>
                 </div>
               </nav>
