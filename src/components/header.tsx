@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { SignInButton, SignedIn, SignedOut, UserButton } from "@/components/auth-components"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -61,12 +62,40 @@ export function Header() {
             </Badge>
           </Link>
 
-          {/* Primary CTA */}
-          <WaitlistModal source="nav">
-            <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-              Get Started
-            </Button>
-          </WaitlistModal>
+          {/* Auth Actions - Desktop */}
+          <div className="hidden md:flex items-center gap-4">
+            <SignedIn>
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  Dashboard
+                </Button>
+              </Link>
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8",
+                    userButtonPopoverCard: "bg-[#030712] border border-slate-800",
+                    userButtonPopoverActionButton: "text-slate-300 hover:text-white hover:bg-slate-800",
+                    userButtonPopoverActionButtonText: "text-slate-300",
+                    userButtonPopoverFooter: "hidden",
+                  },
+                }}
+              />
+            </SignedIn>
+
+            <SignedOut>
+              <SignInButton mode="modal">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  Sign In
+                </Button>
+              </SignInButton>
+              <WaitlistModal source="nav">
+                <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                  Get Started
+                </Button>
+              </WaitlistModal>
+            </SignedOut>
+          </div>
 
           {/* Mobile Menu */}
           <Sheet open={open} onOpenChange={setOpen}>
@@ -99,14 +128,50 @@ export function Header() {
                     <Github className="w-4 h-4" />
                     View on GitHub
                   </Link>
-                  <WaitlistModal source="nav_mobile">
-                    <Button
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+
+                  <SignedIn>
+                    <Link
+                      href="/dashboard"
                       onClick={handleLinkClick}
+                      className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                     >
-                      Get Started
-                    </Button>
-                  </WaitlistModal>
+                      Dashboard
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <UserButton
+                        appearance={{
+                          elements: {
+                            avatarBox: "w-8 h-8",
+                            userButtonPopoverCard: "bg-[#030712] border border-slate-800",
+                            userButtonPopoverActionButton: "text-slate-300 hover:text-white hover:bg-slate-800",
+                            userButtonPopoverActionButtonText: "text-slate-300",
+                            userButtonPopoverFooter: "hidden",
+                          },
+                        }}
+                      />
+                      <span className="text-muted-foreground text-sm">Account</span>
+                    </div>
+                  </SignedIn>
+
+                  <SignedOut>
+                    <SignInButton mode="modal">
+                      <Button
+                        variant="ghost"
+                        className="justify-start p-0 h-auto text-muted-foreground hover:text-foreground text-sm"
+                        onClick={handleLinkClick}
+                      >
+                        Sign In
+                      </Button>
+                    </SignInButton>
+                    <WaitlistModal source="nav_mobile">
+                      <Button
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                        onClick={handleLinkClick}
+                      >
+                        Get Started
+                      </Button>
+                    </WaitlistModal>
+                  </SignedOut>
                 </div>
               </nav>
             </SheetContent>
