@@ -1,3 +1,14 @@
+/**
+ * @deprecated This component is deprecated due to Tally Pro limitation.
+ *
+ * Tally forms show dark theme when accessed directly but force light theme
+ * in iframe embeds (this is a Tally Pro paid feature).
+ *
+ * Use direct links instead:
+ * <a href="https://tally.so/r/2EaYae?source=xxx" target="_blank" rel="noopener noreferrer">
+ *   <Button>Get Started</Button>
+ * </a>
+ */
 "use client"
 
 import { useState } from "react"

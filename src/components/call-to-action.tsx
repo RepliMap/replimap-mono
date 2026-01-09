@@ -3,8 +3,9 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, BookOpen, Copy, Check } from "lucide-react"
-import { WaitlistModal } from "@/components/waitlist-modal"
 import { useState } from "react"
+
+const TALLY_FORM_URL = "https://tally.so/r/2EaYae"
 
 export function CallToAction() {
   const [copied, setCopied] = useState(false)
@@ -26,12 +27,16 @@ export function CallToAction() {
         </p>
 
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <WaitlistModal source="footer_cta">
+          <a
+            href={`${TALLY_FORM_URL}?source=footer_cta`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 h-12 px-8">
               Get Started Free
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </WaitlistModal>
+          </a>
           <Button
             asChild
             size="lg"

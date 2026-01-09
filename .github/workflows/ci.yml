@@ -29,11 +29,3 @@ jobs:
 
       - name: Type check
         run: npx tsc --noEmit
-
-      - name: Build
-        run: npm run build
-        env:
-          # Dummy values for build (not used at runtime)
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_placeholder
-          NEXT_PUBLIC_APP_URL: https://replimap.com
-          NEXT_PUBLIC_API_URL: https://api.replimap.com

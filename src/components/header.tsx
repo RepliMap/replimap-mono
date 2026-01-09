@@ -2,11 +2,13 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { SignInButton, SignedIn, SignedOut, UserButton } from "@/components/auth-components"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Github, Menu, Terminal, Star } from "lucide-react"
-import { WaitlistModal } from "@/components/waitlist-modal"
+
+const TALLY_FORM_URL = "https://tally.so/r/2EaYae"
 
 export function Header() {
   // Controlled state for mobile sheet - ensures it closes on navigation
@@ -17,10 +19,10 @@ export function Header() {
   }
 
   const navLinks = [
-    { href: "#features", label: "Features" },
-    { href: "#pricing", label: "Pricing" },
+    { href: "/#features", label: "Features" },
+    { href: "/#pricing", label: "Pricing" },
     { href: "/docs", label: "Docs" },
-    { href: "/changelog", label: "Changelog" },
+    { href: "/docs/changelog", label: "Changelog" },
   ]
 
   return (
@@ -61,12 +63,44 @@ export function Header() {
             </Badge>
           </Link>
 
-          {/* Primary CTA */}
-          <WaitlistModal source="nav">
-            <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-              Get Started
-            </Button>
-          </WaitlistModal>
+          {/* Auth Actions - Desktop */}
+          <div className="hidden md:flex items-center gap-4">
+            <SignedIn>
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  Dashboard
+                </Button>
+              </Link>
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8",
+                    userButtonPopoverCard: "bg-[#030712] border border-slate-800",
+                    userButtonPopoverActionButton: "text-slate-300 hover:text-white hover:bg-slate-800",
+                    userButtonPopoverActionButtonText: "text-slate-300",
+                    userButtonPopoverFooter: "hidden",
+                  },
+                }}
+              />
+            </SignedIn>
+
+            <SignedOut>
+              <SignInButton mode="modal">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  Sign In
+                </Button>
+              </SignInButton>
+              <a
+                href={`${TALLY_FORM_URL}?source=nav`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                  Get Started
+                </Button>
+              </a>
+            </SignedOut>
+          </div>
 
           {/* Mobile Menu */}
           <Sheet open={open} onOpenChange={setOpen}>
@@ -99,14 +133,52 @@ export function Header() {
                     <Github className="w-4 h-4" />
                     View on GitHub
                   </Link>
-                  <WaitlistModal source="nav_mobile">
-                    <Button
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+
+                  <SignedIn>
+                    <Link
+                      href="/dashboard"
+                      onClick={handleLinkClick}
+                      className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <UserButton
+                        appearance={{
+                          elements: {
+                            avatarBox: "w-8 h-8",
+                            userButtonPopoverCard: "bg-[#030712] border border-slate-800",
+                            userButtonPopoverActionButton: "text-slate-300 hover:text-white hover:bg-slate-800",
+                            userButtonPopoverActionButtonText: "text-slate-300",
+                            userButtonPopoverFooter: "hidden",
+                          },
+                        }}
+                      />
+                      <span className="text-muted-foreground text-sm">Account</span>
+                    </div>
+                  </SignedIn>
+
+                  <SignedOut>
+                    <SignInButton mode="modal">
+                      <Button
+                        variant="ghost"
+                        className="justify-start p-0 h-auto text-muted-foreground hover:text-foreground text-sm"
+                        onClick={handleLinkClick}
+                      >
+                        Sign In
+                      </Button>
+                    </SignInButton>
+                    <a
+                      href={`${TALLY_FORM_URL}?source=nav_mobile`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       onClick={handleLinkClick}
                     >
-                      Get Started
-                    </Button>
-                  </WaitlistModal>
+                      <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                        Get Started
+                      </Button>
+                    </a>
+                  </SignedOut>
                 </div>
               </nav>
             </SheetContent>
