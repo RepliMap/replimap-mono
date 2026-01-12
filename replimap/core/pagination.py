@@ -28,7 +28,7 @@ import random
 import time
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from botocore.exceptions import ClientError
 
@@ -225,7 +225,7 @@ class RobustPaginator:
         client: Any,
         method_name: str,
         rate_limiter: AWSRateLimiter | None = None,
-        session_manager: Optional[SessionManager] = None,
+        session_manager: SessionManager | None = None,
         max_retries: int = 3,
         base_backoff: float = 1.0,
         max_auth_retries: int = 1,

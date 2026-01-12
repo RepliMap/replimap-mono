@@ -28,7 +28,7 @@ import os
 import stat
 import tempfile
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class SecureStorage:
     INSECURE_BITS = stat.S_IRWXG | stat.S_IRWXO
 
     @staticmethod
-    def ensure_secure_dir(path: Union[str, Path]) -> None:
+    def ensure_secure_dir(path: str | Path) -> None:
         """
         Ensure directory exists with secure permissions (0o700).
 
@@ -88,7 +88,7 @@ class SecureStorage:
                 os.umask(old_umask)
 
     @staticmethod
-    def write_json(path: Union[str, Path], data: Any) -> None:
+    def write_json(path: str | Path, data: Any) -> None:
         """
         Atomically write JSON file with secure permissions.
 
@@ -159,7 +159,7 @@ class SecureStorage:
             raise
 
     @staticmethod
-    def read_json(path: Union[str, Path], strict: bool = True) -> Any:
+    def read_json(path: str | Path, strict: bool = True) -> Any:
         """
         Read JSON file with permission validation.
 
@@ -206,7 +206,7 @@ class SecureStorage:
             return json.load(f)
 
     @staticmethod
-    def verify_permissions(path: Union[str, Path]) -> tuple[bool, str]:
+    def verify_permissions(path: str | Path) -> tuple[bool, str]:
         """
         Verify file or directory has secure permissions.
 
@@ -257,7 +257,7 @@ class SecureStorage:
             return False, f"Cannot stat file: {e}"
 
     @staticmethod
-    def delete_secure(path: Union[str, Path]) -> bool:
+    def delete_secure(path: str | Path) -> bool:
         """
         Securely delete a file.
 
@@ -282,7 +282,7 @@ class SecureStorage:
 
     @staticmethod
     def read_json_or_default(
-        path: Union[str, Path],
+        path: str | Path,
         default: Any = None,
         strict: bool = True,
     ) -> Any:

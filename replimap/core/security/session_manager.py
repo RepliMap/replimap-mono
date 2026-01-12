@@ -41,7 +41,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import boto3
 from botocore.config import Config
@@ -79,7 +79,7 @@ class SessionManager:
     4. Clients auto-refresh after force_refresh()
     """
 
-    _instance: Optional[SessionManager] = None
+    _instance: SessionManager | None = None
     _lock: Lock = Lock()
 
     # Credential expiration buffer (refresh before actual expiry)
@@ -90,8 +90,8 @@ class SessionManager:
 
     def __init__(
         self,
-        profile: Optional[str] = None,
-        default_region: Optional[str] = None,
+        profile: str | None = None,
+        default_region: str | None = None,
     ) -> None:
         """
         Initialize SessionManager.
@@ -110,8 +110,8 @@ class SessionManager:
             region_name=default_region,
         )
         self._clients: dict[tuple[str, str], Any] = {}  # (service, region) -> client
-        self._credentials_expire_at: Optional[datetime] = None
-        self._mfa_serial: Optional[str] = None
+        self._credentials_expire_at: datetime | None = None
+        self._mfa_serial: str | None = None
         self._refresh_lock = Lock()
 
         # Try to determine credential expiration
@@ -120,8 +120,8 @@ class SessionManager:
     @classmethod
     def initialize(
         cls,
-        profile: Optional[str] = None,
-        default_region: Optional[str] = None,
+        profile: str | None = None,
+        default_region: str | None = None,
     ) -> SessionManager:
         """
         Initialize the singleton instance.
@@ -182,7 +182,7 @@ class SessionManager:
                 cls._instance = None
                 logger.debug("SessionManager reset")
 
-    def get_client(self, service: str, region: Optional[str] = None) -> Any:
+    def get_client(self, service: str, region: str | None = None) -> Any:
         """
         Get boto3 client for service and region.
 
@@ -255,7 +255,7 @@ class SessionManager:
 
         return expires_soon
 
-    def get_expiration_time(self) -> Optional[datetime]:
+    def get_expiration_time(self) -> datetime | None:
         """Get credential expiration time, or None if not tracked."""
         return self._credentials_expire_at
 
@@ -387,12 +387,9 @@ class SessionManager:
             base_credentials = self._get_base_credentials()
 
             if not base_credentials.get("access_key"):
+                console.print("[red]Error: Cannot find base credentials for MFA.[/]")
                 console.print(
-                    "[red]Error: Cannot find base credentials for MFA.[/]"
-                )
-                console.print(
-                    "[dim]Ensure aws_access_key_id is set in "
-                    "~/.aws/credentials[/]"
+                    "[dim]Ensure aws_access_key_id is set in ~/.aws/credentials[/]"
                 )
                 return False
 
@@ -496,7 +493,7 @@ class SessionManager:
             logger.debug(f"Could not detect credential expiration: {e}")
             self._credentials_expire_at = None
 
-    def _get_mfa_serial(self) -> Optional[str]:
+    def _get_mfa_serial(self) -> str | None:
         """
         Get MFA serial ARN from profile config or cached value.
 
@@ -525,7 +522,7 @@ class SessionManager:
 
         return None
 
-    def _get_base_credentials(self) -> dict[str, Optional[str]]:
+    def _get_base_credentials(self) -> dict[str, str | None]:
         """
         Get base (non-session) credentials for MFA flow.
 

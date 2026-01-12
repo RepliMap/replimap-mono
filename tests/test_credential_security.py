@@ -44,13 +44,11 @@ class TestSecureStorage:
         mode = stat.S_IMODE(test_dir.stat().st_mode)
         assert mode == 0o700, f"Expected 0o700, got 0o{mode:o}"
 
-    def test_ensure_secure_dir_fixes_existing_permissions(
-        self, tmp_path: Path
-    ) -> None:
+    def test_ensure_secure_dir_fixes_existing_permissions(self, tmp_path: Path) -> None:
         """Existing directory with wrong permissions gets fixed."""
         test_dir = tmp_path / "existing_dir"
         test_dir.mkdir()
-        os.chmod(test_dir, 0o755)  # Insecure permissions
+        os.chmod(test_dir, 0o755)  # noqa: S103 - Intentionally insecure for test
 
         SecureStorage.ensure_secure_dir(test_dir)
 
@@ -213,7 +211,9 @@ class TestSecureStorage:
         """read_json_or_default returns default for missing files."""
         test_file = tmp_path / "missing.json"
 
-        result = SecureStorage.read_json_or_default(test_file, default={"default": True})
+        result = SecureStorage.read_json_or_default(
+            test_file, default={"default": True}
+        )
 
         assert result == {"default": True}
 
@@ -313,11 +313,10 @@ class TestSessionManager:
 
             mgr.get_client("s3")
 
-            mock_session.return_value.client.assert_called_with(
-                "s3",
-                region_name="us-west-2",
-                config=pytest.approx(object, abs=1e10),  # Just check it's called
-            )
+            # Verify call was made with correct service and region
+            call_args = mock_session.return_value.client.call_args
+            assert call_args[0][0] == "s3"
+            assert call_args[1]["region_name"] == "us-west-2"
 
     def test_get_client_requires_region(self) -> None:
         """get_client raises if no region specified and no default."""
@@ -382,10 +381,13 @@ class TestCredentialChecker:
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
         """Checks are skipped when skip_check=True."""
+        import logging
+
         session = MagicMock()
         checker = CredentialChecker(session)
 
-        checker.check_and_warn(skip_check=True)
+        with caplog.at_level(logging.DEBUG):
+            checker.check_and_warn(skip_check=True)
 
         assert "skipped" in caplog.text
         session.client.assert_not_called()
@@ -460,7 +462,7 @@ class TestCredentialChecker:
 
         # Mock temporary credentials (has session token)
         mock_creds = MagicMock()
-        mock_creds.get_frozen_credentials.return_value.token = "some-session-token"
+        mock_creds.get_frozen_credentials.return_value.token = "test-token"  # noqa: S105
         session.get_credentials.return_value = mock_creds
 
         checker = CredentialChecker(session)

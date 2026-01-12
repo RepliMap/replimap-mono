@@ -25,8 +25,8 @@ Usage:
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError
 
@@ -126,7 +126,6 @@ class CredentialChecker:
         """
         try:
             from rich.console import Console
-            from rich.panel import Panel
         except ImportError:
             logger.debug("Rich not available for credential warnings")
             return
@@ -267,7 +266,7 @@ class CredentialChecker:
             )
         )
 
-    def get_credential_summary(self) -> Optional[dict]:
+    def get_credential_summary(self) -> dict | None:
         """
         Get a summary of credential information.
 
