@@ -9,14 +9,13 @@ Features:
 - Thread-safe singleton pattern
 """
 
-import time
-import threading
 import logging
 import random
-from typing import Dict, Optional, Tuple, Any
-from functools import wraps
+import threading
+import time
 from dataclasses import dataclass
-from enum import Enum
+from functools import wraps
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ class ServiceLimit:
 
 # Conservative default limits based on AWS documentation and testing
 # Users can override via config file
-DEFAULT_SERVICE_LIMITS: Dict[str, ServiceLimit] = {
+DEFAULT_SERVICE_LIMITS: dict[str, ServiceLimit] = {
     # Regional services
     "ec2": ServiceLimit(tps=40.0, burst=80, is_global=False),
     "rds": ServiceLimit(tps=20.0, burst=40, is_global=False),
@@ -175,7 +174,7 @@ class TokenBucket:
                 f"(total throttles: {self.throttle_count})"
             )
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get bucket statistics"""
         with self.lock:
             return {
@@ -212,7 +211,7 @@ class AWSRateLimiter:
     _instance: Optional["AWSRateLimiter"] = None
     _lock = threading.Lock()
 
-    def __new__(cls, custom_limits: Optional[Dict[str, ServiceLimit]] = None):
+    def __new__(cls, custom_limits: dict[str, ServiceLimit] | None = None):
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -221,12 +220,12 @@ class AWSRateLimiter:
                     cls._instance = instance
         return cls._instance
 
-    def __init__(self, custom_limits: Optional[Dict[str, ServiceLimit]] = None):
+    def __init__(self, custom_limits: dict[str, ServiceLimit] | None = None):
         if self._initialized:
             return
 
         self._initialized = True
-        self._buckets: Dict[str, TokenBucket] = {}
+        self._buckets: dict[str, TokenBucket] = {}
         self._bucket_lock = threading.Lock()
 
         # Merge default and custom limits
@@ -237,7 +236,7 @@ class AWSRateLimiter:
 
         logger.info("AWSRateLimiter initialized")
 
-    def _get_bucket_key(self, service: str, region: Optional[str] = None) -> str:
+    def _get_bucket_key(self, service: str, region: str | None = None) -> str:
         """
         Generate unique bucket key.
 
@@ -251,7 +250,7 @@ class AWSRateLimiter:
             return f"global:{service}"
         return f"{region}:{service}"
 
-    def get_bucket(self, service: str, region: Optional[str] = None) -> TokenBucket:
+    def get_bucket(self, service: str, region: str | None = None) -> TokenBucket:
         """Get or create token bucket for service/region"""
         key = self._get_bucket_key(service, region)
 
@@ -274,7 +273,7 @@ class AWSRateLimiter:
     def acquire(
         self,
         service: str,
-        region: Optional[str] = None,
+        region: str | None = None,
         tokens: int = 1,
         timeout: float = 60.0,
     ) -> bool:
@@ -282,17 +281,17 @@ class AWSRateLimiter:
         bucket = self.get_bucket(service, region)
         return bucket.acquire(tokens, timeout)
 
-    def report_success(self, service: str, region: Optional[str] = None):
+    def report_success(self, service: str, region: str | None = None):
         """Report successful API call"""
         bucket = self.get_bucket(service, region)
         bucket.report_success()
 
-    def report_throttle(self, service: str, region: Optional[str] = None):
+    def report_throttle(self, service: str, region: str | None = None):
         """Report throttle/429 error"""
         bucket = self.get_bucket(service, region)
         bucket.report_throttle()
 
-    def get_all_stats(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_stats(self) -> dict[str, dict[str, Any]]:
         """Get statistics for all buckets"""
         return {key: bucket.get_stats() for key, bucket in self._buckets.items()}
 
@@ -361,7 +360,7 @@ def is_throttle_error(error: Exception) -> bool:
 
 def rate_limited(
     service: str,
-    region_from_arg: Optional[str] = None,
+    region_from_arg: str | None = None,
     max_retries: int = 3,
 ):
     """
@@ -441,7 +440,7 @@ def rate_limited(
 
 def rate_limited_paginate(
     service: str,
-    region: Optional[str] = None,
+    region: str | None = None,
 ):
     """
     Wrapper to add rate limiting to boto3 paginator results.

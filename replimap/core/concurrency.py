@@ -25,12 +25,13 @@ Usage:
 
 from __future__ import annotations
 
-import logging
-import weakref
-import threading
 import atexit
-from concurrent.futures import ThreadPoolExecutor, Future, as_completed
-from typing import Callable, Iterable, TypeVar, Optional, Any
+import logging
+import threading
+import weakref
+from collections.abc import Callable, Iterable
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from typing import TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +140,7 @@ class GlobalExecutor:
     to prevent thread explosion and coordinate with rate limiting.
     """
 
-    _instance: Optional[GlobalExecutor] = None
+    _instance: GlobalExecutor | None = None
     _lock = threading.Lock()
 
     def __new__(cls, max_workers: int = DEFAULT_MAX_WORKERS):
@@ -157,7 +158,7 @@ class GlobalExecutor:
 
         self._initialized = True
         self._max_workers = max_workers
-        self._executor: Optional[ThreadPoolExecutor] = None
+        self._executor: ThreadPoolExecutor | None = None
         self._executor_lock = threading.Lock()
 
         # Register shutdown on program exit
@@ -185,7 +186,7 @@ class GlobalExecutor:
         self,
         fn: Callable[..., T],
         items: Iterable,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> list[T]:
         """
         Map function over items using global thread pool.
@@ -224,7 +225,7 @@ class GlobalExecutor:
         self,
         fn: Callable[..., T],
         items: Iterable,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ) -> Iterable[T]:
         """
         Map function over items, yielding results as they complete.
@@ -270,7 +271,7 @@ def get_executor() -> GlobalExecutor:
 def parallel_map(
     fn: Callable[..., T],
     items: Iterable,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
 ) -> list[T]:
     """
     Execute function in parallel using global thread pool.
@@ -288,7 +289,7 @@ def parallel_map(
 def parallel_map_unordered(
     fn: Callable[..., T],
     items: Iterable,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
 ) -> Iterable[T]:
     """Execute function in parallel, yielding results as they complete"""
     return get_executor().map_unordered(fn, items, timeout)

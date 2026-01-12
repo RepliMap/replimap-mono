@@ -1,8 +1,9 @@
 """Integration tests for scanner rate limiting"""
 
 import inspect
+
 import pytest
-from unittest.mock import MagicMock, patch, Mock
+
 from replimap.core.rate_limiter import AWSRateLimiter
 
 
@@ -17,8 +18,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_ec2_scanner_uses_rate_limiting(self):
         """Verify EC2Scanner uses rate_limited_paginate"""
-        from replimap.scanners.ec2_scanner import EC2Scanner
         import inspect
+
+        from replimap.scanners.ec2_scanner import EC2Scanner
 
         source = inspect.getsource(EC2Scanner)
         assert "rate_limited_paginate" in source, (
@@ -27,8 +29,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_vpc_scanner_uses_rate_limiting(self):
         """Verify VPCScanner uses rate_limited_paginate"""
-        from replimap.scanners.vpc_scanner import VPCScanner
         import inspect
+
+        from replimap.scanners.vpc_scanner import VPCScanner
 
         source = inspect.getsource(VPCScanner)
         assert "rate_limited_paginate" in source, (
@@ -39,8 +42,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_rds_scanner_uses_rate_limiting(self):
         """Verify RDSScanner uses rate_limited_paginate"""
-        from replimap.scanners.rds_scanner import RDSScanner
         import inspect
+
+        from replimap.scanners.rds_scanner import RDSScanner
 
         source = inspect.getsource(RDSScanner)
         assert "rate_limited_paginate" in source, (
@@ -51,8 +55,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_iam_scanner_uses_rate_limiting(self):
         """Verify IAM scanners use rate_limited_paginate"""
-        from replimap.scanners.iam_scanner import IAMRoleScanner
         import inspect
+
+        from replimap.scanners.iam_scanner import IAMRoleScanner
 
         source = inspect.getsource(IAMRoleScanner)
         assert "rate_limited_paginate" in source, (
@@ -61,8 +66,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_compute_scanner_uses_rate_limiting(self):
         """Verify ComputeScanner uses rate_limited_paginate"""
-        from replimap.scanners.compute_scanner import ComputeScanner
         import inspect
+
+        from replimap.scanners.compute_scanner import ComputeScanner
 
         source = inspect.getsource(ComputeScanner)
         assert "rate_limited_paginate" in source, (
@@ -73,8 +79,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_networking_scanner_uses_rate_limiting(self):
         """Verify NetworkingScanner uses rate_limited_paginate"""
-        from replimap.scanners.networking_scanner import NetworkingScanner
         import inspect
+
+        from replimap.scanners.networking_scanner import NetworkingScanner
 
         source = inspect.getsource(NetworkingScanner)
         assert "rate_limited_paginate" in source, (
@@ -85,8 +92,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_storage_scanner_uses_rate_limiting(self):
         """Verify StorageScanner uses rate_limited_paginate"""
-        from replimap.scanners.storage_scanner import EBSScanner
         import inspect
+
+        from replimap.scanners.storage_scanner import EBSScanner
 
         source = inspect.getsource(EBSScanner)
         assert "rate_limited_paginate" in source, (
@@ -95,8 +103,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_elasticache_scanner_uses_rate_limiting(self):
         """Verify ElastiCacheScanner uses rate_limited_paginate"""
-        from replimap.scanners.elasticache_scanner import ElastiCacheScanner
         import inspect
+
+        from replimap.scanners.elasticache_scanner import ElastiCacheScanner
 
         source = inspect.getsource(ElastiCacheScanner)
         assert "rate_limited_paginate" in source, (
@@ -105,8 +114,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_messaging_scanner_uses_rate_limiting(self):
         """Verify MessagingScanner uses rate_limited_paginate"""
-        from replimap.scanners.messaging_scanner import SQSScanner, SNSScanner
         import inspect
+
+        from replimap.scanners.messaging_scanner import SNSScanner, SQSScanner
 
         sqs_source = inspect.getsource(SQSScanner)
         sns_source = inspect.getsource(SNSScanner)
@@ -119,8 +129,9 @@ class TestScannerRateLimitingIntegration:
 
     def test_monitoring_scanner_uses_rate_limiting(self):
         """Verify MonitoringScanner uses rate_limited_paginate"""
-        from replimap.scanners.monitoring_scanner import CloudWatchLogGroupScanner
         import inspect
+
+        from replimap.scanners.monitoring_scanner import CloudWatchLogGroupScanner
 
         source = inspect.getsource(CloudWatchLogGroupScanner)
         assert "rate_limited_paginate" in source, (
@@ -210,7 +221,6 @@ class TestRateLimitingCoverage:
 
     def test_sync_scanner_coverage(self):
         """Verify 100% sync scanner coverage"""
-        import os
         import glob
 
         scanner_dir = "replimap/scanners"
@@ -222,7 +232,7 @@ class TestRateLimitingCoverage:
         scanners_without_rate_limiting = []
 
         for scanner_file in sync_scanners:
-            with open(scanner_file, "r") as f:
+            with open(scanner_file) as f:
                 content = f.read()
                 if "rate_limited_paginate" in content or "rate_limited" in content:
                     scanners_with_rate_limiting.append(scanner_file)
@@ -237,7 +247,7 @@ class TestRateLimitingCoverage:
         )
 
         if scanners_without_rate_limiting:
-            print(f"Scanners without rate limiting:")
+            print("Scanners without rate limiting:")
             for scanner in scanners_without_rate_limiting:
                 print(f"  ❌ {scanner}")
 

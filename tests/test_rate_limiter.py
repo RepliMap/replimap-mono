@@ -1,17 +1,15 @@
 """Tests for AWS Rate Limiter"""
 
-import time
 import threading
+import time
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 from replimap.core.rate_limiter import (
-    TokenBucket,
     AWSRateLimiter,
-    rate_limited,
-    rate_limited_paginate,
-    is_throttle_error,
     ServiceLimit,
+    TokenBucket,
+    rate_limited,
 )
 
 
