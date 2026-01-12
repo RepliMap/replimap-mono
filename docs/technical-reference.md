@@ -1963,6 +1963,106 @@ RepliMap is designed with security as a priority:
 - **Local Processing**: All data processing happens on your machine
 - **No Data Upload**: Your infrastructure data never leaves your environment
 - **Minimal Permissions**: See [IAM_POLICY.md](./IAM_POLICY.md) for recommended policy
+- **Sovereign Grade Credentials**: Secure credential caching with enforced file permissions
+
+### Credential Security & Session Management
+
+RepliMap includes enterprise-grade credential security with three core components:
+
+#### SecureStorage
+
+Atomic file operations with enforced permissions for credential caching.
+
+```python
+from replimap.core.security import SecureStorage
+
+# Write JSON with secure permissions (0o600)
+SecureStorage.write_json(path, data)
+
+# Read with permission validation (rejects insecure files)
+data = SecureStorage.read_json(path, strict=True)
+
+# Verify permissions
+is_secure, message = SecureStorage.verify_permissions(path)
+```
+
+**Security Properties:**
+- **Atomic Writes**: temp file → chmod → rename (no race condition window)
+- **Pre-write chmod**: Permissions set on file descriptor BEFORE any content written
+- **Permission Validation**: Strict mode refuses files with group/world access
+- **Directory Enforcement**: All directories created with 0o700
+
+#### SessionManager
+
+Centralized AWS session management with credential refresh support.
+
+```python
+from replimap.core.security import SessionManager
+
+# Initialize once at startup
+SessionManager.initialize(profile='prod', default_region='us-east-1')
+
+# Get clients anywhere (thread-safe, cached)
+mgr = SessionManager.get_instance()
+ec2 = mgr.get_client('ec2', 'us-east-1')
+
+# Check expiration proactively
+if mgr.is_expiring_soon(minutes=10):
+    mgr.force_refresh()  # May prompt for MFA
+```
+
+**Features:**
+- **Singleton Pattern**: Single instance with thread-safe access
+- **Client Caching**: Clients cached by (service, region) for efficiency
+- **Credential Expiration Tracking**: Detects temporary credential expiration
+- **MFA Refresh Flow**: Interactive MFA re-authentication during long scans
+- **Paginator Integration**: RobustPaginator auto-refreshes on `ExpiredToken`
+
+**The "Long Scan vs Short Token Deadlock" Solution:**
+
+When running multi-hour scans with 1-hour MFA session tokens, credentials can expire mid-scan. SessionManager solves this:
+
+1. RobustPaginator catches `ExpiredToken` / `InvalidClientTokenId` errors
+2. Triggers `SessionManager.force_refresh()` which prompts for MFA
+3. New credentials propagate to all cached clients
+4. Scan continues from where it left off (partial results preserved)
+
+#### CredentialChecker
+
+Proactive credential health warnings for compliance.
+
+```python
+from replimap.core.security import CredentialChecker
+
+checker = CredentialChecker(session)
+checker.check_and_warn()  # Displays warnings if issues found
+
+# Skip checks (for CI/CD)
+checker.check_and_warn(skip_check=True)
+```
+
+**Checks Performed:**
+- **Access Key Age**: 90-day warning, 180-day critical warning
+- **Root Account Usage**: Always warns (strongly discouraged)
+- **Credential Type Detection**: IAM user, assumed role, federated user
+
+**Compliance Support:**
+- AWS Security Best Practices
+- SOC2 access control requirements
+- PCI-DSS credential rotation policies
+- CIS AWS Foundations Benchmark
+
+#### CLI Integration
+
+```bash
+# Skip credential checks during scan
+replimap scan --profile prod --skip-credential-check
+
+# Credential security is automatic - no flags needed for:
+# - Secure file permissions (always enforced)
+# - Session refresh on expiration (automatic)
+# - Key age warnings (displayed at startup)
+```
 
 ## Architecture
 
