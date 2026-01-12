@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
+from replimap.core.rate_limiter import rate_limited_paginate
 from replimap.scanners.base import BaseScanner, ScannerRegistry
 
 if TYPE_CHECKING:
@@ -43,7 +44,7 @@ class CloudWatchLogGroupScanner(BaseScanner):
 
         try:
             paginator = logs.get_paginator("describe_log_groups")
-            for page in paginator.paginate():
+            for page in rate_limited_paginate('cloudwatch', self.region)(paginator.paginate()):
                 for log_group in page.get("logGroups", []):
                     if self._process_log_group(log_group, logs, graph):
                         log_group_count += 1

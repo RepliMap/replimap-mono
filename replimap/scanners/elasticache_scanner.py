@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, ClassVar
 from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
+from replimap.core.rate_limiter import rate_limited_paginate
 
 from .base import BaseScanner, ScannerRegistry
 
@@ -64,7 +65,7 @@ class ElastiCacheScanner(BaseScanner):
         logger.debug("Scanning ElastiCache Subnet Groups...")
 
         paginator = elasticache.get_paginator("describe_cache_subnet_groups")
-        for page in paginator.paginate():
+        for page in rate_limited_paginate('elasticache', self.region)(paginator.paginate()):
             for sg in page.get("CacheSubnetGroups", []):
                 sg_name = sg["CacheSubnetGroupName"]
                 vpc_id = sg.get("VpcId")
@@ -231,7 +232,7 @@ class DBParameterGroupScanner(BaseScanner):
         logger.debug("Scanning DB Parameter Groups...")
 
         paginator = rds.get_paginator("describe_db_parameter_groups")
-        for page in paginator.paginate():
+        for page in rate_limited_paginate('elasticache', self.region)(paginator.paginate()):
             for pg in page.get("DBParameterGroups", []):
                 pg_name = pg["DBParameterGroupName"]
 

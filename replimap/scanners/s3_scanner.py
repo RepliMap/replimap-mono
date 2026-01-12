@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from botocore.exceptions import ClientError
 
 from replimap.core.models import ResourceNode, ResourceType
+from replimap.core.rate_limiter import rate_limited_paginate, rate_limited
 
 from .base import BaseScanner, ScannerRegistry, parallel_process_items
 

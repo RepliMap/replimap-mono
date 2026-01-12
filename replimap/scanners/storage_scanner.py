@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
+from replimap.core.rate_limiter import rate_limited_paginate
 
 from .base import BaseScanner, ScannerRegistry
 
@@ -55,7 +56,7 @@ class EBSScanner(BaseScanner):
         logger.debug("Scanning EBS Volumes...")
 
         paginator = ec2.get_paginator("describe_volumes")
-        for page in paginator.paginate():
+        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
             for volume in page.get("Volumes", []):
                 vol_id = volume["VolumeId"]
                 tags = self._extract_tags(volume.get("Tags"))
