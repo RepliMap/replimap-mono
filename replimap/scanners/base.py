@@ -24,6 +24,8 @@ from botocore.exceptions import ClientError
 
 from replimap.core.aws_config import BOTO_CONFIG
 from replimap.core.concurrency import create_thread_pool
+from replimap.core.pagination import PaginationStream, RobustPaginator
+from replimap.core.rate_limiter import AWSRateLimiter
 from replimap.core.retry import (
     with_retry,  # noqa: F401 - Re-export for backward compatibility
 )
@@ -166,6 +168,7 @@ class BaseScanner(ABC):
         self.session = session
         self.region = region
         self._clients: dict[str, object] = {}
+        self.rate_limiter = AWSRateLimiter()
 
     def get_client(self, service_name: str) -> object:
         """
@@ -227,6 +230,46 @@ class BaseScanner(ABC):
         if not tag_list:
             return {}
         return {tag["Key"]: tag["Value"] for tag in tag_list}
+
+    def scan_paginated(
+        self,
+        client: Any,
+        method_name: str,
+        **kwargs: Any,
+    ) -> PaginationStream:
+        """
+        Robust paginated scanning with automatic retry and partial success.
+
+        Replaces boto3's all-or-nothing paginator with a resilient system that:
+        - Isolates page-level failures (single page failure doesn't kill scan)
+        - Provides automatic retry with exponential backoff
+        - Reports partial success statistics
+        - Integrates with rate limiter for throttling protection
+
+        Usage:
+            stream = self.scan_paginated(ec2, 'describe_instances')
+            for instance in stream:
+                graph.add_resource(instance)
+
+            if not stream.stats.is_complete:
+                logger.warning(f"Partial scan: {stream.stats.success_rate:.0%}")
+                for error in stream.stats.errors:
+                    logger.error(f"  - {error}")
+
+        Args:
+            client: Boto3 service client
+            method_name: AWS API method name (e.g., 'describe_instances')
+            **kwargs: Additional arguments to pass to the API
+
+        Returns:
+            PaginationStream that can be iterated and provides stats
+        """
+        paginator = RobustPaginator(
+            client=client,
+            method_name=method_name,
+            rate_limiter=self.rate_limiter,
+        )
+        return paginator.paginate(**kwargs)
 
     def _handle_aws_error(self, error: ClientError, operation: str) -> None:
         """
