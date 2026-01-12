@@ -29,6 +29,7 @@ from replimap.core.rate_limiter import AWSRateLimiter
 from replimap.core.retry import (
     with_retry,  # noqa: F401 - Re-export for backward compatibility
 )
+from replimap.core.security.session_manager import SessionManager
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -157,18 +158,35 @@ class BaseScanner(ABC):
     # Scanners with dependencies run in phase 2, after phase 1 completes
     depends_on_types: ClassVar[list[str]] = []
 
-    def __init__(self, session: boto3.Session, region: str) -> None:
+    def __init__(
+        self,
+        session: boto3.Session,
+        region: str,
+        session_manager: SessionManager | None = None,
+        rate_limiter: AWSRateLimiter | None = None,
+    ) -> None:
         """
         Initialize the scanner with AWS credentials.
 
         Args:
             session: Configured boto3 session
             region: AWS region to scan
+            session_manager: Optional SessionManager for credential refresh.
+                           If not provided, will try to get global instance.
+            rate_limiter: Optional rate limiter. If not provided, creates new one.
         """
         self.session = session
         self.region = region
         self._clients: dict[str, object] = {}
-        self.rate_limiter = AWSRateLimiter()
+        self.rate_limiter = rate_limiter or AWSRateLimiter()
+
+        # Get session manager - try provided, then global, then None
+        if session_manager is not None:
+            self.session_manager = session_manager
+        elif SessionManager.is_initialized():
+            self.session_manager = SessionManager.get_instance()
+        else:
+            self.session_manager = None
 
     def get_client(self, service_name: str) -> object:
         """
@@ -238,13 +256,20 @@ class BaseScanner(ABC):
         **kwargs: Any,
     ) -> PaginationStream:
         """
-        Robust paginated scanning with automatic retry and partial success.
+        Robust paginated scanning with automatic retry and credential refresh.
 
         Replaces boto3's all-or-nothing paginator with a resilient system that:
         - Isolates page-level failures (single page failure doesn't kill scan)
         - Provides automatic retry with exponential backoff
         - Reports partial success statistics
         - Integrates with rate limiter for throttling protection
+        - Handles credential expiration via SessionManager refresh
+
+        When credentials expire mid-scan:
+        1. Catches ExpiredToken/InvalidClientTokenId errors
+        2. Triggers SessionManager.force_refresh() (may prompt for MFA)
+        3. Gets fresh client and continues scan
+        4. Partial results already collected are preserved
 
         Usage:
             stream = self.scan_paginated(ec2, 'describe_instances')
@@ -268,6 +293,7 @@ class BaseScanner(ABC):
             client=client,
             method_name=method_name,
             rate_limiter=self.rate_limiter,
+            session_manager=self.session_manager,
         )
         return paginator.paginate(**kwargs)
 
