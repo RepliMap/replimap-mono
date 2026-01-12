@@ -26,8 +26,9 @@ from __future__ import annotations
 import logging
 import random
 import time
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generator, Generic, Iterator, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from botocore.exceptions import ClientError
 
@@ -216,7 +217,7 @@ class RobustPaginator:
         self,
         client: Any,
         method_name: str,
-        rate_limiter: Optional[AWSRateLimiter] = None,
+        rate_limiter: AWSRateLimiter | None = None,
         max_retries: int = 3,
         base_backoff: float = 1.0,
     ) -> None:
@@ -255,7 +256,7 @@ class RobustPaginator:
             # Fallback for mocked clients
             return getattr(self._client, "_service_name", "unknown")
 
-    def _get_region(self) -> Optional[str]:
+    def _get_region(self) -> str | None:
         """Extract region from boto3 client."""
         try:
             return self._client.meta.region_name
@@ -290,7 +291,7 @@ class RobustPaginator:
         api_method = getattr(self._client, self._method_name)
 
         # Token state for pagination
-        next_token: Optional[str] = None
+        next_token: str | None = None
         compound_tokens: dict[str, str] = {}  # For Route53-style compound tokens
         page_num = 0
 
@@ -339,7 +340,7 @@ class RobustPaginator:
     def _build_params(
         self,
         base_kwargs: dict[str, Any],
-        next_token: Optional[str],
+        next_token: str | None,
         compound_tokens: dict[str, str],
         is_first_page: bool,
     ) -> dict[str, Any]:
@@ -367,7 +368,7 @@ class RobustPaginator:
         params: dict[str, Any],
         page_num: int,
         stats: PaginationStats,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Fetch a single page with retry logic.
 
@@ -375,7 +376,7 @@ class RobustPaginator:
         Never raises exceptions.
         """
         region = self._get_region()
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for attempt in range(self._max_retries + 1):
             # Rate limiting
@@ -459,7 +460,9 @@ class RobustPaginator:
 
             except Exception as e:
                 # Unexpected error
-                error_msg = f"Page {page_num}: Unexpected error - {type(e).__name__}: {e}"
+                error_msg = (
+                    f"Page {page_num}: Unexpected error - {type(e).__name__}: {e}"
+                )
                 logger.error(error_msg)
                 stats.errors.append(error_msg)
                 stats.failed_pages += 1
@@ -469,7 +472,9 @@ class RobustPaginator:
 
         # Should not reach here
         if last_error:
-            error_msg = f"Page {page_num}: Failed after {self._max_retries + 1} attempts"
+            error_msg = (
+                f"Page {page_num}: Failed after {self._max_retries + 1} attempts"
+            )
             logger.error(error_msg)
             stats.errors.append(error_msg)
             stats.failed_pages += 1
@@ -518,6 +523,7 @@ class RobustPaginator:
         for output_key, input_key in zip(
             config.compound_output_keys,
             config.compound_input_keys,
+            strict=True,
         ):
             value = response.get(output_key)
             if value:

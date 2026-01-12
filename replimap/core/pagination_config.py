@@ -9,12 +9,15 @@ AWS APIs use inconsistent pagination patterns:
 - Route53: Compound tokens (StartRecordName + StartRecordType)
 
 This module provides a unified configuration system for all pagination patterns.
+
+Note: S106 is disabled because input_token/output_token refer to AWS pagination
+tokens (API parameters), not authentication secrets.
 """
+# ruff: noqa: S106
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -41,7 +44,7 @@ class PaginationConfig:
     limit_key: str = "MaxResults"
     default_page_size: int = 100
     is_nested: bool = False
-    nested_key: Optional[str] = None
+    nested_key: str | None = None
     is_compound_token: bool = False
     compound_input_keys: tuple[str, ...] = field(default_factory=tuple)
     compound_output_keys: tuple[str, ...] = field(default_factory=tuple)
@@ -661,7 +664,7 @@ PAGINATION_CONFIGS: dict[str, dict[str, PaginationConfig]] = {
 }
 
 
-def get_pagination_config(service: str, method: str) -> Optional[PaginationConfig]:
+def get_pagination_config(service: str, method: str) -> PaginationConfig | None:
     """
     Get pagination config for a service method.
 

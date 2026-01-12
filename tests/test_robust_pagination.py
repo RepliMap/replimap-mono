@@ -11,7 +11,11 @@ Tests cover:
 - Early abort functionality
 - Empty response handling
 - Compound token pagination (Route53)
+
+Note: S105 is disabled because assertions check AWS pagination token parameter
+names, not authentication secrets.
 """
+# ruff: noqa: S105
 
 from __future__ import annotations
 
@@ -24,15 +28,12 @@ from replimap.core.pagination import (
     FATAL_ERROR_CODES,
     RETRYABLE_ERROR_CODES,
     PaginationStats,
-    PaginationStream,
     RobustPaginator,
 )
 from replimap.core.pagination_config import (
     PAGINATION_CONFIGS,
-    PaginationConfig,
     get_pagination_config,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -514,7 +515,10 @@ class TestStreamControl:
     ) -> None:
         """Test stats can be read during iteration."""
         mock_ec2_client.describe_vpcs.side_effect = [
-            {"Vpcs": [{"VpcId": f"vpc-{i}"} for i in range(10)], "NextToken": "token-1"},
+            {
+                "Vpcs": [{"VpcId": f"vpc-{i}"} for i in range(10)],
+                "NextToken": "token-1",
+            },
             {"Vpcs": [{"VpcId": f"vpc-{i}"} for i in range(10, 20)]},
         ]
 
@@ -526,7 +530,7 @@ class TestStreamControl:
         stream = paginator.paginate()
 
         items_seen = 0
-        for item in stream:
+        for _item in stream:
             items_seen += 1
             # Can access stats mid-iteration
             assert stream.stats.items_yielded == items_seen
@@ -542,7 +546,10 @@ class TestStreamControl:
     ) -> None:
         """Test stream.abort() stops iteration early."""
         mock_ec2_client.describe_vpcs.side_effect = [
-            {"Vpcs": [{"VpcId": f"vpc-{i}"} for i in range(100)], "NextToken": "token-1"},
+            {
+                "Vpcs": [{"VpcId": f"vpc-{i}"} for i in range(100)],
+                "NextToken": "token-1",
+            },
             {"Vpcs": [{"VpcId": f"vpc-{i}"} for i in range(100, 200)]},  # Never reached
         ]
 
@@ -762,19 +769,19 @@ class TestPaginationIntegration:
             {
                 "Reservations": [
                     {"Instances": [{"InstanceId": f"i-{j}"} for j in range(5)]},
-                    {"Instances": [{"InstanceId": f"i-{j+5}"} for j in range(5)]},
+                    {"Instances": [{"InstanceId": f"i-{j + 5}"} for j in range(5)]},
                 ],
                 "NextToken": "token-1",
             },
             {
                 "Reservations": [
-                    {"Instances": [{"InstanceId": f"i-{j+10}"} for j in range(5)]},
+                    {"Instances": [{"InstanceId": f"i-{j + 10}"} for j in range(5)]},
                 ],
                 "NextToken": "token-2",
             },
             {
                 "Reservations": [
-                    {"Instances": [{"InstanceId": f"i-{j+15}"} for j in range(3)]},
+                    {"Instances": [{"InstanceId": f"i-{j + 15}"} for j in range(3)]},
                 ],
             },
         ]
