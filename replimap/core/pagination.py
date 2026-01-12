@@ -28,7 +28,7 @@ import random
 import time
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 
 from botocore.exceptions import ClientError
 
@@ -36,6 +36,7 @@ from replimap.core.pagination_config import get_pagination_config
 
 if TYPE_CHECKING:
     from replimap.core.rate_limiter import AWSRateLimiter
+    from replimap.core.security.session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +69,6 @@ FATAL_ERROR_CODES = {
     "AccessDenied",
     "AccessDeniedException",
     "UnauthorizedAccess",
-    "InvalidClientTokenId",
-    "ExpiredToken",
-    "ExpiredTokenException",
     "SignatureDoesNotMatch",
     "InvalidParameterValue",
     "ValidationException",
@@ -82,6 +80,15 @@ FATAL_ERROR_CODES = {
     "NoSuchEntity",
     "InvalidAction",
     "UnrecognizedClientException",
+}
+
+# Credential expiration errors - handled specially with SessionManager
+# These are NOT fatal if SessionManager can refresh credentials
+CREDENTIAL_ERROR_CODES = {
+    "ExpiredToken",
+    "ExpiredTokenException",
+    "InvalidClientTokenId",
+    "RequestExpired",
 }
 
 
@@ -218,8 +225,10 @@ class RobustPaginator:
         client: Any,
         method_name: str,
         rate_limiter: AWSRateLimiter | None = None,
+        session_manager: Optional[SessionManager] = None,
         max_retries: int = 3,
         base_backoff: float = 1.0,
+        max_auth_retries: int = 1,
     ) -> None:
         """
         Initialize the paginator.
@@ -228,14 +237,22 @@ class RobustPaginator:
             client: Boto3 service client
             method_name: AWS API method name (e.g., 'describe_instances')
             rate_limiter: Optional AWSRateLimiter for throttling protection
+            session_manager: Optional SessionManager for credential refresh
             max_retries: Maximum retry attempts per page (default: 3)
             base_backoff: Base delay for exponential backoff (default: 1.0s)
+            max_auth_retries: Maximum credential refresh attempts (default: 1)
+                             Prevents infinite MFA loops if refresh keeps failing
         """
         self._client = client
         self._method_name = method_name
         self._rate_limiter = rate_limiter
+        self._session_manager = session_manager
         self._max_retries = max_retries
         self._base_backoff = base_backoff
+        self._max_auth_retries = max_auth_retries
+
+        # Track auth retries separately from normal retries
+        self._auth_retry_count = 0
 
         # Extract service name from client
         self._service_name = self._get_service_name()
@@ -374,6 +391,11 @@ class RobustPaginator:
 
         Returns None on unrecoverable failure (page is skipped).
         Never raises exceptions.
+
+        Handles three categories of errors:
+        1. Credential errors: Trigger SessionManager.force_refresh() if available
+        2. Fatal errors: Immediate failure, no retry
+        3. Transient errors: Retry with exponential backoff
         """
         region = self._get_region()
         last_error: Exception | None = None
@@ -400,6 +422,9 @@ class RobustPaginator:
                 if self._rate_limiter is not None:
                     self._rate_limiter.report_success(self._service_name, region)
 
+                # Reset auth retry count on success
+                self._auth_retry_count = 0
+
                 return response
 
             except ClientError as e:
@@ -407,9 +432,77 @@ class RobustPaginator:
                 error_code = e.response.get("Error", {}).get("Code", "Unknown")
                 error_message = e.response.get("Error", {}).get("Message", str(e))
 
-                # Check if error is retryable
+                # ═══════════════════════════════════════════════════════════════
+                # CREDENTIAL EXPIRATION: Handle separately from normal retries
+                # ═══════════════════════════════════════════════════════════════
+                if error_code in CREDENTIAL_ERROR_CODES:
+                    logger.warning(
+                        f"Page {page_num}: Credential expired ({error_code})"
+                    )
+
+                    # Check auth retry limit (prevents infinite MFA loops)
+                    if self._auth_retry_count >= self._max_auth_retries:
+                        logger.error(
+                            f"Max auth retries ({self._max_auth_retries}) exceeded. "
+                            "Cannot refresh credentials."
+                        )
+                        stats.failed_pages += 1
+                        stats.total_pages += 1
+                        stats.is_complete = False
+                        stats.errors.append(
+                            f"Page {page_num}: Auth expired, refresh limit exceeded"
+                        )
+                        return None
+
+                    self._auth_retry_count += 1
+
+                    # Attempt refresh via SessionManager
+                    if self._session_manager is not None:
+                        logger.info(
+                            "Attempting credential refresh via SessionManager..."
+                        )
+
+                        if self._session_manager.force_refresh():
+                            # Refresh successful - update client and retry
+                            # Get fresh client from SessionManager
+                            self._client = self._session_manager.get_client(
+                                self._service_name, region
+                            )
+                            # Update api_method reference to use new client
+                            api_method = getattr(self._client, self._method_name)
+
+                            logger.info(
+                                "Credential refresh successful. Retrying request..."
+                            )
+                            # Continue to retry without consuming attempt count
+                            continue
+                        else:
+                            # Refresh failed (user cancelled MFA, etc.)
+                            logger.error("Credential refresh failed.")
+                            stats.failed_pages += 1
+                            stats.total_pages += 1
+                            stats.is_complete = False
+                            stats.errors.append(
+                                f"Page {page_num}: Session refresh failed"
+                            )
+                            return None
+                    else:
+                        # No SessionManager available - treat as fatal
+                        logger.error(
+                            "No SessionManager available for credential refresh."
+                        )
+                        stats.failed_pages += 1
+                        stats.total_pages += 1
+                        stats.is_complete = False
+                        stats.errors.append(
+                            f"Page {page_num}: {error_code} (no session manager)"
+                        )
+                        return None
+
+                # ═══════════════════════════════════════════════════════════════
+                # FATAL ERRORS: Do not retry
+                # ═══════════════════════════════════════════════════════════════
                 if error_code in FATAL_ERROR_CODES:
-                    # Fatal error - do not retry
                     error_msg = (
                         f"Page {page_num}: {error_code} - {error_message} "
                         f"(fatal, not retrying)"
@@ -421,7 +514,9 @@ class RobustPaginator:
                     stats.is_complete = False
                     return None
 
-                # Retryable error
+                # ═══════════════════════════════════════════════════════════════
+                # TRANSIENT/THROTTLING ERRORS: Retry with backoff
+                # ═══════════════════════════════════════════════════════════════
                 is_throttle = error_code in RETRYABLE_ERROR_CODES
 
                 # Report throttle to rate limiter
