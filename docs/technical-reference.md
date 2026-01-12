@@ -1923,6 +1923,38 @@ Built-in retry with exponential backoff handles AWS throttling automatically:
 - Exponential backoff: 1s → 2s → 4s → 8s → 16s (up to 30s max)
 - Configurable via environment variables
 
+### Robust Pagination
+
+RepliMap uses a production-grade pagination system that isolates failures at the page level:
+
+| Feature | Description |
+|---------|-------------|
+| **Page-Level Isolation** | Single page failure doesn't kill the entire scan |
+| **Per-Page Retry** | Each page independently retried with exponential backoff |
+| **Partial Success** | Reports exact success/failure percentages (e.g., "95% pages succeeded") |
+| **Streaming Output** | Items yielded as they arrive (memory-efficient) |
+| **Rate Limiter Integration** | Built-in AIMD throttling protection |
+| **Compound Token Support** | Route53-style multi-field pagination tokens |
+
+**Supported AWS Services** (40+ API methods):
+- EC2, RDS, S3, IAM, ELBv2, CloudWatch Logs, Lambda, SQS, SNS, ElastiCache, Route53, ECS, EKS, DynamoDB, Secrets Manager, SSM, KMS, ECR, API Gateway
+
+**Usage in Scanners:**
+
+```python
+# Robust pagination with automatic retry and partial success
+stream = self.scan_paginated(ec2, 'describe_instances')
+
+for instance in stream:
+    graph.add_resource(instance)
+
+# Check for partial failures
+if not stream.stats.is_complete:
+    logger.warning(f"Partial scan: {stream.stats.success_rate:.0%}")
+    for error in stream.stats.errors:
+        logger.error(f"  - {error}")
+```
+
 ## Security
 
 RepliMap is designed with security as a priority:
