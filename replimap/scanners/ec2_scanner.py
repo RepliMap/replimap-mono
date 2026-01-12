@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
+from replimap.core.rate_limiter import rate_limited_paginate
 
 from .base import BaseScanner, ScannerRegistry
 
@@ -64,7 +65,8 @@ class EC2Scanner(BaseScanner):
         logger.debug("Scanning EC2 instances...")
 
         paginator = ec2.get_paginator("describe_instances")
-        for page in paginator.paginate():
+        # Wrap paginator with rate limiting
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for reservation in page.get("Reservations", []):
                 for instance in reservation.get("Instances", []):
                     self._process_instance(instance, graph)

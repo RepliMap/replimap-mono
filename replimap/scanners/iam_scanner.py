@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
+from replimap.core.rate_limiter import rate_limited_paginate
 from replimap.scanners.base import BaseScanner, ScannerRegistry
 
 if TYPE_CHECKING:
@@ -47,7 +48,8 @@ class IAMRoleScanner(BaseScanner):
 
         try:
             paginator = iam.get_paginator("list_roles")
-            for page in paginator.paginate():
+            # IAM is a global service - no region parameter
+            for page in rate_limited_paginate("iam")(paginator.paginate()):
                 for role in page.get("Roles", []):
                     if self._process_role(role, iam, graph):
                         role_count += 1
@@ -144,7 +146,8 @@ class IAMInstanceProfileScanner(BaseScanner):
 
         try:
             paginator = iam.get_paginator("list_instance_profiles")
-            for page in paginator.paginate():
+            # IAM is a global service - no region parameter
+            for page in rate_limited_paginate("iam")(paginator.paginate()):
                 for profile in page.get("InstanceProfiles", []):
                     if self._process_instance_profile(profile, graph):
                         profile_count += 1

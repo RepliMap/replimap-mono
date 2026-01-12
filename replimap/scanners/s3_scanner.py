@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from botocore.exceptions import ClientError
 
 from replimap.core.models import ResourceNode, ResourceType
+from replimap.core.rate_limiter import get_limiter
 
 from .base import BaseScanner, ScannerRegistry, parallel_process_items
 
@@ -57,9 +58,12 @@ class S3Scanner(BaseScanner):
     def _scan_buckets(self, s3: Any, graph: GraphEngine) -> None:
         """Scan all S3 buckets with parallel processing."""
         logger.debug("Listing S3 buckets...")
+        limiter = get_limiter()
 
         try:
+            limiter.acquire("s3")  # S3 is a global service
             response = s3.list_buckets()
+            limiter.report_success("s3")
         except ClientError as e:
             self._handle_aws_error(e, "list S3 buckets")
             return
@@ -71,7 +75,9 @@ class S3Scanner(BaseScanner):
 
             # Get bucket region
             try:
+                limiter.acquire("s3")
                 location = s3.get_bucket_location(Bucket=bucket_name)
+                limiter.report_success("s3")
                 bucket_region = location.get("LocationConstraint") or "us-east-1"
             except ClientError as e:
                 logger.warning(f"Could not get region for bucket {bucket_name}: {e}")

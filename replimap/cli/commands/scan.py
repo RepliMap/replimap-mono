@@ -41,6 +41,7 @@ from replimap.core import (
     update_cache_from_graph,
 )
 from replimap.core.cache_manager import save_graph_to_cache
+from replimap.core.rate_limiter import get_limiter
 from replimap.licensing import Feature, check_scan_allowed, get_scans_remaining
 from replimap.licensing.manager import get_license_manager
 from replimap.licensing.tracker import get_usage_tracker
@@ -537,6 +538,11 @@ def register(app: typer.Typer) -> None:
             vpc=vpc,
             account_id=account_id if use_scan_cache else None,
         )
+
+        # Print rate limiter statistics
+        console.print()
+        limiter = get_limiter()
+        limiter.print_stats()
 
         # Report any failed scanners (only show errors, not successes)
         failed = [name for name, err in results.items() if err is not None]
