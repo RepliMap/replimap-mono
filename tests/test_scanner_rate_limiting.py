@@ -234,7 +234,12 @@ class TestRateLimitingCoverage:
         for scanner_file in sync_scanners:
             with open(scanner_file) as f:
                 content = f.read()
-                if "rate_limited_paginate" in content or "rate_limited" in content:
+                # Check for any rate limiting usage: paginators, decorators, or direct limiter
+                if (
+                    "rate_limited_paginate" in content
+                    or "rate_limited" in content
+                    or "get_limiter" in content
+                ):
                     scanners_with_rate_limiting.append(scanner_file)
                 else:
                     scanners_without_rate_limiting.append(scanner_file)

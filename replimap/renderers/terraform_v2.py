@@ -342,19 +342,19 @@ class EnhancedTerraformRenderer(TerraformRenderer):
         This replaces the parent's _generate_variables with enhanced extraction.
         """
         # Generate variables file from extractor
-        self.variable_extractor.generate_variables_file(
-            extracted_vars,
-            output_dir / "variables.tf",
+        variables_content = self.variable_extractor.generate_variables_tf(
+            extracted_vars
         )
+        variables_path = output_dir / "variables.tf"
+        variables_path.write_text(variables_content)
 
         # Generate tfvars with actual values
-        self.variable_extractor.generate_tfvars(
-            extracted_vars,
-            output_dir / "terraform.tfvars",
-        )
+        tfvars_content = self.variable_extractor.generate_tfvars(extracted_vars)
+        tfvars_path = output_dir / "terraform.tfvars"
+        tfvars_path.write_text(tfvars_content)
 
-        written_files["variables.tf"] = output_dir / "variables.tf"
-        written_files["terraform.tfvars"] = output_dir / "terraform.tfvars"
+        written_files["variables.tf"] = variables_path
+        written_files["terraform.tfvars"] = tfvars_path
 
         # Also generate the example file using parent method
         self._generate_tfvars_example(graph, output_dir, written_files)

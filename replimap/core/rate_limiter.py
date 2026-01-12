@@ -129,7 +129,7 @@ class TokenBucket:
                 return False
 
             # Wait with jitter to avoid thundering herd
-            jitter = random.uniform(0, 0.05)
+            jitter = random.uniform(0, 0.05)  # noqa: S311 - not for crypto
             actual_wait = min(wait_time + jitter, 1.0)
             self.total_wait_time += actual_wait
             time.sleep(actual_wait)
@@ -417,7 +417,7 @@ def rate_limited(
 
                         if attempt < max_retries:
                             # Exponential backoff with jitter
-                            backoff = (2**attempt) + random.uniform(0, 1)
+                            backoff = (2**attempt) + random.uniform(0, 1)  # noqa: S311 - not for crypto
                             logger.warning(
                                 f"[{service}/{region}] Throttled on attempt {attempt + 1}, "
                                 f"retrying in {backoff:.1f}s..."
