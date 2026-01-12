@@ -54,7 +54,7 @@ class SQSScanner(BaseScanner):
 
         # List all queues
         paginator = sqs.get_paginator("list_queues")
-        for page in rate_limited_paginate('sqs', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("sqs", self.region)(paginator.paginate()):
             for queue_url in page.get("QueueUrls", []):
                 try:
                     # Get queue attributes
@@ -180,7 +180,7 @@ class SNSScanner(BaseScanner):
         logger.debug("Scanning SNS Topics...")
 
         paginator = sns.get_paginator("list_topics")
-        for page in rate_limited_paginate('sns', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("sns", self.region)(paginator.paginate()):
             for topic in page.get("Topics", []):
                 topic_arn = topic["TopicArn"]
                 topic_name = topic_arn.split(":")[-1]

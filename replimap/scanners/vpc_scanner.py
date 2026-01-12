@@ -68,7 +68,9 @@ class VPCScanner(BaseScanner):
         vpc_flow_logs: dict[str, list[dict[str, Any]]] = {}
         try:
             fl_paginator = ec2.get_paginator("describe_flow_logs")
-            for fl_page in rate_limited_paginate('ec2', self.region)(fl_paginator.paginate()):
+            for fl_page in rate_limited_paginate("ec2", self.region)(
+                fl_paginator.paginate()
+            ):
                 for flow_log in fl_page.get("FlowLogs", []):
                     resource_id = flow_log.get("ResourceId", "")
                     if resource_id.startswith("vpc-"):
@@ -90,7 +92,7 @@ class VPCScanner(BaseScanner):
             logger.debug(f"Could not describe flow logs: {e}")
 
         paginator = ec2.get_paginator("describe_vpcs")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for vpc in page.get("Vpcs", []):
                 vpc_id = vpc["VpcId"]
                 tags = self._extract_tags(vpc.get("Tags"))
@@ -129,7 +131,7 @@ class VPCScanner(BaseScanner):
         logger.debug("Scanning Subnets...")
 
         paginator = ec2.get_paginator("describe_subnets")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for subnet in page.get("Subnets", []):
                 subnet_id = subnet["SubnetId"]
                 vpc_id = subnet["VpcId"]
@@ -169,7 +171,7 @@ class VPCScanner(BaseScanner):
         logger.debug("Scanning Security Groups...")
 
         paginator = ec2.get_paginator("describe_security_groups")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for sg in page.get("SecurityGroups", []):
                 sg_id = sg["GroupId"]
                 vpc_id = sg.get("VpcId")

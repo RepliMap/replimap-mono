@@ -85,7 +85,7 @@ class NetworkingScanner(BaseScanner):
         logger.debug("Scanning Internet Gateways...")
 
         paginator = ec2.get_paginator("describe_internet_gateways")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for igw in page.get("InternetGateways", []):
                 igw_id = igw["InternetGatewayId"]
                 tags = self._extract_tags(igw.get("Tags"))
@@ -122,7 +122,7 @@ class NetworkingScanner(BaseScanner):
         logger.debug("Scanning NAT Gateways...")
 
         paginator = ec2.get_paginator("describe_nat_gateways")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for nat in page.get("NatGateways", []):
                 # Skip deleted NAT gateways
                 if nat.get("State") == "deleted":
@@ -167,7 +167,7 @@ class NetworkingScanner(BaseScanner):
         logger.debug("Scanning Route Tables...")
 
         paginator = ec2.get_paginator("describe_route_tables")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for rt in page.get("RouteTables", []):
                 rt_id = rt["RouteTableId"]
                 vpc_id = rt.get("VpcId")
@@ -258,7 +258,7 @@ class NetworkingScanner(BaseScanner):
         logger.debug("Scanning VPC Endpoints...")
 
         paginator = ec2.get_paginator("describe_vpc_endpoints")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for endpoint in page.get("VpcEndpoints", []):
                 endpoint_id = endpoint["VpcEndpointId"]
                 vpc_id = endpoint.get("VpcId")
@@ -303,7 +303,7 @@ class NetworkingScanner(BaseScanner):
         logger.debug("Scanning Network ACLs...")
 
         paginator = ec2.get_paginator("describe_network_acls")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for nacl in page.get("NetworkAcls", []):
                 nacl_id = nacl["NetworkAclId"]
                 vpc_id = nacl.get("VpcId")

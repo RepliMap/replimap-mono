@@ -44,7 +44,9 @@ class CloudWatchLogGroupScanner(BaseScanner):
 
         try:
             paginator = logs.get_paginator("describe_log_groups")
-            for page in rate_limited_paginate('cloudwatch', self.region)(paginator.paginate()):
+            for page in rate_limited_paginate("cloudwatch", self.region)(
+                paginator.paginate()
+            ):
                 for log_group in page.get("logGroups", []):
                     if self._process_log_group(log_group, logs, graph):
                         log_group_count += 1

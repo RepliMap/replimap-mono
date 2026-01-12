@@ -74,7 +74,7 @@ class RDSScanner(BaseScanner):
         logger.debug("Scanning DB Subnet Groups...")
 
         paginator = rds.get_paginator("describe_db_subnet_groups")
-        for page in rate_limited_paginate('rds', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("rds", self.region)(paginator.paginate()):
             for group in page.get("DBSubnetGroups", []):
                 group_name = group["DBSubnetGroupName"]
 
@@ -121,7 +121,7 @@ class RDSScanner(BaseScanner):
         logger.debug("Scanning RDS instances...")
 
         paginator = rds.get_paginator("describe_db_instances")
-        for page in rate_limited_paginate('rds', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("rds", self.region)(paginator.paginate()):
             for instance in page.get("DBInstances", []):
                 self._process_db_instance(instance, graph)
 

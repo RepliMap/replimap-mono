@@ -34,7 +34,7 @@ from typing import Callable, Iterable, TypeVar, Optional, Any
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 # WeakSet auto-removes executors when they're garbage collected
 _active_executors: weakref.WeakSet[ThreadPoolExecutor] = weakref.WeakSet()
@@ -173,7 +173,7 @@ class GlobalExecutor:
                 if self._executor is None:
                     self._executor = create_thread_pool(
                         max_workers=self._max_workers,
-                        thread_name_prefix="replimap-worker-"
+                        thread_name_prefix="replimap-worker-",
                     )
         return self._executor
 
@@ -260,6 +260,7 @@ class GlobalExecutor:
 
 
 # Convenience functions for global executor
+
 
 def get_executor() -> GlobalExecutor:
     """Get global executor instance"""

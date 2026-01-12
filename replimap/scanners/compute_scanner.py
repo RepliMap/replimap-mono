@@ -84,7 +84,7 @@ class ComputeScanner(BaseScanner):
         ec2 = self.get_client("ec2")
 
         paginator = ec2.get_paginator("describe_launch_templates")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for lt in page.get("LaunchTemplates", []):
                 lt_id = lt["LaunchTemplateId"]
                 lt_name = lt["LaunchTemplateName"]
@@ -141,7 +141,7 @@ class ComputeScanner(BaseScanner):
         elbv2 = self.get_client("elbv2")
 
         paginator = elbv2.get_paginator("describe_target_groups")
-        for page in rate_limited_paginate('elbv2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("elbv2", self.region)(paginator.paginate()):
             for tg in page.get("TargetGroups", []):
                 tg_arn = tg["TargetGroupArn"]
                 tg_name = tg["TargetGroupName"]
@@ -217,7 +217,7 @@ class ComputeScanner(BaseScanner):
         elbv2 = self.get_client("elbv2")
 
         paginator = elbv2.get_paginator("describe_load_balancers")
-        for page in rate_limited_paginate('elbv2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("elbv2", self.region)(paginator.paginate()):
             for lb in page.get("LoadBalancers", []):
                 lb_arn = lb["LoadBalancerArn"]
                 lb_name = lb["LoadBalancerName"]
@@ -397,7 +397,9 @@ class ComputeScanner(BaseScanner):
         autoscaling = self.get_client("autoscaling")
 
         paginator = autoscaling.get_paginator("describe_auto_scaling_groups")
-        for page in rate_limited_paginate('autoscaling', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("autoscaling", self.region)(
+            paginator.paginate()
+        ):
             for asg in page.get("AutoScalingGroups", []):
                 asg_name = asg["AutoScalingGroupName"]
                 asg_arn = asg["AutoScalingGroupARN"]

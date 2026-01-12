@@ -49,7 +49,7 @@ class IAMRoleScanner(BaseScanner):
         try:
             paginator = iam.get_paginator("list_roles")
             # IAM is a global service - no region parameter
-            for page in rate_limited_paginate('iam')(paginator.paginate()):
+            for page in rate_limited_paginate("iam")(paginator.paginate()):
                 for role in page.get("Roles", []):
                     if self._process_role(role, iam, graph):
                         role_count += 1
@@ -147,7 +147,7 @@ class IAMInstanceProfileScanner(BaseScanner):
         try:
             paginator = iam.get_paginator("list_instance_profiles")
             # IAM is a global service - no region parameter
-            for page in rate_limited_paginate('iam')(paginator.paginate()):
+            for page in rate_limited_paginate("iam")(paginator.paginate()):
                 for profile in page.get("InstanceProfiles", []):
                     if self._process_instance_profile(profile, graph):
                         profile_count += 1

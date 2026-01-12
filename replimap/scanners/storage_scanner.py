@@ -56,7 +56,7 @@ class EBSScanner(BaseScanner):
         logger.debug("Scanning EBS Volumes...")
 
         paginator = ec2.get_paginator("describe_volumes")
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for volume in page.get("Volumes", []):
                 vol_id = volume["VolumeId"]
                 tags = self._extract_tags(volume.get("Tags"))

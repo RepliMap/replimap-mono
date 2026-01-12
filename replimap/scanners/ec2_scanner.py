@@ -66,7 +66,7 @@ class EC2Scanner(BaseScanner):
 
         paginator = ec2.get_paginator("describe_instances")
         # Wrap paginator with rate limiting
-        for page in rate_limited_paginate('ec2', self.region)(paginator.paginate()):
+        for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
             for reservation in page.get("Reservations", []):
                 for instance in reservation.get("Instances", []):
                     self._process_instance(instance, graph)

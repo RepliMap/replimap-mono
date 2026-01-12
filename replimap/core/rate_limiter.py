@@ -24,48 +24,47 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ServiceLimit:
     """Service rate limit configuration"""
-    tps: float           # Tokens (requests) per second
-    burst: int           # Bucket capacity for burst traffic
-    is_global: bool      # True for global services (IAM, STS, etc.)
+
+    tps: float  # Tokens (requests) per second
+    burst: int  # Bucket capacity for burst traffic
+    is_global: bool  # True for global services (IAM, STS, etc.)
 
 
 # Conservative default limits based on AWS documentation and testing
 # Users can override via config file
 DEFAULT_SERVICE_LIMITS: Dict[str, ServiceLimit] = {
     # Regional services
-    'ec2': ServiceLimit(tps=40.0, burst=80, is_global=False),
-    'rds': ServiceLimit(tps=20.0, burst=40, is_global=False),
-    'elbv2': ServiceLimit(tps=25.0, burst=50, is_global=False),
-    'elb': ServiceLimit(tps=25.0, burst=50, is_global=False),
-    'lambda': ServiceLimit(tps=15.0, burst=30, is_global=False),
-    'dynamodb': ServiceLimit(tps=25.0, burst=50, is_global=False),
-    'sns': ServiceLimit(tps=30.0, burst=60, is_global=False),
-    'sqs': ServiceLimit(tps=30.0, burst=60, is_global=False),
-    'cloudwatch': ServiceLimit(tps=20.0, burst=40, is_global=False),
-    'logs': ServiceLimit(tps=20.0, burst=40, is_global=False),
-    'autoscaling': ServiceLimit(tps=20.0, burst=40, is_global=False),
-    'elasticache': ServiceLimit(tps=15.0, burst=30, is_global=False),
-    'secretsmanager': ServiceLimit(tps=10.0, burst=20, is_global=False),
-    'ssm': ServiceLimit(tps=15.0, burst=30, is_global=False),
-    'kms': ServiceLimit(tps=15.0, burst=30, is_global=False),
-    'ecs': ServiceLimit(tps=20.0, burst=40, is_global=False),
-    'eks': ServiceLimit(tps=10.0, burst=20, is_global=False),
-    'ecr': ServiceLimit(tps=10.0, burst=20, is_global=False),
-    'apigateway': ServiceLimit(tps=10.0, burst=20, is_global=False),
-    'acm': ServiceLimit(tps=10.0, burst=20, is_global=False),
-
+    "ec2": ServiceLimit(tps=40.0, burst=80, is_global=False),
+    "rds": ServiceLimit(tps=20.0, burst=40, is_global=False),
+    "elbv2": ServiceLimit(tps=25.0, burst=50, is_global=False),
+    "elb": ServiceLimit(tps=25.0, burst=50, is_global=False),
+    "lambda": ServiceLimit(tps=15.0, burst=30, is_global=False),
+    "dynamodb": ServiceLimit(tps=25.0, burst=50, is_global=False),
+    "sns": ServiceLimit(tps=30.0, burst=60, is_global=False),
+    "sqs": ServiceLimit(tps=30.0, burst=60, is_global=False),
+    "cloudwatch": ServiceLimit(tps=20.0, burst=40, is_global=False),
+    "logs": ServiceLimit(tps=20.0, burst=40, is_global=False),
+    "autoscaling": ServiceLimit(tps=20.0, burst=40, is_global=False),
+    "elasticache": ServiceLimit(tps=15.0, burst=30, is_global=False),
+    "secretsmanager": ServiceLimit(tps=10.0, burst=20, is_global=False),
+    "ssm": ServiceLimit(tps=15.0, burst=30, is_global=False),
+    "kms": ServiceLimit(tps=15.0, burst=30, is_global=False),
+    "ecs": ServiceLimit(tps=20.0, burst=40, is_global=False),
+    "eks": ServiceLimit(tps=10.0, burst=20, is_global=False),
+    "ecr": ServiceLimit(tps=10.0, burst=20, is_global=False),
+    "apigateway": ServiceLimit(tps=10.0, burst=20, is_global=False),
+    "acm": ServiceLimit(tps=10.0, burst=20, is_global=False),
     # Global services (stricter limits, shared across all regions)
-    'iam': ServiceLimit(tps=8.0, burst=15, is_global=True),
-    'sts': ServiceLimit(tps=20.0, burst=40, is_global=True),
-    's3': ServiceLimit(tps=50.0, burst=100, is_global=True),
-    'route53': ServiceLimit(tps=5.0, burst=10, is_global=True),
-    'cloudfront': ServiceLimit(tps=10.0, burst=20, is_global=True),
-    'organizations': ServiceLimit(tps=5.0, burst=10, is_global=True),
-    'waf': ServiceLimit(tps=10.0, burst=20, is_global=True),
-    'wafv2': ServiceLimit(tps=10.0, burst=20, is_global=True),
-
+    "iam": ServiceLimit(tps=8.0, burst=15, is_global=True),
+    "sts": ServiceLimit(tps=20.0, burst=40, is_global=True),
+    "s3": ServiceLimit(tps=50.0, burst=100, is_global=True),
+    "route53": ServiceLimit(tps=5.0, burst=10, is_global=True),
+    "cloudfront": ServiceLimit(tps=10.0, burst=20, is_global=True),
+    "organizations": ServiceLimit(tps=5.0, burst=10, is_global=True),
+    "waf": ServiceLimit(tps=10.0, burst=20, is_global=True),
+    "wafv2": ServiceLimit(tps=10.0, burst=20, is_global=True),
     # Default for unknown services
-    'default': ServiceLimit(tps=10.0, burst=20, is_global=False),
+    "default": ServiceLimit(tps=10.0, burst=20, is_global=False),
 }
 
 
@@ -78,11 +77,7 @@ class TokenBucket:
     """
 
     def __init__(
-        self,
-        rate: float,
-        capacity: int,
-        min_rate: float = 1.0,
-        name: str = "unnamed"
+        self, rate: float, capacity: int, min_rate: float = 1.0, name: str = "unnamed"
     ):
         self.name = name
         self.initial_rate = rate
@@ -184,15 +179,15 @@ class TokenBucket:
         """Get bucket statistics"""
         with self.lock:
             return {
-                'name': self.name,
-                'current_rate': round(self.rate, 2),
-                'initial_rate': self.initial_rate,
-                'tokens': round(self.tokens, 2),
-                'capacity': self.capacity,
-                'total_requests': self.total_requests,
-                'success_count': self.success_count,
-                'throttle_count': self.throttle_count,
-                'total_wait_time': round(self.total_wait_time, 2),
+                "name": self.name,
+                "current_rate": round(self.rate, 2),
+                "initial_rate": self.initial_rate,
+                "tokens": round(self.tokens, 2),
+                "capacity": self.capacity,
+                "total_requests": self.total_requests,
+                "success_count": self.success_count,
+                "throttle_count": self.throttle_count,
+                "total_wait_time": round(self.total_wait_time, 2),
             }
 
 
@@ -214,7 +209,7 @@ class AWSRateLimiter:
         limiter.report_success('ec2', 'us-east-1')
     """
 
-    _instance: Optional['AWSRateLimiter'] = None
+    _instance: Optional["AWSRateLimiter"] = None
     _lock = threading.Lock()
 
     def __new__(cls, custom_limits: Optional[Dict[str, ServiceLimit]] = None):
@@ -250,7 +245,7 @@ class AWSRateLimiter:
         Regional services: "us-east-1:ec2"
         """
         service = service.lower()
-        limit = self._limits.get(service, self._limits['default'])
+        limit = self._limits.get(service, self._limits["default"])
 
         if limit.is_global or region is None:
             return f"global:{service}"
@@ -264,13 +259,15 @@ class AWSRateLimiter:
             with self._bucket_lock:
                 if key not in self._buckets:
                     service_lower = service.lower()
-                    limit = self._limits.get(service_lower, self._limits['default'])
+                    limit = self._limits.get(service_lower, self._limits["default"])
                     self._buckets[key] = TokenBucket(
                         rate=limit.tps,
                         capacity=limit.burst,
                         name=key,
                     )
-                    logger.debug(f"Created rate bucket: {key} ({limit.tps} TPS, burst {limit.burst})")
+                    logger.debug(
+                        f"Created rate bucket: {key} ({limit.tps} TPS, burst {limit.burst})"
+                    )
 
         return self._buckets[key]
 
@@ -279,7 +276,7 @@ class AWSRateLimiter:
         service: str,
         region: Optional[str] = None,
         tokens: int = 1,
-        timeout: float = 60.0
+        timeout: float = 60.0,
     ) -> bool:
         """Acquire tokens for API call"""
         bucket = self.get_bucket(service, region)
@@ -311,7 +308,11 @@ class AWSRateLimiter:
         logger.info("=" * 60)
 
         for key, s in sorted(stats.items()):
-            throttle_info = f" [THROTTLED x{s['throttle_count']}]" if s['throttle_count'] > 0 else ""
+            throttle_info = (
+                f" [THROTTLED x{s['throttle_count']}]"
+                if s["throttle_count"] > 0
+                else ""
+            )
             logger.info(
                 f"  {key}: {s['current_rate']:.1f}/{s['initial_rate']:.1f} TPS, "
                 f"reqs={s['total_requests']}, wait={s['total_wait_time']:.1f}s{throttle_info}"
@@ -330,17 +331,17 @@ class AWSRateLimiter:
 
 # Throttle error codes from AWS
 THROTTLE_ERROR_CODES = {
-    'Throttling',
-    'ThrottlingException',
-    'RequestLimitExceeded',
-    'TooManyRequestsException',
-    'ProvisionedThroughputExceededException',
-    'RequestThrottled',
-    'SlowDown',  # S3 specific
-    'BandwidthLimitExceeded',
-    'EC2ThrottledException',
-    'RequestThrottledException',
-    'TransactionInProgressException',  # DynamoDB
+    "Throttling",
+    "ThrottlingException",
+    "RequestLimitExceeded",
+    "TooManyRequestsException",
+    "ProvisionedThroughputExceededException",
+    "RequestThrottled",
+    "SlowDown",  # S3 specific
+    "BandwidthLimitExceeded",
+    "EC2ThrottledException",
+    "RequestThrottledException",
+    "TransactionInProgressException",  # DynamoDB
 }
 
 
@@ -352,7 +353,7 @@ def is_throttle_error(error: Exception) -> bool:
         if not isinstance(error, ClientError):
             return False
 
-        error_code = error.response.get('Error', {}).get('Code', '')
+        error_code = error.response.get("Error", {}).get("Code", "")
         return error_code in THROTTLE_ERROR_CODES
     except ImportError:
         return False
@@ -380,6 +381,7 @@ def rate_limited(
         def list_roles(self):
             return self.client.list_roles()
     """
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -388,7 +390,7 @@ def rate_limited(
             # Extract region from arguments
             region = None
             if region_from_arg:
-                if region_from_arg.startswith('self.') and args:
+                if region_from_arg.startswith("self.") and args:
                     attr_name = region_from_arg[5:]  # Remove 'self.'
                     region = getattr(args[0], attr_name, None)
                 elif region_from_arg in kwargs:
@@ -416,7 +418,7 @@ def rate_limited(
 
                         if attempt < max_retries:
                             # Exponential backoff with jitter
-                            backoff = (2 ** attempt) + random.uniform(0, 1)
+                            backoff = (2**attempt) + random.uniform(0, 1)
                             logger.warning(
                                 f"[{service}/{region}] Throttled on attempt {attempt + 1}, "
                                 f"retrying in {backoff:.1f}s..."
@@ -428,9 +430,12 @@ def rate_limited(
                     raise
 
             # Should not reach here, but just in case
-            raise last_error or RuntimeError("Unexpected error in rate_limited decorator")
+            raise last_error or RuntimeError(
+                "Unexpected error in rate_limited decorator"
+            )
 
         return wrapper
+
     return decorator
 
 
@@ -448,6 +453,7 @@ def rate_limited_paginate(
         for page in rate_limited_paginate('ec2', 'us-east-1')(paginator.paginate()):
             process(page)
     """
+
     def wrapper(paginator_result):
         limiter = AWSRateLimiter()
 
