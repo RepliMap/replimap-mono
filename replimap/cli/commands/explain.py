@@ -70,9 +70,7 @@ def register(app: typer.Typer) -> None:
                 )
             else:
                 console.print(f"[red]Unknown error code: {code}[/red]")
-                console.print(
-                    "[dim]Use 'replimap errors' to see all error codes[/dim]"
-                )
+                console.print("[dim]Use 'replimap errors' to see all error codes[/dim]")
             raise typer.Exit(1)
 
         # Build content
