@@ -31,7 +31,11 @@ def create_phase2_graph() -> GraphEngine:
         resource_type=ResourceType.SUBNET,
         region="us-east-1",
         original_name="prod-subnet",
-        config={"cidr_block": "10.0.1.0/24", "availability_zone": "us-east-1a"},
+        config={
+            "cidr_block": "10.0.1.0/24",
+            "availability_zone": "us-east-1a",
+            "vpc_id": "vpc-123",
+        },
         tags={"Name": "prod-subnet"},
     )
     graph.add_resource(subnet)
@@ -43,7 +47,11 @@ def create_phase2_graph() -> GraphEngine:
         resource_type=ResourceType.SECURITY_GROUP,
         region="us-east-1",
         original_name="prod-sg",
-        config={"description": "Prod security group", "ingress": []},
+        config={
+            "description": "Prod security group",
+            "ingress": [],
+            "vpc_id": "vpc-123",
+        },
         tags={"Name": "prod-sg"},
     )
     graph.add_resource(sg)
@@ -55,7 +63,7 @@ def create_phase2_graph() -> GraphEngine:
         resource_type=ResourceType.INTERNET_GATEWAY,
         region="us-east-1",
         original_name="prod-igw",
-        config={},
+        config={"vpc_id": "vpc-123"},
         tags={"Name": "prod-igw"},
     )
     graph.add_resource(igw)
@@ -67,7 +75,11 @@ def create_phase2_graph() -> GraphEngine:
         resource_type=ResourceType.NAT_GATEWAY,
         region="us-east-1",
         original_name="prod-nat",
-        config={"connectivity_type": "public", "allocation_id": "eipalloc-123"},
+        config={
+            "connectivity_type": "public",
+            "allocation_id": "eipalloc-123",
+            "subnet_id": "subnet-123",
+        },
         tags={"Name": "prod-nat"},
     )
     graph.add_resource(nat)
@@ -79,7 +91,10 @@ def create_phase2_graph() -> GraphEngine:
         resource_type=ResourceType.ROUTE_TABLE,
         region="us-east-1",
         original_name="prod-rtb",
-        config={"routes": [{"destination_cidr_block": "0.0.0.0/0"}]},
+        config={
+            "routes": [{"destination_cidr_block": "0.0.0.0/0"}],
+            "vpc_id": "vpc-123",
+        },
         tags={"Name": "prod-rtb"},
     )
     graph.add_resource(rtb)
@@ -104,7 +119,12 @@ def create_phase2_graph() -> GraphEngine:
         resource_type=ResourceType.LB_TARGET_GROUP,
         region="us-east-1",
         original_name="prod-tg",
-        config={"port": 80, "protocol": "HTTP", "target_type": "instance"},
+        config={
+            "port": 80,
+            "protocol": "HTTP",
+            "target_type": "instance",
+            "vpc_id": "vpc-123",
+        },
         tags={"Name": "prod-tg"},
     )
     graph.add_resource(tg)
