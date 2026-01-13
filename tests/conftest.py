@@ -234,6 +234,122 @@ def disable_colors(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# License Security Fixtures
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@pytest.fixture
+def mock_enterprise_license(mocker: Any) -> Any:
+    """
+    Mock SecureLicenseManager with ENTERPRISE access.
+
+    Use for tests that need full feature access.
+
+    Usage:
+        def test_something(mock_enterprise_license):
+            # All features are enabled
+            pass
+    """
+    from unittest.mock import MagicMock
+
+    from replimap.licensing.models import Plan
+    from replimap.licensing.secure_manager import SecureLicenseManager
+    from replimap.licensing.secure_models import SecureLicenseLimits
+
+    mock_manager = MagicMock(spec=SecureLicenseManager)
+    mock_manager.current_plan = Plan.ENTERPRISE
+    mock_manager.has_feature.return_value = True
+    mock_manager.get_limits.return_value = SecureLicenseLimits(
+        max_accounts=-1,
+        max_regions=-1,
+        max_resources_per_scan=-1,
+        max_concurrent_scans=-1,
+        max_scans_per_day=-1,
+        offline_grace_days=365,
+    )
+    mock_manager.check_limit.return_value = True
+
+    mocker.patch(
+        "replimap.licensing.secure_manager.get_secure_license_manager",
+        return_value=mock_manager,
+    )
+    mocker.patch(
+        "replimap.licensing.secure_manager._secure_license_manager",
+        mock_manager,
+    )
+
+    return mock_manager
+
+
+@pytest.fixture
+def mock_free_license(mocker: Any) -> Any:
+    """
+    Mock SecureLicenseManager with FREE plan.
+
+    Use for tests that need restricted access.
+
+    Usage:
+        def test_free_tier(mock_free_license):
+            # Only FREE features are enabled
+            pass
+    """
+    from unittest.mock import MagicMock
+
+    from replimap.licensing.models import Plan
+    from replimap.licensing.secure_manager import SecureLicenseManager
+    from replimap.licensing.secure_models import SECURE_PLAN_FEATURES, SECURE_PLAN_LIMITS
+
+    mock_manager = MagicMock(spec=SecureLicenseManager)
+    mock_manager.current_plan = Plan.FREE
+    mock_manager.has_feature.side_effect = lambda f: f in SECURE_PLAN_FEATURES[Plan.FREE]
+    mock_manager.get_limits.return_value = SECURE_PLAN_LIMITS[Plan.FREE]
+    mock_manager.check_limit.side_effect = lambda name, val: SECURE_PLAN_LIMITS[
+        Plan.FREE
+    ].check_limit(name, val)
+    mock_manager.current_license = None
+
+    mocker.patch(
+        "replimap.licensing.secure_manager.get_secure_license_manager",
+        return_value=mock_manager,
+    )
+
+    return mock_manager
+
+
+@pytest.fixture
+def test_keypair() -> tuple[bytes, bytes]:
+    """
+    Generate a fresh Ed25519 keypair for testing.
+
+    Returns:
+        Tuple of (private_key_pem, public_key_pem)
+    """
+    from replimap.licensing.crypto.keys import generate_keypair
+
+    return generate_keypair()
+
+
+@pytest.fixture
+def license_signer(test_keypair: tuple[bytes, bytes]) -> tuple[Any, bytes]:
+    """
+    Create a LicenseSigner with test keypair.
+
+    Returns:
+        Tuple of (signer, public_key_pem)
+    """
+    from replimap.licensing.server.signer import LicenseSigner
+
+    private_pem, public_pem = test_keypair
+    return LicenseSigner(private_pem, key_id="test-key-001"), public_pem
+
+
+@pytest.fixture
+def temp_license_file(tmp_path: Path) -> Path:
+    """Provide a temporary license file path."""
+    return tmp_path / "license.key"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Exports
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -245,4 +361,10 @@ __all__ = [
     "use_cassette",
     "vcr_cassette",
     "vcr_config",
+    # License security fixtures
+    "mock_enterprise_license",
+    "mock_free_license",
+    "test_keypair",
+    "license_signer",
+    "temp_license_file",
 ]
