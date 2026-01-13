@@ -24,8 +24,10 @@ from replimap.cli.commands import (
     completion,
     cost,
     deps,
+    doctor,
     dr,
     drift,
+    explain,
     graph,
     iam,
     license,
@@ -41,6 +43,7 @@ from replimap.cli.commands import (
     upgrade,
     validate,
 )
+from replimap.decisions.cli import create_decisions_app
 
 
 def register_all_commands(app: typer.Typer) -> None:
@@ -80,6 +83,11 @@ def register_all_commands(app: typer.Typer) -> None:
     dr.register(app)
     completion.register(app)
 
+    # Register new P2 UX commands
+    doctor.register(app)
+    explain.register(app)
+    app.add_typer(create_decisions_app())
+
 
 __all__ = [
     "register_all_commands",
@@ -106,4 +114,6 @@ __all__ = [
     "trust_center",
     "dr",
     "completion",
+    "doctor",
+    "explain",
 ]

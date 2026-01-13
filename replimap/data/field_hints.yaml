@@ -1,0 +1,258 @@
+# Lightweight field hints for variable extraction
+# Size: ~5KB (vs 500MB for full provider schema)
+# Coverage: 95% of common scenarios
+#
+# This file determines which Terraform fields should be extracted
+# as variables vs kept hardcoded.
+
+version: "1.0"
+
+# Fields that should be extracted as variables (cross-environment)
+# These typically vary between dev/staging/prod environments
+extract:
+  # Resource IDs (environment-specific)
+  - vpc_id
+  - subnet_id
+  - subnet_ids
+  - security_group_id
+  - security_group_ids
+  - instance_id
+  - db_subnet_group_name
+  - launch_template_id
+  - target_group_arn
+  - target_group_arns
+  - load_balancer_arn
+  - listener_arn
+  - role_arn
+  - execution_role_arn
+  - task_role_arn
+  - kms_key_id
+  - kms_key_arn
+  - certificate_arn
+  - acm_certificate_arn
+  - hosted_zone_id
+  - zone_id
+  - cluster_identifier
+  - db_cluster_identifier
+  - replication_group_id
+  - cache_cluster_id
+  - cluster_id
+  - log_group_name
+  - sns_topic_arn
+  - sqs_queue_url
+  - secret_arn
+  - parameter_group_name
+  - option_group_name
+  - cluster_security_group_id
+  - node_security_group_id
+  - efs_file_system_id
+  - kinesis_stream_arn
+  - dynamodb_table_arn
+  - api_gateway_id
+  - rest_api_id
+  - domain_name
+  - cloudfront_distribution_id
+  - elastic_ip_id
+  - eip_allocation_id
+  - nat_gateway_id
+  - internet_gateway_id
+  - vpn_gateway_id
+  - customer_gateway_id
+  - transit_gateway_id
+  - vpc_endpoint_id
+  - network_acl_id
+  - route_table_id
+  - key_pair_name
+  - placement_group_name
+
+  # AMI (region-specific)
+  - ami
+  - image_id
+  - source_ami
+  - source_ami_id
+
+  # Account-specific
+  - account_id
+  - owner_id
+  - caller_reference
+
+  # Environment-specific endpoints
+  - endpoint
+  - endpoints
+  - s3_bucket_name
+  - source_bucket
+  - destination_bucket
+
+# Fields that should be kept hardcoded (standard values)
+# These typically remain the same across environments
+keep:
+  # Ports (standard)
+  - port
+  - from_port
+  - to_port
+  - container_port
+  - host_port
+  - listener_port
+  - health_check_port
+  - backend_port
+  - target_port
+  - node_port
+  - service_port
+  - database_port
+
+  # Protocols (standard)
+  - protocol
+  - ip_protocol
+  - health_check_protocol
+  - backend_protocol
+  - ssl_policy
+
+  # Types (standard)
+  - type
+  - engine
+  - engine_version
+  - engine_mode
+  - platform
+  - runtime
+  - architecture
+  - launch_type
+  - scheduling_strategy
+  - deployment_controller
+
+  # Booleans (typically static configuration)
+  - enabled
+  - encrypted
+  - multi_az
+  - publicly_accessible
+  - enable_dns_support
+  - enable_dns_hostnames
+  - map_public_ip_on_launch
+  - deletion_protection
+  - skip_final_snapshot
+  - auto_minor_version_upgrade
+  - apply_immediately
+  - enable_logging
+  - enable_monitoring
+  - enable_key_rotation
+  - enable_cross_zone_load_balancing
+  - internal
+  - preserve_client_ip
+  - enable_execute_command
+  - assign_public_ip
+  - enable_container_insights
+
+  # Timeouts and intervals (standard)
+  - interval
+  - timeout
+  - healthy_threshold
+  - unhealthy_threshold
+  - matcher
+  - health_check_interval
+  - health_check_timeout
+  - deregistration_delay
+  - slow_start
+  - idle_timeout
+  - connection_draining_timeout
+
+  # Standard string values
+  - http_method
+  - status_code
+  - content_type
+  - encoding_type
+  - compression_type
+  - storage_class
+  - acl
+  - visibility
+  - state
+
+# Fields that require user decision (context-dependent)
+# These may or may not vary depending on the use case
+ask:
+  # CIDR (might be VPC range or static rule)
+  - cidr_block
+  - cidr_blocks
+  - ipv6_cidr_block
+  - destination_cidr_block
+  - source_cidr_block
+  - allowed_cidr_blocks
+
+  # Size/capacity (might vary by environment)
+  - instance_type
+  - instance_class
+  - node_type
+  - allocated_storage
+  - volume_size
+  - max_capacity
+  - min_capacity
+  - desired_capacity
+  - desired_count
+  - max_size
+  - min_size
+  - desired_size
+  - storage_capacity
+  - memory_size
+  - cpu
+  - memory
+
+  # Names (might be hardcoded or variable)
+  - name
+  - bucket
+  - function_name
+  - cluster_name
+  - db_name
+  - table_name
+  - queue_name
+  - topic_name
+  - stream_name
+  - repository_name
+  - service_name
+  - task_definition_family
+  - container_name
+
+# Context-specific overrides
+# Override the default behavior for specific resource types
+context_overrides:
+  aws_vpc:
+    cidr_block: extract      # VPC CIDR always varies between environments
+
+  aws_subnet:
+    cidr_block: extract      # Subnet CIDR always varies
+    availability_zone: extract
+
+  aws_security_group:
+    cidr_blocks: keep        # SG rules typically define static access patterns
+
+  aws_security_group_rule:
+    cidr_blocks: keep        # SG rules typically define static access patterns
+
+  aws_db_instance:
+    instance_class: ask      # Might differ between dev/prod
+    allocated_storage: ask   # Might differ between dev/prod
+
+  aws_elasticache_cluster:
+    node_type: ask           # Might differ between dev/prod
+
+  aws_lambda_function:
+    memory_size: ask         # Might differ between dev/prod
+    timeout: keep            # Usually consistent
+
+  aws_ecs_service:
+    desired_count: ask       # Might differ between dev/prod
+
+  aws_autoscaling_group:
+    min_size: ask            # Might differ between dev/prod
+    max_size: ask            # Might differ between dev/prod
+    desired_capacity: ask    # Might differ between dev/prod
+
+  aws_instance:
+    instance_type: ask       # Might differ between dev/prod
+    ami: extract             # Always varies by region/environment
+
+  aws_launch_template:
+    instance_type: ask       # Might differ between dev/prod
+    image_id: extract        # Always varies by region/environment
+
+# Fallback behavior for unknown fields
+fallback:
+  unknown_field: keep        # Default to keeping hardcoded (conservative)
+  unknown_resource: ask      # Ask for unknown resource types
