@@ -1,4 +1,8 @@
-"""Snapshot command group for RepliMap CLI."""
+"""Snapshot command group for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+"""
 
 from __future__ import annotations
 
@@ -11,6 +15,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 
 
@@ -58,6 +63,7 @@ def create_snapshot_app() -> typer.Typer:
         ctx.obj["region"] = region or global_region
 
     @snapshot_app.command("save")
+    @enhanced_cli_error_handler
     def snapshot_save(
         ctx: typer.Context,
         name: str = typer.Option(..., "--name", "-n", help="Snapshot name"),
@@ -212,6 +218,7 @@ def create_snapshot_app() -> typer.Typer:
                 console.print(f"  [dim]... and {len(by_type) - 10} more types[/dim]")
 
     @snapshot_app.command("list")
+    @enhanced_cli_error_handler
     def snapshot_list(
         ctx: typer.Context,
     ) -> None:
@@ -245,6 +252,7 @@ def create_snapshot_app() -> typer.Typer:
         console.print(table)
 
     @snapshot_app.command("show")
+    @enhanced_cli_error_handler
     def snapshot_show(
         ctx: typer.Context,
         name: str = typer.Argument(..., help="Snapshot name or path"),
@@ -278,6 +286,7 @@ def create_snapshot_app() -> typer.Typer:
                 console.print(f"  {rtype}: {count}")
 
     @snapshot_app.command("diff")
+    @enhanced_cli_error_handler
     def snapshot_diff(
         ctx: typer.Context,
         baseline: str = typer.Option(
@@ -435,6 +444,7 @@ def create_snapshot_app() -> typer.Typer:
             raise typer.Exit(exit_code)
 
     @snapshot_app.command("delete")
+    @enhanced_cli_error_handler
     def snapshot_delete(
         ctx: typer.Context,
         name: str = typer.Argument(..., help="Snapshot name to delete"),

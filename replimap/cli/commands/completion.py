@@ -3,6 +3,10 @@ Shell completion command for RepliMap CLI.
 
 Generate completion scripts for Bash, Zsh, and Fish shells.
 
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Note: print() is used intentionally for shell completion scripts (T201 ignored)
+
 Usage:
     # Generate and install
     eval "$(replimap completion bash)"
@@ -16,7 +20,6 @@ Usage:
 from __future__ import annotations
 
 import typer
-from rich.console import Console
 
 from replimap.cli.completion import (
     generate_bash_completion,
@@ -24,8 +27,8 @@ from replimap.cli.completion import (
     generate_zsh_completion,
     get_install_instructions,
 )
-
-console = Console()
+from replimap.cli.errors import enhanced_cli_error_handler
+from replimap.cli.utils import console
 
 
 def register(app: typer.Typer) -> None:
@@ -38,33 +41,37 @@ def register(app: typer.Typer) -> None:
     )
 
     @completion_app.command("bash")
+    @enhanced_cli_error_handler
     def bash_completion() -> None:
         """Generate Bash completion script.
 
         Usage:
             eval "$(replimap completion bash)"
         """
-        print(generate_bash_completion())
+        print(generate_bash_completion())  # noqa: T201
 
     @completion_app.command("zsh")
+    @enhanced_cli_error_handler
     def zsh_completion() -> None:
         """Generate Zsh completion script.
 
         Usage:
             eval "$(replimap completion zsh)"
         """
-        print(generate_zsh_completion())
+        print(generate_zsh_completion())  # noqa: T201
 
     @completion_app.command("fish")
+    @enhanced_cli_error_handler
     def fish_completion() -> None:
         """Generate Fish completion script.
 
         Usage:
             replimap completion fish > ~/.config/fish/completions/replimap.fish
         """
-        print(generate_fish_completion())
+        print(generate_fish_completion())  # noqa: T201
 
     @completion_app.command("install")
+    @enhanced_cli_error_handler
     def install_instructions(
         shell: str = typer.Argument(
             ...,

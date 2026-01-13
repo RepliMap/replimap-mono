@@ -1,4 +1,8 @@
-"""Remediate command for RepliMap CLI."""
+"""Remediate command for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+"""
 
 from __future__ import annotations
 
@@ -8,6 +12,7 @@ from pathlib import Path
 import typer
 from rich.panel import Panel
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console
 
 
@@ -157,4 +162,4 @@ def remediate_command(
 
 def register(app: typer.Typer) -> None:
     """Register the remediate command with the Typer app."""
-    app.command(name="remediate")(remediate_command)
+    app.command(name="remediate")(enhanced_cli_error_handler(remediate_command))

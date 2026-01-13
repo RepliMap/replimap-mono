@@ -1,4 +1,10 @@
-"""Data transfer analysis command for RepliMap CLI."""
+"""Data transfer analysis command for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
+"""
 
 from __future__ import annotations
 
@@ -10,6 +16,7 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core import GraphEngine
 from replimap.scanners.base import run_all_scanners
@@ -203,4 +210,4 @@ def transfer_command(
 
 def register(app: typer.Typer) -> None:
     """Register the transfer command with the Typer app."""
-    app.command(name="transfer")(transfer_command)
+    app.command(name="transfer")(enhanced_cli_error_handler(transfer_command))

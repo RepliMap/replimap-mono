@@ -1,4 +1,8 @@
-"""Upgrade command group for RepliMap CLI."""
+"""Upgrade command group for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+"""
 
 from __future__ import annotations
 
@@ -7,6 +11,7 @@ import webbrowser
 import typer
 from rich.panel import Panel
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console
 
 # Constants
@@ -99,21 +104,25 @@ def create_upgrade_app() -> typer.Typer:
     )
 
     @upgrade_app.command("solo")
+    @enhanced_cli_error_handler
     def upgrade_solo() -> None:
         """Upgrade to Solo plan ($29/mo)."""
         _show_upgrade_info("solo")
 
     @upgrade_app.command("pro")
+    @enhanced_cli_error_handler
     def upgrade_pro() -> None:
         """Upgrade to Pro plan ($79/mo)."""
         _show_upgrade_info("pro")
 
     @upgrade_app.command("team")
+    @enhanced_cli_error_handler
     def upgrade_team() -> None:
         """Upgrade to Team plan ($149/mo)."""
         _show_upgrade_info("team")
 
     @upgrade_app.command("enterprise")
+    @enhanced_cli_error_handler
     def upgrade_enterprise() -> None:
         """Contact us for Enterprise plan."""
         _show_upgrade_info("enterprise")

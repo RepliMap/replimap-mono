@@ -521,9 +521,10 @@ class TestErrorClassifier:
         context.consecutive_failures = 2
         delay_2 = classifier._calculate_delay(context, "Throttling")
 
-        # Each should roughly double (allowing for jitter)
-        assert delay_1 > delay_0 * 1.5
-        assert delay_2 > delay_1 * 1.5
+        # Each should roughly double (allowing for ±20% jitter)
+        # Worst case ratio: (base*2*0.8)/(base*1.2) = 1.33
+        assert delay_1 > delay_0 * 1.3
+        assert delay_2 > delay_1 * 1.3
 
     def test_max_delay_capped(self, classifier: ErrorClassifier) -> None:
         """Delay should be capped at maximum."""

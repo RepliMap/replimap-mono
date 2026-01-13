@@ -1,4 +1,10 @@
-"""Dependency exploration command for RepliMap CLI."""
+"""Dependency exploration command for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
+"""
 
 from __future__ import annotations
 
@@ -10,6 +16,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.status import Status
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region, logger
 from replimap.core import GraphEngine
 from replimap.core.browser import open_in_browser
@@ -483,5 +490,5 @@ def blast_command(
 
 def register(app: typer.Typer) -> None:
     """Register the deps and blast commands with the Typer app."""
-    app.command(name="deps")(deps_command)
-    app.command(name="blast", hidden=True)(blast_command)
+    app.command(name="deps")(enhanced_cli_error_handler(deps_command))
+    app.command(name="blast", hidden=True)(enhanced_cli_error_handler(blast_command))

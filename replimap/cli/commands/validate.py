@@ -1,4 +1,10 @@
-"""Validate command for topology constraints."""
+"""Validate command for topology constraints.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,7 @@ import boto3
 import typer
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_profile_region
 from replimap.core import GraphEngine
 from replimap.scanners.base import run_all_scanners
@@ -304,4 +311,4 @@ constraints:
 
 def register(app: typer.Typer) -> None:
     """Register the validate command with the Typer app."""
-    app.command(name="validate")(validate_command)
+    app.command(name="validate")(enhanced_cli_error_handler(validate_command))

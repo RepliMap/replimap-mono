@@ -1,4 +1,10 @@
-"""Audit command for RepliMap CLI."""
+"""Audit command for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
+"""
 
 from __future__ import annotations
 
@@ -12,6 +18,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from replimap.audit.terminal_reporter import print_audit_summary
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core.browser import open_in_browser
 from replimap.licensing import check_audit_ci_mode_allowed, check_audit_fix_allowed
@@ -540,4 +547,4 @@ def audit_command(
 
 def register(app: typer.Typer) -> None:
     """Register the audit command with the Typer app."""
-    app.command(name="audit")(audit_command)
+    app.command(name="audit")(enhanced_cli_error_handler(audit_command))
