@@ -27,14 +27,13 @@ import logging
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from .base import Edge, Node
 from .sqlite_backend import SQLiteBackend
 
 if TYPE_CHECKING:
     from replimap.core.security.global_sanitizer import GlobalSanitizer
-    from replimap.core.security.patterns import SensitivePatternLibrary
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +93,7 @@ class UnifiedGraphEngine:
         self.strict_mode = strict_mode
 
         # Lazy-loaded sanitizer (avoid circular imports)
-        self._sanitizer: Optional[GlobalSanitizer] = None
+        self._sanitizer: GlobalSanitizer | None = None
 
         # Determine database path
         if db_path:

@@ -47,7 +47,7 @@ import base64
 import binascii
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from replimap.core.security.patterns import SensitivePatternLibrary
 from replimap.core.security.redactor import DeterministicRedactor
@@ -61,8 +61,8 @@ class SanitizationResult:
 
     data: Any
     redacted_count: int = 0
-    redacted_fields: List[str] = field(default_factory=list)
-    findings: List[str] = field(default_factory=list)
+    redacted_fields: list[str] = field(default_factory=list)
+    findings: list[str] = field(default_factory=list)
 
     @property
     def was_modified(self) -> bool:
@@ -101,7 +101,7 @@ class GlobalSanitizer:
     MAX_DEPTH = 50
 
     # Sensitive field names (lowercase for case-insensitive matching)
-    SENSITIVE_KEYS: Set[str] = {
+    SENSITIVE_KEYS: set[str] = {
         # Database passwords
         "masteruserpassword",
         "masterpassword",
@@ -146,7 +146,7 @@ class GlobalSanitizer:
     }
 
     # Keys that contain nested sensitive data (need deep inspection)
-    CONTAINER_KEYS: Set[str] = {
+    CONTAINER_KEYS: set[str] = {
         "environment",
         "variables",
         "env",
@@ -156,12 +156,12 @@ class GlobalSanitizer:
     }
 
     # Keys with potential encoded content
-    ENCODED_KEYS: Set[str] = {
+    ENCODED_KEYS: set[str] = {
         "userdata",
         "user_data",
     }
 
-    def __init__(self, redactor: Optional[DeterministicRedactor] = None) -> None:
+    def __init__(self, redactor: DeterministicRedactor | None = None) -> None:
         """
         Initialize sanitizer.
 
@@ -204,9 +204,9 @@ class GlobalSanitizer:
             SanitizationResult with sanitized data and metadata
         """
         # Fresh state for this sanitization pass
-        seen_ids: Set[int] = set()
-        redacted_fields: List[str] = []
-        all_findings: List[str] = []
+        seen_ids: set[int] = set()
+        redacted_fields: list[str] = []
+        all_findings: list[str] = []
 
         sanitized = self._sanitize_recursive(
             data=data,
@@ -231,9 +231,9 @@ class GlobalSanitizer:
         service: str,
         path: str,
         depth: int,
-        seen_ids: Set[int],
-        redacted_fields: List[str],
-        all_findings: List[str],
+        seen_ids: set[int],
+        redacted_fields: list[str],
+        all_findings: list[str],
     ) -> Any:
         """Internal recursive sanitization."""
 
@@ -271,7 +271,9 @@ class GlobalSanitizer:
                     all_findings,
                 )
                 return (
-                    sanitized.encode("utf-8") if isinstance(sanitized, str) else sanitized
+                    sanitized.encode("utf-8")
+                    if isinstance(sanitized, str)
+                    else sanitized
                 )
             except UnicodeDecodeError:
                 return b"[BINARY_REDACTED]"
@@ -318,16 +320,16 @@ class GlobalSanitizer:
 
     def _sanitize_dict(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         service: str,
         path: str,
         depth: int,
-        seen_ids: Set[int],
-        redacted_fields: List[str],
-        all_findings: List[str],
-    ) -> Dict[str, Any]:
+        seen_ids: set[int],
+        redacted_fields: list[str],
+        all_findings: list[str],
+    ) -> dict[str, Any]:
         """Sanitize dictionary."""
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
 
         for key, value in data.items():
             key_lower = key.lower()
@@ -340,7 +342,9 @@ class GlobalSanitizer:
                     redacted_fields.append(field_path)
                 elif isinstance(value, dict):
                     # Container with sensitive name - redact all string values
-                    result[key] = self._redact_container(value, field_path, redacted_fields)
+                    result[key] = self._redact_container(
+                        value, field_path, redacted_fields
+                    )
                 elif value is not None:
                     result[key] = "[REDACTED]"
                     redacted_fields.append(field_path)
@@ -396,12 +400,12 @@ class GlobalSanitizer:
 
     def _redact_container(
         self,
-        container: Dict[str, Any],
+        container: dict[str, Any],
         path: str,
-        redacted_fields: List[str],
-    ) -> Dict[str, Any]:
+        redacted_fields: list[str],
+    ) -> dict[str, Any]:
         """Redact all string values in a container."""
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
 
         for key, value in container.items():
             field_path = f"{path}.{key}"
@@ -425,17 +429,17 @@ class GlobalSanitizer:
 
     def _sanitize_container(
         self,
-        container: Dict[str, Any],
+        container: dict[str, Any],
         path: str,
-        redacted_fields: List[str],
-        all_findings: List[str],
-    ) -> Dict[str, Any]:
+        redacted_fields: list[str],
+        all_findings: list[str],
+    ) -> dict[str, Any]:
         """
         Sanitize a container (like Lambda environment variables).
 
         Inspects both key names and value contents for sensitive data.
         """
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
 
         # Patterns that suggest a key holds sensitive data
         sensitive_key_patterns = {
@@ -490,7 +494,7 @@ class GlobalSanitizer:
         self,
         encoded: str,
         field_name: str,
-    ) -> tuple[str, List[str]]:
+    ) -> tuple[str, list[str]]:
         """
         Sanitize potentially Base64-encoded content (like UserData).
 
@@ -533,7 +537,9 @@ class GlobalSanitizer:
 
 
 # Convenience function for backward compatibility
-def sanitize_resource_config(config: Dict[str, Any], service: str = "") -> Dict[str, Any]:
+def sanitize_resource_config(
+    config: dict[str, Any], service: str = ""
+) -> dict[str, Any]:
     """
     Convenience function to sanitize a resource configuration.
 

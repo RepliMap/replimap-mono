@@ -24,7 +24,6 @@ import hmac
 import logging
 import os
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +52,7 @@ class DeterministicRedactor:
     FIELD_HINT_LENGTH = 8  # Field name hint length
     REDACTED_PREFIX = "REDACTED"
 
-    def __init__(self, salt: Optional[bytes] = None) -> None:
+    def __init__(self, salt: bytes | None = None) -> None:
         """
         Initialize redactor.
 
@@ -138,7 +137,7 @@ class DeterministicRedactor:
             return False
         return value.startswith(f"{self.REDACTED_PREFIX}:")
 
-    def extract_hash(self, redacted_value: str) -> Optional[str]:
+    def extract_hash(self, redacted_value: str) -> str | None:
         """
         Extract the hash portion from a redacted value.
 

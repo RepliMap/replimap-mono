@@ -34,7 +34,6 @@ import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +74,7 @@ class SensitivePatternLibrary:
             logger.warning(f"Found sensitive data: {findings}")
     """
 
-    PATTERNS: List[SensitivePattern] = [
+    PATTERNS: list[SensitivePattern] = [
         # ═══════════════════════════════════════════════════════════════════
         # AWS CREDENTIALS (Critical)
         # ═══════════════════════════════════════════════════════════════════
@@ -319,7 +318,7 @@ class SensitivePatternLibrary:
     ]
 
     @classmethod
-    def scan_text(cls, text: str) -> Tuple[str, List[str]]:
+    def scan_text(cls, text: str) -> tuple[str, list[str]]:
         """
         Scan text for sensitive information and redact.
 
@@ -332,7 +331,7 @@ class SensitivePatternLibrary:
         if not text:
             return text, []
 
-        findings: List[str] = []
+        findings: list[str] = []
         result = text
 
         for pattern in cls.PATTERNS:
@@ -362,15 +361,16 @@ class SensitivePatternLibrary:
         return False
 
     @classmethod
-    def get_patterns_by_severity(
-        cls, min_severity: Severity
-    ) -> List[SensitivePattern]:
+    def get_patterns_by_severity(cls, min_severity: Severity) -> list[SensitivePattern]:
         """Get patterns at or above a severity level."""
-        severity_order = [Severity.LOW, Severity.MEDIUM, Severity.HIGH, Severity.CRITICAL]
+        severity_order = [
+            Severity.LOW,
+            Severity.MEDIUM,
+            Severity.HIGH,
+            Severity.CRITICAL,
+        ]
         min_index = severity_order.index(min_severity)
 
         return [
-            p
-            for p in cls.PATTERNS
-            if severity_order.index(p.severity) >= min_index
+            p for p in cls.PATTERNS if severity_order.index(p.severity) >= min_index
         ]

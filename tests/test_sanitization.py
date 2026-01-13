@@ -14,8 +14,6 @@ import base64
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from replimap.core.security.drift import DriftDetector, DriftType
 from replimap.core.security.global_sanitizer import GlobalSanitizer
 from replimap.core.security.patterns import SensitivePatternLibrary, Severity
@@ -80,7 +78,7 @@ class TestDeterministicRedactor:
         salt_file = tmp_path / ".sanitizer_salt"
 
         with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
-            redactor = DeterministicRedactor()
+            _redactor = DeterministicRedactor()  # noqa: F841 - triggers salt creation
 
             assert salt_file.exists()
             mode = salt_file.stat().st_mode & 0o777
@@ -539,8 +537,14 @@ echo "Starting application..."
             env_vars = result["Environment"]["Variables"]
 
             # Sensitive keys should be redacted
-            assert env_vars["DB_PASSWORD"].startswith("REDACTED:") or "secret123" not in env_vars["DB_PASSWORD"]
-            assert env_vars["API_KEY"].startswith("REDACTED:") or "sk-1234567890" not in env_vars["API_KEY"]
+            assert (
+                env_vars["DB_PASSWORD"].startswith("REDACTED:")
+                or "secret123" not in env_vars["DB_PASSWORD"]
+            )
+            assert (
+                env_vars["API_KEY"].startswith("REDACTED:")
+                or "sk-1234567890" not in env_vars["API_KEY"]
+            )
 
             # Non-sensitive preserved
             assert result["FunctionName"] == "my-function"

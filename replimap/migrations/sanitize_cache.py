@@ -20,7 +20,6 @@ import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 MIGRATION_MARKER = ".sanitized_v1"
 
 
-def check_cache_needs_migration(cache_dir: Optional[Path] = None) -> bool:
+def check_cache_needs_migration(cache_dir: Path | None = None) -> bool:
     """
     Check if cache needs sanitization migration.
 
@@ -52,7 +51,7 @@ def check_cache_needs_migration(cache_dir: Optional[Path] = None) -> bool:
 
 
 def run_migration(
-    cache_dir: Optional[Path] = None,
+    cache_dir: Path | None = None,
     interactive: bool = True,
     force_delete: bool = False,
 ) -> bool:
@@ -138,7 +137,9 @@ def run_migration(
     elif interactive:
         if has_rich:
             console.print()
-            choice = console.input("[bold]Choose option (1 to delete, 2 to keep): [/]").strip()
+            choice = console.input(
+                "[bold]Choose option (1 to delete, 2 to keep): [/]"
+            ).strip()
         else:
             choice = input("Choose option (1 to delete, 2 to keep): ").strip()
     else:

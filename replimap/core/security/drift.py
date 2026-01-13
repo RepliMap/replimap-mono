@@ -33,7 +33,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from replimap.core.security.redactor import DeterministicRedactor
 
@@ -59,8 +59,8 @@ class DriftItem:
     drift_type: DriftType
     old_value: Any = None
     new_value: Any = None
-    old_hash: Optional[str] = None
-    new_hash: Optional[str] = None
+    old_hash: str | None = None
+    new_hash: str | None = None
 
     def __str__(self) -> str:
         if self.drift_type == DriftType.VALUE_CHANGED:
@@ -86,7 +86,7 @@ class DriftResult:
     """Result of drift detection."""
 
     has_drift: bool
-    drifts: List[DriftItem] = field(default_factory=list)
+    drifts: list[DriftItem] = field(default_factory=list)
 
     # Categorized counts
     value_changes: int = 0
@@ -152,13 +152,13 @@ class DriftDetector:
     """
 
     # Fields to ignore in drift detection
-    IGNORE_FIELDS: Set[str] = {
+    IGNORE_FIELDS: set[str] = {
         "last_scanned",
         "scan_timestamp",
         "cache_version",
     }
 
-    def __init__(self, redactor: Optional[DeterministicRedactor] = None) -> None:
+    def __init__(self, redactor: DeterministicRedactor | None = None) -> None:
         """
         Initialize detector.
 
@@ -169,8 +169,8 @@ class DriftDetector:
 
     def compare(
         self,
-        old_config: Dict[str, Any],
-        new_config: Dict[str, Any],
+        old_config: dict[str, Any],
+        new_config: dict[str, Any],
         path: str = "",
     ) -> DriftResult:
         """
@@ -184,7 +184,7 @@ class DriftDetector:
         Returns:
             DriftResult with all detected drifts
         """
-        drifts: List[DriftItem] = []
+        drifts: list[DriftItem] = []
 
         self._compare_recursive(old_config, new_config, path, drifts)
 
@@ -198,7 +198,7 @@ class DriftDetector:
         old_data: Any,
         new_data: Any,
         path: str,
-        drifts: List[DriftItem],
+        drifts: list[DriftItem],
     ) -> None:
         """Recursively compare data structures."""
 
@@ -207,7 +207,7 @@ class DriftDetector:
             return
 
         # Type mismatch
-        if type(old_data) != type(new_data):
+        if type(old_data) is not type(new_data):
             drifts.append(
                 DriftItem(
                     field=path or "root",
@@ -233,10 +233,10 @@ class DriftDetector:
 
     def _compare_dicts(
         self,
-        old_dict: Dict[str, Any],
-        new_dict: Dict[str, Any],
+        old_dict: dict[str, Any],
+        new_dict: dict[str, Any],
         path: str,
-        drifts: List[DriftItem],
+        drifts: list[DriftItem],
     ) -> None:
         """Compare dictionaries."""
         all_keys = set(old_dict.keys()) | set(new_dict.keys())
@@ -277,10 +277,10 @@ class DriftDetector:
 
     def _compare_lists(
         self,
-        old_list: List[Any],
-        new_list: List[Any],
+        old_list: list[Any],
+        new_list: list[Any],
         path: str,
-        drifts: List[DriftItem],
+        drifts: list[DriftItem],
     ) -> None:
         """Compare lists."""
         # Simple length check first
@@ -296,7 +296,7 @@ class DriftDetector:
             return
 
         # Element-by-element comparison
-        for i, (old_item, new_item) in enumerate(zip(old_list, new_list)):
+        for i, (old_item, new_item) in enumerate(zip(old_list, new_list, strict=True)):
             self._compare_recursive(old_item, new_item, f"{path}[{i}]", drifts)
 
     def _compare_scalars(
@@ -304,7 +304,7 @@ class DriftDetector:
         old_val: Any,
         new_val: Any,
         path: str,
-        drifts: List[DriftItem],
+        drifts: list[DriftItem],
     ) -> None:
         """Compare scalar values (strings, numbers, etc.)."""
 

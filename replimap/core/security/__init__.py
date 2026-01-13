@@ -24,7 +24,11 @@ Data Sanitization Components:
 
 from .credential_checker import CredentialChecker
 from .drift import DriftDetector, DriftItem, DriftResult, DriftType
-from .global_sanitizer import GlobalSanitizer, SanitizationResult, sanitize_resource_config
+from .global_sanitizer import (
+    GlobalSanitizer,
+    SanitizationResult,
+    sanitize_resource_config,
+)
 from .iam_generator import (
     AccessRole,
     ARNBuilder,

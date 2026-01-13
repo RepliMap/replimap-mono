@@ -18,7 +18,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from concurrent.futures import as_completed
-from typing import TYPE_CHECKING, Any, ClassVar, Optional
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import boto3
 from botocore.exceptions import ClientError
@@ -30,7 +30,7 @@ from replimap.core.rate_limiter import AWSRateLimiter
 from replimap.core.retry import (
     with_retry,  # noqa: F401 - Re-export for backward compatibility
 )
-from replimap.core.security.global_sanitizer import GlobalSanitizer, SanitizationResult
+from replimap.core.security.global_sanitizer import GlobalSanitizer
 from replimap.core.security.session_manager import SessionManager
 
 if TYPE_CHECKING:
@@ -172,7 +172,7 @@ class BaseScanner(ABC):
         region: str,
         session_manager: SessionManager | None = None,
         rate_limiter: AWSRateLimiter | None = None,
-        sanitizer: Optional[GlobalSanitizer] = None,
+        sanitizer: GlobalSanitizer | None = None,
         sanitize_enabled: bool = True,
     ) -> None:
         """

@@ -4,6 +4,72 @@
 **审查日期**: 2026-01-11
 **严重程度**: P0 (Critical)
 **类别**: Security / Data Protection / Compliance
+**状态**: ✅ **RESOLVED** (2026-01-13)
+
+---
+
+## 实现状态 (Implementation Status)
+
+> **✅ 已实现 Sovereign Grade 数据脱敏系统**
+>
+> 所有 P0 问题已在 commit `7a26d7b` 中修复。
+
+### 新增组件
+
+| 文件 | 描述 | 状态 |
+|------|------|------|
+| `replimap/core/security/redactor.py` | HMAC + Salt 确定性脱敏 | ✅ 完成 |
+| `replimap/core/security/patterns.py` | 20+ 敏感模式检测 | ✅ 完成 |
+| `replimap/core/security/global_sanitizer.py` | 递归脱敏 + Base64 UserData | ✅ 完成 |
+| `replimap/core/security/drift.py` | 脱敏值漂移检测 | ✅ 完成 |
+| `replimap/migrations/sanitize_cache.py` | 缓存迁移脚本 | ✅ 完成 |
+| `tests/test_sanitization.py` | 34 个测试用例 | ✅ 通过 |
+
+### 问题解决对照
+
+| Finding | 问题 | 解决方案 | 状态 |
+|---------|------|---------|------|
+| DS001 | 扫描数据未脱敏直接存入缓存 | `BaseScanner._add_resource_safe()` | ✅ |
+| DS002 | 非 Terraform 输出格式缺少脱敏 | `UnifiedGraphEngine.validate_cache_security()` | ✅ |
+| DS003 | UserData Base64 处理不一致 | `GlobalSanitizer._sanitize_encoded_content()` | ✅ |
+| DS004 | S3 Bucket Content 泄露风险 | 已在模式库中添加文件名检测 | ✅ |
+| DS005 | 跨格式脱敏不一致 | 统一使用 `GlobalSanitizer` | ✅ |
+
+### 架构改进
+
+```
+AWS API Response
+    │
+    ├─── Scanner.scan_paginated() → Raw Data
+    │         │
+    │         ▼
+    │    Scanner._add_resource_safe()  ← NEW: 扫描层脱敏
+    │         │
+    │         ├── GlobalSanitizer.sanitize()
+    │         │       ├── DeterministicRedactor.redact()
+    │         │       └── SensitivePatternLibrary.scan_text()
+    │         │
+    │         ▼
+    │    graph.add_resource(sanitized_node)
+    │
+    ▼
+UnifiedGraphEngine.add_node_safe()  ← NEW: 防御深度验证
+    │
+    ├── SensitivePatternLibrary.contains_sensitive()
+    │       └── If found + strict: BLOCK storage
+    │
+    └── Backend.save(sanitized_resource)
+            │
+            ▼
+        SQLite: Only Clean Data
+```
+
+### 安全特性
+
+- **确定性哈希**: 相同值 + 相同盐 → 相同哈希 (支持漂移检测)
+- **实例级盐**: 每个安装使用独立盐，防止跨实例攻击
+- **HMAC 安全**: 防止长度扩展攻击，字段名包含在密钥中
+- **0o600 权限**: 盐文件使用安全权限
 
 ---
 
