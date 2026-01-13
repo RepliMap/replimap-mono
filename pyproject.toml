@@ -148,6 +148,7 @@ select = [
     "UP",     # pyupgrade
     "ASYNC",  # flake8-async
     "S",      # flake8-bandit (security)
+    "T20",    # flake8-print (catches print() statements)
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
@@ -157,6 +158,21 @@ ignore = [
     "S607",   # partial executable path (terraform in PATH is intentional)
     "S608",   # SQL injection false positive (HTML templates use f-strings)
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow print() in output.py (it's the unified output layer)
+"replimap/cli/output.py" = ["T201"]
+# Allow print() in tests
+"tests/**/*.py" = ["T201"]
+# Allow print() in scripts
+"scripts/**/*.py" = ["T201"]
+# Allow print() in main.py for version callback
+"replimap/main.py" = ["T201"]
+# Allow print() in existing CLI files during migration
+"replimap/cli/__init__.py" = ["T201"]
+"replimap/cli/utils/console.py" = ["T201"]
+"replimap/cli/utils/error_handler.py" = ["T201"]
+"replimap/cli/utils/helpers.py" = ["T201"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["replimap"]
@@ -171,6 +187,12 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+markers = [
+    "json_output: tests for JSON output format correctness",
+    "stdout_hygiene: tests for stdout cleanliness in JSON mode",
+    "schema_purity: tests for JSON-serializable parameter schemas",
+    "v3_architecture: tests for CLI V3 architecture components",
+]
 
 # uv package management:
 # Build: uv build
