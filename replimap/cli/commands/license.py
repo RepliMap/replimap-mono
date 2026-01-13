@@ -1,5 +1,8 @@
 """
 License commands - License management for RepliMap.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
 """
 
 from __future__ import annotations
@@ -8,6 +11,7 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console
 from replimap.licensing import Feature, LicenseStatus, LicenseValidationError
 from replimap.licensing.manager import get_license_manager
@@ -24,6 +28,7 @@ def create_license_app() -> typer.Typer:
     )
 
     @license_app.command("activate")
+    @enhanced_cli_error_handler
     def license_activate(
         license_key: str = typer.Argument(
             ...,
@@ -61,6 +66,7 @@ def create_license_app() -> typer.Typer:
             raise typer.Exit(1)
 
     @license_app.command("status")
+    @enhanced_cli_error_handler
     def license_status() -> None:
         """
         Show current license status.
@@ -184,6 +190,7 @@ def create_license_app() -> typer.Typer:
         console.print()
 
     @license_app.command("deactivate")
+    @enhanced_cli_error_handler
     def license_deactivate(
         confirm: bool = typer.Option(
             False,
@@ -214,6 +221,7 @@ def create_license_app() -> typer.Typer:
         console.print("[green]License deactivated.[/] You are now on the free tier.")
 
     @license_app.command("usage")
+    @enhanced_cli_error_handler
     def license_usage() -> None:
         """
         Show detailed usage statistics.

@@ -1,4 +1,8 @@
-"""DR readiness command group for RepliMap CLI."""
+"""DR readiness command group for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+"""
 
 from __future__ import annotations
 
@@ -10,6 +14,7 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core import GraphEngine
 from replimap.core.browser import open_in_browser
@@ -67,6 +72,7 @@ def create_dr_app() -> typer.Typer:
         ctx.obj["region"] = region or global_region
 
     @dr_app.command("assess")
+    @enhanced_cli_error_handler
     def dr_assess(
         ctx: typer.Context,
         dr_region: str | None = typer.Option(
@@ -284,6 +290,7 @@ body {{ font-family: -apple-system, sans-serif; max-width: 800px; margin: 0 auto
         console.print()
 
     @dr_app.command("scorecard")
+    @enhanced_cli_error_handler
     def dr_scorecard(
         ctx: typer.Context,
         output: Path | None = typer.Option(None, "--output", "-o"),

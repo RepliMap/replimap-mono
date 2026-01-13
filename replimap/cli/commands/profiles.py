@@ -1,5 +1,8 @@
 """
 Profiles command - List available AWS profiles.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
 """
 
 from __future__ import annotations
@@ -7,6 +10,7 @@ from __future__ import annotations
 import typer
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import (
     console,
     get_available_profiles,
@@ -19,6 +23,7 @@ def register(app: typer.Typer) -> None:
     """Register the profiles command with the app."""
 
     @app.command()
+    @enhanced_cli_error_handler
     def profiles() -> None:
         """List available AWS profiles.
 

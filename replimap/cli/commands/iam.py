@@ -3,6 +3,9 @@ IAM policy generation CLI commands.
 
 Generates least-privilege IAM policies by analyzing the dependency graph
 with intelligent boundary control.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
 """
 
 from __future__ import annotations
@@ -10,18 +13,17 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
+from replimap.cli.utils import console
 from replimap.core.cache_manager import get_or_load_graph
 from replimap.core.security.iam_generator import (
     GraphAwareIAMGenerator,
     PolicyScope,
 )
-
-console = Console()
 
 
 def create_iam_app() -> typer.Typer:
@@ -34,6 +36,7 @@ def create_iam_app() -> typer.Typer:
     )
 
     @iam_app.command("for-resource")
+    @enhanced_cli_error_handler
     def generate_for_resource(
         profile: str = typer.Option(
             "default",
@@ -273,6 +276,7 @@ def create_iam_app() -> typer.Typer:
         _print_summary(policies)
 
     @iam_app.command("list-compute")
+    @enhanced_cli_error_handler
     def list_compute(
         profile: str = typer.Option(
             "default",

@@ -8,6 +8,9 @@ Provides infrastructure analysis capabilities:
 - Graph simplification (transitive reduction)
 - Attack surface analysis
 
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+
 Usage:
     # Analyze a saved graph (JSON or SQLite)
     replimap analyze graph.db --critical
@@ -29,10 +32,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
+from replimap.cli.utils import console
 from replimap.core.analysis.centrality import (
     AttackSurfaceAnalyzer,
     CentralityAnalyzer,
@@ -47,8 +51,6 @@ if TYPE_CHECKING:
     from replimap.core.unified_storage import GraphEngineAdapter
 
     GraphType = GraphEngine | GraphEngineAdapter
-
-console = Console()
 
 
 def _load_graph(graph_file: Path):
@@ -96,6 +98,7 @@ def register(app: typer.Typer) -> None:
     """Register the analyze command with the app."""
 
     @app.command("analyze")
+    @enhanced_cli_error_handler
     def analyze_command(
         graph_file: Path = typer.Argument(
             ...,

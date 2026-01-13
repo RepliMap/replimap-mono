@@ -1,5 +1,8 @@
 """
 Cache commands - Credential and scan cache management.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
 """
 
 from __future__ import annotations
@@ -11,6 +14,7 @@ import typer
 from rich.prompt import Confirm
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import (
     CREDENTIAL_CACHE_FILE,
     clear_credential_cache,
@@ -28,6 +32,7 @@ def create_cache_app() -> typer.Typer:
     )
 
     @cache_app.command("clear")
+    @enhanced_cli_error_handler
     def cache_clear(
         profile: str | None = typer.Option(
             None,
@@ -70,6 +75,7 @@ def create_cache_app() -> typer.Typer:
             console.print("[green]Cleared all cached credentials[/]")
 
     @cache_app.command("status")
+    @enhanced_cli_error_handler
     def cache_status() -> None:
         """
         Show credential cache status.
@@ -122,6 +128,7 @@ def create_cache_app() -> typer.Typer:
         console.print()
 
     @cache_app.command("reset-first-run", hidden=True)
+    @enhanced_cli_error_handler
     def reset_first_run() -> None:
         """
         Reset first-run marker (for testing).

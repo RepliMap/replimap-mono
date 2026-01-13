@@ -1,5 +1,8 @@
 """
 Load command - Load and display a saved graph.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, print_graph_stats
 
 
@@ -44,6 +48,7 @@ def register(app: typer.Typer) -> None:
     """Register the load command with the app."""
 
     @app.command()
+    @enhanced_cli_error_handler
     def load(
         input_file: Path = typer.Argument(
             ...,

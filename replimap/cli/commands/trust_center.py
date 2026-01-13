@@ -1,4 +1,8 @@
-"""Trust Center command group for RepliMap CLI."""
+"""Trust Center command group for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+"""
 
 from __future__ import annotations
 
@@ -8,6 +12,7 @@ import typer
 from rich.prompt import Confirm
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console
 
 
@@ -16,6 +21,7 @@ def create_trust_center_app() -> typer.Typer:
     trust_center_app = typer.Typer(help="Trust Center API auditing for compliance")
 
     @trust_center_app.command("report")
+    @enhanced_cli_error_handler
     def trust_center_report(
         output: Path | None = typer.Option(
             None, "--output", "-o", help="Output file path (JSON, CSV, or TXT)"
@@ -69,6 +75,7 @@ def create_trust_center_app() -> typer.Typer:
             raise typer.Exit(1)
 
     @trust_center_app.command("status")
+    @enhanced_cli_error_handler
     def trust_center_status() -> None:
         """Show Trust Center status and session summary."""
         from replimap.audit import TrustCenter
@@ -107,6 +114,7 @@ def create_trust_center_app() -> typer.Typer:
             console.print("\n[dim]No sessions recorded yet.[/]")
 
     @trust_center_app.command("clear")
+    @enhanced_cli_error_handler
     def trust_center_clear(
         force: bool = typer.Option(
             False, "--force", "-f", help="Skip confirmation prompt"
