@@ -5,6 +5,7 @@ Key Design Decisions:
 1. Single SQLite backend for all scales
 2. Mode selection based on cache_dir parameter only
 3. NetworkX projection on-demand for complex analysis
+4. Defense-in-depth sanitization validation at storage layer
 
 Edge Direction Convention:
     source_id DEPENDS ON target_id
@@ -21,17 +22,19 @@ Edge Direction Convention:
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 from .base import Edge, Node
 from .sqlite_backend import SQLiteBackend
 
 if TYPE_CHECKING:
-    pass
+    from replimap.core.security.global_sanitizer import GlobalSanitizer
+    from replimap.core.security.patterns import SensitivePatternLibrary
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +42,25 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_DEPTH = 20
 
 
+class SanitizationError(Exception):
+    """Raised when sanitization validation fails."""
+
+    pass
+
+
 class UnifiedGraphEngine:
     """
-    Unified graph engine with SQLite backend.
+    Unified graph engine with SQLite backend and defense-in-depth sanitization.
 
     Mode Selection (Simplified):
     - cache_dir provided → File-based SQLite (persistent)
     - cache_dir is None → Memory SQLite (ephemeral)
 
-    No resource count threshold - mode is based on user intent.
+    Defense-in-Depth:
+    Even if scanners fail to sanitize, storage layer will:
+    1. Validate no sensitive patterns exist
+    2. Block storage if validation fails (strict mode)
+    3. Log security warnings
 
     Example:
         # Memory mode (ephemeral, fast)
@@ -56,12 +69,18 @@ class UnifiedGraphEngine:
 
         # File mode (persistent)
         engine = UnifiedGraphEngine(cache_dir="~/.replimap/cache/my-profile")
+
+        # Validate cache security
+        report = engine.validate_cache_security()
+        if not report['is_secure']:
+            logger.error(f"Cache contains sensitive data: {report['findings']}")
     """
 
     def __init__(
         self,
         cache_dir: str | None = None,
         db_path: str | None = None,
+        strict_mode: bool = True,
     ) -> None:
         """
         Initialize graph engine.
@@ -69,8 +88,13 @@ class UnifiedGraphEngine:
         Args:
             cache_dir: Directory for persistent storage (creates graph.db)
             db_path: Direct database path (overrides cache_dir)
+            strict_mode: If True, block storage of unsanitized data (default: True)
         """
         self.cache_dir = Path(cache_dir) if cache_dir else None
+        self.strict_mode = strict_mode
+
+        # Lazy-loaded sanitizer (avoid circular imports)
+        self._sanitizer: Optional[GlobalSanitizer] = None
 
         # Determine database path
         if db_path:
@@ -95,6 +119,126 @@ class UnifiedGraphEngine:
     def is_persistent(self) -> bool:
         """Check if this engine uses persistent storage."""
         return self._db_path != ":memory:"
+
+    def _get_sanitizer(self) -> GlobalSanitizer:
+        """Get or create sanitizer (lazy loading to avoid circular imports)."""
+        if self._sanitizer is None:
+            from replimap.core.security.global_sanitizer import GlobalSanitizer
+
+            self._sanitizer = GlobalSanitizer()
+        return self._sanitizer
+
+    def _validate_node_security(self, node: Node) -> tuple[bool, list[str]]:
+        """
+        Validate that a node's attributes don't contain sensitive patterns.
+
+        Args:
+            node: The node to validate
+
+        Returns:
+            Tuple of (is_safe, list_of_findings)
+        """
+        from replimap.core.security.patterns import SensitivePatternLibrary
+
+        attributes = node.attributes or {}
+        if not attributes:
+            return True, []
+
+        # Convert attributes to JSON string for pattern scanning
+        try:
+            attrs_str = json.dumps(attributes, default=str)
+        except (TypeError, ValueError):
+            # If we can't serialize, assume it's safe
+            return True, []
+
+        if SensitivePatternLibrary.contains_sensitive(attrs_str):
+            _, findings = SensitivePatternLibrary.scan_text(attrs_str)
+            return False, findings
+
+        return True, []
+
+    def add_node_safe(self, node: Node) -> None:
+        """
+        Add a node with security validation.
+
+        Validates that the node's attributes don't contain sensitive patterns
+        before adding to the graph.
+
+        Args:
+            node: The node to add
+
+        Raises:
+            SanitizationError: If sensitive data detected in strict mode
+        """
+        is_safe, findings = self._validate_node_security(node)
+
+        if not is_safe:
+            logger.error(
+                f"SECURITY: Unsanitized data detected in node {node.id}! "
+                f"Findings: {findings}"
+            )
+
+            if self.strict_mode:
+                raise SanitizationError(
+                    f"Cannot store node {node.id}: sensitive data detected. "
+                    f"Findings: {findings}. "
+                    "Ensure scanner calls _add_resource_safe()."
+                )
+            else:
+                # Non-strict: sanitize now (with warning)
+                logger.warning(
+                    f"Performing emergency sanitization for node {node.id}. "
+                    "This indicates a bug in the scanner."
+                )
+                sanitizer = self._get_sanitizer()
+                node.attributes = sanitizer.sanitize(node.attributes)
+
+        self._backend.add_node(node)
+
+    def validate_cache_security(self) -> dict[str, Any]:
+        """
+        Scan entire cache for unsanitized sensitive data.
+
+        Returns:
+            Report with:
+            - resources_checked: Number of nodes checked
+            - issues_found: Number of nodes with sensitive data
+            - findings: List of issues (node_id, type, patterns)
+            - is_secure: True if no issues found
+        """
+        from replimap.core.security.patterns import SensitivePatternLibrary
+
+        findings: list[dict[str, Any]] = []
+        resources_checked = 0
+
+        for node in self._backend.get_all_nodes():
+            resources_checked += 1
+
+            attributes = node.attributes or {}
+            if not attributes:
+                continue
+
+            try:
+                attrs_str = json.dumps(attributes, default=str)
+            except (TypeError, ValueError):
+                continue
+
+            if SensitivePatternLibrary.contains_sensitive(attrs_str):
+                _, patterns = SensitivePatternLibrary.scan_text(attrs_str)
+                findings.append(
+                    {
+                        "node_id": node.id,
+                        "node_type": node.type,
+                        "patterns": patterns,
+                    }
+                )
+
+        return {
+            "resources_checked": resources_checked,
+            "issues_found": len(findings),
+            "findings": findings,
+            "is_secure": len(findings) == 0,
+        }
 
     # =========================================================
     # NODE OPERATIONS
