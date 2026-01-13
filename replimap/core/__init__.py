@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .async_aws import (
     AsyncAWSClient,
@@ -70,67 +70,8 @@ from .errors import (
     reset_error_aggregator,
 )
 from .filters import ScanFilter, apply_filter_to_graph
+from .graph_engine import TarjanSCC
 from .models import ResourceNode
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# STORAGE LAYER SWITCH (The "Zero-Code Migration" Trick)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# Check for legacy mode escape hatch
-_USE_LEGACY_STORAGE = os.environ.get("REPLIMAP_USE_LEGACY_STORAGE", "").lower() in (
-    "1",
-    "true",
-    "yes",
-)
-
-if _USE_LEGACY_STORAGE:
-    warnings.warn(
-        "REPLIMAP_USE_LEGACY_STORAGE is set. Using deprecated NetworkX backend. "
-        "This mode will be removed in v3.0. Please migrate to SQLite backend.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    # Import legacy class directly
-    from .graph_engine import GraphEngine as _LegacyGraphEngine
-    from .graph_engine import SCCResult, TarjanSCC
-
-    GraphEngine = _LegacyGraphEngine
-else:
-    # ═══════════════════════════════════════════════════════════════════════════
-    # THIS IS THE KEY LINE: GraphEngine now points to SQLite-backed adapter
-    # ═══════════════════════════════════════════════════════════════════════════
-    from .unified_storage import GraphEngineAdapter as GraphEngine
-    from .unified_storage import SCCResult
-
-    # TarjanSCC is only available from legacy module (for direct usage)
-    from .graph_engine import TarjanSCC
-
-# Storage backend identifier
-__storage_backend__ = "legacy-networkx" if _USE_LEGACY_STORAGE else "sqlite"
-
-
-def get_storage_info() -> dict[str, Any]:
-    """
-    Get information about current storage backend.
-
-    Returns:
-        Dictionary with storage backend details.
-
-    Example:
-        >>> from replimap.core import get_storage_info
-        >>> get_storage_info()
-        {'backend': 'sqlite', 'legacy_mode': False, 'version': '2.0.0'}
-    """
-    return {
-        "backend": __storage_backend__,
-        "legacy_mode": _USE_LEGACY_STORAGE,
-        "version": "2.0.0",
-        "adapter_class": GraphEngine.__name__,
-    }
-
-
-if TYPE_CHECKING:
-    from replimap.core.unified_storage import UnifiedGraphEngine
 from .retry import async_retry, with_retry
 from .sanitizer import (
     SanitizationResult,
@@ -189,6 +130,60 @@ from .topology_constraints import (
     load_constraints_from_yaml,
     validate_topology,
 )
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STORAGE LAYER SWITCH (The "Zero-Code Migration" Trick)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Check for legacy mode escape hatch
+_USE_LEGACY_STORAGE = os.environ.get("REPLIMAP_USE_LEGACY_STORAGE", "").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+
+if _USE_LEGACY_STORAGE:
+    warnings.warn(
+        "REPLIMAP_USE_LEGACY_STORAGE is set. Using deprecated NetworkX backend. "
+        "This mode will be removed in v3.0. Please migrate to SQLite backend.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    # Import legacy class directly
+    from .graph_engine import GraphEngine as _LegacyGraphEngine
+    from .graph_engine import SCCResult
+
+    GraphEngine = _LegacyGraphEngine
+else:
+    # ═══════════════════════════════════════════════════════════════════════════
+    # THIS IS THE KEY LINE: GraphEngine now points to SQLite-backed adapter
+    # ═══════════════════════════════════════════════════════════════════════════
+    from .unified_storage import GraphEngineAdapter as GraphEngine
+    from .unified_storage import SCCResult
+
+# Storage backend identifier
+__storage_backend__ = "legacy-networkx" if _USE_LEGACY_STORAGE else "sqlite"
+
+
+def get_storage_info() -> dict[str, Any]:
+    """
+    Get information about current storage backend.
+
+    Returns:
+        Dictionary with storage backend details.
+
+    Example:
+        >>> from replimap.core import get_storage_info
+        >>> get_storage_info()
+        {'backend': 'sqlite', 'legacy_mode': False, 'version': '2.0.0'}
+    """
+    return {
+        "backend": __storage_backend__,
+        "legacy_mode": _USE_LEGACY_STORAGE,
+        "version": "2.0.0",
+        "adapter_class": GraphEngine.__name__,
+    }
+
 
 __all__ = [
     # Models

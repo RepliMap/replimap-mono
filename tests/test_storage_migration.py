@@ -32,7 +32,7 @@ class TestStorageAliasSwitch:
         with patch.dict(os.environ, {}, clear=True):
             os.environ.pop("REPLIMAP_USE_LEGACY_STORAGE", None)
 
-            from replimap.core import GraphEngine, get_storage_info
+            from replimap.core import get_storage_info
 
             info = get_storage_info()
             assert info["backend"] == "sqlite"
