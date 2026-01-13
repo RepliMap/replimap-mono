@@ -51,7 +51,7 @@ Usage:
 
 from .adapter import GraphEngineAdapter, SCCResult
 from .base import Edge, GraphBackend, Node, ResourceCategory, ScanSession, ScanStatus
-from .engine import UnifiedGraphEngine
+from .engine import SanitizationError, UnifiedGraphEngine
 from .sqlite_backend import SQLiteBackend
 
 __all__ = [
@@ -68,6 +68,8 @@ __all__ = [
     "SQLiteBackend",
     # High-level engine
     "UnifiedGraphEngine",
+    # Security
+    "SanitizationError",
     # Backward compatibility adapter
     "GraphEngineAdapter",
     "SCCResult",

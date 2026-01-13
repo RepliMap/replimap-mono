@@ -9,6 +9,7 @@ Key Improvements:
 - Uses with_retry decorator for coordinated retry logic
 - Supports circuit breaker pattern for resilient scanning
 - Sanitizes sensitive data before adding to graph
+- Automatic sanitization via _add_resource_safe() method
 """
 
 from __future__ import annotations
@@ -29,12 +30,14 @@ from replimap.core.rate_limiter import AWSRateLimiter
 from replimap.core.retry import (
     with_retry,  # noqa: F401 - Re-export for backward compatibility
 )
+from replimap.core.security.global_sanitizer import GlobalSanitizer
 from replimap.core.security.session_manager import SessionManager
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from replimap.core import GraphEngine
+    from replimap.core.models import ResourceNode
 
 
 logger = logging.getLogger(__name__)
@@ -142,6 +145,7 @@ class BaseScanner(ABC):
     1. Calling AWS APIs to retrieve resources
     2. Converting AWS responses to ResourceNodes
     3. Adding nodes and dependencies to the graph
+    4. Sanitizing sensitive data before storage
 
     Subclasses must implement:
     - resource_types: List of Terraform resource types this scanner handles
@@ -149,6 +153,7 @@ class BaseScanner(ABC):
 
     Optionally set:
     - depends_on_types: Resource types that must be scanned first
+    - service_name: AWS service name for sanitization context
     """
 
     # Terraform resource types this scanner handles
@@ -158,12 +163,17 @@ class BaseScanner(ABC):
     # Scanners with dependencies run in phase 2, after phase 1 completes
     depends_on_types: ClassVar[list[str]] = []
 
+    # AWS service name - set by subclasses for sanitization context
+    service_name: str = ""
+
     def __init__(
         self,
         session: boto3.Session,
         region: str,
         session_manager: SessionManager | None = None,
         rate_limiter: AWSRateLimiter | None = None,
+        sanitizer: GlobalSanitizer | None = None,
+        sanitize_enabled: bool = True,
     ) -> None:
         """
         Initialize the scanner with AWS credentials.
@@ -174,11 +184,23 @@ class BaseScanner(ABC):
             session_manager: Optional SessionManager for credential refresh.
                            If not provided, will try to get global instance.
             rate_limiter: Optional rate limiter. If not provided, creates new one.
+            sanitizer: Optional GlobalSanitizer for data sanitization.
+                      If not provided, creates default instance.
+            sanitize_enabled: Whether to enable automatic sanitization (default: True).
         """
         self.session = session
         self.region = region
         self._clients: dict[str, object] = {}
         self.rate_limiter = rate_limiter or AWSRateLimiter()
+        self.sanitizer = sanitizer or GlobalSanitizer()
+        self.sanitize_enabled = sanitize_enabled
+
+        # Sanitization statistics
+        self._sanitization_stats: dict[str, Any] = {
+            "resources_sanitized": 0,
+            "fields_redacted": 0,
+            "patterns_found": [],
+        }
 
         # Get session manager - try provided, then global, then None
         if session_manager is not None:
@@ -211,6 +233,74 @@ class BaseScanner(ABC):
                 config=BOTO_CONFIG,  # CRITICAL: Prevents retry storm
             )
         return self._clients[service_name]
+
+    def _sanitize_config(self, config: dict[str, Any]) -> dict[str, Any]:
+        """
+        Sanitize resource configuration.
+
+        Called automatically by _add_resource_safe().
+        Can also be called directly for custom handling.
+
+        Args:
+            config: Raw resource configuration from AWS API
+
+        Returns:
+            Sanitized configuration with sensitive data redacted
+        """
+        if not self.sanitize_enabled:
+            return config
+
+        result = self.sanitizer.sanitize_with_result(config, self.service_name)
+
+        if result.was_modified:
+            self._sanitization_stats["resources_sanitized"] += 1
+            self._sanitization_stats["fields_redacted"] += result.redacted_count
+            self._sanitization_stats["patterns_found"].extend(result.findings)
+
+            logger.debug(
+                f"Sanitized resource: {result.redacted_count} fields, "
+                f"findings: {result.findings[:3]}..."
+            )
+
+        return result.data
+
+    def _add_resource_safe(
+        self,
+        graph: GraphEngine,
+        resource_node: ResourceNode,
+    ) -> None:
+        """
+        Add resource to graph with automatic sanitization.
+
+        This is the preferred method for adding resources.
+        Ensures all sensitive data is redacted before storage.
+
+        Usage:
+            node = ResourceNode(id=..., config=raw_config, ...)
+            self._add_resource_safe(graph, node)
+
+        Args:
+            graph: The GraphEngine to add the resource to
+            resource_node: The ResourceNode to add
+        """
+        # Sanitize configuration
+        if self.sanitize_enabled and resource_node.config:
+            resource_node.config = self._sanitize_config(resource_node.config)
+
+        # Add to graph
+        graph.add_resource(resource_node)
+
+    def get_sanitization_stats(self) -> dict[str, Any]:
+        """
+        Get sanitization statistics for this scanner.
+
+        Returns:
+            Dictionary with sanitization metrics:
+            - resources_sanitized: Number of resources that had data redacted
+            - fields_redacted: Total number of fields redacted
+            - patterns_found: List of pattern matches found
+        """
+        return self._sanitization_stats.copy()
 
     @abstractmethod
     def scan(self, graph: GraphEngine) -> None:

@@ -2052,6 +2052,196 @@ checker.check_and_warn(skip_check=True)
 - PCI-DSS credential rotation policies
 - CIS AWS Foundations Benchmark
 
+### Data Sanitization System
+
+RepliMap includes a sovereign-grade data sanitization system that protects sensitive information at ingestion time while preserving drift detection capabilities.
+
+#### Architecture Overview
+
+```
+┌─────────────┐    ┌──────────────────┐    ┌───────────────────┐    ┌─────────────────┐
+│  AWS Scan   │───▶│ GlobalSanitizer  │───▶│ UnifiedGraphEngine│───▶│  Local Cache    │
+│  Results    │    │ (Shift-Left)     │    │ (Defense-in-Depth)│    │  (SQLite)       │
+└─────────────┘    └──────────────────┘    └───────────────────┘    └─────────────────┘
+                          │                         │
+                          ▼                         ▼
+                   ┌──────────────┐          ┌─────────────────┐
+                   │  Patterns    │          │ Validation      │
+                   │  Library     │          │ (strict_mode)   │
+                   └──────────────┘          └─────────────────┘
+```
+
+**Key Properties:**
+- **Shift-Left**: Sanitization happens at scan time, before storage
+- **Defense-in-Depth**: Storage layer validates no sensitive data persists
+- **Deterministic Redaction**: Same value + same salt → same hash (enables drift detection)
+- **Instance Isolation**: Per-instance salt prevents cross-environment correlation
+
+#### DeterministicRedactor
+
+HMAC-based deterministic redaction for drift detection.
+
+```python
+from replimap.core.security import DeterministicRedactor
+
+redactor = DeterministicRedactor()
+
+# Redact sensitive values
+redacted = redactor.redact("my-secret-password", "MasterUserPassword")
+# Returns: "REDACTED:MasterUs:a1b2c3d4e5f6g7h8"
+
+# Same input → same output (enables drift detection)
+assert redactor.redact("my-secret-password", "MasterUserPassword") == redacted
+
+# Check if value is redacted
+if redactor.is_redacted(value):
+    hash_part = redactor.extract_hash(value)  # For drift comparison
+```
+
+**Security Properties:**
+- **HMAC-SHA256**: Prevents length extension attacks
+- **Field Name in Key**: Prevents cross-field pattern matching
+- **Instance Salt**: Stored at `~/.replimap/.sanitizer_salt` with 0o600 permissions
+- **Hash Truncation**: 16 characters for readability while maintaining security
+
+#### SensitivePatternLibrary
+
+Comprehensive pattern detection based on industry-standard tools.
+
+```python
+from replimap.core.security.patterns import SensitivePatternLibrary, Severity
+
+# Scan and sanitize text
+sanitized, findings = SensitivePatternLibrary.scan_text(user_data)
+if findings:
+    print(f"Redacted: {findings}")  # ['AWS_ACCESS_KEY_ID: 1 occurrence(s)']
+
+# Quick check without sanitization
+if SensitivePatternLibrary.contains_sensitive(text):
+    # Handle sensitive data
+    pass
+
+# Get patterns by severity
+critical = SensitivePatternLibrary.get_patterns_by_severity(Severity.CRITICAL)
+```
+
+**Pattern Categories:**
+
+| Category | Severity | Examples |
+|----------|----------|----------|
+| AWS Credentials | CRITICAL | Access keys (AKIA...), secret keys, session tokens |
+| Private Keys | CRITICAL | RSA, EC, PGP, OpenSSH key blocks |
+| Database URLs | HIGH | mysql://, postgres://, mongodb:// with credentials |
+| API Keys | HIGH | Stripe, GitHub, Slack, SendGrid, Twilio tokens |
+| Generic Secrets | MEDIUM | password=, secret=, token= assignments |
+| JWT Tokens | MEDIUM | eyJ... format tokens |
+
+#### GlobalSanitizer
+
+Recursive sanitization with intelligent content handling.
+
+```python
+from replimap.core.security import GlobalSanitizer
+
+sanitizer = GlobalSanitizer()
+
+# Sanitize scan results
+clean_data = sanitizer.sanitize(raw_scan_data)
+
+# Get sanitization statistics
+clean_data, result = sanitizer.sanitize_with_result(raw_scan_data)
+print(f"Sanitized {result.fields_processed} fields, {result.sensitive_found} sensitive")
+```
+
+**Features:**
+- **Recursive Traversal**: Handles nested dicts/lists with depth limits (max 50)
+- **Sensitive Key Detection**: Recognizes `password`, `secret`, `key`, `token`, etc.
+- **Base64 UserData**: Decodes → scans → re-encodes EC2 UserData
+- **Circular Reference Protection**: Tracks visited objects by ID
+- **Container Key Traversal**: Scans inside `Parameters`, `Tags`, etc.
+
+**Sensitive Keys (automatic redaction):**
+```
+password, passwd, secret, private_key, api_key, access_key,
+token, auth, credential, master_user_password, db_password, ...
+```
+
+#### DriftDetector
+
+Configuration drift detection for sanitized values.
+
+```python
+from replimap.core.security import DriftDetector
+
+detector = DriftDetector()
+
+old_config = load_from_cache()
+new_config = sanitizer.sanitize(scan_result)
+
+result = detector.compare(old_config, new_config)
+if result.has_drift:
+    print(result.summary())  # "Drift detected: 2 value change(s), 1 sensitive field change(s)"
+    for drift in result.drifts:
+        print(drift)  # "db.password: [SENSITIVE VALUE CHANGED] (a1b2c3 → d4e5f6)"
+```
+
+**Drift Types:**
+
+| Type | Description |
+|------|-------------|
+| `VALUE_CHANGED` | Normal field value changed |
+| `SENSITIVE_CHANGED` | Redacted field hash changed (value changed without exposure) |
+| `SENSITIVITY_ADDED` | Field became sensitive |
+| `SENSITIVITY_REMOVED` | Field no longer sensitive |
+| `FIELD_ADDED` | New field appeared |
+| `FIELD_REMOVED` | Field was removed |
+
+#### Storage Layer Validation
+
+Defense-in-depth validation prevents sensitive data persistence.
+
+```python
+from replimap.core.unified_storage import UnifiedGraphEngine, SanitizationError
+
+# Strict mode (default) - raises on sensitive data detection
+engine = UnifiedGraphEngine(strict_mode=True)
+
+try:
+    engine.add_node_safe(node)  # Validates before storage
+except SanitizationError as e:
+    print(f"Blocked: {e}")  # "Sensitive data detected in node attributes"
+
+# Validate existing cache
+issues = engine.validate_cache_security()
+if issues:
+    for node_id, patterns in issues.items():
+        print(f"{node_id}: {patterns}")
+```
+
+#### Migration Script
+
+Upgrade existing caches to sanitized format.
+
+```bash
+# Check if migration needed
+python -m replimap.migrations.sanitize_cache --check
+
+# Run migration with backup
+python -m replimap.migrations.sanitize_cache --backup
+
+# Force migration (skip confirmation)
+python -m replimap.migrations.sanitize_cache --force
+```
+
+```python
+from replimap.migrations.sanitize_cache import check_cache_needs_migration, run_migration
+
+# Programmatic check
+needs_migration, details = check_cache_needs_migration("/path/to/cache")
+if needs_migration:
+    success = run_migration("/path/to/cache", backup=True)
+```
+
 #### CLI Integration
 
 ```bash
