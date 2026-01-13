@@ -91,7 +91,9 @@ class ConfigManager:
 
     profile: str = "default"
     cli_overrides: dict[str, Any] = field(default_factory=dict)
-    config_path: Path = field(default_factory=lambda: Path.home() / ".replimap" / "config.toml")
+    config_path: Path = field(
+        default_factory=lambda: Path.home() / ".replimap" / "config.toml"
+    )
     _config: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
     _resolution_log: dict[str, ConfigResolution] = field(
         default_factory=dict, init=False, repr=False

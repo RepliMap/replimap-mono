@@ -23,7 +23,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -38,7 +38,7 @@ class TelemetryEvent:
 
     event_type: str  # command_start, command_success, command_error
     command: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     duration_ms: int | None = None
     error_type: str | None = None
     error_message: str | None = None
@@ -283,7 +283,7 @@ class TelemetryContext:
         self._error: Exception | None = None
 
     def __enter__(self) -> TelemetryContext:
-        self._start_time = datetime.now(timezone.utc)
+        self._start_time = datetime.now(UTC)
         Telemetry.track_command_start(self.command, self.metadata)
         return self
 
@@ -296,9 +296,7 @@ class TelemetryContext:
         if self._start_time is None:
             return
 
-        duration_ms = int(
-            (datetime.now(timezone.utc) - self._start_time).total_seconds() * 1000
-        )
+        duration_ms = int((datetime.now(UTC) - self._start_time).total_seconds() * 1000)
 
         if exc_val is not None and isinstance(exc_val, Exception):
             Telemetry.track_command_error(

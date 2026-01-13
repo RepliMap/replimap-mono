@@ -32,7 +32,10 @@ FORBIDDEN_PATTERNS = [
     # Rich console.print()
     (r"console\.print\s*\(", "Use ctx.obj.output methods instead of console.print()"),
     # sys.stdout.write()
-    (r"sys\.stdout\.write\s*\(", "Use ctx.obj.output methods instead of sys.stdout.write()"),
+    (
+        r"sys\.stdout\.write\s*\(",
+        "Use ctx.obj.output methods instead of sys.stdout.write()",
+    ),
 ]
 
 # Files/patterns to skip

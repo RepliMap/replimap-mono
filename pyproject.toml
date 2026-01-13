@@ -153,6 +153,7 @@ select = [
 ignore = [
     "E501",   # line too long (handled by formatter)
     "S101",   # assert used (ok in tests)
+    "S105",   # possible hardcoded password (false positive for enums)
     "B008",   # function call in default argument (typer pattern)
     "B904",   # raise from in except (typer.Exit doesn't need it)
     "S607",   # partial executable path (terraform in PATH is intentional)
@@ -173,6 +174,13 @@ ignore = [
 "replimap/cli/utils/console.py" = ["T201"]
 "replimap/cli/utils/error_handler.py" = ["T201"]
 "replimap/cli/utils/helpers.py" = ["T201"]
+# Allow print() in completion.py (outputs shell completion scripts)
+"replimap/cli/commands/completion.py" = ["T201"]
+# Allow print() in migration/utility scripts
+"replimap/core/unified_storage/migrate.py" = ["T201"]
+"replimap/licensing/crypto/keys.py" = ["T201"]
+"replimap/licensing/server/signer.py" = ["T201"]
+"replimap/migrations/sanitize_cache.py" = ["T201"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["replimap"]

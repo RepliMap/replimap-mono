@@ -25,7 +25,8 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 # Type alias for provider functions
 Provider = Callable[[], Any]
@@ -156,6 +157,7 @@ def _get_aws_profiles() -> list[str]:
     """Get available AWS profiles."""
     try:
         import boto3
+
         session = boto3.Session()
         profiles = session.available_profiles
         return list(profiles) if profiles else ["default"]

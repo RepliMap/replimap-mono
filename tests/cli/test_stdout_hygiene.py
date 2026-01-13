@@ -103,7 +103,7 @@ class TestStdoutHygiene:
             output.success("success message")
             output.progress("progress message")
 
-            stderr_content = sys.stderr.getvalue()
+            _stderr_content = sys.stderr.getvalue()  # noqa: F841
 
             # stderr should have content (Rich formatting may vary)
             # Just verify these methods don't raise

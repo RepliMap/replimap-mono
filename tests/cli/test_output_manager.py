@@ -10,8 +10,6 @@ import json
 import sys
 from io import StringIO
 
-import pytest
-
 from replimap.cli.output import OutputFormat, OutputManager, create_output_manager
 
 
@@ -136,7 +134,7 @@ class TestOutputManagerLogging:
         sys.stderr = StringIO()
         try:
             output_low.debug("test")
-            content = sys.stderr.getvalue()
+            _content = sys.stderr.getvalue()  # noqa: F841
             # Should be empty or not contain debug message
         finally:
             sys.stderr = old_stderr
@@ -224,7 +222,7 @@ class TestOutputManagerHelpers:
 
         try:
             output.table([{"a": 1}])
-            content = sys.stderr.getvalue()
+            _content = sys.stderr.getvalue()  # noqa: F841
             # Should be minimal output in quiet mode
             assert True
         finally:

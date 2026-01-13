@@ -24,7 +24,7 @@ import hashlib
 import sys
 import traceback
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -34,20 +34,22 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 # Sensitive keys to redact from error logs
-SENSITIVE_KEYS = frozenset({
-    "password",
-    "secret",
-    "token",
-    "key",
-    "credential",
-    "api_key",
-    "apikey",
-    "access_key",
-    "secret_key",
-    "aws_access_key_id",
-    "aws_secret_access_key",
-    "aws_session_token",
-})
+SENSITIVE_KEYS = frozenset(
+    {
+        "password",
+        "secret",
+        "token",
+        "key",
+        "credential",
+        "api_key",
+        "apikey",
+        "access_key",
+        "secret_key",
+        "aws_access_key_id",
+        "aws_secret_access_key",
+        "aws_session_token",
+    }
+)
 
 
 @dataclass
@@ -173,7 +175,7 @@ class ErrorTelemetry:
         Returns:
             ErrorReference with unique code and log path
         """
-        timestamp = datetime.now(timezone.utc)
+        timestamp = datetime.now(UTC)
         code = self._generate_code(exception, context)
         log_path = self._create_log_file(code, exception, context, timestamp)
 
@@ -215,9 +217,7 @@ class ErrorTelemetry:
         # Generate hash from exception details
         hash_input = f"{type(exception).__name__}:{exception}:{context.command}"
         hash_bytes = hashlib.md5(hash_input.encode()).digest()  # noqa: S324
-        hash_str = "".join(
-            f"{b:02X}" for b in hash_bytes[:2]
-        )  # 4 hex chars
+        hash_str = "".join(f"{b:02X}" for b in hash_bytes[:2])  # 4 hex chars
 
         return f"ERR-{service}-{status}-{hash_str}"
 
@@ -235,9 +235,7 @@ class ErrorTelemetry:
         if hasattr(exception, "response"):
             response = getattr(exception, "response", {})
             if isinstance(response, dict):
-                http_status = response.get("ResponseMetadata", {}).get(
-                    "HTTPStatusCode"
-                )
+                http_status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
                 if http_status:
                     return str(http_status)
 
@@ -319,14 +317,16 @@ class ErrorTelemetry:
         for key, value in ctx_dict.items():
             content.append(f"  {key}: {value}")
 
-        content.extend([
-            "",
-            "REPRODUCTION",
-            "-" * 40,
-            f"  {reproduction}",
-            "",
-            "=" * 60,
-        ])
+        content.extend(
+            [
+                "",
+                "REPRODUCTION",
+                "-" * 40,
+                f"  {reproduction}",
+                "",
+                "=" * 60,
+            ]
+        )
 
         try:
             with open(log_path, "w", encoding="utf-8") as f:
@@ -423,7 +423,10 @@ def enhanced_cli_error_handler(func: Callable[..., Any]) -> Callable[..., Any]:
         except typer.Abort:
             raise
 
-        except (botocore.exceptions.BotoCoreError, botocore.exceptions.ClientError) as e:
+        except (
+            botocore.exceptions.BotoCoreError,
+            botocore.exceptions.ClientError,
+        ) as e:
             # AWS-specific error handling
             context = _extract_context_from_args(func, args, kwargs)
             context.service = _extract_service_from_error(e)
@@ -527,17 +530,21 @@ def _display_error_panel(
     ]
 
     if reference.log_path:
-        content_lines.extend([
-            "",
-            f"[dim]Details logged to: {reference.log_path}[/dim]",
-        ])
+        content_lines.extend(
+            [
+                "",
+                f"[dim]Details logged to: {reference.log_path}[/dim]",
+            ]
+        )
 
-    content_lines.extend([
-        "",
-        f"[bold]Need help?[/bold] "
-        f"[link=mailto:{EMAIL_SUPPORT}]{EMAIL_SUPPORT}[/link] or "
-        f"[link={URL_ISSUES}]open an issue[/link]",
-    ])
+    content_lines.extend(
+        [
+            "",
+            f"[bold]Need help?[/bold] "
+            f"[link=mailto:{EMAIL_SUPPORT}]{EMAIL_SUPPORT}[/link] or "
+            f"[link={URL_ISSUES}]open an issue[/link]",
+        ]
+    )
 
     console.print()
     console.print(Panel("\n".join(content_lines), title=title, border_style="red"))

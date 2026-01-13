@@ -26,7 +26,6 @@ from replimap.cli.params.schema import (
     ParameterGroup,
     ParameterType,
     validate_group_purity,
-    validate_schema_purity,
 )
 
 

@@ -10,8 +10,6 @@ import os
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from replimap.cli.config import (
     DEFAULTS,
     ConfigManager,
@@ -104,7 +102,10 @@ class TestConfigManagerEnvironment:
         config = ConfigManager()
 
         assert config._key_to_env("region") == "REPLIMAP_REGION"
-        assert config._key_to_env("scan.parallel_scanners") == "REPLIMAP_SCAN_PARALLEL_SCANNERS"
+        assert (
+            config._key_to_env("scan.parallel_scanners")
+            == "REPLIMAP_SCAN_PARALLEL_SCANNERS"
+        )
         assert config._key_to_env("output_dir") == "REPLIMAP_OUTPUT_DIR"
 
 
@@ -168,9 +169,7 @@ class TestConfigManagerTOML:
 
     def test_load_valid_toml(self) -> None:
         """Loading valid TOML should work."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".toml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             f.write("""
 [global]
 region = "eu-west-1"
@@ -194,9 +193,7 @@ output_dir = "/prod/output"
 
     def test_profile_override(self) -> None:
         """Profile-specific config should override global."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".toml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".toml", delete=False) as f:
             f.write("""
 [global]
 region = "us-east-1"

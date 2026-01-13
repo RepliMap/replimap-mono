@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -158,7 +158,7 @@ class StateManager:
             duration_seconds: Scan duration
             resource_count: Number of resources found
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self.update(
             last_profile=profile,
             last_region=region,
@@ -196,7 +196,7 @@ class StateManager:
         Args:
             reference: Error reference code (e.g., "ERR-EC2-403-A7X9")
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self.update(
             last_error_reference=reference,
             last_error_time=now,
