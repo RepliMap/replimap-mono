@@ -1,4 +1,10 @@
-"""Graph visualization command for RepliMap CLI."""
+"""Graph visualization command for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,7 @@ from pathlib import Path
 import typer
 from rich.panel import Panel
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core.browser import open_in_browser
 
@@ -265,4 +272,4 @@ def graph_command(
 
 def register(app: typer.Typer) -> None:
     """Register the graph command with the Typer app."""
-    app.command(name="graph")(graph_command)
+    app.command(name="graph")(enhanced_cli_error_handler(graph_command))

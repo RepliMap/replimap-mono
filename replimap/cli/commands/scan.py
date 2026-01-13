@@ -1,5 +1,10 @@
 """
 Scan command - AWS resource discovery and dependency graph building.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
 """
 
 from __future__ import annotations
@@ -21,6 +26,7 @@ from rich.progress import (
 from rich.prompt import Confirm, Prompt
 
 from replimap import __version__
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import (
     console,
     get_available_profiles,
@@ -52,6 +58,7 @@ def register(app: typer.Typer) -> None:
     """Register the scan command with the app."""
 
     @app.command()
+    @enhanced_cli_error_handler
     def scan(
         profile: str | None = typer.Option(
             None,

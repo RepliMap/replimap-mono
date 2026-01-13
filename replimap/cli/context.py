@@ -60,6 +60,36 @@ class GlobalContext:
     output: OutputManager
     _cli_overrides: dict[str, Any] = field(default_factory=dict, repr=False)
 
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Dict-like access for backwards compatibility.
+
+        Allows subcommands to use ctx.obj.get("profile") pattern.
+        Maps special keys to context attributes.
+
+        Args:
+            key: Key to get (e.g., "profile", "region", "global_profile")
+            default: Default value if key not found
+
+        Returns:
+            Value for the key or default
+        """
+        # Map common keys to attributes
+        key_map = {
+            "profile": self.profile,
+            "region": self.region,
+            "global_profile": self.profile,
+            "global_region": self.region,
+            "output_format": self.output.format.value if self.output else "text",
+            "verbose": self.output.verbose if self.output else 0,
+        }
+
+        if key in key_map:
+            return key_map[key]
+
+        # Try config for other keys
+        return self.config.get(key, default) if self.config else default
+
     @classmethod
     def from_cli(
         cls,

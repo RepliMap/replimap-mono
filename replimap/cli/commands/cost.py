@@ -1,4 +1,10 @@
-"""Cost estimation command for RepliMap CLI."""
+"""Cost estimation command for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
+"""
 
 from __future__ import annotations
 
@@ -10,6 +16,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region, logger
 from replimap.core import GraphEngine
 from replimap.core.browser import open_in_browser
@@ -405,4 +412,4 @@ def cost_command(
 
 def register(app: typer.Typer) -> None:
     """Register the cost command with the Typer app."""
-    app.command(name="cost")(cost_command)
+    app.command(name="cost")(enhanced_cli_error_handler(cost_command))

@@ -1,4 +1,10 @@
-"""Drift detection command for RepliMap CLI."""
+"""Drift detection command for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
+"""
 
 from __future__ import annotations
 
@@ -11,6 +17,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 from replimap.core.browser import open_in_browser
 from replimap.licensing import check_drift_allowed
@@ -780,6 +787,6 @@ def _truncate(val, max_len: int = 25) -> str:
 def register(app: typer.Typer) -> None:
     """Register the drift command with the Typer app."""
     # Register the main drift command (online detection)
-    app.command(name="drift")(drift_command)
+    app.command(name="drift")(enhanced_cli_error_handler(drift_command))
     # Also add drift as a subcommand group for offline detection
     app.add_typer(drift_app, name="drift-offline", help="Offline drift detection")

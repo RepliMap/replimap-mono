@@ -1,4 +1,10 @@
-"""Cost trends analysis command for RepliMap CLI."""
+"""Cost trends analysis command for RepliMap CLI.
+
+V3 Architecture:
+- Uses @enhanced_cli_error_handler for structured error handling
+- Console output goes to stderr for stdout hygiene
+- JSON mode available via global --format flag
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,7 @@ import typer
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from replimap.cli.errors import enhanced_cli_error_handler
 from replimap.cli.utils import console, get_aws_session, get_profile_region
 
 
@@ -184,4 +191,4 @@ def trends_command(
 
 def register(app: typer.Typer) -> None:
     """Register the trends command with the Typer app."""
-    app.command(name="trends")(trends_command)
+    app.command(name="trends")(enhanced_cli_error_handler(trends_command))
