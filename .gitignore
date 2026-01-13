@@ -76,3 +76,4 @@ Thumbs.db
 
 # RepliMap cache/data directories
 .replimap/
+coverage.xml
