@@ -35,8 +35,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-from replimap.core.errors.loader import BotocoreErrorLoader
-from replimap.core.errors.rules import ServiceSpecificRules
+from replimap.core.resilience.errors.loader import BotocoreErrorLoader
+from replimap.core.resilience.errors.rules import ServiceSpecificRules
 
 if TYPE_CHECKING:
     pass
@@ -375,8 +375,8 @@ class ErrorClassifier:
         # Cap maximum delay
         delay_ms = min(delay_ms, 64000)
 
-        # Add jitter (+-20%)
-        jitter = random.uniform(0.8, 1.2)
+        # Add jitter (+-20%) - not for cryptography, just for spreading out retries
+        jitter = random.uniform(0.8, 1.2)  # noqa: S311
         delay_ms = int(delay_ms * jitter)
 
         return delay_ms
@@ -386,12 +386,12 @@ class ErrorClassifier:
         """Check if error is a connection/network error."""
         try:
             from botocore.exceptions import (
+                ConnectionError as BotocoreConnectionError,
+            )
+            from botocore.exceptions import (
                 ConnectTimeoutError,
                 EndpointConnectionError,
                 ReadTimeoutError,
-            )
-            from botocore.exceptions import (
-                ConnectionError as BotocoreConnectionError,
             )
 
             return isinstance(

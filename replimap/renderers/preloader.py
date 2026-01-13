@@ -23,8 +23,9 @@ MissingResourcePlaceholder instead of None, preventing template crashes.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Iterator, Union
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from replimap.core.graph_engine import GraphEngine
@@ -119,7 +120,7 @@ class MissingResourcePlaceholder:
         return False
 
 
-ResourceRef = Union[SlimResourceRef, MissingResourcePlaceholder]
+ResourceRef = SlimResourceRef | MissingResourcePlaceholder
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -420,7 +421,9 @@ class MemoryAwarePreloader:
         if isinstance(db_subnet, dict):
             db_subnet_name = db_subnet.get("DBSubnetGroupName")
             if db_subnet_name:
-                bundle.db_subnet_group = self._get_or_placeholder(db_subnet_name, bundle)
+                bundle.db_subnet_group = self._get_or_placeholder(
+                    db_subnet_name, bundle
+                )
 
         return bundle
 

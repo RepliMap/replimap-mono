@@ -12,19 +12,18 @@ Tests cover:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from replimap.core.errors.classifier import ErrorAction, ErrorClassification
-from replimap.core.resilience.circuit_breaker import (
+from replimap.core.resilience import (
     BackpressureMonitor,
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerRegistry,
     CircuitOpenError,
     CircuitState,
+    ErrorAction,
+    ErrorClassification,
 )
 
 

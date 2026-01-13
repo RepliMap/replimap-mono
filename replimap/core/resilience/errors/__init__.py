@@ -12,7 +12,7 @@ Key Components:
 - ErrorAction: Action enum (RETRY, FAIL, IGNORE, BACKOFF)
 
 Example:
-    from replimap.core.errors import ErrorClassifier, ErrorContext, ErrorAction
+    from replimap.core.resilience.errors import ErrorClassifier, ErrorContext, ErrorAction
 
     classifier = ErrorClassifier()
     context = ErrorContext(
@@ -37,14 +37,14 @@ Note:
 
 from __future__ import annotations
 
-from replimap.core.errors.classifier import (
+from replimap.core.resilience.errors.classifier import (
     ErrorAction,
     ErrorClassification,
-    ErrorContext,
     ErrorClassifier,
+    ErrorContext,
 )
-from replimap.core.errors.loader import BotocoreErrorLoader
-from replimap.core.errors.rules import ServiceSpecificRules
+from replimap.core.resilience.errors.loader import BotocoreErrorLoader
+from replimap.core.resilience.errors.rules import ServiceSpecificRules
 
 __all__ = [
     # Enums and dataclasses

@@ -31,18 +31,19 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum, auto
-from typing import Any, Callable, ClassVar, TypeVar
+from typing import Any, ClassVar, TypeVar
 
-from replimap.core.errors.classifier import (
+from replimap.core.resilience.errors.classifier import (
     ErrorAction,
     ErrorClassification,
     ErrorClassifier,
     ErrorContext,
 )
-from replimap.core.errors.rules import ServiceSpecificRules
+from replimap.core.resilience.errors.rules import ServiceSpecificRules
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +393,9 @@ class CircuitBreakerRegistry:
 
         async with cls._get_lock():
             if key not in cls._breakers:
-                effective_config = config or cls._default_config or CircuitBreakerConfig()
+                effective_config = (
+                    config or cls._default_config or CircuitBreakerConfig()
+                )
                 cls._breakers[key] = CircuitBreaker(
                     name=key,
                     config=effective_config,
@@ -439,7 +442,9 @@ class CircuitBreakerRegistry:
     async def get_all_stats(cls) -> dict[str, dict[str, Any]]:
         """Get statistics for all circuit breakers."""
         async with cls._get_lock():
-            return {name: breaker.get_stats() for name, breaker in cls._breakers.items()}
+            return {
+                name: breaker.get_stats() for name, breaker in cls._breakers.items()
+            }
 
     @classmethod
     async def get_open_circuits(cls) -> list[str]:

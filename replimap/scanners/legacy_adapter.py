@@ -33,10 +33,11 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from replimap.core.errors.classifier import ErrorClassifier, ErrorContext
-from replimap.core.resilience.circuit_breaker import (
+from replimap.core.resilience import (
     CircuitBreakerRegistry,
     CircuitOpenError,
+    ErrorClassifier,
+    ErrorContext,
 )
 from replimap.scanners.unified_base import ScanResult, UnifiedScannerBase
 

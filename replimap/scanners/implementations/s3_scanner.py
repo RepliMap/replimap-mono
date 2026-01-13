@@ -18,9 +18,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from replimap.core.errors.classifier import ErrorContext
 from replimap.core.models import ResourceNode, ResourceType
-from replimap.core.resilience.circuit_breaker import CircuitBreakerRegistry
 from replimap.scanners.unified_base import ScanResult, UnifiedScannerBase
 
 if TYPE_CHECKING:
@@ -76,7 +74,9 @@ class UnifiedS3Scanner(UnifiedScannerBase):
                 bucket_name = bucket["Name"]
 
                 # Get bucket region (GLOBAL operation)
-                bucket_region = await self._get_bucket_region(client, bucket_name, result)
+                bucket_region = await self._get_bucket_region(
+                    client, bucket_name, result
+                )
 
                 # Only process buckets in our target region
                 if bucket_region != self.region:

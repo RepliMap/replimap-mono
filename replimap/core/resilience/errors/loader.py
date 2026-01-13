@@ -256,7 +256,8 @@ class BotocoreErrorLoader:
                 retry_data = loader.load_data(name)
                 logger.debug(f"Successfully loaded retry data from '{name}'")
                 break
-            except Exception:
+            except Exception as e:  # noqa: S112
+                logger.debug(f"Could not load retry data from '{name}': {e}")
                 continue
 
         if retry_data is None:

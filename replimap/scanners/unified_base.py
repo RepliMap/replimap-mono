@@ -27,16 +27,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from replimap.core.errors.classifier import (
-    ErrorAction,
-    ErrorClassifier,
-    ErrorContext,
-)
-from replimap.core.errors.rules import ServiceSpecificRules
-from replimap.core.resilience.circuit_breaker import (
+from replimap.core.resilience import (
     BackpressureMonitor,
     CircuitBreakerRegistry,
     CircuitOpenError,
+    ErrorAction,
+    ErrorClassifier,
+    ErrorContext,
+    ServiceSpecificRules,
 )
 
 if TYPE_CHECKING:

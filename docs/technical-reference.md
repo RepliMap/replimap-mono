@@ -2350,6 +2350,80 @@ removed = engine.cleanup_stale_resources(session.id)
 | **SchemaBootstrapper** | Auto-discover provider schemas for validation |
 | **ConfigLoader** | Load and validate `.replimap.yaml` configuration |
 
+### Unified Resilience Pipeline (v0.3.7+)
+
+RepliMap includes a production-grade resilience stack for AWS API calls located in `replimap/core/resilience/`:
+
+| Component | Description |
+|-----------|-------------|
+| **BotocoreErrorLoader** | Defensive botocore loading with silent fallback to hardcoded lists |
+| **ServiceSpecificRules** | S3 hybrid circuit breaker strategy (Control/Data Plane separation) |
+| **ErrorClassifier** | Context-aware error classification with `should_count_for_circuit` flag |
+| **CircuitBreaker** | Enhanced circuit breaker with ErrorClassification integration |
+| **CircuitBreakerRegistry** | Automatic key generation with S3 hybrid support |
+| **BackpressureMonitor** | Latency tracking and slowdown signaling |
+| **UnifiedScannerBase** | Base class for all scanners with full resilience stack |
+| **LegacyScannerAdapter** | Strangler Fig pattern for legacy scanner migration |
+
+#### Key Design Decisions
+
+1. **S3 Hybrid Strategy**: S3 has both global (Control Plane) and regional (Data Plane) operations:
+   - **Global**: `ListBuckets`, `GetBucketLocation`, `CreateBucket` → `s3:global` circuit breaker
+   - **Regional**: `ListObjectsV2`, `GetObject`, `GetBucketPolicy` → `s3:{region}` circuit breaker
+
+2. **Fatal Errors Don't Trip Circuit**: `AccessDenied`, `ValidationException`, `ExpiredToken` are configuration problems, not service health issues. They use `should_count_for_circuit=False` to avoid false circuit trips.
+
+3. **Throttling Has Higher Threshold**: Throttling (10) vs other failures (5) to avoid opening circuit too eagerly during normal load.
+
+4. **Eventual Consistency Handling**: `ResourceNotFoundException` on describe operations gets one retry before IGNORE for AWS eventual consistency.
+
+```python
+from replimap.core.resilience import (
+    ErrorClassifier,
+    ErrorContext,
+    CircuitBreakerRegistry,
+    ServiceSpecificRules,
+)
+
+# Classify an error
+classifier = ErrorClassifier()
+context = ErrorContext(
+    service_name="s3",
+    region="us-east-1",
+    operation_name="ListObjectsV2",
+)
+result = classifier.classify(error, context)
+
+# Check S3 hybrid strategy
+assert ServiceSpecificRules.is_global_operation("s3", "ListBuckets") is True
+assert ServiceSpecificRules.is_global_operation("s3", "ListObjectsV2") is False
+
+# Get circuit breaker with automatic key generation
+breaker = await CircuitBreakerRegistry.get_breaker(
+    service_name="s3",
+    region="us-east-1",
+    operation_name="ListBuckets",  # Returns s3:global
+)
+```
+
+#### Migrating Legacy Scanners
+
+Use the `LegacyScannerAdapter` to add resilience to existing scanners without code changes:
+
+```python
+from replimap.scanners.legacy_adapter import wrap_legacy_scanners
+
+# Automatic wrapping at startup
+scanners = discover_scanners()
+wrapped = wrap_legacy_scanners(scanners)
+
+# Or manual wrapping
+from replimap.scanners.legacy_adapter import LegacyScannerAdapter
+legacy = VPCScanner(session, region, account_id)
+wrapped = LegacyScannerAdapter(legacy)
+result = await wrapped.scan(graph)
+```
+
 ## Development
 
 ```bash
@@ -2393,7 +2467,15 @@ replimap/
 │   │   ├── bootstrap.py     # SchemaBootstrapper - provider schema discovery
 │   │   ├── sanitizer.py     # Security-critical sanitization middleware
 │   │   ├── retry.py         # Coordinated retry logic with backoff
-│   │   ├── circuit_breaker.py # Circuit breaker for API resilience
+│   │   ├── circuit_breaker.py # Circuit breaker for API resilience (legacy)
+│   │   ├── resilience/       # Unified Resilience Pipeline (v0.3.7+)
+│   │   │   ├── __init__.py   # Package exports
+│   │   │   ├── circuit_breaker.py  # Enhanced circuit breaker with ErrorClassification
+│   │   │   └── errors/       # Error handling foundation
+│   │   │       ├── __init__.py
+│   │   │       ├── loader.py      # BotocoreErrorLoader - defensive loading
+│   │   │       ├── rules.py       # ServiceSpecificRules - S3 hybrid strategy
+│   │   │       └── classifier.py  # ErrorClassifier - context-aware classification
 │   │   ├── cache.py         # Credential and result caching
 │   │   ├── filters.py       # Resource filtering utilities
 │   │   ├── selection.py     # Graph-based selection engine
@@ -2401,12 +2483,18 @@ replimap/
 │   │   ├── logging.py       # Structured logging with structlog
 │   │   └── graph_tracer.py  # Graph processing phase tracer
 │   ├── scanners/
-│   │   ├── base.py              # Scanner base class
-│   │   ├── async_base.py        # Async scanner support
-│   │   ├── vpc_scanner.py       # VPC/Subnet/SG scanner
-│   │   ├── ec2_scanner.py       # EC2 scanner
-│   │   ├── s3_scanner.py        # S3 scanner
-│   │   ├── rds_scanner.py       # RDS scanner
+│   │   ├── base.py              # Scanner base class (legacy)
+│   │   ├── async_base.py        # Async scanner support (legacy)
+│   │   ├── unified_base.py      # UnifiedScannerBase - full resilience stack
+│   │   ├── legacy_adapter.py    # LegacyScannerAdapter - Strangler Fig pattern
+│   │   ├── implementations/     # Unified scanner implementations
+│   │   │   ├── __init__.py
+│   │   │   ├── vpc_scanner.py   # UnifiedVPCScanner example
+│   │   │   └── s3_scanner.py    # UnifiedS3Scanner with hybrid strategy
+│   │   ├── vpc_scanner.py       # VPC/Subnet/SG scanner (legacy)
+│   │   ├── ec2_scanner.py       # EC2 scanner (legacy)
+│   │   ├── s3_scanner.py        # S3 scanner (legacy)
+│   │   ├── rds_scanner.py       # RDS scanner (legacy)
 │   │   ├── networking_scanner.py # IGW/NAT/Route Tables
 │   │   ├── compute_scanner.py   # ALB/ASG/Launch Templates
 │   │   ├── elasticache_scanner.py # ElastiCache clusters

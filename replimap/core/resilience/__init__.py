@@ -22,12 +22,28 @@ from replimap.core.resilience.circuit_breaker import (
     CircuitOpenError,
     CircuitState,
 )
+from replimap.core.resilience.errors import (
+    BotocoreErrorLoader,
+    ErrorAction,
+    ErrorClassification,
+    ErrorClassifier,
+    ErrorContext,
+    ServiceSpecificRules,
+)
 
 __all__ = [
+    # Circuit Breaker
     "CircuitState",
     "CircuitBreakerConfig",
     "CircuitBreaker",
     "CircuitBreakerRegistry",
     "CircuitOpenError",
     "BackpressureMonitor",
+    # Error Handling
+    "ErrorAction",
+    "ErrorClassification",
+    "ErrorContext",
+    "ErrorClassifier",
+    "BotocoreErrorLoader",
+    "ServiceSpecificRules",
 ]

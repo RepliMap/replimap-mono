@@ -14,14 +14,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from replimap.core.errors.classifier import (
+from replimap.core.resilience.errors.classifier import (
     ErrorAction,
-    ErrorClassification,
     ErrorClassifier,
     ErrorContext,
 )
-from replimap.core.errors.loader import BotocoreErrorLoader
-from replimap.core.errors.rules import ServiceSpecificRules
+from replimap.core.resilience.errors.loader import BotocoreErrorLoader
+from replimap.core.resilience.errors.rules import ServiceSpecificRules
 
 
 class TestBotocoreErrorLoader:
@@ -65,7 +64,7 @@ class TestBotocoreErrorLoader:
         # Patch to simulate missing botocore.loaders
         with patch.dict("sys.modules", {"botocore.loaders": None}):
             with patch(
-                "replimap.core.errors.loader.BotocoreErrorLoader._load_retryable_from_botocore"
+                "replimap.core.resilience.errors.loader.BotocoreErrorLoader._load_retryable_from_botocore"
             ) as mock_load:
                 mock_load.side_effect = ImportError("No module")
                 result = BotocoreErrorLoader.get_retryable_errors()
@@ -107,22 +106,33 @@ class TestServiceSpecificRules:
 
     def test_sts_is_always_global(self) -> None:
         """STS operations should always be global."""
-        assert ServiceSpecificRules.is_global_operation("sts", "GetCallerIdentity") is True
+        assert (
+            ServiceSpecificRules.is_global_operation("sts", "GetCallerIdentity") is True
+        )
         assert ServiceSpecificRules.is_global_operation("sts", "AssumeRole") is True
 
     def test_route53_is_always_global(self) -> None:
         """Route53 operations should always be global."""
-        assert ServiceSpecificRules.is_global_operation("route53", "ListHostedZones") is True
+        assert (
+            ServiceSpecificRules.is_global_operation("route53", "ListHostedZones")
+            is True
+        )
 
     def test_ec2_is_always_regional(self) -> None:
         """EC2 operations should always be regional."""
-        assert ServiceSpecificRules.is_global_operation("ec2", "DescribeInstances") is False
+        assert (
+            ServiceSpecificRules.is_global_operation("ec2", "DescribeInstances")
+            is False
+        )
         assert ServiceSpecificRules.is_global_operation("ec2", "DescribeVpcs") is False
         assert ServiceSpecificRules.is_global_operation("ec2", "RunInstances") is False
 
     def test_rds_is_always_regional(self) -> None:
         """RDS operations should always be regional."""
-        assert ServiceSpecificRules.is_global_operation("rds", "DescribeDBInstances") is False
+        assert (
+            ServiceSpecificRules.is_global_operation("rds", "DescribeDBInstances")
+            is False
+        )
 
     # ═══════════════════════════════════════════════════════════════════════
     # S3 HYBRID STRATEGY TESTS (CRITICAL)
@@ -134,7 +144,9 @@ class TestServiceSpecificRules:
 
     def test_s3_getbucketlocation_is_global(self) -> None:
         """S3 GetBucketLocation should be global (Control Plane)."""
-        assert ServiceSpecificRules.is_global_operation("s3", "GetBucketLocation") is True
+        assert (
+            ServiceSpecificRules.is_global_operation("s3", "GetBucketLocation") is True
+        )
 
     def test_s3_createbucket_is_global(self) -> None:
         """S3 CreateBucket should be global (Control Plane)."""
@@ -152,13 +164,23 @@ class TestServiceSpecificRules:
 
     def test_s3_bucket_config_is_regional(self) -> None:
         """S3 bucket configuration operations should be regional."""
-        assert ServiceSpecificRules.is_global_operation("s3", "GetBucketPolicy") is False
-        assert ServiceSpecificRules.is_global_operation("s3", "GetBucketVersioning") is False
-        assert ServiceSpecificRules.is_global_operation("s3", "GetBucketEncryption") is False
+        assert (
+            ServiceSpecificRules.is_global_operation("s3", "GetBucketPolicy") is False
+        )
+        assert (
+            ServiceSpecificRules.is_global_operation("s3", "GetBucketVersioning")
+            is False
+        )
+        assert (
+            ServiceSpecificRules.is_global_operation("s3", "GetBucketEncryption")
+            is False
+        )
 
     def test_s3_unknown_operation_defaults_to_regional(self) -> None:
         """Unknown S3 operations should default to regional (conservative)."""
-        assert ServiceSpecificRules.is_global_operation("s3", "SomeNewOperation") is False
+        assert (
+            ServiceSpecificRules.is_global_operation("s3", "SomeNewOperation") is False
+        )
 
     # ═══════════════════════════════════════════════════════════════════════
     # CIRCUIT BREAKER KEY TESTS
@@ -166,7 +188,9 @@ class TestServiceSpecificRules:
 
     def test_circuit_breaker_key_global_service(self) -> None:
         """Global services should have :global suffix."""
-        key = ServiceSpecificRules.get_circuit_breaker_key("iam", "us-east-1", "GetUser")
+        key = ServiceSpecificRules.get_circuit_breaker_key(
+            "iam", "us-east-1", "GetUser"
+        )
         assert key == "iam:global"
 
     def test_circuit_breaker_key_regional_service(self) -> None:
@@ -216,7 +240,9 @@ class TestErrorClassifier:
     def classifier(self) -> ErrorClassifier:
         return ErrorClassifier()
 
-    def _make_client_error(self, error_code: str, message: str = "Test error") -> MagicMock:
+    def _make_client_error(
+        self, error_code: str, message: str = "Test error"
+    ) -> MagicMock:
         """Create a mock ClientError."""
         error = MagicMock()
         error.response = {
@@ -240,7 +266,9 @@ class TestErrorClassifier:
 
         # Need to make it a real ClientError for isinstance check
         with patch.object(classifier, "_is_client_error", return_value=True):
-            with patch.object(classifier, "_extract_error_code", return_value="Throttling"):
+            with patch.object(
+                classifier, "_extract_error_code", return_value="Throttling"
+            ):
                 result = classifier.classify(error, context)
 
         assert result.action == ErrorAction.BACKOFF
@@ -263,6 +291,9 @@ class TestErrorClassifier:
         # SlowDown base is 3000ms, Throttling base is 2000ms
         # After jitter, SlowDown should generally be >= Throttling
         assert slowdown_delay >= 2400  # 3000 * 0.8 minimum
+        assert throttling_delay >= 1600  # 2000 * 0.8 minimum
+        # SlowDown should have higher base than Throttling
+        assert slowdown_delay >= throttling_delay * 0.8  # Allow some jitter variance
 
     # ═══════════════════════════════════════════════════════════════════════
     # FATAL ERROR TESTS (CRITICAL: should_count_for_circuit = False)
@@ -280,7 +311,9 @@ class TestErrorClassifier:
         )
 
         with patch.object(classifier, "_is_client_error", return_value=True):
-            with patch.object(classifier, "_extract_error_code", return_value="AccessDenied"):
+            with patch.object(
+                classifier, "_extract_error_code", return_value="AccessDenied"
+            ):
                 result = classifier.classify(error, context)
 
         assert result.action == ErrorAction.FAIL
@@ -318,7 +351,9 @@ class TestErrorClassifier:
         )
 
         with patch.object(classifier, "_is_client_error", return_value=True):
-            with patch.object(classifier, "_extract_error_code", return_value="ExpiredToken"):
+            with patch.object(
+                classifier, "_extract_error_code", return_value="ExpiredToken"
+            ):
                 result = classifier.classify(error, context)
 
         assert result.action == ErrorAction.FAIL
@@ -344,7 +379,9 @@ class TestErrorClassifier:
 
         with patch.object(classifier, "_is_client_error", return_value=True):
             with patch.object(
-                classifier, "_extract_error_code", return_value="ResourceNotFoundException"
+                classifier,
+                "_extract_error_code",
+                return_value="ResourceNotFoundException",
             ):
                 result = classifier.classify(error, context)
 
@@ -367,7 +404,9 @@ class TestErrorClassifier:
 
         with patch.object(classifier, "_is_client_error", return_value=True):
             with patch.object(
-                classifier, "_extract_error_code", return_value="ResourceNotFoundException"
+                classifier,
+                "_extract_error_code",
+                return_value="ResourceNotFoundException",
             ):
                 result = classifier.classify(error, context)
 
@@ -387,7 +426,9 @@ class TestErrorClassifier:
         )
 
         with patch.object(classifier, "_is_client_error", return_value=True):
-            with patch.object(classifier, "_extract_error_code", return_value="NoSuchBucket"):
+            with patch.object(
+                classifier, "_extract_error_code", return_value="NoSuchBucket"
+            ):
                 result = classifier.classify(error, context)
 
         assert result.action == ErrorAction.FAIL
@@ -427,7 +468,9 @@ class TestErrorClassifier:
         )
 
         with patch.object(classifier, "_is_client_error", return_value=True):
-            with patch.object(classifier, "_extract_error_code", return_value="InternalError"):
+            with patch.object(
+                classifier, "_extract_error_code", return_value="InternalError"
+            ):
                 result = classifier.classify(error, context)
 
         assert result.action == ErrorAction.RETRY
