@@ -7,8 +7,9 @@ attempted when errors occur during AWS operations.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 
 @dataclass
@@ -58,7 +59,9 @@ class RecoveryResult:
     modified_context: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def no_action(cls, message: str = "No recovery actions available") -> RecoveryResult:
+    def no_action(
+        cls, message: str = "No recovery actions available"
+    ) -> RecoveryResult:
         """Create a result indicating no action was taken."""
         return cls(
             success=False,

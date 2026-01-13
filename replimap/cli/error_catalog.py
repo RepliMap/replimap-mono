@@ -9,7 +9,7 @@ Error codes follow the format: RM-EXXX where XXX is a numeric code.
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 class ErrorEntry(TypedDict, total=False):
@@ -78,9 +78,7 @@ ERROR_CATALOG: dict[str, ErrorEntry] = {
             "To fix this, explicitly specify all sensitive options via CLI flags "
             "or environment variables."
         ),
-        "docs": [
-            "https://github.com/RepliMap/replimap/wiki/CI-Integration"
-        ],
+        "docs": ["https://github.com/RepliMap/replimap/wiki/CI-Integration"],
         "examples": [
             "replimap scan --profile prod --region us-east-1",
             "export AWS_PROFILE=prod && replimap scan",
@@ -118,9 +116,7 @@ ERROR_CATALOG: dict[str, ErrorEntry] = {
             "the requested operation. RepliMap requires read-only access to "
             "various AWS services to scan your infrastructure."
         ),
-        "docs": [
-            "https://github.com/RepliMap/replimap/wiki/IAM-Permissions"
-        ],
+        "docs": ["https://github.com/RepliMap/replimap/wiki/IAM-Permissions"],
         "examples": [
             "replimap iam --generate-policy > policy.json",
             "aws iam put-user-policy --user-name replimap --policy-name RepliMapPolicy --policy-document file://policy.json",
@@ -153,9 +149,7 @@ ERROR_CATALOG: dict[str, ErrorEntry] = {
             "  2. Role doesn't exist\n"
             "  3. External ID mismatch (for cross-account roles)"
         ),
-        "docs": [
-            "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html"
-        ],
+        "docs": ["https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use.html"],
         "examples": [
             "aws sts get-caller-identity  # Check current identity",
             "aws sts assume-role --role-arn <arn> --role-session-name test",
@@ -174,9 +168,7 @@ ERROR_CATALOG: dict[str, ErrorEntry] = {
             "were made in a short period. This is common when scanning large "
             "accounts with many resources."
         ),
-        "docs": [
-            "https://docs.aws.amazon.com/general/latest/gr/api-retries.html"
-        ],
+        "docs": ["https://docs.aws.amazon.com/general/latest/gr/api-retries.html"],
         "examples": [
             "replimap scan --concurrency 3   # Reduce concurrency",
             "replimap scan --cache           # Use cached data when possible",

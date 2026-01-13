@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **P2 UX Enhancement - User Success Engine** - Intelligent error handling and user experience improvements
+  - **Core Safety Layer** (`replimap/core/`)
+    - `GlobalContext` - Unified configuration with source tracking (CLI/ENV/Config/Default)
+    - `EnvironmentDetector` - Detects 15+ CI platforms (GitHub Actions, GitLab CI, CircleCI, Jenkins, etc.)
+    - `IdentityGuard` - Prevents silent AWS profile switches, fails fast in CI mode
+    - `OperationClassifier` - Classifies operations as SAFE/CAUTION/SENSITIVE for recovery handling
+  - **Decision Management** (`replimap/decisions/`)
+    - `DecisionManager` with TTL - All decisions saved to YAML with automatic expiration
+    - Suppress decisions: 30-day TTL
+    - Extraction decisions: 90-day TTL
+    - Permanent decisions require explicit `--permanent` flag
+    - CLI commands: `replimap decisions list/clear/renew/export/import`
+  - **Intelligence Layer** (`replimap/recovery/`)
+    - `SilentRecoveryEngine` - Auto-recovers from safe errors without user intervention
+    - `GrayZoneResolver` - Handles ambiguous cases with user decision recording
+    - Recovery actions sorted by safety level (SAFE first, SENSITIVE last)
+  - **Lightweight Extraction** (`replimap/extraction/`)
+    - `LightweightFieldHints` - 5KB YAML hints file instead of 500MB provider schema
+    - Covers 95% of common Terraform field extraction scenarios
+    - Context-specific overrides for edge cases (e.g., `cidr_block` in VPC vs Security Group)
+  - **Progressive Error Rendering** (`replimap/cli/error_renderer.py`)
+    - 4-level error disclosure: summary → fix → explain → debug
+    - `ErrorCatalog` with comprehensive error code documentation
+  - **New Commands**:
+    - `replimap doctor` - Environment health check (credentials, permissions, network, disk, decisions)
+    - `replimap explain <code>` - Detailed error code explanations with fix instructions
+    - `replimap errors` - List all error codes with search and category filtering
+  - Tests: 40 comprehensive tests in `tests/test_p2_ux_enhancement.py`
+
 - **Zero-Code Storage Migration (Phase 0)** - Automatic switch from NetworkX to SQLite backend
   - **Storage Alias Switch** (`replimap/core/__init__.py`)
     - `GraphEngine` now automatically points to `GraphEngineAdapter` (SQLite-backed)

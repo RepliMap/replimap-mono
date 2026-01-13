@@ -126,9 +126,7 @@ class ProgressiveErrorRenderer:
             content.append("\n")
             content.append("🔍 Debug:\n", style="bold magenta")
             if error.aws_request_id:
-                content.append(
-                    f"   Request ID: {error.aws_request_id}\n", style="dim"
-                )
+                content.append(f"   Request ID: {error.aws_request_id}\n", style="dim")
             if error.raw_error:
                 # Truncate if too long
                 raw = error.raw_error[:500]

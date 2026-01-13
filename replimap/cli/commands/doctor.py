@@ -20,7 +20,6 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
 import boto3
 import typer
@@ -351,7 +350,7 @@ class DoctorCommand:
                     message="AWS endpoints reachable",
                 )
             )
-        except socket.timeout:
+        except TimeoutError:
             self.results.append(
                 CheckResult(
                     name="Network",

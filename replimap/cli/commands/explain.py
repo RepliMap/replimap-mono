@@ -16,7 +16,6 @@ from rich.table import Table
 from replimap.cli.error_catalog import (
     ERROR_CATALOG,
     get_error_info,
-    list_all_codes,
     search_errors,
 )
 from replimap.cli.errors import enhanced_cli_error_handler
@@ -63,11 +62,17 @@ def register(app: typer.Typer) -> None:
             if results:
                 console.print(f"[yellow]'{code}' not found. Did you mean:[/yellow]\n")
                 for found_code, found_entry in results[:5]:
-                    console.print(f"  [cyan]{found_code}[/cyan]: {found_entry.get('summary', '')}")
-                console.print(f"\n[dim]Use 'replimap errors' to see all error codes[/dim]")
+                    console.print(
+                        f"  [cyan]{found_code}[/cyan]: {found_entry.get('summary', '')}"
+                    )
+                console.print(
+                    "\n[dim]Use 'replimap errors' to see all error codes[/dim]"
+                )
             else:
                 console.print(f"[red]Unknown error code: {code}[/red]")
-                console.print(f"[dim]Use 'replimap errors' to see all error codes[/dim]")
+                console.print(
+                    "[dim]Use 'replimap errors' to see all error codes[/dim]"
+                )
             raise typer.Exit(1)
 
         # Build content

@@ -215,12 +215,12 @@ class IdentityGuard:
         self.console.print("  [bold]Option 2:[/bold] Set environment variable")
         self.console.print(f"    [cyan]export AWS_PROFILE={new_profile}[/cyan]")
         self.console.print()
-        self.console.print("  [bold]Option 3:[/bold] Configure in .replimap/config.toml")
+        self.console.print(
+            "  [bold]Option 3:[/bold] Configure in .replimap/config.toml"
+        )
         self.console.print(f'    [cyan]default_profile = "{new_profile}"[/cyan]')
         self.console.print()
-        self.console.print(
-            "[dim]For more information: replimap explain RM-E003[/dim]"
-        )
+        self.console.print("[dim]For more information: replimap explain RM-E003[/dim]")
 
     def _reject_non_interactive(self, new_profile: str, reason: str) -> None:
         """Reject switch in non-interactive mode with clear error."""

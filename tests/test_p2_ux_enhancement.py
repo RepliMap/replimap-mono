@@ -15,9 +15,7 @@ Tests cover:
 from __future__ import annotations
 
 import os
-import tempfile
 from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,8 +31,7 @@ from replimap.core.identity import IdentityContext, IdentityGuard, IdentitySourc
 from replimap.core.operations import OperationClassifier, OperationSafety
 from replimap.decisions.manager import DecisionManager
 from replimap.decisions.models import Decision, DecisionType
-from replimap.extraction.hints import FieldHint, LightweightFieldHints
-
+from replimap.extraction.hints import LightweightFieldHints
 
 # ============================================================
 # Environment Detector Tests
@@ -118,13 +115,17 @@ class TestOperationClassifier:
     def test_safe_operations(self):
         """SAFE operations classified correctly."""
         assert OperationClassifier.classify("wait_and_retry") == OperationSafety.SAFE
-        assert OperationClassifier.classify("reduce_concurrency") == OperationSafety.SAFE
+        assert (
+            OperationClassifier.classify("reduce_concurrency") == OperationSafety.SAFE
+        )
         assert OperationClassifier.classify("increase_timeout") == OperationSafety.SAFE
 
     def test_caution_operations(self):
         """CAUTION operations classified correctly."""
         assert OperationClassifier.classify("skip_service") == OperationSafety.CAUTION
-        assert OperationClassifier.classify("use_cached_data") == OperationSafety.CAUTION
+        assert (
+            OperationClassifier.classify("use_cached_data") == OperationSafety.CAUTION
+        )
 
     def test_sensitive_operations(self):
         """SENSITIVE operations classified correctly."""

@@ -213,9 +213,7 @@ def create_decisions_app() -> typer.Typer:
 
         # Confirm
         if not yes:
-            confirm = Confirm.ask(
-                f"Clear {len(to_clear)} {description}?"
-            )
+            confirm = Confirm.ask(f"Clear {len(to_clear)} {description}?")
             if not confirm:
                 console.print("[dim]Cancelled.[/dim]")
                 raise typer.Exit(0)

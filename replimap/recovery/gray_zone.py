@@ -15,7 +15,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from replimap.cli.utils.console import console
-from replimap.core.context import ExecutionEnvironment, GlobalContext
+from replimap.core.context import GlobalContext
 from replimap.decisions.manager import DecisionManager
 from replimap.decisions.models import DecisionType
 
@@ -157,7 +157,7 @@ class GrayZoneResolver:
     def _ask_user(self, question: GrayZoneQuestion) -> GrayZoneAnswer:
         """Ask the user for a decision."""
         self.console.print()
-        self.console.print(f"[yellow bold]❓ Decision Required[/yellow bold]")
+        self.console.print("[yellow bold]❓ Decision Required[/yellow bold]")
         self.console.print(f"   {question.question}")
         self.console.print()
 
@@ -204,9 +204,11 @@ class GrayZoneResolver:
         permanent = False
 
         try:
-            remember_str = self.console.input(
-                "   Remember this decision? [y/N/p(ermanent)]: "
-            ).strip().lower()
+            remember_str = (
+                self.console.input("   Remember this decision? [y/N/p(ermanent)]: ")
+                .strip()
+                .lower()
+            )
 
             if remember_str == "y":
                 remember = True

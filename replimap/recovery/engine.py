@@ -240,9 +240,7 @@ class SilentRecoveryEngine:
         current = context.get("concurrency", 10)
         if current > 1:
             target = max(1, current // 2)
-            actions.append(
-                create_reduce_concurrency_action(current, target, context)
-            )
+            actions.append(create_reduce_concurrency_action(current, target, context))
 
         return actions
 
@@ -328,7 +326,7 @@ class SilentRecoveryEngine:
                 scope="scan.permissions",
                 rule=f"skip_{service}",
                 value=True,
-                reason=f"Skipped due to permission error during scan",
+                reason="Skipped due to permission error during scan",
                 decision_type=DecisionType.SUPPRESS,
                 created_by="auto",
             )
@@ -340,13 +338,15 @@ class SilentRecoveryEngine:
         error: str | None = None,
     ) -> None:
         """Log recovery attempt."""
-        self._recovery_log.append({
-            "action": action.name,
-            "params": action.params,
-            "success": success,
-            "error": error,
-            "timestamp": time.time(),
-        })
+        self._recovery_log.append(
+            {
+                "action": action.name,
+                "params": action.params,
+                "success": success,
+                "error": error,
+                "timestamp": time.time(),
+            }
+        )
 
     def _generate_hint(self, action: RecoveryAction) -> str:
         """Generate user hint after successful recovery."""
@@ -382,7 +382,12 @@ class SilentRecoveryEngine:
             return "permission"
         if "expired" in msg or ("invalid" in msg and "credential" in msg):
             return "credentials"
-        if "throttl" in msg or "rate" in msg or "limit" in msg or "toomanyrequests" in msg:
+        if (
+            "throttl" in msg
+            or "rate" in msg
+            or "limit" in msg
+            or "toomanyrequests" in msg
+        ):
             return "throttling"
         if "timeout" in msg or "timed out" in msg:
             return "timeout"
