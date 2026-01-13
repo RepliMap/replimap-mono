@@ -2514,11 +2514,20 @@ replimap/
 │   │   ├── incremental.py   # Incremental scanner (P3-1)
 │   │   └── snapshots.py     # Historical snapshots (P3-2)
 │   └── licensing/
-│       ├── manager.py       # License management
+│       ├── manager.py       # License management (legacy)
+│       ├── secure_manager.py # Secure license manager (Ed25519)
 │       ├── models.py        # License models
+│       ├── secure_models.py # Secure license data models
+│       ├── verifier.py      # Ed25519 signature verification
+│       ├── developer.py     # Developer license utilities
 │       ├── gates.py         # Feature gating
 │       ├── prompts.py       # License prompts
-│       └── tracker.py       # Usage tracking
+│       ├── tracker.py       # Usage tracking
+│       ├── crypto/          # Cryptographic utilities
+│       │   ├── keys.py      # Ed25519 public key registry
+│       │   └── time_validator.py # Time manipulation detection
+│       └── server/          # Server-side reference
+│           └── signer.py    # License signing (Cloudflare Worker)
 ├── templates/               # Jinja2 templates
 ├── tests/                   # pytest test suite (2100+ tests)
 ├── .github/workflows/       # CI/CD
@@ -2527,6 +2536,172 @@ replimap/
 ├── CHANGELOG.md             # Version history
 └── README.md
 ```
+
+## License Security System
+
+RepliMap uses Ed25519 digital signatures for secure license verification. This sovereign-grade security system prevents license tampering, time manipulation, and unauthorized access.
+
+### Architecture
+
+```
+Server (Cloudflare Worker)          Client (RepliMap CLI)
+┌─────────────────────────┐         ┌─────────────────────────┐
+│  PRIVATE KEY (Ed25519)  │         │  PUBLIC KEY (hardcoded) │
+│  - Signs licenses       │         │  - Verifies signatures  │
+│  - Stored in secrets    │         │  - Cannot forge         │
+└───────────┬─────────────┘         └───────────┬─────────────┘
+            │                                   │
+            │    license_blob = payload.sig     │
+            └──────────────────────────────────►│
+                                                │
+                                    Attacker can READ but NOT FORGE
+```
+
+### License Blob Format
+
+Licenses are stored as signed blobs in `~/.replimap/license.key`:
+
+```
+Format: BASE64URL(payload).BASE64URL(signature)
+
+Payload JSON:
+{
+  "v": 1,                              // Format version
+  "kid": "key-2024-01",                // Key ID (rotation support)
+  "lic": "RM-SOLO-1234-ABCD",          // License key
+  "plan": "solo",                      // Plan tier
+  "email": "user@example.com",         // User email
+  "org": "Acme Corp",                  // Organization
+  "iat": 1704931200,                   // Issued at (Unix timestamp)
+  "exp": 1736467200,                   // Expires at (Unix timestamp)
+  "nbf": 1704931200,                   // Not before (Unix timestamp)
+  "features": ["audit_export"],        // Enabled features
+  "limits": {                          // Usage limits
+    "max_accounts": 10,
+    "max_regions": 5
+  },
+  "nonce": "a1b2c3d4"                  // Anti-replay nonce
+}
+```
+
+### Security Properties
+
+| Property | Implementation |
+|----------|----------------|
+| **Unforgeable** | Ed25519 signatures (private key server-side only) |
+| **Tamper-Evident** | Any byte change invalidates signature |
+| **Offline Capable** | Public key verification without network |
+| **Key Rotation** | Multiple keys via `kid` field |
+| **Revocation** | Compromised keys added to revocation list |
+| **Time Attack Resistant** | Monotonic time tracking + network validation |
+
+### Key Rotation
+
+The system supports multiple active keys for seamless rotation:
+
+```python
+from replimap.licensing.crypto.keys import KeyRegistry
+
+# Current active key
+KeyRegistry.CURRENT_KEY_ID  # "key-2024-01"
+
+# All valid keys (including older ones)
+KeyRegistry.get_all_valid_key_ids()  # {"key-2024-01", "key-2023-01"}
+
+# Revoked keys (always rejected)
+KeyRegistry.REVOKED_KEY_IDS  # {"key-2022-compromised"}
+```
+
+### Time Validation
+
+Prevents time travel attacks by tracking clock progression:
+
+```python
+from replimap.licensing.crypto.time_validator import TimeValidator
+
+validator = TimeValidator()
+
+# Local time validation
+is_valid, reason = validator.validate()
+
+# Network time cross-check
+is_valid, reason = validator.validate_with_network(max_drift=timedelta(hours=1))
+```
+
+### Usage
+
+```python
+from replimap.licensing.secure_manager import (
+    SecureLicenseManager,
+    get_secure_license_manager,
+)
+from replimap.licensing.models import Feature, Plan
+
+# Get singleton manager
+manager = get_secure_license_manager()
+
+# Check current plan
+plan = manager.current_plan  # Plan.FREE, Plan.SOLO, etc.
+
+# Check feature access
+if manager.has_feature(Feature.AUDIT_EXPORT_PDF):
+    export_pdf()
+
+# Check limits
+if manager.check_limit("max_accounts", account_count):
+    proceed()
+
+# Activate license
+license_data = manager.activate("RM-SOLO-1234-ABCD")
+
+# Get status
+status = manager.status()
+# {"status": "active", "plan": "Solo", "days_remaining": 365, ...}
+```
+
+### Testing with Mock Licenses
+
+For testing, use the provided fixtures:
+
+```python
+# In tests/conftest.py
+@pytest.fixture
+def mock_enterprise_license(mocker):
+    """Full feature access for testing."""
+    from replimap.licensing.developer import get_mock_enterprise_license
+    mock_manager, _ = get_mock_enterprise_license()
+    mocker.patch(
+        'replimap.licensing.secure_manager.get_secure_license_manager',
+        return_value=mock_manager
+    )
+    return mock_manager
+
+# In your test
+def test_enterprise_feature(mock_enterprise_license):
+    # All features enabled
+    assert manager.has_feature(Feature.AUDIT_EXPORT_PDF)
+```
+
+### Generating Keys
+
+For deployment, generate a new Ed25519 keypair:
+
+```bash
+python -m replimap.licensing.crypto.keys
+
+# Output:
+# PRIVATE KEY (Store in Cloudflare Worker Secrets):
+# -----BEGIN PRIVATE KEY-----
+# ...
+# -----END PRIVATE KEY-----
+#
+# PUBLIC KEY (Add to KeyRegistry.PUBLIC_KEYS):
+# -----BEGIN PUBLIC KEY-----
+# ...
+# -----END PUBLIC KEY-----
+```
+
+**Security:** Never commit private keys to version control.
 
 ## Observability
 

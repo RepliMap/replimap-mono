@@ -23,8 +23,8 @@ import base64
 import binascii
 import json
 import logging
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Optional
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from replimap.licensing.crypto.keys import KeyRegistry
 from replimap.licensing.crypto.time_validator import TimeValidationError, TimeValidator
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-UTC = timezone.utc
+UTC = UTC
 
 
 class LicenseVerificationError(Exception):
@@ -98,7 +98,7 @@ class LicenseVerifier:
 
     def __init__(
         self,
-        time_validator: Optional[TimeValidator] = None,
+        time_validator: TimeValidator | None = None,
         strict_time: bool = True,
     ) -> None:
         """
@@ -111,7 +111,7 @@ class LicenseVerifier:
         self.time_validator = time_validator or TimeValidator()
         self.strict_time = strict_time
 
-    def verify(self, license_blob: str) -> "SecureLicenseData":
+    def verify(self, license_blob: str) -> SecureLicenseData:
         """
         Verify license blob and return license data.
 
@@ -322,7 +322,7 @@ class LicenseVerifier:
 def verify_license_file(
     file_path: str,
     strict_time: bool = True,
-) -> Optional["SecureLicenseData"]:
+) -> SecureLicenseData | None:
     """
     Convenience function to verify a license file.
 

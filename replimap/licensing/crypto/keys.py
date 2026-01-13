@@ -19,7 +19,6 @@ Key Rotation Process:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +62,7 @@ MCowBQYDK2VwAyEAREPLACE_WITH_YOUR_ACTUAL_PUBLIC_KEY_HERE_32BYTES
     # Example: {"key-2022-01"}  # Revoked due to compromise
 
     @classmethod
-    def get_public_key(cls, kid: str) -> Optional[bytes]:
+    def get_public_key(cls, kid: str) -> bytes | None:
         """
         Get public key PEM by Key ID.
 

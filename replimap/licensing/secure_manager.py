@@ -16,9 +16,9 @@ from __future__ import annotations
 import logging
 import os
 import platform
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-UTC = timezone.utc
+UTC = UTC
 
 
 class SecureLicenseError(Exception):
@@ -85,9 +85,9 @@ class SecureLicenseManager:
 
     def __init__(
         self,
-        license_file: Optional[Path] = None,
-        api_base_url: Optional[str] = None,
-        verifier: Optional[LicenseVerifier] = None,
+        license_file: Path | None = None,
+        api_base_url: str | None = None,
+        verifier: LicenseVerifier | None = None,
     ) -> None:
         """
         Initialize license manager.
@@ -104,8 +104,8 @@ class SecureLicenseManager:
         self._verifier = verifier or LicenseVerifier()
 
         # In-memory cache
-        self._cached_license: Optional[SecureLicenseData] = None
-        self._cache_time: Optional[datetime] = None
+        self._cached_license: SecureLicenseData | None = None
+        self._cache_time: datetime | None = None
 
     # ═══════════════════════════════════════════════════════════════════════
     # PUBLIC API
@@ -131,7 +131,7 @@ class SecureLicenseManager:
         return license_data.plan
 
     @property
-    def current_license(self) -> Optional[SecureLicenseData]:
+    def current_license(self) -> SecureLicenseData | None:
         """Get current verified license data, or None."""
         return self._get_verified_license()
 
@@ -268,7 +268,7 @@ class SecureLicenseManager:
 
         logger.info("License deactivated")
 
-    def refresh(self) -> Optional[SecureLicenseData]:
+    def refresh(self) -> SecureLicenseData | None:
         """
         Refresh license from server.
 
@@ -347,7 +347,7 @@ class SecureLicenseManager:
     # INTERNAL METHODS
     # ═══════════════════════════════════════════════════════════════════════
 
-    def _get_verified_license(self) -> Optional[SecureLicenseData]:
+    def _get_verified_license(self) -> SecureLicenseData | None:
         """
         Get verified license from cache or disk.
 
@@ -439,7 +439,7 @@ class SecureLicenseManager:
 # SINGLETON INSTANCE
 # ═══════════════════════════════════════════════════════════════════════════
 
-_secure_license_manager: Optional[SecureLicenseManager] = None
+_secure_license_manager: SecureLicenseManager | None = None
 
 
 def get_secure_license_manager() -> SecureLicenseManager:

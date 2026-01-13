@@ -16,13 +16,12 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-UTC = timezone.utc
+UTC = UTC
 
 
 class TimeValidationError(Exception):
@@ -64,7 +63,7 @@ class TimeValidator:
     # Maximum time we track (avoid issues with very old timestamps)
     MAX_TRACKING_AGE = timedelta(days=365)
 
-    def __init__(self, time_file: Optional[Path] = None) -> None:
+    def __init__(self, time_file: Path | None = None) -> None:
         """
         Initialize time validator.
 
@@ -134,7 +133,7 @@ class TimeValidator:
             raise TimeValidationError(reason)
         return datetime.now(UTC)
 
-    def get_network_time(self) -> Optional[datetime]:
+    def get_network_time(self) -> datetime | None:
         """
         Attempt to get time from network sources.
 
@@ -215,7 +214,7 @@ class TimeValidator:
 
         return True, "OK"
 
-    def _load_time_record(self) -> Optional[dict]:
+    def _load_time_record(self) -> dict | None:
         """Load previous time record from disk."""
         if not self.time_file.exists():
             return None

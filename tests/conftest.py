@@ -297,11 +297,16 @@ def mock_free_license(mocker: Any) -> Any:
 
     from replimap.licensing.models import Plan
     from replimap.licensing.secure_manager import SecureLicenseManager
-    from replimap.licensing.secure_models import SECURE_PLAN_FEATURES, SECURE_PLAN_LIMITS
+    from replimap.licensing.secure_models import (
+        SECURE_PLAN_FEATURES,
+        SECURE_PLAN_LIMITS,
+    )
 
     mock_manager = MagicMock(spec=SecureLicenseManager)
     mock_manager.current_plan = Plan.FREE
-    mock_manager.has_feature.side_effect = lambda f: f in SECURE_PLAN_FEATURES[Plan.FREE]
+    mock_manager.has_feature.side_effect = (
+        lambda f: f in SECURE_PLAN_FEATURES[Plan.FREE]
+    )
     mock_manager.get_limits.return_value = SECURE_PLAN_LIMITS[Plan.FREE]
     mock_manager.check_limit.side_effect = lambda name, val: SECURE_PLAN_LIMITS[
         Plan.FREE

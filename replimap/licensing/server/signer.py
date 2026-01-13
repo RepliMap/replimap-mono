@@ -25,10 +25,10 @@ from __future__ import annotations
 import base64
 import json
 import secrets
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
-UTC = timezone.utc
+UTC = UTC
 
 
 class LicenseSigner:
@@ -80,8 +80,8 @@ class LicenseSigner:
         email: str,
         organization: str = "",
         expires_days: int = 365,
-        features: Optional[list] = None,
-        limits: Optional[dict] = None,
+        features: list | None = None,
+        limits: dict | None = None,
     ) -> str:
         """
         Sign a license and return the blob.
@@ -121,7 +121,9 @@ class LicenseSigner:
         signature = self.private_key.sign(payload_bytes)
 
         # Encode (base64url without padding)
-        payload_b64 = base64.urlsafe_b64encode(payload_bytes).rstrip(b"=").decode("ascii")
+        payload_b64 = (
+            base64.urlsafe_b64encode(payload_bytes).rstrip(b"=").decode("ascii")
+        )
         signature_b64 = base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
 
         return f"{payload_b64}.{signature_b64}"
@@ -168,7 +170,7 @@ class LicenseSigner:
 # CLOUDFLARE WORKER IMPLEMENTATION (JavaScript)
 # ═══════════════════════════════════════════════════════════════════════════
 
-CLOUDFLARE_WORKER_CODE = '''
+CLOUDFLARE_WORKER_CODE = """
 // Cloudflare Worker for license activation
 // Store PRIVATE_KEY in Worker secrets
 
@@ -296,7 +298,7 @@ function base64UrlEncode(bytes) {
     const binary = String.fromCharCode(...bytes);
     return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=/g, '');
 }
-'''
+"""
 
 
 def generate_worker_code() -> str:

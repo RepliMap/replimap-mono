@@ -11,7 +11,7 @@ IMPORTANT: Private keys are NEVER stored in client code.
 """
 
 from replimap.licensing.crypto.keys import KeyRegistry, generate_keypair
-from replimap.licensing.crypto.time_validator import TimeValidator, TimeValidationError
+from replimap.licensing.crypto.time_validator import TimeValidationError, TimeValidator
 
 __all__ = [
     "KeyRegistry",

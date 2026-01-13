@@ -21,13 +21,11 @@ from __future__ import annotations
 
 import logging
 import sys
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-UTC = timezone.utc
+UTC = UTC
 
 
 class DeveloperLicenseError(Exception):
@@ -225,7 +223,6 @@ def get_mock_enterprise_license():
     mock_manager.check_limit.return_value = True
 
     # Create mock license data
-    now = datetime.now(UTC)
     mock_license = MagicMock(spec=SecureLicenseData)
     mock_license.plan = Plan.ENTERPRISE
     mock_license.is_expired.return_value = False
@@ -263,7 +260,9 @@ def get_mock_free_license():
 
     mock_manager = MagicMock(spec=SecureLicenseManager)
     mock_manager.current_plan = Plan.FREE
-    mock_manager.has_feature.side_effect = lambda f: f in SECURE_PLAN_FEATURES[Plan.FREE]
+    mock_manager.has_feature.side_effect = (
+        lambda f: f in SECURE_PLAN_FEATURES[Plan.FREE]
+    )
     mock_manager.get_limits.return_value = SECURE_PLAN_LIMITS[Plan.FREE]
     mock_manager.check_limit.side_effect = lambda name, val: SECURE_PLAN_LIMITS[
         Plan.FREE

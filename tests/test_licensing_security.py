@@ -14,13 +14,13 @@ from __future__ import annotations
 import base64
 import json
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-UTC = timezone.utc
+UTC = UTC
 
 
 class TestKeyRegistry:
@@ -248,9 +248,7 @@ class TestLicenseVerifier:
         payload["plan"] = "enterprise_plus"  # Tamper!
 
         tampered_payload = json.dumps(payload).encode()
-        tampered_b64 = (
-            base64.urlsafe_b64encode(tampered_payload).rstrip(b"=").decode()
-        )
+        tampered_b64 = base64.urlsafe_b64encode(tampered_payload).rstrip(b"=").decode()
         tampered_blob = f"{tampered_b64}.{signature_b64}"
 
         # Add test key
@@ -289,7 +287,9 @@ class TestLicenseVerifier:
             "exp": now - 86400,  # Expired yesterday
         }
 
-        payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+        payload_bytes = json.dumps(
+            payload, separators=(",", ":"), sort_keys=True
+        ).encode()
         private_key = serialization.load_pem_private_key(private_pem, password=None)
         signature = private_key.sign(payload_bytes)
 
@@ -336,7 +336,9 @@ class TestLicenseVerifier:
 
         # Create a blob with wrong signature length
         payload = {"lic": "test", "plan": "free", "iat": int(time.time())}
-        payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
+        payload_b64 = (
+            base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
+        )
         short_sig = base64.urlsafe_b64encode(b"short").rstrip(b"=").decode()
 
         with pytest.raises(LicenseFormatError) as exc_info:
@@ -408,7 +410,7 @@ class TestSecureLicenseManager:
 
     def test_has_feature_respects_plan(self, tmp_path):
         """Feature access respects plan level."""
-        from replimap.licensing.models import Feature, Plan
+        from replimap.licensing.models import Plan
         from replimap.licensing.secure_manager import SecureLicenseManager
         from replimap.licensing.secure_models import SECURE_PLAN_FEATURES
 
@@ -419,7 +421,9 @@ class TestSecureLicenseManager:
             assert manager.has_feature(feature)
 
         # Should NOT have ENTERPRISE-only features
-        enterprise_only = SECURE_PLAN_FEATURES[Plan.ENTERPRISE] - SECURE_PLAN_FEATURES[Plan.FREE]
+        enterprise_only = (
+            SECURE_PLAN_FEATURES[Plan.ENTERPRISE] - SECURE_PLAN_FEATURES[Plan.FREE]
+        )
         for feature in list(enterprise_only)[:5]:  # Test first 5
             assert not manager.has_feature(feature)
 
@@ -447,9 +451,9 @@ class TestSecureLicenseManager:
 
     def test_get_limits_returns_free_limits(self, tmp_path):
         """Get limits returns FREE plan limits when no license."""
+        from replimap.licensing.models import Plan
         from replimap.licensing.secure_manager import SecureLicenseManager
         from replimap.licensing.secure_models import SECURE_PLAN_LIMITS
-        from replimap.licensing.models import Plan
 
         manager = SecureLicenseManager(license_file=tmp_path / "nonexistent.key")
         limits = manager.get_limits()
@@ -558,8 +562,10 @@ class TestSecureLicenseData:
 
     def test_has_feature_includes_plan_features(self):
         """has_feature includes plan-level features."""
-        from replimap.licensing.models import Feature
-        from replimap.licensing.secure_models import SECURE_PLAN_FEATURES, SecureLicenseData
+        from replimap.licensing.secure_models import (
+            SECURE_PLAN_FEATURES,
+            SecureLicenseData,
+        )
 
         now = int(time.time())
         payload = {

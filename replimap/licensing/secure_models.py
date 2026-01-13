@@ -13,14 +13,14 @@ For legacy compatibility, see models.py
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 # Import from existing models for compatibility
-from replimap.licensing.models import Feature, Plan, get_plan_features
+from replimap.licensing.models import Feature, Plan
 
-UTC = timezone.utc
+UTC = UTC
 
 
 @dataclass
@@ -247,11 +247,11 @@ class SecureLicenseData:
     email: str
     organization: str
     issued_at: datetime
-    expires_at: Optional[datetime]
+    expires_at: datetime | None
     features: set[Feature]
     limits: SecureLicenseLimits
-    nonce: Optional[str] = None
-    kid: Optional[str] = None  # Key ID used for signing
+    nonce: str | None = None
+    kid: str | None = None  # Key ID used for signing
 
     def has_feature(self, feature: Feature) -> bool:
         """Check if license grants a feature."""
@@ -267,7 +267,7 @@ class SecureLicenseData:
             return False  # No expiry = never expires
         return datetime.now(UTC) > self.expires_at
 
-    def days_until_expiry(self) -> Optional[int]:
+    def days_until_expiry(self) -> int | None:
         """Days until license expires, or None if no expiry."""
         if self.expires_at is None:
             return None
@@ -340,7 +340,7 @@ class SecureLicenseData:
             kid=payload.get("kid"),
         )
 
-    def to_legacy_license(self) -> "License":
+    def to_legacy_license(self) -> License:
         """
         Convert to legacy License object for backward compatibility.
 
