@@ -59,8 +59,8 @@ class EnvironmentDetector:
     GitLab CI, CircleCI, Jenkins, and more.
     """
 
+    # Specific CI platforms first, generic CI last (order matters for detection)
     CI_INDICATORS: dict[str, str] = {
-        "CI": "Generic CI",
         "GITHUB_ACTIONS": "GitHub Actions",
         "GITLAB_CI": "GitLab CI",
         "CIRCLECI": "CircleCI",
@@ -77,6 +77,7 @@ class EnvironmentDetector:
         "SEMAPHORE": "Semaphore CI",
         "HARNESS_BUILD_ID": "Harness CI",
         "RENDER": "Render",
+        "CI": "Generic CI",  # Generic fallback - must be last
     }
 
     @classmethod
