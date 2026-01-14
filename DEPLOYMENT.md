@@ -42,6 +42,41 @@ CLI releases are triggered by git tags:
 make tag-cli VERSION=0.5.0
 ```
 
+## PyPI OIDC Trusted Publishing Setup
+
+OIDC (OpenID Connect) eliminates the need for long-lived API tokens. Configure once on PyPI:
+
+### Step 1: Create Publisher on PyPI
+
+1. Go to https://pypi.org/manage/account/publishing/
+2. Add a new "pending publisher" with:
+   - **PyPI Project Name**: `replimap`
+   - **Owner**: `RepliMap`
+   - **Repository**: `replimap-mono`
+   - **Workflow name**: `release-cli.yml`
+   - **Environment name**: `pypi`
+
+3. Repeat for TestPyPI at https://test.pypi.org/manage/account/publishing/
+   - **Environment name**: `testpypi`
+
+### Step 2: Create GitHub Environments
+
+1. Go to Repository Settings -> Environments
+2. Create environment `pypi`:
+   - Add protection rule: Required reviewers (optional)
+   - Add protection rule: Restrict to tags matching `cli-v*`
+3. Create environment `testpypi`:
+   - No special restrictions needed
+
+### Why OIDC?
+
+| Aspect | API Token | OIDC |
+|--------|-----------|------|
+| Secret Management | Manual rotation needed | No secrets to manage |
+| Scope | Can be overly broad | Scoped to specific workflow |
+| Audit | Limited | Full GitHub audit trail |
+| Revocation | Manual | Automatic |
+
 ## Manual Deployment
 
 ```bash
