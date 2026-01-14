@@ -55,7 +55,12 @@ class TestEnvironmentDetector:
 
     def test_detect_ci_with_gitlab(self):
         """CI detected when GITLAB_CI is set."""
-        with patch.dict(os.environ, {"GITLAB_CI": "true"}, clear=False):
+        # Remove other CI indicators to isolate GitLab detection
+        env_overrides = {"GITLAB_CI": "true"}
+        for var in EnvironmentDetector.CI_INDICATORS:
+            if var != "GITLAB_CI" and var in os.environ:
+                env_overrides[var] = ""  # Clear other CI vars
+        with patch.dict(os.environ, env_overrides, clear=False):
             assert EnvironmentDetector.is_ci() is True
             assert EnvironmentDetector.get_ci_name() == "GitLab CI"
 
