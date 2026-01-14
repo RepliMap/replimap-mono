@@ -1,0 +1,167 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      api: ${{ steps.filter.outputs.api }}
+      cli: ${{ steps.filter.outputs.cli }}
+      config: ${{ steps.filter.outputs.config }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/config/dist/**'
+            api:
+              - 'apps/api/**'
+              - 'packages/config/dist/**'
+            cli:
+              - 'apps/cli/**'
+              - 'packages/config/dist/**'
+            config:
+              - 'packages/config/src/**'
+
+  deploy-web:
+    name: Deploy Web (Vercel)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web == 'true'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter web build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+
+      - name: Deploy to Vercel
+        id: deploy
+        run: |
+          # Placeholder - will use Vercel CLI when apps/web is migrated
+          echo "Web deployment placeholder"
+          echo "url=https://replimap.com" >> $GITHUB_OUTPUT
+        # env:
+        #   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        #   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        #   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  deploy-api:
+    name: Deploy API (Cloudflare Workers)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api == 'true'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build API
+        run: pnpm --filter api build
+
+      - name: Deploy to Cloudflare Workers
+        id: deploy
+        run: |
+          # Placeholder - will use wrangler when apps/api is migrated
+          echo "API deployment placeholder"
+          echo "url=https://api.replimap.com" >> $GITHUB_OUTPUT
+        # env:
+        #   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        #   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-cli:
+    name: Publish CLI (PyPI)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cli == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build package
+        run: |
+          # Placeholder - will build when apps/cli is migrated
+          echo "CLI build placeholder"
+        # working-directory: apps/cli
+
+      - name: Publish to PyPI
+        run: |
+          # Placeholder - will publish when apps/cli is migrated
+          echo "CLI publish placeholder"
+        # env:
+        #   TWINE_USERNAME: __token__
+        #   TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+
+  notify:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [detect-changes, deploy-web, deploy-api, deploy-cli]
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Changed | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Web | ${{ needs.detect-changes.outputs.web }} | ${{ needs.deploy-web.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| API | ${{ needs.detect-changes.outputs.api }} | ${{ needs.deploy-api.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CLI | ${{ needs.detect-changes.outputs.cli }} | ${{ needs.deploy-cli.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
