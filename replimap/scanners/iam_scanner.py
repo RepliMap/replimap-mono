@@ -44,17 +44,33 @@ class IAMRoleScanner(BaseScanner):
         logger.info("Scanning IAM Roles (global)...")
 
         iam = self.get_client("iam")
-        role_count = 0
 
         try:
+            # First, collect all roles from pagination
+            roles_to_process: list[dict[str, Any]] = []
             paginator = iam.get_paginator("list_roles")
-            # IAM is a global service - no region parameter
             for page in rate_limited_paginate("iam")(paginator.paginate()):
                 for role in page.get("Roles", []):
-                    if self._process_role(role, iam, graph):
-                        role_count += 1
+                    # Skip AWS service-linked roles early
+                    path = role.get("Path", "/")
+                    if not path.startswith("/aws-service-role/"):
+                        roles_to_process.append(role)
+                    else:
+                        logger.debug(f"Skipping service-linked role: {role.get('RoleName')}")
 
+            # Process roles in parallel (tag fetching is the bottleneck)
+            results, failures = self._parallel_process(
+                items=roles_to_process,
+                processor=lambda role: self._process_role(role, iam, graph),
+                description="IAM Roles",
+            )
+
+            role_count = sum(1 for r in results if r)
             logger.info(f"Scanned {role_count} IAM Roles")
+
+            if failures:
+                for role, error in failures:
+                    logger.warning(f"Failed to process role {role.get('RoleName')}: {error}")
 
         except ClientError as e:
             self._handle_aws_error(e, "list_roles")
@@ -68,14 +84,9 @@ class IAMRoleScanner(BaseScanner):
         """Process a single IAM Role."""
         role_name = role.get("RoleName", "")
         role_arn = role.get("Arn", "")
+        path = role.get("Path", "/")
 
         if not role_name:
-            return False
-
-        # Skip AWS service-linked roles
-        path = role.get("Path", "/")
-        if path.startswith("/aws-service-role/"):
-            logger.debug(f"Skipping service-linked role: {role_name}")
             return False
 
         # Get the assume role policy document

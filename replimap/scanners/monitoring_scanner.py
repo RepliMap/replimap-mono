@@ -40,18 +40,31 @@ class CloudWatchLogGroupScanner(BaseScanner):
         logger.info(f"Scanning CloudWatch Log Groups in {self.region}...")
 
         logs = self.get_client("logs")
-        log_group_count = 0
 
         try:
+            # First, collect all log groups from pagination
+            log_groups_to_process: list[dict[str, Any]] = []
             paginator = logs.get_paginator("describe_log_groups")
             for page in rate_limited_paginate("cloudwatch", self.region)(
                 paginator.paginate()
             ):
-                for log_group in page.get("logGroups", []):
-                    if self._process_log_group(log_group, logs, graph):
-                        log_group_count += 1
+                log_groups_to_process.extend(page.get("logGroups", []))
 
+            # Process log groups in parallel (tag fetching is the bottleneck)
+            results, failures = self._parallel_process(
+                items=log_groups_to_process,
+                processor=lambda lg: self._process_log_group(lg, logs, graph),
+                description="CloudWatch Log Groups",
+            )
+
+            log_group_count = sum(1 for r in results if r)
             logger.info(f"Scanned {log_group_count} CloudWatch Log Groups")
+
+            if failures:
+                for lg, error in failures:
+                    logger.warning(
+                        f"Failed to process log group {lg.get('logGroupName')}: {error}"
+                    )
 
         except ClientError as e:
             self._handle_aws_error(e, "describe_log_groups")

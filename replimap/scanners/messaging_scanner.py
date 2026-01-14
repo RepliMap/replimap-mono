@@ -52,104 +52,121 @@ class SQSScanner(BaseScanner):
         """Scan all SQS Queues in the region."""
         logger.debug("Scanning SQS Queues...")
 
-        # List all queues
+        # First, collect all queue URLs from pagination
+        queue_urls: list[str] = []
         paginator = sqs.get_paginator("list_queues")
         for page in rate_limited_paginate("sqs", self.region)(paginator.paginate()):
-            for queue_url in page.get("QueueUrls", []):
+            queue_urls.extend(page.get("QueueUrls", []))
+
+        # Process queues in parallel (attribute/tag fetching is the bottleneck)
+        results, failures = self._parallel_process(
+            items=queue_urls,
+            processor=lambda url: self._process_queue(url, sqs, graph),
+            description="SQS Queues",
+        )
+
+        queue_count = sum(1 for r in results if r)
+        logger.info(f"Scanned {queue_count} SQS Queues")
+
+        if failures:
+            for url, error in failures:
+                logger.warning(f"Failed to process queue {url}: {error}")
+
+    def _process_queue(
+        self, queue_url: str, sqs: Any, graph: GraphEngine
+    ) -> bool:
+        """Process a single SQS queue."""
+        try:
+            # Get queue attributes
+            attrs_resp = sqs.get_queue_attributes(
+                QueueUrl=queue_url,
+                AttributeNames=["All"],
+            )
+            attrs = attrs_resp.get("Attributes", {})
+
+            queue_arn = attrs.get("QueueArn", "")
+            queue_name = queue_url.split("/")[-1]
+
+            # Parse redrive policy if exists
+            redrive_policy = {}
+            if attrs.get("RedrivePolicy"):
                 try:
-                    # Get queue attributes
-                    attrs_resp = sqs.get_queue_attributes(
-                        QueueUrl=queue_url,
-                        AttributeNames=["All"],
+                    redrive_policy = json.loads(attrs["RedrivePolicy"])
+                except json.JSONDecodeError:
+                    pass
+
+            # Parse policy if exists
+            policy = {}
+            if attrs.get("Policy"):
+                try:
+                    policy = json.loads(attrs["Policy"])
+                except json.JSONDecodeError:
+                    pass
+
+            # Get tags
+            try:
+                tags_resp = sqs.list_queue_tags(QueueUrl=queue_url)
+                tags = tags_resp.get("Tags", {})
+            except ClientError:
+                tags = {}
+
+            node = ResourceNode(
+                id=queue_arn,
+                resource_type=ResourceType.SQS_QUEUE,
+                region=self.region,
+                config={
+                    "name": queue_name,
+                    "url": queue_url,
+                    "fifo_queue": queue_name.endswith(".fifo"),
+                    "visibility_timeout_seconds": int(
+                        attrs.get("VisibilityTimeout", 30)
+                    ),
+                    "message_retention_seconds": int(
+                        attrs.get("MessageRetentionPeriod", 345600)
+                    ),
+                    "max_message_size": int(attrs.get("MaximumMessageSize", 262144)),
+                    "delay_seconds": int(attrs.get("DelaySeconds", 0)),
+                    "receive_wait_time_seconds": int(
+                        attrs.get("ReceiveMessageWaitTimeSeconds", 0)
+                    ),
+                    "content_based_deduplication": attrs.get(
+                        "ContentBasedDeduplication"
                     )
-                    attrs = attrs_resp.get("Attributes", {})
-
-                    queue_arn = attrs.get("QueueArn", "")
-                    queue_name = queue_url.split("/")[-1]
-
-                    # Parse redrive policy if exists
-                    redrive_policy = {}
-                    if attrs.get("RedrivePolicy"):
-                        try:
-                            redrive_policy = json.loads(attrs["RedrivePolicy"])
-                        except json.JSONDecodeError:
-                            pass
-
-                    # Parse policy if exists
-                    policy = {}
-                    if attrs.get("Policy"):
-                        try:
-                            policy = json.loads(attrs["Policy"])
-                        except json.JSONDecodeError:
-                            pass
-
-                    # Get tags
-                    try:
-                        tags_resp = sqs.list_queue_tags(QueueUrl=queue_url)
-                        tags = tags_resp.get("Tags", {})
-                    except ClientError:
-                        tags = {}
-
-                    node = ResourceNode(
-                        id=queue_arn,
-                        resource_type=ResourceType.SQS_QUEUE,
-                        region=self.region,
-                        config={
-                            "name": queue_name,
-                            "url": queue_url,
-                            "fifo_queue": queue_name.endswith(".fifo"),
-                            "visibility_timeout_seconds": int(
-                                attrs.get("VisibilityTimeout", 30)
-                            ),
-                            "message_retention_seconds": int(
-                                attrs.get("MessageRetentionPeriod", 345600)
-                            ),
-                            "max_message_size": int(
-                                attrs.get("MaximumMessageSize", 262144)
-                            ),
-                            "delay_seconds": int(attrs.get("DelaySeconds", 0)),
-                            "receive_wait_time_seconds": int(
-                                attrs.get("ReceiveMessageWaitTimeSeconds", 0)
-                            ),
-                            "content_based_deduplication": attrs.get(
-                                "ContentBasedDeduplication"
-                            )
-                            == "true",
-                            "deduplication_scope": attrs.get("DeduplicationScope"),
-                            "fifo_throughput_limit": attrs.get("FifoThroughputLimit"),
-                            "kms_master_key_id": attrs.get("KmsMasterKeyId"),
-                            "kms_data_key_reuse_period_seconds": int(
-                                attrs.get("KmsDataKeyReusePeriodSeconds", 300)
-                            )
-                            if attrs.get("KmsDataKeyReusePeriodSeconds")
-                            else None,
-                            "sqs_managed_sse_enabled": attrs.get("SqsManagedSseEnabled")
-                            == "true",
-                            "redrive_policy": redrive_policy,
-                            "policy": policy,
-                        },
-                        arn=queue_arn,
-                        tags=tags,
+                    == "true",
+                    "deduplication_scope": attrs.get("DeduplicationScope"),
+                    "fifo_throughput_limit": attrs.get("FifoThroughputLimit"),
+                    "kms_master_key_id": attrs.get("KmsMasterKeyId"),
+                    "kms_data_key_reuse_period_seconds": int(
+                        attrs.get("KmsDataKeyReusePeriodSeconds", 300)
                     )
+                    if attrs.get("KmsDataKeyReusePeriodSeconds")
+                    else None,
+                    "sqs_managed_sse_enabled": attrs.get("SqsManagedSseEnabled")
+                    == "true",
+                    "redrive_policy": redrive_policy,
+                    "policy": policy,
+                },
+                arn=queue_arn,
+                tags=tags,
+            )
 
-                    graph.add_resource(node)
+            graph.add_resource(node)
 
-                    # Check for dead letter queue reference
-                    dlq_arn = redrive_policy.get("deadLetterTargetArn")
-                    if dlq_arn and graph.get_resource(dlq_arn):
-                        # This queue depends on its DLQ
-                        graph.add_dependency(
-                            queue_arn, dlq_arn, DependencyType.REFERENCES
-                        )
+            # Check for dead letter queue reference
+            dlq_arn = redrive_policy.get("deadLetterTargetArn")
+            if dlq_arn and graph.get_resource(dlq_arn):
+                # This queue depends on its DLQ
+                graph.add_dependency(queue_arn, dlq_arn, DependencyType.REFERENCES)
 
-                    logger.debug(f"Added SQS Queue: {queue_name}")
+            logger.debug(f"Added SQS Queue: {queue_name}")
+            return True
 
-                except ClientError as e:
-                    error_code = e.response.get("Error", {}).get("Code", "")
-                    if error_code == "AccessDenied":
-                        logger.warning(f"Access denied for queue: {queue_url}")
-                        continue
-                    raise
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code == "AccessDenied":
+                logger.warning(f"Access denied for queue: {queue_url}")
+                return False
+            raise
 
 
 @ScannerRegistry.register
