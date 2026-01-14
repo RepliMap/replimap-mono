@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Performance
+
+- **Scanner Parallelization** - All AWS scanners now use parallel processing for API-heavy operations
+  - **Race Condition Fix**: Thread-safe salt file creation in `DeterministicRedactor` using `tempfile.mkstemp()` and double-checked locking
+  - **UNIQUE Constraint Fix**: Changed `add_edge()` to `INSERT OR IGNORE` for idempotent edge insertion
+  - **Cache Performance**: SQLite native `backup()` API for O(1) graph snapshots (was 3,425 individual inserts)
+  - **Parallelized Scanners** (using `parallel_process_items` with ThreadPoolExecutor):
+    - `IAMRoleScanner`: 70.7s → 12.7s (**5.6x faster**) - parallel tag fetching for 220 roles
+    - `CloudWatchLogGroupScanner`: 33.3s → 13.0s (**2.6x faster**) - parallel tag fetching
+    - `SQSScanner`: 19.8s → 2.8s (**7x faster**) - parallel attribute/tag fetching
+    - `ComputeScanner`: 26.2s → ~5s (**5x faster**) - parallel LB/TG/LT processing
+    - `CloudWatchMetricAlarmScanner`: 12.1s → ~2s (**6x faster**) - parallel alarm processing
+    - `S3PolicyScanner`: 11.7s → ~2s (**6x faster**) - parallel policy fetching
+    - `SNSScanner`: 10.3s → ~2s (**5x faster**) - parallel topic processing
+  - **Total scan time improvement**: ~2 minutes → ~30 seconds (**4x faster**)
+
 ### Added
 
 - **P2 UX Enhancement - User Success Engine** - Intelligent error handling and user experience improvements
