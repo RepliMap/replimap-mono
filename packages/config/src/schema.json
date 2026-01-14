@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RepliMap Configuration Schema",
+  "type": "object",
+  "properties": {
+    "plans": {
+      "type": "object",
+      "description": "Pricing plans configuration",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "price_monthly": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Monthly price in cents"
+          },
+          "scans_per_month": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "description": "Number of scans allowed per month, null for unlimited"
+          },
+          "max_accounts": {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "description": "Maximum number of AWS accounts, null for unlimited"
+          },
+          "features": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of enabled features, '*' for all"
+          },
+          "addons": {
+            "type": "object",
+            "additionalProperties": { "type": "integer" },
+            "description": "Optional add-on pricing"
+          }
+        },
+        "required": ["price_monthly", "features"]
+      }
+    },
+    "compliance_frameworks": {
+      "type": "object",
+      "description": "Supported compliance frameworks",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "region": { "type": "string" },
+          "description": { "type": "string" },
+          "controls_count": { "type": "integer", "minimum": 1 }
+        },
+        "required": ["name", "region", "controls_count"]
+      }
+    },
+    "aws_resources": {
+      "type": "object",
+      "description": "Supported AWS resource types by category",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  }
+}
