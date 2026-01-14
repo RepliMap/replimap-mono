@@ -1,0 +1,208 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "replimap"
+dynamic = ["version"]
+description = "AWS Infrastructure Intelligence Engine — Scan, Understand, Transform"
+readme = "README.md"
+license = {text = "Proprietary"}
+requires-python = ">=3.10"
+authors = [
+    {name = "David Lu", email = "david@replimap.com"}
+]
+maintainers = [
+    {name = "David Lu", email = "david@replimap.com"}
+]
+keywords = [
+    "aws",
+    "terraform",
+    "infrastructure",
+    "devops",
+    "staging",
+    "replication",
+    "security",
+    "audit",
+    "compliance",
+    "soc2",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: Other/Proprietary License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Software Development :: Code Generators",
+]
+dependencies = [
+    "boto3>=1.28.0",
+    "aiobotocore>=2.5.0",
+    "networkx>=3.0",
+    "typer[all]>=0.9.0",
+    "jinja2>=3.1.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0.0",
+    "httpx>=0.25.0",
+    "zstandard>=0.21.0",
+    "structlog>=24.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "vcrpy>=6.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+    "boto3-stubs[ec2,s3,rds,sts]>=1.28.0",
+    "types-PyYAML>=6.0.0",
+    "beautifulsoup4>=4.12.0",
+    "html5lib>=1.1",
+    "lxml>=5.0.0",
+]
+
+# Note: Checkov is used via CLI subprocess, not as a Python import.
+# Install separately: pipx install checkov (recommended) or pip install checkov
+# This avoids dependency conflicts with networkx versions.
+
+[project.scripts]
+replimap = "replimap.main:main"
+
+[project.urls]
+Homepage = "https://replimap.com"
+Documentation = "https://replimap.com/docs"
+Repository = "https://github.com/RepliMap/replimap"
+Issues = "https://github.com/RepliMap/replimap/issues"
+Changelog = "https://github.com/RepliMap/replimap/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["replimap"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "tests/",
+    ".github/",
+    ".claude/",
+    "uv.lock",
+    "Makefile",
+    "Dockerfile",
+    ".dockerignore",
+    ".gitignore",
+    ".pre-commit-config.yaml",
+    "*.md",
+    "!README.md",
+]
+
+[tool.hatch.version]
+path = "replimap/__init__.py"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "vcrpy>=6.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+    "hatch>=1.9.0",
+    "boto3-stubs[ec2,s3,rds,sts]>=1.28.0",
+    "types-PyYAML>=6.0.0",
+]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*", "networkx.*", "aiobotocore.*", "zstandard.*", "yaml"]
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit (security)
+    "T20",    # flake8-print (catches print() statements)
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "S101",   # assert used (ok in tests)
+    "S105",   # possible hardcoded password (false positive for enums)
+    "B008",   # function call in default argument (typer pattern)
+    "B904",   # raise from in except (typer.Exit doesn't need it)
+    "S607",   # partial executable path (terraform in PATH is intentional)
+    "S608",   # SQL injection false positive (HTML templates use f-strings)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Allow print() in output.py (it's the unified output layer)
+"replimap/cli/output.py" = ["T201"]
+# Allow print() in tests
+"tests/**/*.py" = ["T201"]
+# Allow print() in scripts
+"scripts/**/*.py" = ["T201"]
+# Allow print() in main.py for version callback
+"replimap/main.py" = ["T201"]
+# Allow print() in existing CLI files during migration
+"replimap/cli/__init__.py" = ["T201"]
+"replimap/cli/utils/console.py" = ["T201"]
+"replimap/cli/utils/error_handler.py" = ["T201"]
+"replimap/cli/utils/helpers.py" = ["T201"]
+# Allow print() in completion.py (outputs shell completion scripts)
+"replimap/cli/commands/completion.py" = ["T201"]
+# Allow print() in migration/utility scripts
+"replimap/core/unified_storage/migrate.py" = ["T201"]
+"replimap/licensing/crypto/keys.py" = ["T201"]
+"replimap/licensing/server/signer.py" = ["T201"]
+"replimap/migrations/sanitize_cache.py" = ["T201"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["replimap"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+asyncio_mode = "auto"
+markers = [
+    "json_output: tests for JSON output format correctness",
+    "stdout_hygiene: tests for stdout cleanliness in JSON mode",
+    "schema_purity: tests for JSON-serializable parameter schemas",
+    "v3_architecture: tests for CLI V3 architecture components",
+]
+
+# uv package management:
+# Build: uv build
+# Publish: uv publish --token $PYPI_TOKEN
+# Or set UV_PUBLISH_TOKEN environment variable
