@@ -85,6 +85,9 @@ class CacheManager:
         """
         Save graph to SQLite cache file.
 
+        Uses SQLite's native backup API for efficient O(1) copy when possible,
+        falling back to batch operations otherwise.
+
         Args:
             graph: The GraphEngineAdapter to cache
             metadata: Optional additional metadata
@@ -101,59 +104,88 @@ class CacheManager:
             node_count = graph.node_count
             edge_count = graph.edge_count
 
-            # Create new SQLite database for cache
             # Use temporary path then rename for atomicity
             temp_path = self.cache_path.with_suffix(".tmp.db")
             if temp_path.exists():
                 temp_path.unlink()
 
-            engine = UnifiedGraphEngine(db_path=str(temp_path))
+            # Fast path: Use SQLite's native backup API if graph uses SQLite backend
+            if isinstance(graph, GraphEngineAdapter) and hasattr(graph._engine, "_backend"):
+                # Direct snapshot from in-memory SQLite to file
+                graph._engine._backend.snapshot(str(temp_path))
 
-            try:
-                # Copy all nodes and edges
-                if isinstance(graph, GraphEngineAdapter):
-                    # Copy from adapter's internal engine
-                    for node in graph._engine.get_all_nodes():
-                        engine.add_node(node)
-                    for source_id in [n.id for n in graph._engine.get_all_nodes()]:
-                        for edge in graph._engine.get_edges_from(source_id):
-                            engine.add_edge(edge)
-                else:
-                    # Legacy GraphEngine - convert to dict and load
-                    data = graph.to_dict()
-                    from replimap.core.unified_storage.base import Edge
-                    from replimap.core.unified_storage.migrate import _convert_node_data
+                # Now open the snapshot and add metadata
+                engine = UnifiedGraphEngine(db_path=str(temp_path))
+                try:
+                    engine.set_metadata("version", CACHE_VERSION)
+                    engine.set_metadata("timestamp", str(time.time()))
+                    engine.set_metadata("profile", self.profile)
+                    engine.set_metadata("region", self.region)
+                    if self.vpc:
+                        engine.set_metadata("vpc", self.vpc)
+                    if self.account_id:
+                        engine.set_metadata("account_id", self.account_id)
+                    engine.set_metadata("resource_count", str(node_count))
+                    engine.set_metadata("dependency_count", str(edge_count))
 
-                    for node_data in data.get("nodes", []):
-                        node = _convert_node_data(node_data)
-                        engine.add_node(node)
-                    for edge_data in data.get("edges", []):
-                        edge = Edge(
-                            source_id=edge_data["source"],
-                            target_id=edge_data["target"],
-                            relation=edge_data.get("relation", "belongs_to"),
+                    # Store additional metadata
+                    if metadata:
+                        for key, value in metadata.items():
+                            engine.set_metadata(f"extra_{key}", str(value))
+                finally:
+                    engine.close()
+            else:
+                # Slow path: Copy nodes and edges using batch operations
+                engine = UnifiedGraphEngine(db_path=str(temp_path))
+
+                try:
+                    if isinstance(graph, GraphEngineAdapter):
+                        # Use batch operations for better performance
+                        nodes = list(graph._engine.get_all_nodes())
+                        edges = list(graph._engine.get_all_edges())
+
+                        engine.add_nodes(nodes)
+                        engine.add_edges(edges)
+                    else:
+                        # Legacy GraphEngine - convert to dict and load
+                        data = graph.to_dict()
+                        from replimap.core.unified_storage.base import Edge
+                        from replimap.core.unified_storage.migrate import (
+                            _convert_node_data,
                         )
-                        engine.add_edge(edge)
 
-                # Store metadata
-                engine.set_metadata("version", CACHE_VERSION)
-                engine.set_metadata("timestamp", str(time.time()))
-                engine.set_metadata("profile", self.profile)
-                engine.set_metadata("region", self.region)
-                if self.vpc:
-                    engine.set_metadata("vpc", self.vpc)
-                if self.account_id:
-                    engine.set_metadata("account_id", self.account_id)
-                engine.set_metadata("resource_count", str(node_count))
-                engine.set_metadata("dependency_count", str(edge_count))
+                        nodes = [_convert_node_data(n) for n in data.get("nodes", [])]
+                        engine.add_nodes(nodes)
 
-                # Store additional metadata
-                if metadata:
-                    for key, value in metadata.items():
-                        engine.set_metadata(f"extra_{key}", str(value))
+                        edges = [
+                            Edge(
+                                source_id=e["source"],
+                                target_id=e["target"],
+                                relation=e.get("relation", "belongs_to"),
+                            )
+                            for e in data.get("edges", [])
+                        ]
+                        engine.add_edges(edges)
 
-            finally:
-                engine.close()
+                    # Store metadata
+                    engine.set_metadata("version", CACHE_VERSION)
+                    engine.set_metadata("timestamp", str(time.time()))
+                    engine.set_metadata("profile", self.profile)
+                    engine.set_metadata("region", self.region)
+                    if self.vpc:
+                        engine.set_metadata("vpc", self.vpc)
+                    if self.account_id:
+                        engine.set_metadata("account_id", self.account_id)
+                    engine.set_metadata("resource_count", str(node_count))
+                    engine.set_metadata("dependency_count", str(edge_count))
+
+                    # Store additional metadata
+                    if metadata:
+                        for key, value in metadata.items():
+                            engine.set_metadata(f"extra_{key}", str(value))
+
+                finally:
+                    engine.close()
 
             # Atomic rename
             if self.cache_path.exists():

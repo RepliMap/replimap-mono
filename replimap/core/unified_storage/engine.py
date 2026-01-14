@@ -295,6 +295,10 @@ class UnifiedGraphEngine:
         """Get total number of edges."""
         return self._backend.edge_count()
 
+    def get_all_edges(self) -> Iterator[Edge]:
+        """Iterate over all edges."""
+        return self._backend.get_all_edges()
+
     # =========================================================
     # TRAVERSAL
     # =========================================================
