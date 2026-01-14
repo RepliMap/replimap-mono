@@ -343,6 +343,8 @@ class ResourceGrouper:
         properties: dict[str, Any] = {
             "count": len(resources),
             "ids": [r.id for r in resources[:5]],  # First 5 IDs
+            # Include names for search functionality
+            "names": [r.original_name or r.tags.get("Name") or r.id for r in resources],
         }
 
         # Aggregate instance types if applicable
