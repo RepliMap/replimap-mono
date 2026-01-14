@@ -368,7 +368,10 @@ class GraphTransferReport:
             "nat_gateway_paths": len(self.nat_gateway_paths),
             "internet_egress_paths": len(self.internet_egress_paths),
             "optimizations": [
-                {"description": o.description, "estimated_savings": float(o.estimated_savings)}
+                {
+                    "description": o.description,
+                    "estimated_savings": float(o.estimated_savings),
+                }
                 for o in self.optimizations
             ],
         }
@@ -855,11 +858,13 @@ class DataTransferAnalyzer:
         for resource in graph.get_all_resources():
             for dep_id in resource.dependencies:
                 if dep_id in resources_by_id:
-                    connections.append({
-                        "source_id": resource.id,
-                        "destination_id": dep_id,
-                        "estimated_gb_month": 10,  # Default estimate
-                    })
+                    connections.append(
+                        {
+                            "source_id": resource.id,
+                            "destination_id": dep_id,
+                            "estimated_gb_month": 10,  # Default estimate
+                        }
+                    )
 
         cross_az_paths = self.detect_cross_az_traffic(
             list(resources_by_id.values()), connections

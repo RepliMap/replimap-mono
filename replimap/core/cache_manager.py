@@ -260,7 +260,11 @@ class CacheManager:
             if version != CACHE_VERSION:
                 # Check if this is a migrated database (schema v2 but old cache version)
                 schema_version = engine.get_schema_version()
-                if schema_version >= 2 and version in (None, "1.0", LEGACY_CACHE_VERSION):
+                if schema_version >= 2 and version in (
+                    None,
+                    "1.0",
+                    LEGACY_CACHE_VERSION,
+                ):
                     # Schema was just migrated, update cache version metadata
                     logger.debug(
                         f"Updating cache version from {version} to {CACHE_VERSION} "
