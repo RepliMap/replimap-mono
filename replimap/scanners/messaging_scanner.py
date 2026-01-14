@@ -194,79 +194,98 @@ class SNSScanner(BaseScanner):
         """Scan all SNS Topics in the region."""
         logger.debug("Scanning SNS Topics...")
 
+        # Collect all topics first
+        topics_to_process: list[dict[str, Any]] = []
         paginator = sns.get_paginator("list_topics")
         for page in rate_limited_paginate("sns", self.region)(paginator.paginate()):
-            for topic in page.get("Topics", []):
-                topic_arn = topic["TopicArn"]
-                topic_name = topic_arn.split(":")[-1]
+            topics_to_process.extend(page.get("Topics", []))
 
+        if not topics_to_process:
+            logger.debug("No SNS Topics found")
+            return
+
+        # Process topics in parallel (attribute/tag fetching is the bottleneck)
+        results, failures = parallel_process_items(
+            items=topics_to_process,
+            processor=lambda topic: self._process_topic(topic, sns, graph),
+            description="SNS Topics",
+        )
+
+        topic_count = sum(1 for r in results if r)
+        logger.info(f"Scanned {topic_count} SNS Topics")
+
+        if failures:
+            for topic, error in failures:
+                logger.warning(
+                    f"Failed to process topic {topic.get('TopicArn')}: {error}"
+                )
+
+    def _process_topic(
+        self, topic: dict[str, Any], sns: Any, graph: GraphEngine
+    ) -> bool:
+        """Process a single SNS Topic."""
+        topic_arn = topic["TopicArn"]
+        topic_name = topic_arn.split(":")[-1]
+
+        try:
+            # Get topic attributes
+            attrs_resp = sns.get_topic_attributes(TopicArn=topic_arn)
+            attrs = attrs_resp.get("Attributes", {})
+
+            # Parse policy if exists
+            policy = {}
+            if attrs.get("Policy"):
                 try:
-                    # Get topic attributes
-                    attrs_resp = sns.get_topic_attributes(TopicArn=topic_arn)
-                    attrs = attrs_resp.get("Attributes", {})
+                    policy = json.loads(attrs["Policy"])
+                except json.JSONDecodeError:
+                    pass
 
-                    # Parse policy if exists
-                    policy = {}
-                    if attrs.get("Policy"):
-                        try:
-                            policy = json.loads(attrs["Policy"])
-                        except json.JSONDecodeError:
-                            pass
+            # Get tags
+            try:
+                tags_resp = sns.list_tags_for_resource(ResourceArn=topic_arn)
+                tags = {tag["Key"]: tag["Value"] for tag in tags_resp.get("Tags", [])}
+            except ClientError:
+                tags = {}
 
-                    # Get tags
-                    try:
-                        tags_resp = sns.list_tags_for_resource(ResourceArn=topic_arn)
-                        tags = {
-                            tag["Key"]: tag["Value"]
-                            for tag in tags_resp.get("Tags", [])
-                        }
-                    except ClientError:
-                        tags = {}
+            # Check if FIFO
+            is_fifo = topic_name.endswith(".fifo")
 
-                    # Check if FIFO
-                    is_fifo = topic_name.endswith(".fifo")
-
-                    node = ResourceNode(
-                        id=topic_arn,
-                        resource_type=ResourceType.SNS_TOPIC,
-                        region=self.region,
-                        config={
-                            "name": topic_name,
-                            "display_name": attrs.get("DisplayName"),
-                            "fifo_topic": is_fifo,
-                            "content_based_deduplication": attrs.get(
-                                "ContentBasedDeduplication"
-                            )
-                            == "true"
-                            if is_fifo
-                            else None,
-                            "kms_master_key_id": attrs.get("KmsMasterKeyId"),
-                            "policy": policy,
-                            "delivery_policy": attrs.get("DeliveryPolicy"),
-                            "effective_delivery_policy": attrs.get(
-                                "EffectiveDeliveryPolicy"
-                            ),
-                            "owner": attrs.get("Owner"),
-                            "subscriptions_confirmed": int(
-                                attrs.get("SubscriptionsConfirmed", 0)
-                            ),
-                            "subscriptions_pending": int(
-                                attrs.get("SubscriptionsPending", 0)
-                            ),
-                            "subscriptions_deleted": int(
-                                attrs.get("SubscriptionsDeleted", 0)
-                            ),
-                        },
-                        arn=topic_arn,
-                        tags=tags,
+            node = ResourceNode(
+                id=topic_arn,
+                resource_type=ResourceType.SNS_TOPIC,
+                region=self.region,
+                config={
+                    "name": topic_name,
+                    "display_name": attrs.get("DisplayName"),
+                    "fifo_topic": is_fifo,
+                    "content_based_deduplication": attrs.get(
+                        "ContentBasedDeduplication"
                     )
+                    == "true"
+                    if is_fifo
+                    else None,
+                    "kms_master_key_id": attrs.get("KmsMasterKeyId"),
+                    "policy": policy,
+                    "delivery_policy": attrs.get("DeliveryPolicy"),
+                    "effective_delivery_policy": attrs.get("EffectiveDeliveryPolicy"),
+                    "owner": attrs.get("Owner"),
+                    "subscriptions_confirmed": int(
+                        attrs.get("SubscriptionsConfirmed", 0)
+                    ),
+                    "subscriptions_pending": int(attrs.get("SubscriptionsPending", 0)),
+                    "subscriptions_deleted": int(attrs.get("SubscriptionsDeleted", 0)),
+                },
+                arn=topic_arn,
+                tags=tags,
+            )
 
-                    graph.add_resource(node)
-                    logger.debug(f"Added SNS Topic: {topic_name}")
+            graph.add_resource(node)
+            logger.debug(f"Added SNS Topic: {topic_name}")
+            return True
 
-                except ClientError as e:
-                    error_code = e.response.get("Error", {}).get("Code", "")
-                    if error_code == "AuthorizationError":
-                        logger.warning(f"Authorization error for topic: {topic_arn}")
-                        continue
-                    raise
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code == "AuthorizationError":
+                logger.warning(f"Authorization error for topic: {topic_arn}")
+                return False
+            raise

@@ -143,16 +143,33 @@ class CloudWatchMetricAlarmScanner(BaseScanner):
         logger.info(f"Scanning CloudWatch Metric Alarms in {self.region}...")
 
         cloudwatch = self.get_client("cloudwatch")
-        alarm_count = 0
 
         try:
+            # Collect all alarms first
+            alarms_to_process: list[dict[str, Any]] = []
             paginator = cloudwatch.get_paginator("describe_alarms")
             for page in paginator.paginate(AlarmTypes=["MetricAlarm"]):
-                for alarm in page.get("MetricAlarms", []):
-                    if self._process_alarm(alarm, cloudwatch, graph):
-                        alarm_count += 1
+                alarms_to_process.extend(page.get("MetricAlarms", []))
 
+            if not alarms_to_process:
+                logger.info("No CloudWatch Metric Alarms found")
+                return
+
+            # Process alarms in parallel (tag fetching is the bottleneck)
+            results, failures = parallel_process_items(
+                items=alarms_to_process,
+                processor=lambda alarm: self._process_alarm(alarm, cloudwatch, graph),
+                description="CloudWatch Metric Alarms",
+            )
+
+            alarm_count = sum(1 for r in results if r)
             logger.info(f"Scanned {alarm_count} CloudWatch Metric Alarms")
+
+            if failures:
+                for alarm, error in failures:
+                    logger.warning(
+                        f"Failed to process alarm {alarm.get('AlarmName')}: {error}"
+                    )
 
         except ClientError as e:
             self._handle_aws_error(e, "describe_alarms")

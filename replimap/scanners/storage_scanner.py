@@ -15,7 +15,7 @@ from botocore.exceptions import ClientError
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 from replimap.core.rate_limiter import rate_limited_paginate
 
-from .base import BaseScanner, ScannerRegistry
+from .base import BaseScanner, ScannerRegistry, parallel_process_items
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -145,52 +145,68 @@ class S3PolicyScanner(BaseScanner):
         logger.debug("Scanning S3 Bucket Policies...")
 
         # Get all buckets that are in our graph
-        bucket_resources = graph.get_resources_by_type(ResourceType.S3_BUCKET)
+        bucket_resources = list(graph.get_resources_by_type(ResourceType.S3_BUCKET))
 
-        for bucket_resource in bucket_resources:
-            bucket_name = (
-                bucket_resource.config.get("bucket_name") or bucket_resource.id
+        if not bucket_resources:
+            return
+
+        # Process bucket policies in parallel
+        results, failures = parallel_process_items(
+            items=bucket_resources,
+            processor=lambda br: self._process_bucket_policy(br, s3, graph),
+            description="S3 Bucket Policies",
+        )
+
+        if failures:
+            for br, error in failures:
+                logger.warning(f"Failed to process bucket policy {br.id}: {error}")
+
+    def _process_bucket_policy(
+        self, bucket_resource: ResourceNode, s3: Any, graph: GraphEngine
+    ) -> bool:
+        """Process a single S3 Bucket Policy."""
+        bucket_name = bucket_resource.config.get("bucket_name") or bucket_resource.id
+
+        try:
+            policy_resp = s3.get_bucket_policy(Bucket=bucket_name)
+            policy_str = policy_resp.get("Policy", "{}")
+
+            # Parse the policy JSON
+            try:
+                policy = json.loads(policy_str)
+            except json.JSONDecodeError:
+                policy = {}
+
+            policy_id = f"{bucket_name}-policy"
+            node = ResourceNode(
+                id=policy_id,
+                resource_type=ResourceType.S3_BUCKET_POLICY,
+                region=self.region,
+                config={
+                    "bucket": bucket_name,
+                    "policy": policy,
+                    "policy_json": policy_str,
+                },
+                arn=f"arn:aws:s3:::{bucket_name}",
+                tags={},
             )
 
-            try:
-                policy_resp = s3.get_bucket_policy(Bucket=bucket_name)
-                policy_str = policy_resp.get("Policy", "{}")
+            graph.add_resource(node)
 
-                # Parse the policy JSON
-                try:
-                    policy = json.loads(policy_str)
-                except json.JSONDecodeError:
-                    policy = {}
+            # Add dependency on bucket
+            graph.add_dependency(
+                policy_id, bucket_resource.id, DependencyType.BELONGS_TO
+            )
 
-                policy_id = f"{bucket_name}-policy"
-                node = ResourceNode(
-                    id=policy_id,
-                    resource_type=ResourceType.S3_BUCKET_POLICY,
-                    region=self.region,
-                    config={
-                        "bucket": bucket_name,
-                        "policy": policy,
-                        "policy_json": policy_str,
-                    },
-                    arn=f"arn:aws:s3:::{bucket_name}",
-                    tags={},
-                )
+            logger.debug(f"Added S3 Bucket Policy: {bucket_name}")
+            return True
 
-                graph.add_resource(node)
-
-                # Add dependency on bucket
-                graph.add_dependency(
-                    policy_id, bucket_resource.id, DependencyType.BELONGS_TO
-                )
-
-                logger.debug(f"Added S3 Bucket Policy: {bucket_name}")
-
-            except ClientError as e:
-                error_code = e.response.get("Error", {}).get("Code", "")
-                if error_code == "NoSuchBucketPolicy":
-                    # Bucket has no policy, skip
-                    continue
-                elif error_code == "AccessDenied":
-                    logger.warning(f"Access denied for bucket policy: {bucket_name}")
-                    continue
-                raise
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code == "NoSuchBucketPolicy":
+                # Bucket has no policy, skip
+                return False
+            elif error_code == "AccessDenied":
+                logger.warning(f"Access denied for bucket policy: {bucket_name}")
+                return False
+            raise
