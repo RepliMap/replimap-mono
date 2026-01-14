@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "echo \"\\n  → WSL2 Access: http://$(hostname -I | awk '{print $1}'):3000\\n\" && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
