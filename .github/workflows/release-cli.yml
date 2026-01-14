@@ -1,0 +1,76 @@
+name: Release CLI to PyPI
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not publish)'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: release-cli-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build config package
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @replimap/config build
+
+      - name: Sync config to CLI
+        run: bash apps/cli/scripts/sync-config.sh
+
+      - name: Install Python build tools
+        run: pip install build twine
+
+      - name: Build Python package
+        working-directory: apps/cli
+        run: |
+          rm -rf dist/ build/ *.egg-info
+          python -m build
+
+      - name: Check package
+        working-directory: apps/cli
+        run: twine check dist/*
+
+      - name: Publish to PyPI
+        if: github.event.inputs.dry_run != 'true'
+        working-directory: apps/cli
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-dist-${{ github.sha }}
+          path: apps/cli/dist/*
+          retention-days: 30

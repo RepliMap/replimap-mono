@@ -87,6 +87,17 @@ Changelog = "https://github.com/RepliMap/replimap/blob/main/CHANGELOG.md"
 [tool.hatch.build.targets.wheel]
 packages = ["replimap"]
 
+[tool.hatch.build.targets.wheel.sources]
+"replimap" = "replimap"
+
+[tool.hatch.build]
+include = [
+    "replimap/**/*.py",
+    "replimap/_generated/*.py",
+    "replimap/py.typed",
+    "replimap/templates/**",
+]
+
 [tool.hatch.build.targets.sdist]
 exclude = [
     "tests/",

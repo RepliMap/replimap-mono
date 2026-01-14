@@ -1,1 +1,3 @@
-"""Auto-generated configuration from packages/config."""
+# AUTO-GENERATED DIRECTORY
+# Contents generated from packages/config
+# Do not edit manually - changes will be overwritten
