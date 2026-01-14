@@ -3,7 +3,7 @@
 DO NOT EDIT - This file is generated from src/*.json
 
 Content Hash: 7abec13bd128
-Generated: 2026-01-14T04:27:50.123Z
+Generated: 2026-01-14T04:33:46.459Z
 """
 
 from __future__ import annotations
