@@ -337,6 +337,43 @@ class TransferPricingTiers:
         return cls.CROSS_REGION_RATES[("default", "default")]
 
 
+@dataclass
+class TransferOptimization:
+    """An optimization recommendation."""
+
+    description: str
+    estimated_savings: Decimal
+    category: str = "general"
+
+
+@dataclass
+class GraphTransferReport:
+    """Transfer report generated from analyzing a GraphEngine."""
+
+    region: str
+    total_paths: int = 0
+    total_monthly_cost: float = 0.0
+    cross_az_paths: list[TransferPath] = field(default_factory=list)
+    nat_gateway_paths: list[TransferPath] = field(default_factory=list)
+    internet_egress_paths: list[TransferPath] = field(default_factory=list)
+    optimizations: list[TransferOptimization] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "region": self.region,
+            "total_paths": self.total_paths,
+            "total_monthly_cost": self.total_monthly_cost,
+            "cross_az_paths": len(self.cross_az_paths),
+            "nat_gateway_paths": len(self.nat_gateway_paths),
+            "internet_egress_paths": len(self.internet_egress_paths),
+            "optimizations": [
+                {"description": o.description, "estimated_savings": float(o.estimated_savings)}
+                for o in self.optimizations
+            ],
+        }
+
+
 class DataTransferAnalyzer:
     """
     Analyzes data transfer patterns and costs.
@@ -347,16 +384,19 @@ class DataTransferAnalyzer:
 
     def __init__(
         self,
-        region: str,
+        session: Any = None,
+        region: str = "us-east-1",
         currency: Currency = Currency.USD,
     ) -> None:
         """
         Initialize analyzer.
 
         Args:
+            session: AWS session (optional, for future CloudWatch metrics)
             region: Primary AWS region
             currency: Output currency
         """
+        self.session = session
         self.region = region
         self.currency = currency
         self.pricing = TransferPricingTiers()
@@ -774,3 +814,98 @@ class DataTransferAnalyzer:
                 f"Cross-region transfer costs: ${cross_region_cost:.2f}/month. "
                 "Verify this traffic is necessary."
             )
+
+    def analyze_from_graph(self, graph: Any) -> GraphTransferReport:
+        """
+        Analyze data transfer patterns from a GraphEngine.
+
+        Args:
+            graph: GraphEngine with resource inventory
+
+        Returns:
+            GraphTransferReport with transfer analysis
+        """
+        from replimap.core.models import ResourceType
+
+        report = GraphTransferReport(region=self.region)
+        total_cost = Decimal("0")
+
+        # Build resource lookup for cross-AZ detection
+        resources_by_id: dict[str, dict[str, Any]] = {}
+        az_groups: dict[str, list[str]] = {}  # AZ -> resource IDs
+
+        for resource in graph.get_all_resources():
+            az = resource.config.get("availability_zone", "")
+            resource_data = {
+                "id": resource.id,
+                "type": str(resource.resource_type),
+                "region": resource.region,
+                "availability_zone": az,
+                "config": resource.config,
+            }
+            resources_by_id[resource.id] = resource_data
+
+            if az:
+                if az not in az_groups:
+                    az_groups[az] = []
+                az_groups[az].append(resource.id)
+
+        # Detect cross-AZ traffic from dependencies
+        connections = []
+        for resource in graph.get_all_resources():
+            for dep_id in resource.dependencies:
+                if dep_id in resources_by_id:
+                    connections.append({
+                        "source_id": resource.id,
+                        "destination_id": dep_id,
+                        "estimated_gb_month": 10,  # Default estimate
+                    })
+
+        cross_az_paths = self.detect_cross_az_traffic(
+            list(resources_by_id.values()), connections
+        )
+        report.cross_az_paths = cross_az_paths
+
+        # Calculate cross-AZ costs
+        for path in cross_az_paths:
+            rate = self.pricing.get_cross_az_rate(path.source_region)
+            cost = path.estimated_gb_month * rate * Decimal("2")  # Bidirectional
+            total_cost += cost
+
+        # Analyze NAT Gateways
+        for resource in graph.get_resources_by_type(ResourceType.NAT_GATEWAY):
+            nat_path = TransferPath(
+                source_id=resource.id,
+                source_type="aws_nat_gateway",
+                source_region=resource.region,
+                source_az=resource.config.get("availability_zone", ""),
+                destination_id="internet",
+                destination_type="internet",
+                destination_region="",
+                destination_az="",
+                transfer_type=TransferType.NAT_GATEWAY,
+                direction=TrafficDirection.OUTBOUND,
+                estimated_gb_month=Decimal("100"),  # Default estimate
+                description=f"NAT Gateway: {resource.id}",
+            )
+            report.nat_gateway_paths.append(nat_path)
+
+            # Calculate NAT cost
+            rates = self.pricing.get_nat_rates(resource.region)
+            hourly_cost = rates["hourly"] * Decimal("730")
+            data_cost = Decimal("100") * rates["per_gb"]
+            total_cost += hourly_cost + data_cost
+
+            # Add optimization suggestion
+            report.optimizations.append(
+                TransferOptimization(
+                    description=f"Consider VPC Endpoints for S3/DynamoDB traffic via {resource.id}",
+                    estimated_savings=data_cost * Decimal("0.5"),
+                    category="nat_gateway",
+                )
+            )
+
+        report.total_paths = len(cross_az_paths) + len(report.nat_gateway_paths)
+        report.total_monthly_cost = float(total_cost)
+
+        return report

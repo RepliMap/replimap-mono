@@ -221,15 +221,22 @@ def create_snapshot_app() -> typer.Typer:
     @enhanced_cli_error_handler
     def snapshot_list(
         ctx: typer.Context,
+        profile: str | None = typer.Option(
+            None, "--profile", "-p", help="AWS profile name (for filtering)"
+        ),
+        region: str | None = typer.Option(
+            None, "--region", "-r", help="AWS region (for filtering)"
+        ),
     ) -> None:
         """List saved snapshots."""
         from replimap.snapshot import SnapshotStore
 
-        # Get region filter from context
-        region = ctx.obj.get("region") if ctx.obj else None
+        # Get region filter from context or local option
+        ctx_region = ctx.obj.get("region") if ctx.obj else None
+        effective_region = region or ctx_region
 
         store = SnapshotStore()
-        snapshots = store.list(region=region)
+        snapshots = store.list(region=effective_region)
 
         if not snapshots:
             console.print("[dim]No snapshots found[/dim]")
@@ -256,6 +263,12 @@ def create_snapshot_app() -> typer.Typer:
     def snapshot_show(
         ctx: typer.Context,
         name: str = typer.Argument(..., help="Snapshot name or path"),
+        profile: str | None = typer.Option(
+            None, "--profile", "-p", help="AWS profile name (unused, for consistency)"
+        ),
+        region: str | None = typer.Option(
+            None, "--region", "-r", help="AWS region (unused, for consistency)"
+        ),
     ) -> None:
         """Show snapshot details."""
         from replimap.snapshot import SnapshotStore
@@ -449,6 +462,12 @@ def create_snapshot_app() -> typer.Typer:
         ctx: typer.Context,
         name: str = typer.Argument(..., help="Snapshot name to delete"),
         force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
+        profile: str | None = typer.Option(
+            None, "--profile", "-p", help="AWS profile name (unused, for consistency)"
+        ),
+        region: str | None = typer.Option(
+            None, "--region", "-r", help="AWS region (unused, for consistency)"
+        ),
     ) -> None:
         """Delete a saved snapshot."""
         from replimap.snapshot import SnapshotStore

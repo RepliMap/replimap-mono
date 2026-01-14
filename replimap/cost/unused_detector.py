@@ -213,6 +213,12 @@ class UnusedResourceDetector:
             self._client = AsyncAWSClient(region=self.region)
         return self._client
 
+    async def close(self) -> None:
+        """Close the AWS client and release resources."""
+        if self._client is not None:
+            await self._client.close()
+            self._client = None
+
     async def scan(
         self,
         graph: GraphEngine,
