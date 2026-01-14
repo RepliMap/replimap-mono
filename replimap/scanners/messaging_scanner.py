@@ -72,9 +72,7 @@ class SQSScanner(BaseScanner):
             for url, error in failures:
                 logger.warning(f"Failed to process queue {url}: {error}")
 
-    def _process_queue(
-        self, queue_url: str, sqs: Any, graph: GraphEngine
-    ) -> bool:
+    def _process_queue(self, queue_url: str, sqs: Any, graph: GraphEngine) -> bool:
         """Process a single SQS queue."""
         try:
             # Get queue attributes

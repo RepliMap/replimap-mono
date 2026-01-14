@@ -56,7 +56,9 @@ class IAMRoleScanner(BaseScanner):
                     if not path.startswith("/aws-service-role/"):
                         roles_to_process.append(role)
                     else:
-                        logger.debug(f"Skipping service-linked role: {role.get('RoleName')}")
+                        logger.debug(
+                            f"Skipping service-linked role: {role.get('RoleName')}"
+                        )
 
             # Process roles in parallel (tag fetching is the bottleneck)
             results, failures = parallel_process_items(
@@ -70,7 +72,9 @@ class IAMRoleScanner(BaseScanner):
 
             if failures:
                 for role, error in failures:
-                    logger.warning(f"Failed to process role {role.get('RoleName')}: {error}")
+                    logger.warning(
+                        f"Failed to process role {role.get('RoleName')}: {error}"
+                    )
 
         except ClientError as e:
             self._handle_aws_error(e, "list_roles")

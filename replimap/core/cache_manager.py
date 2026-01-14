@@ -110,7 +110,9 @@ class CacheManager:
                 temp_path.unlink()
 
             # Fast path: Use SQLite's native backup API if graph uses SQLite backend
-            if isinstance(graph, GraphEngineAdapter) and hasattr(graph._engine, "_backend"):
+            if isinstance(graph, GraphEngineAdapter) and hasattr(
+                graph._engine, "_backend"
+            ):
                 # Direct snapshot from in-memory SQLite to file
                 graph._engine._backend.snapshot(str(temp_path))
 

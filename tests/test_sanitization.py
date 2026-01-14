@@ -179,7 +179,9 @@ class TestDeterministicRedactor:
 
         # All results should be identical (same salt used)
         assert len(results) == 10
-        assert all(r == results[0] for r in results), "All redactions should be identical"
+        assert all(r == results[0] for r in results), (
+            "All redactions should be identical"
+        )
 
         # Salt file should exist
         assert salt_file.exists()
