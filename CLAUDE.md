@@ -6,26 +6,43 @@ This document provides guidelines for AI assistants (Claude) working on the Repl
 
 RepliMap is an AWS Infrastructure Intelligence Engine that scans AWS environments and builds dependency graphs for visualization, cost analysis, security auditing, and infrastructure-as-code generation.
 
-## Pre-Commit Checklist
+## Pre-Commit Checklist (CI Jobs)
 
-Before every commit, run these checks:
+**IMPORTANT**: Always run these commands before commit/push. CI will fail if any of these have errors:
 
 ```bash
-# 1. Run full test suite (REQUIRED - must pass)
-uv run pytest tests/ --ignore=tests/integration/ -x -q
+# 1. Format code (REQUIRED - fixes formatting issues)
+uv run ruff format .
 
-# 2. Run linting (auto-fixed by linter on save)
-uv run ruff check replimap/
+# 2. Lint code (REQUIRED - must pass with no errors)
+uv run ruff check .
 
-# 3. Run type checking (optional but recommended)
-uv run mypy replimap/ --ignore-missing-imports
+# 3. Run tests with coverage (REQUIRED - must pass)
+uv run pytest tests/ -v --cov=replimap --cov-report=xml --cov-report=term
 ```
+
+### Quick Pre-Commit (for faster iteration)
+
+```bash
+# Fast check during development (skip coverage report)
+uv run ruff format . && uv run ruff check . && uv run pytest tests/ --ignore=tests/integration/ -x -q
+```
+
+### Common CI Failures and Fixes
+
+| Error | Fix |
+|-------|-----|
+| `ruff format` changes files | Run `uv run ruff format .` and commit the changes |
+| `ruff check` shows errors | Fix the linting errors or add `# noqa: XXXX` if intentional |
+| Test failures | Fix the failing tests before committing |
+| Import sorting | `ruff format .` handles this automatically |
 
 ### Minimum Test Coverage Requirements
 
 - All new code must have corresponding tests
 - Target: 80%+ coverage for new modules
 - Critical paths (CLI commands, storage, scanners) must have 100% happy path coverage
+- Coverage report is generated in `coverage.xml` for CI integration
 
 ## Architectural Patterns (MUST FOLLOW)
 
@@ -275,25 +292,30 @@ Types: `fix`, `feat`, `refactor`, `docs`, `test`, `chore`
 ## Quick Reference Commands
 
 ```bash
-# Run all tests
-uv run pytest tests/ --ignore=tests/integration/ -v
+# === CI COMMANDS (run before every commit) ===
+uv run ruff format .                                    # Format code
+uv run ruff check .                                     # Lint code
+uv run pytest tests/ -v --cov=replimap --cov-report=xml --cov-report=term  # Tests + coverage
+
+# === DEVELOPMENT COMMANDS ===
+# Run all tests (quick, no coverage)
+uv run pytest tests/ --ignore=tests/integration/ -x -q
 
 # Run specific test file
 uv run pytest tests/test_cache.py -v
 
-# Run tests with coverage
-uv run pytest tests/ --cov=replimap --cov-report=term-missing
+# Run specific test
+uv run pytest tests/test_cache.py::TestCacheManager::test_save -v
 
 # Check CLI help
 uv run replimap --help
 uv run replimap <command> --help
 
-# Run linting
-uv run ruff check replimap/
-uv run ruff format replimap/
-
-# Type checking
+# Type checking (optional)
 uv run mypy replimap/ --ignore-missing-imports
+
+# === ONE-LINER FOR PRE-COMMIT ===
+uv run ruff format . && uv run ruff check . && uv run pytest tests/ -v --cov=replimap --cov-report=xml --cov-report=term
 ```
 
 ## Key Files Reference
