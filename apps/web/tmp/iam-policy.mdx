@@ -1,0 +1,197 @@
+---
+title: IAM Policy
+description: Minimum permissions required for RepliMap
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
+
+RepliMap requires **read-only** access to scan your AWS resources. We adhere to the principle of least privilege.
+
+## Recommended Policy
+
+<Tabs items={['Full Policy', 'Restricted Policy']}>
+  <Tab value="Full Policy">
+    This policy allows RepliMap to scan all supported resource types:
+
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "RepliMapReadOnly",
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeTags",
+                    "ec2:DescribeAvailabilityZones",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeInternetGateways",
+                    "ec2:DescribeNatGateways",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeLaunchTemplates",
+                    "ec2:DescribeLaunchTemplateVersions",
+                    "rds:DescribeDBInstances",
+                    "rds:DescribeDBSubnetGroups",
+                    "rds:DescribeDBSecurityGroups",
+                    "rds:ListTagsForResource",
+                    "elasticache:DescribeCacheClusters",
+                    "elasticache:DescribeCacheSubnetGroups",
+                    "elasticache:ListTagsForResource",
+                    "autoscaling:DescribeAutoScalingGroups",
+                    "autoscaling:DescribeLaunchConfigurations",
+                    "elasticloadbalancing:DescribeLoadBalancers",
+                    "elasticloadbalancing:DescribeTargetGroups",
+                    "elasticloadbalancing:DescribeListeners",
+                    "elasticloadbalancing:DescribeTags",
+                    "lambda:ListFunctions",
+                    "lambda:GetFunction",
+                    "lambda:ListTags",
+                    "s3:ListAllMyBuckets",
+                    "s3:GetBucketLocation",
+                    "s3:GetBucketTagging",
+                    "s3:GetBucketVersioning",
+                    "s3:GetBucketEncryption",
+                    "iam:ListRoles",
+                    "iam:ListPolicies",
+                    "iam:GetRole",
+                    "iam:GetPolicy",
+                    "iam:GetPolicyVersion",
+                    "sqs:ListQueues",
+                    "sqs:GetQueueAttributes",
+                    "sns:ListTopics",
+                    "sns:GetTopicAttributes",
+                    "sts:GetCallerIdentity"
+                ],
+                "Resource": "*"
+            }
+        ]
+    }
+    ```
+  </Tab>
+  <Tab value="Restricted Policy">
+    A minimal policy for scanning VPCs only:
+
+    ```json
+    {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "RepliMapVPCRead",
+                "Effect": "Allow",
+                "Action": [
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeTags",
+                    "sts:GetCallerIdentity"
+                ],
+                "Resource": "*",
+                "Condition": {
+                    "StringEquals": {
+                        "ec2:Region": "us-east-1"
+                    }
+                }
+            }
+        ]
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Setup Instructions
+
+### Option 1: Create Dedicated IAM User
+
+1. Go to **IAM Console → Users → Add User**
+2. Name: `replimap-scanner`
+3. Access type: **Programmatic access**
+4. Attach the policy above
+5. Save the access keys
+
+```bash
+# Configure AWS CLI
+aws configure --profile replimap
+# Enter the access key ID and secret
+```
+
+### Option 2: Create IAM Role (Recommended for EC2/ECS)
+
+1. Go to **IAM Console → Roles → Create Role**
+2. Select **AWS service** → EC2/ECS
+3. Attach the policy above
+4. Name: `replimap-scanner-role`
+
+## Verify Permissions
+
+```bash
+# Verify identity
+aws sts get-caller-identity --profile replimap
+
+# Test VPC access
+aws ec2 describe-vpcs --profile replimap --region us-east-1
+
+# Test with RepliMap
+replimap scan --profile replimap --region us-east-1
+```
+
+## Permissions by Resource Type
+
+| Resource | Actions Required | Purpose |
+|----------|------------------|---------|
+| VPC | `ec2:DescribeVpcs` | Scan VPC configurations |
+| Subnet | `ec2:DescribeSubnets` | Scan subnet configurations |
+| Security Group | `ec2:DescribeSecurityGroups` | Scan security rules |
+| EC2 Instance | `ec2:DescribeInstances` | Scan instance configurations |
+| RDS Instance | `rds:DescribeDBInstances` | Scan database configurations |
+| S3 Bucket | `s3:ListAllMyBuckets`, `s3:GetBucket*` | Scan bucket configurations |
+| Lambda | `lambda:ListFunctions`, `lambda:GetFunction` | Scan function configurations |
+| STS | `sts:GetCallerIdentity` | Verify authentication |
+
+## What RepliMap Does NOT Do
+
+<Callout type="warn">
+  RepliMap **never**:
+  - ❌ Creates, modifies, or deletes any AWS resources
+  - ❌ Accesses S3 bucket contents (only metadata)
+  - ❌ Reads database contents
+  - ❌ Accesses secrets or credentials
+  - ❌ Makes cross-account API calls
+  - ❌ Uploads any data to external services
+</Callout>
+
+## Troubleshooting
+
+### "Access Denied" Error
+
+```
+AccessDeniedException: User: arn:aws:iam::123456789012:user/replimap
+is not authorized to perform: ec2:DescribeVpcs
+```
+
+**Solution**: Ensure the IAM policy is correctly attached to your user/role.
+
+### "InvalidClientTokenId" Error
+
+```
+InvalidClientTokenId: The security token included in the request is invalid.
+```
+
+**Solution**: Check your AWS credentials are correctly configured:
+
+```bash
+aws configure list --profile replimap
+```
+
+### Region-Specific Issues
+
+If you only have access to specific regions:
+
+```bash
+# Specify the region explicitly
+replimap scan --profile replimap --region eu-west-1
+```

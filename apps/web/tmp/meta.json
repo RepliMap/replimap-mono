@@ -1,0 +1,16 @@
+{
+  "title": "Documentation",
+  "root": true,
+  "pages": [
+    "index",
+    "installation",
+    "quick-start",
+    "---Core Concepts",
+    "security",
+    "iam-policy",
+    "---Reference",
+    "cli-reference",
+    "contributing",
+    "changelog"
+  ]
+}

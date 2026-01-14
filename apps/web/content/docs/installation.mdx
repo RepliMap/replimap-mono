@@ -1,0 +1,93 @@
+---
+title: Installation
+description: Install RepliMap CLI on your machine
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
+
+## Prerequisites
+
+- **Python:** 3.10 or higher
+- **AWS CLI:** Configured with credentials (`aws configure`)
+- **Terraform:** (Optional) For applying generated code
+
+## Install RepliMap
+
+<Tabs items={['pipx (Recommended)', 'pip', 'uv', 'Docker']}>
+  <Tab value="pipx (Recommended)">
+    We recommend `pipx` to install RepliMap in an isolated environment:
+
+    ```bash
+    # Install pipx if needed
+    brew install pipx && pipx ensurepath  # macOS
+    # or: pip install --user pipx && pipx ensurepath  # Linux
+
+    # Install RepliMap
+    pipx install replimap
+
+    # Verify installation
+    replimap --version
+
+    # Update later
+    pipx upgrade replimap
+    ```
+  </Tab>
+  <Tab value="pip">
+    ```bash
+    pip install replimap
+    ```
+  </Tab>
+  <Tab value="uv">
+    ```bash
+    uv pip install replimap
+    ```
+  </Tab>
+  <Tab value="Docker">
+    No Python installation required:
+
+    ```bash
+    # Pull the image
+    docker pull replimap/replimap:latest
+
+    # Run with your local AWS credentials
+    docker run -v ~/.aws:/root/.aws replimap/replimap \
+      scan --profile prod --region us-east-1
+    ```
+  </Tab>
+</Tabs>
+
+## Configure AWS Credentials
+
+RepliMap uses your standard AWS CLI credentials.
+
+```bash
+# Configure a new profile
+aws configure --profile replimap
+
+# Or use environment variables
+export AWS_ACCESS_KEY_ID=your_access_key
+export AWS_SECRET_ACCESS_KEY=your_secret_key
+export AWS_DEFAULT_REGION=us-east-1
+```
+
+<Callout type="warn">
+  Ensure your IAM user/role has **read-only** permissions. See [IAM Policy](/docs/iam-policy) for the minimum required permissions.
+</Callout>
+
+## Verify Installation
+
+```bash
+# Check version
+replimap --version
+
+# Test AWS connectivity
+aws sts get-caller-identity --profile replimap
+
+# Run a test scan
+replimap scan --profile replimap --region us-east-1
+```
+
+## Next Steps
+
+Once installed, follow the [Quick Start](/docs/quick-start) guide to run your first scan.
