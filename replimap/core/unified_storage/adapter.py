@@ -357,7 +357,11 @@ class GraphEngineAdapter:
         """Get a resource by its ID."""
         # Check cache first
         if resource_id in self._resource_cache:
-            return self._resource_cache[resource_id]
+            resource = self._resource_cache[resource_id]
+            # Ensure dependencies are populated (cache may have been populated
+            # by iter_resources() which doesn't load dependencies)
+            self._ensure_dependencies_loaded(resource)
+            return resource
 
         node = self._engine.get_node(resource_id)
         if node is None:
@@ -366,12 +370,20 @@ class GraphEngineAdapter:
         resource = node_to_resource_node(node)
 
         # Populate dependencies from edges (edges are stored separately in SQLite)
-        for edge in self._engine.get_edges_from(resource_id):
-            if edge.target_id not in resource.dependencies:
-                resource.dependencies.append(edge.target_id)
+        self._ensure_dependencies_loaded(resource)
 
         self._resource_cache[resource_id] = resource
         return resource
+
+    def _ensure_dependencies_loaded(self, resource: ResourceNode) -> None:
+        """Ensure a resource has its dependencies populated from edges."""
+        # Only load if dependencies list is empty (avoid duplicate loading)
+        # This works because scanners always create at least one dependency edge
+        # if a resource has dependencies, so empty list means not loaded yet
+        if not resource.dependencies:
+            for edge in self._engine.get_edges_from(resource.id):
+                if edge.target_id not in resource.dependencies:
+                    resource.dependencies.append(edge.target_id)
 
     def get_all_resources(self) -> list[ResourceNode]:
         """Get all resources in the graph."""
@@ -393,16 +405,22 @@ class GraphEngineAdapter:
 
     def _populate_dependencies_from_edges(self, resources: list[ResourceNode]) -> None:
         """Populate resource dependencies from edges stored in SQLite."""
-        # Build a lookup for quick access
-        resource_map = {r.id: r for r in resources}
+        # For small resource lists, query edges per resource (more efficient)
+        # For large lists, scan all edges once
+        if len(resources) < 50:
+            for resource in resources:
+                self._ensure_dependencies_loaded(resource)
+        else:
+            # Build a lookup for quick access
+            resource_map = {r.id: r for r in resources}
 
-        # Get all edges and populate dependencies
-        for edge in self._engine.get_all_edges():
-            source_resource = resource_map.get(edge.source_id)
-            if source_resource is not None:
-                # Add target to dependencies if not already present
-                if edge.target_id not in source_resource.dependencies:
-                    source_resource.dependencies.append(edge.target_id)
+            # Get all edges and populate dependencies
+            for edge in self._engine.get_all_edges():
+                source_resource = resource_map.get(edge.source_id)
+                if source_resource is not None:
+                    # Add target to dependencies if not already present
+                    if edge.target_id not in source_resource.dependencies:
+                        source_resource.dependencies.append(edge.target_id)
 
     def get_resources_by_type(self, resource_type: ResourceType) -> list[ResourceNode]:
         """Get all resources of a specific type."""
@@ -415,25 +433,51 @@ class GraphEngineAdapter:
                 resource = node_to_resource_node(node)
                 self._resource_cache[node.id] = resource
                 resources.append(resource)
+
+        # Populate dependencies from edges for all returned resources
+        self._populate_dependencies_from_edges(resources)
+
         return resources
 
     def get_dependencies(self, resource_id: str) -> list[ResourceNode]:
         """Get all resources that this resource depends on."""
         nodes = self._engine.get_dependencies(resource_id, recursive=False)
-        return [self.get_resource(n.id) or node_to_resource_node(n) for n in nodes]
+        resources = []
+        for n in nodes:
+            resource = self.get_resource(n.id)
+            if resource is None:
+                # Fallback: create from node and populate dependencies
+                resource = node_to_resource_node(n)
+                self._ensure_dependencies_loaded(resource)
+                self._resource_cache[n.id] = resource
+            resources.append(resource)
+        return resources
 
     def get_dependents(self, resource_id: str) -> list[ResourceNode]:
         """Get all resources that depend on this resource."""
         nodes = self._engine.get_dependents(resource_id, recursive=False)
-        return [self.get_resource(n.id) or node_to_resource_node(n) for n in nodes]
+        resources = []
+        for n in nodes:
+            resource = self.get_resource(n.id)
+            if resource is None:
+                # Fallback: create from node and populate dependencies
+                resource = node_to_resource_node(n)
+                self._ensure_dependencies_loaded(resource)
+                self._resource_cache[n.id] = resource
+            resources.append(resource)
+        return resources
 
     def get_phantom_nodes(self) -> list[ResourceNode]:
         """Get all phantom nodes in the graph."""
-        return [
+        resources = [
             self._resource_cache[pid]
             for pid in self._phantom_nodes
             if pid in self._resource_cache
         ]
+        # Ensure dependencies are loaded for all phantom nodes
+        for resource in resources:
+            self._ensure_dependencies_loaded(resource)
+        return resources
 
     def is_phantom(self, resource_id: str) -> bool:
         """Check if a resource is a phantom node."""
@@ -466,7 +510,10 @@ class GraphEngineAdapter:
         # Fallback - shouldn't happen normally
         node = self._engine.get_node(resource_id)
         if node:
-            return node_to_resource_node(node)
+            resource = node_to_resource_node(node)
+            self._ensure_dependencies_loaded(resource)
+            self._resource_cache[node.id] = resource
+            return resource
         raise ValueError(f"Resource not found: {resource_id}")
 
     def has_cycles(self) -> bool:
