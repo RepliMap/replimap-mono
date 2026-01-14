@@ -46,21 +46,23 @@ def create_snapshot_app() -> typer.Typer:
             replimap snapshot -p prod list
             replimap snapshot -p prod diff --baseline v1 --current v2
         """
+        # Inherit GlobalContext from parent, or create empty dict fallback
+        parent_obj = ctx.parent.obj if ctx.parent else None
+
+        # Check if parent has GlobalContext (from main app callback)
+        if parent_obj and hasattr(parent_obj, "get"):
+            global_profile = parent_obj.get("profile")
+            global_region = parent_obj.get("region")
+        else:
+            global_profile = None
+            global_region = None
+
+        # Create context dict for subcommands, merging local and global options
         ctx.ensure_object(dict)
-        # Use local option if set, otherwise inherit from global context
-        parent_ctx = ctx.parent
-        global_profile = (
-            parent_ctx.obj.get("global_profile")
-            if parent_ctx and parent_ctx.obj
-            else None
-        )
-        global_region = (
-            parent_ctx.obj.get("global_region")
-            if parent_ctx and parent_ctx.obj
-            else None
-        )
         ctx.obj["profile"] = profile or global_profile
         ctx.obj["region"] = region or global_region
+        # Store reference to parent GlobalContext for subcommands that need it
+        ctx.obj["_parent_context"] = parent_obj
 
     @snapshot_app.command("save")
     @enhanced_cli_error_handler
@@ -231,7 +233,7 @@ def create_snapshot_app() -> typer.Typer:
         """List saved snapshots."""
         from replimap.snapshot import SnapshotStore
 
-        # Get region filter from context or local option
+        # Priority: local option > snapshot callback > global context
         ctx_region = ctx.obj.get("region") if ctx.obj else None
         effective_region = region or ctx_region
 
