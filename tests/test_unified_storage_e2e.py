@@ -1034,9 +1034,7 @@ class TestErrorHandling:
         engine.close()
 
     def test_duplicate_edge_handling(self) -> None:
-        """Test that duplicate edges raise an integrity error (expected behavior)."""
-        import sqlite3
-
+        """Test that duplicate edges are silently ignored (idempotent behavior)."""
         engine = UnifiedGraphEngine()
 
         engine.add_nodes(
@@ -1049,11 +1047,11 @@ class TestErrorHandling:
         # Add first edge
         engine.add_edge(Edge(source_id="b", target_id="a", relation="in"))
 
-        # Adding same edge again should raise IntegrityError (UNIQUE constraint)
-        with pytest.raises(sqlite3.IntegrityError):
-            engine.add_edge(Edge(source_id="b", target_id="a", relation="in"))
+        # Adding same edge again should be silently ignored (no error)
+        # This supports concurrent scanners adding the same dependencies
+        engine.add_edge(Edge(source_id="b", target_id="a", relation="in"))
 
-        # Should only have one edge
+        # Should only have one edge (duplicate was ignored)
         assert engine.edge_count() == 1
 
         engine.close()

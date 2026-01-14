@@ -11,13 +11,43 @@ Tests cover:
 from __future__ import annotations
 
 import base64
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from replimap.core.security.drift import DriftDetector, DriftType
 from replimap.core.security.global_sanitizer import GlobalSanitizer
 from replimap.core.security.patterns import SensitivePatternLibrary, Severity
 from replimap.core.security.redactor import DeterministicRedactor
+
+
+@contextmanager
+def isolated_redactor_salt(salt_file: Path) -> Generator[None, None, None]:
+    """
+    Context manager that isolates DeterministicRedactor salt operations.
+
+    Patches SALT_FILE and resets the cache to ensure tests get a fresh salt.
+    """
+    with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        # Reset the cached salt to force re-read/creation
+        old_cached = DeterministicRedactor._cached_salt
+        DeterministicRedactor._cached_salt = None
+        try:
+            yield
+        finally:
+            # Restore cached salt for other tests
+            DeterministicRedactor._cached_salt = old_cached
+
+
+@pytest.fixture
+def fresh_redactor_salt(tmp_path: Path) -> Generator[Path, None, None]:
+    """Fixture that provides an isolated salt file path with cache reset."""
+    salt_file = tmp_path / ".sanitizer_salt"
+    with isolated_redactor_salt(salt_file):
+        yield salt_file
 
 
 class TestDeterministicRedactor:
@@ -27,7 +57,7 @@ class TestDeterministicRedactor:
         """Same input → same output."""
         salt_file = tmp_path / ".sanitizer_salt"
 
-        with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        with isolated_redactor_salt(salt_file):
             redactor = DeterministicRedactor()
 
             result1 = redactor.redact("my-secret", "password")
@@ -40,7 +70,7 @@ class TestDeterministicRedactor:
         """Different inputs → different outputs."""
         salt_file = tmp_path / ".sanitizer_salt"
 
-        with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        with isolated_redactor_salt(salt_file):
             redactor = DeterministicRedactor()
 
             result1 = redactor.redact("secret1", "password")
@@ -52,7 +82,7 @@ class TestDeterministicRedactor:
         """Same value with different field names → different hashes."""
         salt_file = tmp_path / ".sanitizer_salt"
 
-        with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        with isolated_redactor_salt(salt_file):
             redactor = DeterministicRedactor()
 
             result1 = redactor.redact("secret", "password")
@@ -64,7 +94,7 @@ class TestDeterministicRedactor:
         """Can detect redacted values."""
         salt_file = tmp_path / ".sanitizer_salt"
 
-        with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        with isolated_redactor_salt(salt_file):
             redactor = DeterministicRedactor()
 
             redacted = redactor.redact("secret", "field")
@@ -77,7 +107,7 @@ class TestDeterministicRedactor:
         """Salt file created with secure permissions."""
         salt_file = tmp_path / ".sanitizer_salt"
 
-        with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        with isolated_redactor_salt(salt_file):
             _redactor = DeterministicRedactor()  # noqa: F841 - triggers salt creation
 
             assert salt_file.exists()
@@ -88,7 +118,7 @@ class TestDeterministicRedactor:
         """Can extract hash from redacted value."""
         salt_file = tmp_path / ".sanitizer_salt"
 
-        with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        with isolated_redactor_salt(salt_file):
             redactor = DeterministicRedactor()
 
             redacted = redactor.redact("secret", "password")
@@ -101,7 +131,7 @@ class TestDeterministicRedactor:
         """Empty values are not redacted."""
         salt_file = tmp_path / ".sanitizer_salt"
 
-        with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        with isolated_redactor_salt(salt_file):
             redactor = DeterministicRedactor()
 
             assert redactor.redact("", "field") == ""
@@ -111,13 +141,48 @@ class TestDeterministicRedactor:
         """Already redacted values are not double-redacted."""
         salt_file = tmp_path / ".sanitizer_salt"
 
-        with patch.object(DeterministicRedactor, "SALT_FILE", salt_file):
+        with isolated_redactor_salt(salt_file):
             redactor = DeterministicRedactor()
 
             redacted = redactor.redact("secret", "field")
             double_redacted = redactor.redact(redacted, "field")
 
             assert redacted == double_redacted
+
+    def test_concurrent_salt_creation(self, tmp_path: Path) -> None:
+        """Multiple threads creating redactors simultaneously should be safe."""
+        import concurrent.futures
+
+        salt_file = tmp_path / ".sanitizer_salt"
+        results: list[str] = []
+        errors: list[Exception] = []
+
+        def create_and_redact() -> str:
+            """Create a redactor and redact a value."""
+            try:
+                redactor = DeterministicRedactor()
+                return redactor.redact("test-value", "password")
+            except Exception as e:
+                errors.append(e)
+                raise
+
+        with isolated_redactor_salt(salt_file):
+            # Run 10 concurrent threads all trying to create redactors
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(create_and_redact) for _ in range(10)]
+                for future in concurrent.futures.as_completed(futures):
+                    result = future.result()  # Will raise if thread failed
+                    results.append(result)
+
+        # No errors should have occurred
+        assert len(errors) == 0, f"Concurrent creation errors: {errors}"
+
+        # All results should be identical (same salt used)
+        assert len(results) == 10
+        assert all(r == results[0] for r in results), "All redactions should be identical"
+
+        # Salt file should exist
+        assert salt_file.exists()
 
 
 class TestSensitivePatternLibrary:
