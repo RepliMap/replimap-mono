@@ -159,27 +159,41 @@ class SmartAggregator:
         id_mapping: dict[str, str] = {}  # old_id -> new_id
 
         for resource_type, type_nodes in by_type.items():
+            # Separate already-grouped nodes from individual nodes
+            # Don't re-aggregate nodes that are already groups (from GraphBuilder)
+            already_grouped = [n for n in type_nodes if n.get("is_group")]
+            individual_nodes = [n for n in type_nodes if not n.get("is_group")]
+
+            # Keep already-grouped nodes as-is (they have their own member_ids)
+            for n in already_grouped:
+                result_nodes.append(n)
+                id_mapping[n["id"]] = n["id"]
+
+            # Only consider individual nodes for aggregation
+            if not individual_nodes:
+                continue
+
             if resource_type in self.config.never_aggregate:
                 # Keep individual nodes
-                result_nodes.extend(type_nodes)
-                for n in type_nodes:
+                result_nodes.extend(individual_nodes)
+                for n in individual_nodes:
                     id_mapping[n["id"]] = n["id"]
             elif (
                 resource_type in self.config.always_aggregate
-                or len(type_nodes) > self.config.max_visible_per_type
+                or len(individual_nodes) > self.config.max_visible_per_type
             ):
                 # Aggregate by VPC
-                aggregated = self._aggregate_by_vpc(type_nodes, vpc_map)
+                aggregated = self._aggregate_by_vpc(individual_nodes, vpc_map)
                 result_nodes.extend(aggregated)
                 # Map individual IDs to aggregated nodes
-                for n in type_nodes:
+                for n in individual_nodes:
                     vpc_id = vpc_map.get(n["id"])
                     agg_id = self._get_aggregation_id(resource_type, vpc_id)
                     id_mapping[n["id"]] = agg_id
             else:
                 # Keep individual nodes
-                result_nodes.extend(type_nodes)
-                for n in type_nodes:
+                result_nodes.extend(individual_nodes)
+                for n in individual_nodes:
                     id_mapping[n["id"]] = n["id"]
 
         # Update links with validation against output nodes

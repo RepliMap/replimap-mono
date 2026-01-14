@@ -186,7 +186,10 @@ def unused_command(
         )
 
         async def run_detection():
-            return await detector.scan(graph, check_metrics=True)
+            try:
+                return await detector.scan(graph, check_metrics=True)
+            finally:
+                await detector.close()
 
         report = asyncio.run(run_detection())
         unused_resources = report.unused_resources

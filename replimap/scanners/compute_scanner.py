@@ -15,7 +15,7 @@ from botocore.exceptions import ClientError
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 from replimap.core.rate_limiter import rate_limited_paginate
 
-from .base import BaseScanner, ScannerRegistry
+from .base import BaseScanner, ScannerRegistry, parallel_process_items
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -83,232 +83,290 @@ class ComputeScanner(BaseScanner):
         logger.debug("Scanning Launch Templates...")
         ec2 = self.get_client("ec2")
 
+        # Collect all launch templates first
+        templates_to_process: list[dict[str, Any]] = []
         paginator = ec2.get_paginator("describe_launch_templates")
         for page in rate_limited_paginate("ec2", self.region)(paginator.paginate()):
-            for lt in page.get("LaunchTemplates", []):
-                lt_id = lt["LaunchTemplateId"]
-                lt_name = lt["LaunchTemplateName"]
-                tags = self._extract_tags(lt.get("Tags"))
+            templates_to_process.extend(page.get("LaunchTemplates", []))
 
-                # Get latest version details
-                version_resp = ec2.describe_launch_template_versions(
-                    LaunchTemplateId=lt_id,
-                    Versions=["$Latest"],
-                )
-                versions = version_resp.get("LaunchTemplateVersions", [])
-                lt_data = versions[0].get("LaunchTemplateData", {}) if versions else {}
+        if not templates_to_process:
+            return
 
-                # Extract security group IDs
-                sg_ids = lt_data.get("SecurityGroupIds", [])
-                network_interfaces = lt_data.get("NetworkInterfaces", [])
-                for ni in network_interfaces:
-                    sg_ids.extend(ni.get("Groups", []))
+        # Process templates in parallel (version fetching is the bottleneck)
+        results, failures = parallel_process_items(
+            items=templates_to_process,
+            processor=lambda lt: self._process_launch_template(lt, ec2, graph),
+            description="Launch Templates",
+        )
 
-                node = ResourceNode(
-                    id=lt_id,
-                    resource_type=ResourceType.LAUNCH_TEMPLATE,
-                    region=self.region,
-                    config={
-                        "name": lt_name,
-                        "default_version": lt.get("DefaultVersionNumber"),
-                        "latest_version": lt.get("LatestVersionNumber"),
-                        "instance_type": lt_data.get("InstanceType"),
-                        "image_id": lt_data.get("ImageId"),
-                        "key_name": lt_data.get("KeyName"),
-                        "security_group_ids": list(set(sg_ids)),
-                        "iam_instance_profile": lt_data.get("IamInstanceProfile", {}),
-                        "user_data": lt_data.get("UserData"),
-                        "block_device_mappings": lt_data.get("BlockDeviceMappings", []),
-                        "network_interfaces": network_interfaces,
-                        "monitoring": lt_data.get("Monitoring", {}),
-                    },
-                    arn=f"arn:aws:ec2:{self.region}::launch-template/{lt_id}",
-                    tags=tags,
+        if failures:
+            for lt, error in failures:
+                logger.warning(
+                    f"Failed to process launch template {lt.get('LaunchTemplateName')}: {error}"
                 )
 
-                graph.add_resource(node)
+    def _process_launch_template(
+        self, lt: dict[str, Any], ec2: Any, graph: GraphEngine
+    ) -> bool:
+        """Process a single Launch Template."""
+        lt_id = lt["LaunchTemplateId"]
+        lt_name = lt["LaunchTemplateName"]
+        tags = self._extract_tags(lt.get("Tags"))
 
-                # Add dependencies on security groups
-                for sg_id in sg_ids:
-                    if graph.get_resource(sg_id):
-                        graph.add_dependency(lt_id, sg_id, DependencyType.USES)
+        # Get latest version details
+        version_resp = ec2.describe_launch_template_versions(
+            LaunchTemplateId=lt_id,
+            Versions=["$Latest"],
+        )
+        versions = version_resp.get("LaunchTemplateVersions", [])
+        lt_data = versions[0].get("LaunchTemplateData", {}) if versions else {}
 
-                logger.debug(f"Added Launch Template: {lt_name}")
+        # Extract security group IDs
+        sg_ids = lt_data.get("SecurityGroupIds", [])
+        network_interfaces = lt_data.get("NetworkInterfaces", [])
+        for ni in network_interfaces:
+            sg_ids.extend(ni.get("Groups", []))
+
+        node = ResourceNode(
+            id=lt_id,
+            resource_type=ResourceType.LAUNCH_TEMPLATE,
+            region=self.region,
+            config={
+                "name": lt_name,
+                "default_version": lt.get("DefaultVersionNumber"),
+                "latest_version": lt.get("LatestVersionNumber"),
+                "instance_type": lt_data.get("InstanceType"),
+                "image_id": lt_data.get("ImageId"),
+                "key_name": lt_data.get("KeyName"),
+                "security_group_ids": list(set(sg_ids)),
+                "iam_instance_profile": lt_data.get("IamInstanceProfile", {}),
+                "user_data": lt_data.get("UserData"),
+                "block_device_mappings": lt_data.get("BlockDeviceMappings", []),
+                "network_interfaces": network_interfaces,
+                "monitoring": lt_data.get("Monitoring", {}),
+            },
+            arn=f"arn:aws:ec2:{self.region}::launch-template/{lt_id}",
+            tags=tags,
+        )
+
+        graph.add_resource(node)
+
+        # Add dependencies on security groups
+        for sg_id in sg_ids:
+            if graph.get_resource(sg_id):
+                graph.add_dependency(lt_id, sg_id, DependencyType.USES)
+
+        logger.debug(f"Added Launch Template: {lt_name}")
+        return True
 
     def _scan_target_groups(self, graph: GraphEngine) -> None:
         """Scan all Target Groups in the region."""
         logger.debug("Scanning Target Groups...")
         elbv2 = self.get_client("elbv2")
 
+        # Collect all target groups first
+        target_groups_to_process: list[dict[str, Any]] = []
         paginator = elbv2.get_paginator("describe_target_groups")
         for page in rate_limited_paginate("elbv2", self.region)(paginator.paginate()):
-            for tg in page.get("TargetGroups", []):
-                tg_arn = tg["TargetGroupArn"]
-                tg_name = tg["TargetGroupName"]
-                vpc_id = tg.get("VpcId")
+            target_groups_to_process.extend(page.get("TargetGroups", []))
 
-                # Get tags
-                tags_resp = elbv2.describe_tags(ResourceArns=[tg_arn])
-                tags = {}
-                for tag_desc in tags_resp.get("TagDescriptions", []):
-                    if tag_desc["ResourceArn"] == tg_arn:
-                        tags = self._extract_tags(tag_desc.get("Tags"))
+        if not target_groups_to_process:
+            return
 
-                # Get registered targets for this target group
-                targets: list[dict[str, Any]] = []
-                try:
-                    target_health_resp = elbv2.describe_target_health(
-                        TargetGroupArn=tg_arn
-                    )
-                    for th in target_health_resp.get("TargetHealthDescriptions", []):
-                        target = th.get("Target", {})
-                        targets.append(
-                            {
-                                "id": target.get("Id"),
-                                "port": target.get("Port"),
-                                "availability_zone": target.get("AvailabilityZone"),
-                                "health_state": th.get("TargetHealth", {}).get("State"),
-                            }
-                        )
-                except ClientError as e:
-                    logger.debug(f"Could not get targets for {tg_name}: {e}")
+        # Process target groups in parallel (tag/health fetching is the bottleneck)
+        results, failures = parallel_process_items(
+            items=target_groups_to_process,
+            processor=lambda tg: self._process_target_group(tg, elbv2, graph),
+            description="Target Groups",
+        )
 
-                node = ResourceNode(
-                    id=tg_arn,
-                    resource_type=ResourceType.LB_TARGET_GROUP,
-                    region=self.region,
-                    config={
-                        "name": tg_name,
-                        "vpc_id": vpc_id,
-                        "protocol": tg.get("Protocol"),
-                        "port": tg.get("Port"),
-                        "target_type": tg.get("TargetType"),
-                        "targets": targets,
-                        "health_check": {
-                            "enabled": tg.get("HealthCheckEnabled"),
-                            "protocol": tg.get("HealthCheckProtocol"),
-                            "port": tg.get("HealthCheckPort"),
-                            "path": tg.get("HealthCheckPath"),
-                            "interval_seconds": tg.get("HealthCheckIntervalSeconds"),
-                            "timeout_seconds": tg.get("HealthCheckTimeoutSeconds"),
-                            "healthy_threshold": tg.get("HealthyThresholdCount"),
-                            "unhealthy_threshold": tg.get("UnhealthyThresholdCount"),
-                            "matcher": tg.get("Matcher"),
-                        },
-                        "load_balancing_algorithm_type": tg.get(
-                            "LoadBalancingAlgorithmType"
-                        ),
-                    },
-                    arn=tg_arn,
-                    tags=tags,
+        if failures:
+            for tg, error in failures:
+                logger.warning(
+                    f"Failed to process target group {tg.get('TargetGroupName')}: {error}"
                 )
 
-                graph.add_resource(node)
+    def _process_target_group(
+        self, tg: dict[str, Any], elbv2: Any, graph: GraphEngine
+    ) -> bool:
+        """Process a single Target Group."""
+        tg_arn = tg["TargetGroupArn"]
+        tg_name = tg["TargetGroupName"]
+        vpc_id = tg.get("VpcId")
 
-                # Establish dependency: Target Group -> VPC
-                if vpc_id and graph.get_resource(vpc_id):
-                    graph.add_dependency(tg_arn, vpc_id, DependencyType.BELONGS_TO)
+        # Get tags
+        tags_resp = elbv2.describe_tags(ResourceArns=[tg_arn])
+        tags = {}
+        for tag_desc in tags_resp.get("TagDescriptions", []):
+            if tag_desc["ResourceArn"] == tg_arn:
+                tags = self._extract_tags(tag_desc.get("Tags"))
 
-                logger.debug(f"Added Target Group: {tg_name}")
+        # Get registered targets for this target group
+        targets: list[dict[str, Any]] = []
+        try:
+            target_health_resp = elbv2.describe_target_health(TargetGroupArn=tg_arn)
+            for th in target_health_resp.get("TargetHealthDescriptions", []):
+                target = th.get("Target", {})
+                targets.append(
+                    {
+                        "id": target.get("Id"),
+                        "port": target.get("Port"),
+                        "availability_zone": target.get("AvailabilityZone"),
+                        "health_state": th.get("TargetHealth", {}).get("State"),
+                    }
+                )
+        except ClientError as e:
+            logger.debug(f"Could not get targets for {tg_name}: {e}")
+
+        node = ResourceNode(
+            id=tg_arn,
+            resource_type=ResourceType.LB_TARGET_GROUP,
+            region=self.region,
+            config={
+                "name": tg_name,
+                "vpc_id": vpc_id,
+                "protocol": tg.get("Protocol"),
+                "port": tg.get("Port"),
+                "target_type": tg.get("TargetType"),
+                "targets": targets,
+                "health_check": {
+                    "enabled": tg.get("HealthCheckEnabled"),
+                    "protocol": tg.get("HealthCheckProtocol"),
+                    "port": tg.get("HealthCheckPort"),
+                    "path": tg.get("HealthCheckPath"),
+                    "interval_seconds": tg.get("HealthCheckIntervalSeconds"),
+                    "timeout_seconds": tg.get("HealthCheckTimeoutSeconds"),
+                    "healthy_threshold": tg.get("HealthyThresholdCount"),
+                    "unhealthy_threshold": tg.get("UnhealthyThresholdCount"),
+                    "matcher": tg.get("Matcher"),
+                },
+                "load_balancing_algorithm_type": tg.get("LoadBalancingAlgorithmType"),
+            },
+            arn=tg_arn,
+            tags=tags,
+        )
+
+        graph.add_resource(node)
+
+        # Establish dependency: Target Group -> VPC
+        if vpc_id and graph.get_resource(vpc_id):
+            graph.add_dependency(tg_arn, vpc_id, DependencyType.BELONGS_TO)
+
+        logger.debug(f"Added Target Group: {tg_name}")
+        return True
 
     def _scan_load_balancers(self, graph: GraphEngine) -> None:
         """Scan all Application and Network Load Balancers in the region."""
         logger.debug("Scanning Load Balancers...")
         elbv2 = self.get_client("elbv2")
 
+        # Collect all load balancers first
+        load_balancers_to_process: list[dict[str, Any]] = []
         paginator = elbv2.get_paginator("describe_load_balancers")
         for page in rate_limited_paginate("elbv2", self.region)(paginator.paginate()):
-            for lb in page.get("LoadBalancers", []):
-                lb_arn = lb["LoadBalancerArn"]
-                lb_name = lb["LoadBalancerName"]
-                vpc_id = lb.get("VpcId")
+            load_balancers_to_process.extend(page.get("LoadBalancers", []))
 
-                # Get tags
-                tags_resp = elbv2.describe_tags(ResourceArns=[lb_arn])
-                tags = {}
-                for tag_desc in tags_resp.get("TagDescriptions", []):
-                    if tag_desc["ResourceArn"] == lb_arn:
-                        tags = self._extract_tags(tag_desc.get("Tags"))
+        if not load_balancers_to_process:
+            return
 
-                # Get LB attributes (access_logs, deletion_protection, etc.)
-                lb_attributes: dict[str, Any] = {}
-                try:
-                    attrs_resp = elbv2.describe_load_balancer_attributes(
-                        LoadBalancerArn=lb_arn
-                    )
-                    for attr in attrs_resp.get("Attributes", []):
-                        lb_attributes[attr["Key"]] = attr["Value"]
-                except ClientError as e:
-                    logger.debug(f"Could not get LB attributes for {lb_name}: {e}")
+        # Process load balancers in parallel (tag/attribute fetching is the bottleneck)
+        results, failures = parallel_process_items(
+            items=load_balancers_to_process,
+            processor=lambda lb: self._process_load_balancer(lb, elbv2, graph),
+            description="Load Balancers",
+        )
 
-                # Extract subnet IDs and security groups
-                subnet_ids = [az["SubnetId"] for az in lb.get("AvailabilityZones", [])]
-                sg_ids = lb.get("SecurityGroups", [])
-
-                node = ResourceNode(
-                    id=lb_arn,
-                    resource_type=ResourceType.LB,
-                    region=self.region,
-                    config={
-                        "name": lb_name,
-                        "vpc_id": vpc_id,
-                        "type": lb.get("Type"),
-                        "scheme": lb.get("Scheme"),
-                        "dns_name": lb.get("DNSName"),
-                        "ip_address_type": lb.get("IpAddressType"),
-                        "subnet_ids": subnet_ids,
-                        "security_group_ids": sg_ids,
-                        "availability_zones": [
-                            {
-                                "zone_name": az["ZoneName"],
-                                "subnet_id": az["SubnetId"],
-                            }
-                            for az in lb.get("AvailabilityZones", [])
-                        ],
-                        # Security-relevant attributes
-                        "access_logs_enabled": lb_attributes.get(
-                            "access_logs.s3.enabled", "false"
-                        )
-                        == "true",
-                        "access_logs_bucket": lb_attributes.get(
-                            "access_logs.s3.bucket", ""
-                        ),
-                        "access_logs_prefix": lb_attributes.get(
-                            "access_logs.s3.prefix", ""
-                        ),
-                        "deletion_protection_enabled": lb_attributes.get(
-                            "deletion_protection.enabled", "false"
-                        )
-                        == "true",
-                        "drop_invalid_header_fields": lb_attributes.get(
-                            "routing.http.drop_invalid_header_fields.enabled", "false"
-                        )
-                        == "true",
-                        "idle_timeout": lb_attributes.get(
-                            "idle_timeout.timeout_seconds", "60"
-                        ),
-                    },
-                    arn=lb_arn,
-                    tags=tags,
+        if failures:
+            for lb, error in failures:
+                logger.warning(
+                    f"Failed to process load balancer {lb.get('LoadBalancerName')}: {error}"
                 )
 
-                graph.add_resource(node)
+    def _process_load_balancer(
+        self, lb: dict[str, Any], elbv2: Any, graph: GraphEngine
+    ) -> bool:
+        """Process a single Load Balancer."""
+        lb_arn = lb["LoadBalancerArn"]
+        lb_name = lb["LoadBalancerName"]
+        vpc_id = lb.get("VpcId")
 
-                # Establish dependencies
-                if vpc_id and graph.get_resource(vpc_id):
-                    graph.add_dependency(lb_arn, vpc_id, DependencyType.BELONGS_TO)
+        # Get tags
+        tags_resp = elbv2.describe_tags(ResourceArns=[lb_arn])
+        tags = {}
+        for tag_desc in tags_resp.get("TagDescriptions", []):
+            if tag_desc["ResourceArn"] == lb_arn:
+                tags = self._extract_tags(tag_desc.get("Tags"))
 
-                for subnet_id in subnet_ids:
-                    if graph.get_resource(subnet_id):
-                        graph.add_dependency(
-                            lb_arn, subnet_id, DependencyType.BELONGS_TO
-                        )
+        # Get LB attributes (access_logs, deletion_protection, etc.)
+        lb_attributes: dict[str, Any] = {}
+        try:
+            attrs_resp = elbv2.describe_load_balancer_attributes(LoadBalancerArn=lb_arn)
+            for attr in attrs_resp.get("Attributes", []):
+                lb_attributes[attr["Key"]] = attr["Value"]
+        except ClientError as e:
+            logger.debug(f"Could not get LB attributes for {lb_name}: {e}")
 
-                for sg_id in sg_ids:
-                    if graph.get_resource(sg_id):
-                        graph.add_dependency(lb_arn, sg_id, DependencyType.USES)
+        # Extract subnet IDs and security groups
+        subnet_ids = [az["SubnetId"] for az in lb.get("AvailabilityZones", [])]
+        sg_ids = lb.get("SecurityGroups", [])
 
-                logger.debug(f"Added Load Balancer: {lb_name} ({lb.get('Type')})")
+        node = ResourceNode(
+            id=lb_arn,
+            resource_type=ResourceType.LB,
+            region=self.region,
+            config={
+                "name": lb_name,
+                "vpc_id": vpc_id,
+                "type": lb.get("Type"),
+                "scheme": lb.get("Scheme"),
+                "dns_name": lb.get("DNSName"),
+                "ip_address_type": lb.get("IpAddressType"),
+                "subnet_ids": subnet_ids,
+                "security_group_ids": sg_ids,
+                "availability_zones": [
+                    {
+                        "zone_name": az["ZoneName"],
+                        "subnet_id": az["SubnetId"],
+                    }
+                    for az in lb.get("AvailabilityZones", [])
+                ],
+                # Security-relevant attributes
+                "access_logs_enabled": lb_attributes.get(
+                    "access_logs.s3.enabled", "false"
+                )
+                == "true",
+                "access_logs_bucket": lb_attributes.get("access_logs.s3.bucket", ""),
+                "access_logs_prefix": lb_attributes.get("access_logs.s3.prefix", ""),
+                "deletion_protection_enabled": lb_attributes.get(
+                    "deletion_protection.enabled", "false"
+                )
+                == "true",
+                "drop_invalid_header_fields": lb_attributes.get(
+                    "routing.http.drop_invalid_header_fields.enabled", "false"
+                )
+                == "true",
+                "idle_timeout": lb_attributes.get("idle_timeout.timeout_seconds", "60"),
+            },
+            arn=lb_arn,
+            tags=tags,
+        )
+
+        graph.add_resource(node)
+
+        # Establish dependencies
+        if vpc_id and graph.get_resource(vpc_id):
+            graph.add_dependency(lb_arn, vpc_id, DependencyType.BELONGS_TO)
+
+        for subnet_id in subnet_ids:
+            if graph.get_resource(subnet_id):
+                graph.add_dependency(lb_arn, subnet_id, DependencyType.BELONGS_TO)
+
+        for sg_id in sg_ids:
+            if graph.get_resource(sg_id):
+                graph.add_dependency(lb_arn, sg_id, DependencyType.USES)
+
+        logger.debug(f"Added Load Balancer: {lb_name} ({lb.get('Type')})")
+        return True
 
     def _scan_listeners(self, graph: GraphEngine) -> None:
         """Scan all Load Balancer Listeners in the region."""

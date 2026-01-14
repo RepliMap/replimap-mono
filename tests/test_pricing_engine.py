@@ -554,14 +554,14 @@ class TestDataTransferAnalyzer:
 
     def test_create_analyzer(self) -> None:
         """Test creating analyzer."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         assert analyzer.region == "ap-southeast-2"
         assert analyzer.currency == Currency.USD
 
     def test_analyze_paths(self) -> None:
         """Test analyzing transfer paths."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         paths = [
             TransferPath(
@@ -587,7 +587,7 @@ class TestDataTransferAnalyzer:
 
     def test_analyze_nat_gateway(self) -> None:
         """Test NAT Gateway analysis."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         cost = analyzer.analyze_nat_gateway(
             {"id": "nat-1234", "region": "ap-southeast-2"},
@@ -600,7 +600,7 @@ class TestDataTransferAnalyzer:
 
     def test_nat_gateway_optimization(self) -> None:
         """Test NAT Gateway optimization suggestions."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         cost = analyzer.analyze_nat_gateway(
             {"id": "nat-1234", "region": "ap-southeast-2"},
@@ -613,7 +613,7 @@ class TestDataTransferAnalyzer:
 
     def test_analyze_internet_egress(self) -> None:
         """Test internet egress analysis."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         cost = analyzer.analyze_internet_egress(
             "i-1234",
@@ -627,7 +627,7 @@ class TestDataTransferAnalyzer:
 
     def test_cloudfront_optimization_suggestion(self) -> None:
         """Test CloudFront optimization for high egress."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         cost = analyzer.analyze_internet_egress(
             "i-1234",
@@ -642,7 +642,7 @@ class TestDataTransferAnalyzer:
 
     def test_analyze_cross_region(self) -> None:
         """Test cross-region transfer analysis."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         cost = analyzer.analyze_cross_region(
             {"id": "i-1234", "type": "aws_instance", "region": "ap-southeast-2"},
@@ -655,7 +655,7 @@ class TestDataTransferAnalyzer:
 
     def test_detect_cross_az_traffic(self) -> None:
         """Test cross-AZ traffic detection."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         resources = [
             {
@@ -687,7 +687,7 @@ class TestDataTransferAnalyzer:
 
     def test_vpc_endpoint_recommendation(self) -> None:
         """Test VPC Endpoint recommendation."""
-        analyzer = DataTransferAnalyzer("ap-southeast-2")
+        analyzer = DataTransferAnalyzer(region="ap-southeast-2")
 
         recommendation = analyzer.get_vpc_endpoint_recommendation(
             nat_monthly_cost=Decimal("500"),

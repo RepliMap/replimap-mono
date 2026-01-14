@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 from replimap.core.rate_limiter import rate_limited_paginate
-from replimap.scanners.base import BaseScanner, ScannerRegistry
+from replimap.scanners.base import BaseScanner, ScannerRegistry, parallel_process_items
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -40,18 +40,31 @@ class CloudWatchLogGroupScanner(BaseScanner):
         logger.info(f"Scanning CloudWatch Log Groups in {self.region}...")
 
         logs = self.get_client("logs")
-        log_group_count = 0
 
         try:
+            # First, collect all log groups from pagination
+            log_groups_to_process: list[dict[str, Any]] = []
             paginator = logs.get_paginator("describe_log_groups")
             for page in rate_limited_paginate("cloudwatch", self.region)(
                 paginator.paginate()
             ):
-                for log_group in page.get("logGroups", []):
-                    if self._process_log_group(log_group, logs, graph):
-                        log_group_count += 1
+                log_groups_to_process.extend(page.get("logGroups", []))
 
+            # Process log groups in parallel (tag fetching is the bottleneck)
+            results, failures = parallel_process_items(
+                items=log_groups_to_process,
+                processor=lambda lg: self._process_log_group(lg, logs, graph),
+                description="CloudWatch Log Groups",
+            )
+
+            log_group_count = sum(1 for r in results if r)
             logger.info(f"Scanned {log_group_count} CloudWatch Log Groups")
+
+            if failures:
+                for lg, error in failures:
+                    logger.warning(
+                        f"Failed to process log group {lg.get('logGroupName')}: {error}"
+                    )
 
         except ClientError as e:
             self._handle_aws_error(e, "describe_log_groups")
@@ -70,6 +83,9 @@ class CloudWatchLogGroupScanner(BaseScanner):
             return False
 
         # Get tags for this log group
+        # Note: When sharing boto3 clients across threads, connection pool
+        # contention can sometimes cause transient errors. We catch broadly
+        # here to ensure a single tag fetch failure doesn't fail the entire log group.
         tags = {}
         try:
             # Note: list_tags_log_group is not paginated
@@ -77,6 +93,12 @@ class CloudWatchLogGroupScanner(BaseScanner):
             tags = tags_response.get("tags", {})
         except ClientError as e:
             logger.debug(f"Could not get tags for log group {log_group_name}: {e}")
+        except Exception as e:
+            # Catch broader exceptions (e.g., connection pool issues) to avoid
+            # failing the entire log group processing for a tag fetch failure
+            logger.debug(
+                f"Could not get tags for log group {log_group_name}: {type(e).__name__}: {e}"
+            )
 
         # Build config
         config = {
@@ -130,16 +152,33 @@ class CloudWatchMetricAlarmScanner(BaseScanner):
         logger.info(f"Scanning CloudWatch Metric Alarms in {self.region}...")
 
         cloudwatch = self.get_client("cloudwatch")
-        alarm_count = 0
 
         try:
+            # Collect all alarms first
+            alarms_to_process: list[dict[str, Any]] = []
             paginator = cloudwatch.get_paginator("describe_alarms")
             for page in paginator.paginate(AlarmTypes=["MetricAlarm"]):
-                for alarm in page.get("MetricAlarms", []):
-                    if self._process_alarm(alarm, cloudwatch, graph):
-                        alarm_count += 1
+                alarms_to_process.extend(page.get("MetricAlarms", []))
 
+            if not alarms_to_process:
+                logger.info("No CloudWatch Metric Alarms found")
+                return
+
+            # Process alarms in parallel (tag fetching is the bottleneck)
+            results, failures = parallel_process_items(
+                items=alarms_to_process,
+                processor=lambda alarm: self._process_alarm(alarm, cloudwatch, graph),
+                description="CloudWatch Metric Alarms",
+            )
+
+            alarm_count = sum(1 for r in results if r)
             logger.info(f"Scanned {alarm_count} CloudWatch Metric Alarms")
+
+            if failures:
+                for alarm, error in failures:
+                    logger.warning(
+                        f"Failed to process alarm {alarm.get('AlarmName')}: {error}"
+                    )
 
         except ClientError as e:
             self._handle_aws_error(e, "describe_alarms")
@@ -158,6 +197,9 @@ class CloudWatchMetricAlarmScanner(BaseScanner):
             return False
 
         # Get tags for this alarm
+        # Note: When sharing boto3 clients across threads, connection pool
+        # contention can sometimes cause transient errors. We catch broadly
+        # here to ensure a single tag fetch failure doesn't fail the entire alarm.
         tags = {}
         try:
             tags_response = cloudwatch_client.list_tags_for_resource(
@@ -167,6 +209,12 @@ class CloudWatchMetricAlarmScanner(BaseScanner):
                 tags[tag["Key"]] = tag["Value"]
         except ClientError as e:
             logger.debug(f"Could not get tags for alarm {alarm_name}: {e}")
+        except Exception as e:
+            # Catch broader exceptions (e.g., connection pool issues) to avoid
+            # failing the entire alarm processing for a tag fetch failure
+            logger.debug(
+                f"Could not get tags for alarm {alarm_name}: {type(e).__name__}: {e}"
+            )
 
         # Extract dimension info
         dimensions = []

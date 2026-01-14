@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
+from replimap.core.sanitizer import sanitize_resource_config
 
 from .base import Edge, Node
 from .engine import UnifiedGraphEngine
@@ -230,9 +231,20 @@ class GraphEngineAdapter:
         If a resource with the same ID already exists, it will be updated.
         Thread-safe: uses internal lock for concurrent access.
 
+        Security: Config is sanitized BEFORE storage to prevent sensitive
+        data (passwords, API keys, UserData) from being persisted to cache.
+
         Args:
             node: The ResourceNode to add
         """
+        # SECURITY: Sanitize config BEFORE locking and storage
+        # This runs outside the lock to minimize contention (regex is expensive)
+        if node.config:
+            sanitized_config = sanitize_resource_config(node.config)
+            # Update config in-place (dict is mutable)
+            node.config.clear()
+            node.config.update(sanitized_config)
+
         # Convert and store
         unified_node = resource_node_to_node(node)
 
@@ -357,15 +369,33 @@ class GraphEngineAdapter:
         """Get a resource by its ID."""
         # Check cache first
         if resource_id in self._resource_cache:
-            return self._resource_cache[resource_id]
+            resource = self._resource_cache[resource_id]
+            # Ensure dependencies are populated (cache may have been populated
+            # by iter_resources() which doesn't load dependencies)
+            self._ensure_dependencies_loaded(resource)
+            return resource
 
         node = self._engine.get_node(resource_id)
         if node is None:
             return None
 
         resource = node_to_resource_node(node)
+
+        # Populate dependencies from edges (edges are stored separately in SQLite)
+        self._ensure_dependencies_loaded(resource)
+
         self._resource_cache[resource_id] = resource
         return resource
+
+    def _ensure_dependencies_loaded(self, resource: ResourceNode) -> None:
+        """Ensure a resource has its dependencies populated from edges."""
+        # Only load if dependencies list is empty (avoid duplicate loading)
+        # This works because scanners always create at least one dependency edge
+        # if a resource has dependencies, so empty list means not loaded yet
+        if not resource.dependencies:
+            for edge in self._engine.get_edges_from(resource.id):
+                if edge.target_id not in resource.dependencies:
+                    resource.dependencies.append(edge.target_id)
 
     def get_all_resources(self) -> list[ResourceNode]:
         """Get all resources in the graph."""
@@ -377,7 +407,32 @@ class GraphEngineAdapter:
                 resource = node_to_resource_node(node)
                 self._resource_cache[node.id] = resource
                 resources.append(resource)
+
+        # Populate dependencies from edges (edges are stored separately in SQLite)
+        # This is needed because node_to_resource_node gets dependencies from
+        # node.attributes which may be empty when loaded from cache
+        self._populate_dependencies_from_edges(resources)
+
         return resources
+
+    def _populate_dependencies_from_edges(self, resources: list[ResourceNode]) -> None:
+        """Populate resource dependencies from edges stored in SQLite."""
+        # For small resource lists, query edges per resource (more efficient)
+        # For large lists, scan all edges once
+        if len(resources) < 50:
+            for resource in resources:
+                self._ensure_dependencies_loaded(resource)
+        else:
+            # Build a lookup for quick access
+            resource_map = {r.id: r for r in resources}
+
+            # Get all edges and populate dependencies
+            for edge in self._engine.get_all_edges():
+                source_resource = resource_map.get(edge.source_id)
+                if source_resource is not None:
+                    # Add target to dependencies if not already present
+                    if edge.target_id not in source_resource.dependencies:
+                        source_resource.dependencies.append(edge.target_id)
 
     def get_resources_by_type(self, resource_type: ResourceType) -> list[ResourceNode]:
         """Get all resources of a specific type."""
@@ -390,25 +445,51 @@ class GraphEngineAdapter:
                 resource = node_to_resource_node(node)
                 self._resource_cache[node.id] = resource
                 resources.append(resource)
+
+        # Populate dependencies from edges for all returned resources
+        self._populate_dependencies_from_edges(resources)
+
         return resources
 
     def get_dependencies(self, resource_id: str) -> list[ResourceNode]:
         """Get all resources that this resource depends on."""
         nodes = self._engine.get_dependencies(resource_id, recursive=False)
-        return [self.get_resource(n.id) or node_to_resource_node(n) for n in nodes]
+        resources = []
+        for n in nodes:
+            resource = self.get_resource(n.id)
+            if resource is None:
+                # Fallback: create from node and populate dependencies
+                resource = node_to_resource_node(n)
+                self._ensure_dependencies_loaded(resource)
+                self._resource_cache[n.id] = resource
+            resources.append(resource)
+        return resources
 
     def get_dependents(self, resource_id: str) -> list[ResourceNode]:
         """Get all resources that depend on this resource."""
         nodes = self._engine.get_dependents(resource_id, recursive=False)
-        return [self.get_resource(n.id) or node_to_resource_node(n) for n in nodes]
+        resources = []
+        for n in nodes:
+            resource = self.get_resource(n.id)
+            if resource is None:
+                # Fallback: create from node and populate dependencies
+                resource = node_to_resource_node(n)
+                self._ensure_dependencies_loaded(resource)
+                self._resource_cache[n.id] = resource
+            resources.append(resource)
+        return resources
 
     def get_phantom_nodes(self) -> list[ResourceNode]:
         """Get all phantom nodes in the graph."""
-        return [
+        resources = [
             self._resource_cache[pid]
             for pid in self._phantom_nodes
             if pid in self._resource_cache
         ]
+        # Ensure dependencies are loaded for all phantom nodes
+        for resource in resources:
+            self._ensure_dependencies_loaded(resource)
+        return resources
 
     def is_phantom(self, resource_id: str) -> bool:
         """Check if a resource is a phantom node."""
@@ -441,7 +522,10 @@ class GraphEngineAdapter:
         # Fallback - shouldn't happen normally
         node = self._engine.get_node(resource_id)
         if node:
-            return node_to_resource_node(node)
+            resource = node_to_resource_node(node)
+            self._ensure_dependencies_loaded(resource)
+            self._resource_cache[node.id] = resource
+            return resource
         raise ValueError(f"Resource not found: {resource_id}")
 
     def has_cycles(self) -> bool:
@@ -479,8 +563,19 @@ class GraphEngineAdapter:
         """
         Get topologically sorted node order, handling cycles safely.
 
+        Unlike topological_sort(), this method:
+        1. Detects strongly connected components (cycles)
+        2. Collapses cycles into "super-nodes" for ordering
+        3. Returns nodes in a valid dependency order
+        4. Nodes within a cycle are returned in arbitrary order
+
         This never raises an exception for cyclic graphs.
+
+        Returns:
+            List of ResourceNodes in safe dependency order
         """
+        import networkx as nx
+
         scc_result = self.find_strongly_connected_components()
 
         if scc_result.has_cycles:
@@ -489,11 +584,32 @@ class GraphEngineAdapter:
                 f"Resources in cycles: {sum(len(g) for g in scc_result.cycle_groups)}"
             )
 
-        try:
-            return self.topological_sort()
-        except ValueError:
-            # Graph has cycles - return in any order
-            return self.get_all_resources()
+        # Build condensation graph (DAG of SCCs)
+        # Each SCC becomes a single node
+        condensed: nx.DiGraph = nx.DiGraph()
+        for i, _scc in enumerate(scc_result.components):
+            condensed.add_node(i)
+
+        # Add edges between SCCs
+        for edge in self._engine.get_all_edges():
+            source_scc = scc_result.node_to_scc.get(edge.source_id)
+            target_scc = scc_result.node_to_scc.get(edge.target_id)
+            if source_scc is not None and target_scc is not None:
+                if source_scc != target_scc:
+                    condensed.add_edge(source_scc, target_scc)
+
+        # Topologically sort the condensed graph (guaranteed to work, it's a DAG)
+        scc_order = list(reversed(list(nx.topological_sort(condensed))))
+
+        # Flatten back to node order
+        result = []
+        for scc_idx in scc_order:
+            for node_id in scc_result.components[scc_idx]:
+                resource = self.get_resource(node_id)
+                if resource:
+                    result.append(resource)
+
+        return result
 
     def remove_resource(self, resource_id: str) -> bool:
         """Remove a resource and all its edges from the graph."""

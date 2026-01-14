@@ -589,7 +589,12 @@ class SQLiteBackend(GraphBackend):
     # =========================================================
 
     def add_edge(self, edge: Edge) -> None:
-        """Add a single edge to the graph."""
+        """
+        Add a single edge to the graph.
+
+        Duplicate edges (same source_id, target_id, relation) are silently ignored
+        to support concurrent scanners adding the same dependencies.
+        """
         if self.enable_compression:
             attrs = compress_json(edge.attributes)
         else:
@@ -597,7 +602,7 @@ class SQLiteBackend(GraphBackend):
         scan_id = edge.scan_id or self._current_scan_id
         with self._pool.get_writer() as conn:
             conn.execute(
-                """INSERT INTO edges (source_id, target_id, relation, attributes, weight, scan_id)
+                """INSERT OR IGNORE INTO edges (source_id, target_id, relation, attributes, weight, scan_id)
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (
                     edge.source_id,

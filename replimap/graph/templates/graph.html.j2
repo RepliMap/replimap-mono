@@ -2023,9 +2023,18 @@
 
         function filterNodes() {
             node.style('display', d => {
-                const matchesSearch = d.name.toLowerCase().includes(searchTerm) ||
-                                     d.id.toLowerCase().includes(searchTerm) ||
-                                     d.type.toLowerCase().includes(searchTerm);
+                // Search in name, id, and type
+                let matchesSearch = d.name.toLowerCase().includes(searchTerm) ||
+                                   d.id.toLowerCase().includes(searchTerm) ||
+                                   d.type.toLowerCase().includes(searchTerm);
+
+                // For grouped nodes, also search in member names
+                if (!matchesSearch && d.properties && d.properties.names) {
+                    matchesSearch = d.properties.names.some(name =>
+                        name.toLowerCase().includes(searchTerm)
+                    );
+                }
+
                 const matchesGroup = activeGroup === 'all' || d.group === activeGroup;
                 const matchesEnv = activeEnvironment === 'all' || d.environment === activeEnvironment;
 

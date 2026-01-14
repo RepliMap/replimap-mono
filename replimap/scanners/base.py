@@ -89,7 +89,9 @@ def parallel_process_items(
                     results.append(result)
             except Exception as e:
                 failures.append((item, e))
-                logger.warning(f"Failed to process {description} item: {e}")
+                logger.warning(
+                    f"Failed to process {description} item: {type(e).__name__}: {e}"
+                )
         return results, failures
 
     # Process in parallel using tracked thread pool
@@ -109,7 +111,9 @@ def parallel_process_items(
                     results.append(result)
             except Exception as e:
                 failures.append((item, e))
-                logger.warning(f"Failed to process {description} item: {e}")
+                logger.warning(
+                    f"Failed to process {description} item: {type(e).__name__}: {e}"
+                )
     finally:
         executor.shutdown(wait=True)
 
@@ -769,21 +773,27 @@ def _run_scanners_parallel(
     on_complete: Callable[[str, bool], None] | None = None,
 ) -> dict[str, Exception | None]:
     """Run scanners in parallel using ThreadPoolExecutor."""
+    import time as time_module
+
     results: dict[str, Exception | None] = {}
+    timings: dict[str, float] = {}
 
     def run_single_scanner(
         scanner_class: type[BaseScanner],
-    ) -> tuple[str, Exception | None]:
+    ) -> tuple[str, Exception | None, float]:
         scanner_name = scanner_class.__name__
         logger.info(f"Running {scanner_name}...")
+        start_time = time_module.time()
         try:
             scanner = scanner_class(session, region)
             scanner.scan(graph)
-            logger.info(f"{scanner_name} completed successfully")
-            return (scanner_name, None)
+            elapsed = time_module.time() - start_time
+            logger.info(f"{scanner_name} completed in {elapsed:.1f}s")
+            return (scanner_name, None, elapsed)
         except Exception as e:
-            logger.error(f"{scanner_name} failed: {e}")
-            return (scanner_name, e)
+            elapsed = time_module.time() - start_time
+            logger.error(f"{scanner_name} failed after {elapsed:.1f}s: {e}")
+            return (scanner_name, e, elapsed)
 
     # Use tracked thread pool - global signal handler will shutdown on Ctrl-C
     executor = create_thread_pool(
@@ -796,11 +806,19 @@ def _run_scanners_parallel(
         }
 
         for future in as_completed(futures):
-            scanner_name, error = future.result()
+            scanner_name, error, elapsed = future.result()
             results[scanner_name] = error
+            timings[scanner_name] = elapsed
             if on_complete:
                 on_complete(scanner_name, error is None)
     finally:
         executor.shutdown(wait=True)
+
+    # Log timing summary for performance analysis
+    if timings:
+        sorted_timings = sorted(timings.items(), key=lambda x: x[1], reverse=True)
+        logger.debug("Scanner timing summary (slowest first):")
+        for name, elapsed in sorted_timings[:5]:
+            logger.debug(f"  {name}: {elapsed:.1f}s")
 
     return results

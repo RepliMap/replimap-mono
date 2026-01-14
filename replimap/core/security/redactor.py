@@ -23,6 +23,8 @@ import hashlib
 import hmac
 import logging
 import os
+import tempfile
+import threading
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -52,6 +54,11 @@ class DeterministicRedactor:
     FIELD_HINT_LENGTH = 8  # Field name hint length
     REDACTED_PREFIX = "REDACTED"
 
+    # Class-level lock for thread-safe salt file operations
+    _salt_lock = threading.Lock()
+    # Cached salt to avoid repeated file reads
+    _cached_salt: bytes | None = None
+
     def __init__(self, salt: bytes | None = None) -> None:
         """
         Initialize redactor.
@@ -66,36 +73,95 @@ class DeterministicRedactor:
         Load existing salt or create new one.
 
         Salt is stored at ~/.replimap/.sanitizer_salt with 0o600 permissions.
+        Uses thread-safe operations to prevent race conditions when multiple
+        scanners run concurrently.
         """
-        if self.SALT_FILE.exists():
-            # Verify permissions before reading
-            mode = self.SALT_FILE.stat().st_mode & 0o777
-            if mode != 0o600:
-                logger.warning(
-                    f"Salt file has insecure permissions {oct(mode)}. "
-                    "Regenerating for security."
-                )
-                return self._create_new_salt()
+        # Fast path: use cached salt if available
+        if DeterministicRedactor._cached_salt is not None:
+            return DeterministicRedactor._cached_salt
 
-            return self.SALT_FILE.read_bytes()
+        with DeterministicRedactor._salt_lock:
+            # Double-check after acquiring lock
+            if DeterministicRedactor._cached_salt is not None:
+                return DeterministicRedactor._cached_salt
 
-        return self._create_new_salt()
+            # Try to read existing salt file (EAFP pattern)
+            try:
+                salt = self.SALT_FILE.read_bytes()
+                # Verify permissions
+                mode = self.SALT_FILE.stat().st_mode & 0o777
+                if mode != 0o600:
+                    logger.warning(
+                        f"Salt file has insecure permissions {oct(mode)}. "
+                        "Regenerating for security."
+                    )
+                    salt = self._create_new_salt()
+                DeterministicRedactor._cached_salt = salt
+                return salt
+            except FileNotFoundError:
+                # Salt file doesn't exist, create it
+                salt = self._create_new_salt()
+                DeterministicRedactor._cached_salt = salt
+                return salt
 
     def _create_new_salt(self) -> bytes:
-        """Create and securely store new salt."""
+        """
+        Create and securely store new salt.
+
+        Uses atomic file operations with unique temp files to prevent
+        race conditions when multiple processes try to create the salt
+        simultaneously.
+        """
         salt = os.urandom(32)
 
-        # Ensure directory exists
-        self.SALT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        # Ensure directory exists with secure permissions
+        parent_dir = self.SALT_FILE.parent
+        old_umask = os.umask(0o077)  # Block all group/other access
+        try:
+            parent_dir.mkdir(parents=True, exist_ok=True)
+        finally:
+            os.umask(old_umask)
 
-        # Write with secure permissions using atomic write pattern
-        temp_path = self.SALT_FILE.with_suffix(".tmp")
-        temp_path.write_bytes(salt)
-        os.chmod(temp_path, 0o600)
-        temp_path.rename(self.SALT_FILE)
+        # Create temp file with unique name using mkstemp for atomic write
+        fd = None
+        temp_path = None
 
-        logger.debug(f"Created new sanitizer salt at {self.SALT_FILE}")
-        return salt
+        try:
+            fd, temp_path = tempfile.mkstemp(
+                suffix=".tmp",
+                prefix=".sanitizer_salt.",
+                dir=parent_dir,
+            )
+
+            # CRITICAL: Set permissions BEFORE writing any content
+            os.fchmod(fd, 0o600)
+
+            # Write salt bytes
+            os.write(fd, salt)
+            os.fsync(fd)  # Ensure data hits disk
+            os.close(fd)
+            fd = None  # Mark as closed
+
+            # Atomic rename to target path
+            os.rename(temp_path, self.SALT_FILE)
+            temp_path = None  # Rename succeeded
+
+            logger.debug(f"Created new sanitizer salt at {self.SALT_FILE}")
+            return salt
+
+        except Exception:
+            # Clean up on failure
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            if temp_path is not None:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+            raise
 
     def redact(self, value: str, field_name: str = "") -> str:
         """
@@ -159,8 +225,11 @@ class DeterministicRedactor:
         WARNING: This will make all previously redacted values incomparable.
         Use only for testing or security incidents.
         """
-        if cls.SALT_FILE.exists():
-            cls.SALT_FILE.unlink()
-            logger.warning(
-                "Sanitizer salt deleted. All redacted values will change on next run."
-            )
+        with cls._salt_lock:
+            # Clear the cached salt
+            cls._cached_salt = None
+            if cls.SALT_FILE.exists():
+                cls.SALT_FILE.unlink()
+                logger.warning(
+                    "Sanitizer salt deleted. All redacted values will change on next run."
+                )

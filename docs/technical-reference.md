@@ -1909,11 +1909,54 @@ replimap scan-cache clear -r us-east-1      # Clear for region
 
 ### Parallel Scanning
 
-Scanners run in parallel for faster execution (requires Solo+ plan or dev mode):
+RepliMap uses two levels of parallelization for maximum performance:
 
-- Default: 4 parallel workers
+#### Inter-Scanner Parallelization
+Multiple scanners run concurrently (requires Solo+ plan or dev mode):
+
+- Default: 4 parallel scanner workers
 - Configure with `REPLIMAP_MAX_WORKERS` environment variable
 - Free tier runs scanners sequentially
+
+#### Intra-Scanner Parallelization
+Within each scanner, API-heavy operations run in parallel using `parallel_process_items`:
+
+- Default: 8 parallel workers per scanner
+- Configure with `REPLIMAP_INTRA_SCANNER_WORKERS` environment variable
+- Automatically batches API calls for tags, attributes, and metadata
+
+**Parallelized Operations:**
+
+| Scanner | Operation | Speedup |
+|---------|-----------|---------|
+| `IAMRoleScanner` | Tag fetching for 220+ roles | **5.6x** |
+| `CloudWatchLogGroupScanner` | Tag fetching for log groups | **2.6x** |
+| `SQSScanner` | Queue attributes and tags | **7x** |
+| `ComputeScanner` | LB/TG/Launch Template processing | **5x** |
+| `CloudWatchMetricAlarmScanner` | Alarm tag fetching | **6x** |
+| `S3PolicyScanner` | Bucket policy fetching | **6x** |
+| `SNSScanner` | Topic attributes and tags | **5x** |
+
+**Usage in Custom Scanners:**
+
+```python
+from replimap.scanners.base import parallel_process_items
+
+def scan(self, graph):
+    # Collect items to process
+    items = list(self._list_resources())
+
+    # Process in parallel
+    results, failures = parallel_process_items(
+        items=items,
+        processor=lambda item: self._process_item(item, graph),
+        description="My Resources",
+    )
+
+    # Handle failures
+    for item, error in failures:
+        logger.warning(f"Failed: {item}: {error}")
+```
 
 ### AWS Rate Limiting
 
