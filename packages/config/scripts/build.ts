@@ -93,7 +93,6 @@ function generateTypeScript(
  * DO NOT EDIT - This file is generated from src/*.json
  *
  * Content Hash: ${hash}
- * Generated: ${new Date().toISOString()}
  */
 
 // ============================================================================
@@ -229,7 +228,6 @@ function generatePython(
 DO NOT EDIT - This file is generated from src/*.json
 
 Content Hash: ${hash}
-Generated: ${new Date().toISOString()}
 """
 
 from __future__ import annotations

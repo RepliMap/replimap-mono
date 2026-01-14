@@ -3,7 +3,6 @@
  * DO NOT EDIT - This file is generated from src/*.json
  *
  * Content Hash: 7abec13bd128
- * Generated: 2026-01-14T04:35:18.733Z
  */
 
 // ============================================================================
