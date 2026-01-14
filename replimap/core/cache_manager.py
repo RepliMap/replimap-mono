@@ -256,11 +256,22 @@ class CacheManager:
             resource_count_str = engine.get_metadata("resource_count")
             dependency_count_str = engine.get_metadata("dependency_count")
 
-            # Version check
+            # Version check - handle schema migration case
             if version != CACHE_VERSION:
-                logger.debug("Cache version mismatch, invalidating")
-                adapter.close()
-                return None
+                # Check if this is a migrated database (schema v2 but old cache version)
+                schema_version = engine.get_schema_version()
+                if schema_version >= 2 and version in (None, "1.0", LEGACY_CACHE_VERSION):
+                    # Schema was just migrated, update cache version metadata
+                    logger.debug(
+                        f"Updating cache version from {version} to {CACHE_VERSION} "
+                        f"after schema migration"
+                    )
+                    engine.set_metadata("version", CACHE_VERSION)
+                    version = CACHE_VERSION
+                else:
+                    logger.debug("Cache version mismatch, invalidating")
+                    adapter.close()
+                    return None
 
             # Expiry check
             timestamp = float(timestamp_str) if timestamp_str else 0
