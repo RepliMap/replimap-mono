@@ -240,10 +240,12 @@ class CacheManager:
         self, max_age: int
     ) -> tuple[GraphEngineAdapter, dict[str, Any]] | None:
         """Load from SQLite cache."""
-        from replimap.core.unified_storage import GraphEngineAdapter, UnifiedGraphEngine
+        from replimap.core.unified_storage import GraphEngineAdapter
 
         try:
-            engine = UnifiedGraphEngine(db_path=str(self.cache_path))
+            # Create adapter directly - this opens the database once
+            adapter = GraphEngineAdapter(db_path=str(self.cache_path))
+            engine = adapter._engine  # Access underlying engine for metadata
 
             # Read metadata
             version = engine.get_metadata("version")
@@ -257,7 +259,7 @@ class CacheManager:
             # Version check
             if version != CACHE_VERSION:
                 logger.debug("Cache version mismatch, invalidating")
-                engine.close()
+                adapter.close()
                 return None
 
             # Expiry check
@@ -265,23 +267,20 @@ class CacheManager:
             age = time.time() - timestamp
             if age > max_age:
                 logger.debug(f"Cache expired (age: {age:.0f}s > {max_age}s)")
-                engine.close()
+                adapter.close()
                 return None
 
             # Profile/region match
             if profile != self.profile or region != self.region:
                 logger.debug("Cache profile/region mismatch")
-                engine.close()
+                adapter.close()
                 return None
 
             # VPC match (if specified)
             if self.vpc and vpc != self.vpc:
                 logger.debug("Cache VPC mismatch")
-                engine.close()
+                adapter.close()
                 return None
-
-            # Create adapter from loaded engine
-            adapter = GraphEngineAdapter(db_path=str(self.cache_path))
 
             # Build metadata dict
             meta = {
@@ -300,8 +299,6 @@ class CacheManager:
                 "cache_path": str(self.cache_path),
                 "format": "sqlite",
             }
-
-            engine.close()
 
             logger.debug(
                 f"Cache hit: {meta['resource_count']} resources, {meta['age_human']}"

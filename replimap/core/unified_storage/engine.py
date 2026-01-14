@@ -841,7 +841,7 @@ class UnifiedGraphEngine:
                     **edge.attributes,
                 )
 
-        logger.info(
+        logger.debug(
             f"Projected to NetworkX: {G.number_of_nodes()} nodes, "
             f"{G.number_of_edges()} edges"
         )
