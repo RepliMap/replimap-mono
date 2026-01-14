@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 from replimap.core.rate_limiter import rate_limited_paginate
 
-from .base import BaseScanner, ScannerRegistry
+from .base import BaseScanner, ScannerRegistry, parallel_process_items
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -59,7 +59,7 @@ class SQSScanner(BaseScanner):
             queue_urls.extend(page.get("QueueUrls", []))
 
         # Process queues in parallel (attribute/tag fetching is the bottleneck)
-        results, failures = self._parallel_process(
+        results, failures = parallel_process_items(
             items=queue_urls,
             processor=lambda url: self._process_queue(url, sqs, graph),
             description="SQS Queues",

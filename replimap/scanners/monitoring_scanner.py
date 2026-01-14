@@ -13,7 +13,7 @@ from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 from replimap.core.rate_limiter import rate_limited_paginate
-from replimap.scanners.base import BaseScanner, ScannerRegistry
+from replimap.scanners.base import BaseScanner, ScannerRegistry, parallel_process_items
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -51,7 +51,7 @@ class CloudWatchLogGroupScanner(BaseScanner):
                 log_groups_to_process.extend(page.get("logGroups", []))
 
             # Process log groups in parallel (tag fetching is the bottleneck)
-            results, failures = self._parallel_process(
+            results, failures = parallel_process_items(
                 items=log_groups_to_process,
                 processor=lambda lg: self._process_log_group(lg, logs, graph),
                 description="CloudWatch Log Groups",

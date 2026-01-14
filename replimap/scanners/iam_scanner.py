@@ -14,7 +14,7 @@ from botocore.exceptions import ClientError
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
 from replimap.core.rate_limiter import rate_limited_paginate
-from replimap.scanners.base import BaseScanner, ScannerRegistry
+from replimap.scanners.base import BaseScanner, ScannerRegistry, parallel_process_items
 
 if TYPE_CHECKING:
     from replimap.core import GraphEngine
@@ -59,7 +59,7 @@ class IAMRoleScanner(BaseScanner):
                         logger.debug(f"Skipping service-linked role: {role.get('RoleName')}")
 
             # Process roles in parallel (tag fetching is the bottleneck)
-            results, failures = self._parallel_process(
+            results, failures = parallel_process_items(
                 items=roles_to_process,
                 processor=lambda role: self._process_role(role, iam, graph),
                 description="IAM Roles",
