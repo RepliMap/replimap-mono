@@ -89,7 +89,9 @@ def parallel_process_items(
                     results.append(result)
             except Exception as e:
                 failures.append((item, e))
-                logger.warning(f"Failed to process {description} item: {e}")
+                logger.warning(
+                    f"Failed to process {description} item: {type(e).__name__}: {e}"
+                )
         return results, failures
 
     # Process in parallel using tracked thread pool
@@ -109,7 +111,9 @@ def parallel_process_items(
                     results.append(result)
             except Exception as e:
                 failures.append((item, e))
-                logger.warning(f"Failed to process {description} item: {e}")
+                logger.warning(
+                    f"Failed to process {description} item: {type(e).__name__}: {e}"
+                )
     finally:
         executor.shutdown(wait=True)
 
