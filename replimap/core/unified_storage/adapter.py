@@ -364,6 +364,12 @@ class GraphEngineAdapter:
             return None
 
         resource = node_to_resource_node(node)
+
+        # Populate dependencies from edges (edges are stored separately in SQLite)
+        for edge in self._engine.get_edges_from(resource_id):
+            if edge.target_id not in resource.dependencies:
+                resource.dependencies.append(edge.target_id)
+
         self._resource_cache[resource_id] = resource
         return resource
 
@@ -377,7 +383,26 @@ class GraphEngineAdapter:
                 resource = node_to_resource_node(node)
                 self._resource_cache[node.id] = resource
                 resources.append(resource)
+
+        # Populate dependencies from edges (edges are stored separately in SQLite)
+        # This is needed because node_to_resource_node gets dependencies from
+        # node.attributes which may be empty when loaded from cache
+        self._populate_dependencies_from_edges(resources)
+
         return resources
+
+    def _populate_dependencies_from_edges(self, resources: list[ResourceNode]) -> None:
+        """Populate resource dependencies from edges stored in SQLite."""
+        # Build a lookup for quick access
+        resource_map = {r.id: r for r in resources}
+
+        # Get all edges and populate dependencies
+        for edge in self._engine.get_all_edges():
+            source_resource = resource_map.get(edge.source_id)
+            if source_resource is not None:
+                # Add target to dependencies if not already present
+                if edge.target_id not in source_resource.dependencies:
+                    source_resource.dependencies.append(edge.target_id)
 
     def get_resources_by_type(self, resource_type: ResourceType) -> list[ResourceNode]:
         """Get all resources of a specific type."""
