@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from replimap.core.models import DependencyType, ResourceNode, ResourceType
+from replimap.core.sanitizer import sanitize_resource_config
 
 from .base import Edge, Node
 from .engine import UnifiedGraphEngine
@@ -230,9 +231,20 @@ class GraphEngineAdapter:
         If a resource with the same ID already exists, it will be updated.
         Thread-safe: uses internal lock for concurrent access.
 
+        Security: Config is sanitized BEFORE storage to prevent sensitive
+        data (passwords, API keys, UserData) from being persisted to cache.
+
         Args:
             node: The ResourceNode to add
         """
+        # SECURITY: Sanitize config BEFORE locking and storage
+        # This runs outside the lock to minimize contention (regex is expensive)
+        if node.config:
+            sanitized_config = sanitize_resource_config(node.config)
+            # Update config in-place (dict is mutable)
+            node.config.clear()
+            node.config.update(sanitized_config)
+
         # Convert and store
         unified_node = resource_node_to_node(node)
 
@@ -551,8 +563,19 @@ class GraphEngineAdapter:
         """
         Get topologically sorted node order, handling cycles safely.
 
+        Unlike topological_sort(), this method:
+        1. Detects strongly connected components (cycles)
+        2. Collapses cycles into "super-nodes" for ordering
+        3. Returns nodes in a valid dependency order
+        4. Nodes within a cycle are returned in arbitrary order
+
         This never raises an exception for cyclic graphs.
+
+        Returns:
+            List of ResourceNodes in safe dependency order
         """
+        import networkx as nx
+
         scc_result = self.find_strongly_connected_components()
 
         if scc_result.has_cycles:
@@ -561,11 +584,32 @@ class GraphEngineAdapter:
                 f"Resources in cycles: {sum(len(g) for g in scc_result.cycle_groups)}"
             )
 
-        try:
-            return self.topological_sort()
-        except ValueError:
-            # Graph has cycles - return in any order
-            return self.get_all_resources()
+        # Build condensation graph (DAG of SCCs)
+        # Each SCC becomes a single node
+        condensed: nx.DiGraph = nx.DiGraph()
+        for i, _scc in enumerate(scc_result.components):
+            condensed.add_node(i)
+
+        # Add edges between SCCs
+        for edge in self._engine.get_all_edges():
+            source_scc = scc_result.node_to_scc.get(edge.source_id)
+            target_scc = scc_result.node_to_scc.get(edge.target_id)
+            if source_scc is not None and target_scc is not None:
+                if source_scc != target_scc:
+                    condensed.add_edge(source_scc, target_scc)
+
+        # Topologically sort the condensed graph (guaranteed to work, it's a DAG)
+        scc_order = list(reversed(list(nx.topological_sort(condensed))))
+
+        # Flatten back to node order
+        result = []
+        for scc_idx in scc_order:
+            for node_id in scc_result.components[scc_idx]:
+                resource = self.get_resource(node_id)
+                if resource:
+                    result.append(resource)
+
+        return result
 
     def remove_resource(self, resource_id: str) -> bool:
         """Remove a resource and all its edges from the graph."""
