@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.0.0...replimap-mono-v1.0.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* **ci:** remove duplicate pnpm version specification ([791c0f3](https://github.com/RepliMap/replimap-mono/commit/791c0f3a926ad36f6c34d0a0bf747194a9a20cca))
+* **ci:** remove duplicate pnpm version specification ([cfa7b36](https://github.com/RepliMap/replimap-mono/commit/cfa7b361a8e20f258abb27c1c4ef27d84c707645))
+
 ## 1.0.0 (2026-01-15)
 
 
