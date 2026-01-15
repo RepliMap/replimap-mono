@@ -1,66 +1,154 @@
+# ============================================================================
+# RepliMap API - Cloudflare Workers Configuration
+# ============================================================================
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  SAFETY-FIRST DESIGN: Development is default, Production requires flag │
+# └─────────────────────────────────────────────────────────────────────────┘
+#
+# Rationale:
+#   - Mistyped commands affect dev, not prod
+#   - "Explicit is better than implicit" for production
+#   - Team safety: junior devs can't accidentally deploy to prod
+#   - CI/CD clarity: `deploy:prod` is visually obvious in code review
+#
+# ============================================================================
+# Quick Reference
+# ============================================================================
+#
+#   Command                     Target                    Domain
+#   ─────────────────────────────────────────────────────────────────────────
+#   pnpm dev                    Local                     localhost:8787
+#   pnpm deploy                 replimap-api              api-dev.replimap.com
+#   pnpm deploy:prod            replimap-api-prod         api.replimap.com
+#
+# ============================================================================
+
 name = "replimap-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
-# Enable Node.js compatibility (Critical for Stripe and Clerk SDKs)
 compatibility_flags = ["nodejs_compat"]
 
 # ============================================================================
-# Development Environment (default)
+# DEFAULT: Development Environment
+# ============================================================================
+#
+# Worker:   replimap-api (existing, has dev secrets configured)
+# Domain:   api-dev.replimap.com
+# Database: replimap-dev
+#
+# All bare commands target this environment:
+#   - wrangler dev
+#   - wrangler deploy
+#   - wrangler secret put XXX
+#   - wrangler d1 migrations apply replimap-dev --remote
+#
 # ============================================================================
 
 [vars]
 ENVIRONMENT = "development"
-# Allow all origins in dev for localhost debugging
-CORS_ORIGIN = "*"
+CORS_ORIGIN = "https://dev.replimap.com,http://localhost:3000"
 API_VERSION = "v1"
 
-# D1 Database (development)
+# Custom domain for dev API
+routes = [
+  { pattern = "api-dev.replimap.com", custom_domain = true }
+]
+
+# D1 Database - Development
 [[d1_databases]]
 binding = "DB"
 database_name = "replimap-dev"
 database_id = "212335fc-ffeb-40d2-8794-c0d84a0991a1"
 
-# KV for rate limiting (development)
+# KV Namespace - Development (for caching, rate limiting, etc.)
 [[kv_namespaces]]
 binding = "CACHE"
-id = "32520e34a8d54faf90e71692462e9f96"         # remote dev
-preview_id = "58ccea22fa7f4e6689adbec8270356b0" # local dev
+id = "32520e34a8d54faf90e71692462e9f96"
+preview_id = "58ccea22fa7f4e6689adbec8270356b0"
 
 # ============================================================================
-# Production Environment
+# PRODUCTION Environment (Requires: --env prod)
+# ============================================================================
+#
+# Worker:   replimap-api-prod (new worker, needs prod secrets)
+# Domain:   api.replimap.com
+# Database: replimap-prod
+#
+# All production commands require explicit --env prod flag:
+#   - wrangler deploy --env prod
+#   - wrangler secret put XXX --env prod
+#   - wrangler d1 migrations apply replimap-prod --env prod --remote
+#   - wrangler tail --env prod
+#
 # ============================================================================
 
-[env.production]
+[env.prod]
 name = "replimap-api-prod"
 
-[env.production.vars]
+[env.prod.vars]
 ENVIRONMENT = "production"
 CORS_ORIGIN = "https://replimap.com"
 API_VERSION = "v1"
 
-routes = [
-  { pattern = "api.replimap.com", custom_domain = true }
-]
+# Custom domain for production API
+[[env.prod.routes]]
+pattern = "api.replimap.com"
+custom_domain = true
 
-[[env.production.d1_databases]]
+# D1 Database - Production
+[[env.prod.d1_databases]]
 binding = "DB"
 database_name = "replimap-prod"
 database_id = "0cda6e12-5087-4b1a-8dfe-207960c88f2d"
 
-[[env.production.kv_namespaces]]
+# KV Namespace - Production
+[[env.prod.kv_namespaces]]
 binding = "CACHE"
-id = "705a8c1a808a4656894a0c787787b76c" # remote prod
+id = "705a8c1a808a4656894a0c787787b76c"
 
 # ============================================================================
-# Secrets Checklist (Run these commands manually in terminal!)
+# SECRETS CONFIGURATION
 # ============================================================================
-# 1. Stripe Payments
-# npx wrangler secret put STRIPE_SECRET_KEY --env production
-# npx wrangler secret put STRIPE_WEBHOOK_SECRET --env production
-
-# 2. Clerk Authentication
-# npx wrangler secret put CLERK_SECRET_KEY --env production
-# npx wrangler secret put CLERK_PUBLISHABLE_KEY --env production
-
-# 3. Admin Tools
-# npx wrangler secret put ADMIN_API_KEY --env production
+#
+# Development secrets (replimap-api) - ALREADY CONFIGURED ✅
+#   STRIPE_SECRET_KEY        sk_test_xxx
+#   STRIPE_WEBHOOK_SECRET    whsec_xxx (dev webhook)
+#   CLERK_SECRET_KEY         sk_test_xxx
+#   CLERK_PUBLISHABLE_KEY    pk_test_xxx
+#   ADMIN_API_KEY            (shared or dev-specific)
+#
+# Production secrets (replimap-api-prod) - NEEDS SETUP
+#   npx wrangler secret put STRIPE_SECRET_KEY --env prod
+#   npx wrangler secret put STRIPE_WEBHOOK_SECRET --env prod
+#   npx wrangler secret put CLERK_SECRET_KEY --env prod
+#   npx wrangler secret put CLERK_PUBLISHABLE_KEY --env prod
+#   npx wrangler secret put ADMIN_API_KEY --env prod
+#
+# ============================================================================
+# DATABASE MIGRATIONS
+# ============================================================================
+#
+# Development:
+#   npx wrangler d1 migrations apply replimap-dev --remote
+#
+# Production:
+#   npx wrangler d1 migrations apply replimap-prod --env prod --remote
+#
+# ============================================================================
+# DEPLOYMENT CHECKLIST
+# ============================================================================
+#
+# Initial Setup (one-time):
+#   □ Update custom domain in CF Dashboard:
+#     - replimap-api: api.replimap.com → api-dev.replimap.com
+#   □ Deploy prod: npx wrangler deploy --env prod
+#   □ Configure prod secrets (5 secrets above)
+#   □ Add custom domain for replimap-api-prod: api.replimap.com
+#   □ Verify: curl https://api.replimap.com/health
+#
+# Regular Deployment:
+#   □ pnpm deploy        → Test on api-dev.replimap.com
+#   □ pnpm deploy:prod   → Release to api.replimap.com
+#
+# ============================================================================
