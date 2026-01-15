@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.0.1...replimap-mono-v1.0.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* **ci:** remove redundant Vercel deploy workflow ([bfcdcf4](https://github.com/RepliMap/replimap-mono/commit/bfcdcf4115c28b725661e3b7bfbff0fa1db18b9d))
+* **ci:** remove redundant Vercel deploy workflow ([ff0d312](https://github.com/RepliMap/replimap-mono/commit/ff0d3124f7e676e94d0300db54af479e883af2d6))
+
 ## [1.0.1](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.0.0...replimap-mono-v1.0.1) (2026-01-15)
 
 
