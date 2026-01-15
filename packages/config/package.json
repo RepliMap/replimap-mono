@@ -21,7 +21,6 @@
     "build": "tsx scripts/build.ts",
     "dev": "tsx watch scripts/build.ts",
     "check": "tsx scripts/build.ts --check",
-    "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist && mkdir dist"
   },
   "devDependencies": {
