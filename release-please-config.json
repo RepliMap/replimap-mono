@@ -36,5 +36,6 @@
     {"type": "test", "section": "Tests", "hidden": true},
     {"type": "ci", "section": "CI/CD", "hidden": true}
   ],
-  "separate-pull-requests": false
+  "separate-pull-requests": false,
+  "include-component-in-tag": true
 }
