@@ -22,7 +22,6 @@ Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 |------|---------|----------|
 | Node.js | 24.x | All |
 | pnpm | 9.x | All |
-| Python | 3.11+ | All |
 | Make | any | Linux/macOS/WSL |
 
 ### Platform-Specific Setup
@@ -82,7 +81,6 @@ wsl --install -d Ubuntu
 
 ```powershell
 # Install Node.js from https://nodejs.org/
-# Install Python from https://python.org/
 
 # Enable pnpm
 corepack enable
@@ -96,10 +94,6 @@ pnpm install
 
 # Build packages
 pnpm build
-
-# Setup CLI
-cd apps/cli
-pip install -e ".[dev]"
 ```
 
 #### PowerShell Command Reference
@@ -136,7 +130,6 @@ make dev
 # Or individually
 make dev-web    # Web: http://localhost:3000
 make dev-api    # API: http://localhost:8787
-make dev-cli    # CLI: editable install
 ```
 
 ### Testing
@@ -180,7 +173,6 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 |-------|---------|
 | `web` | apps/web |
 | `api` | apps/api |
-| `cli` | apps/cli |
 | `config` | packages/config |
 | `deps` | Dependencies |
 | `ci` | GitHub Actions |
@@ -188,11 +180,11 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 ### Examples
 
 ```bash
-feat(cli): add terraform export command
+feat(web): add dashboard analytics
 fix(api): resolve rate limiting issue
 docs(readme): update installation instructions
 chore(deps): update dependencies
-perf(cli): optimize resource scanning by 40%
+perf(api): optimize response time by 40%
 ```
 
 ## Pull Request Process
@@ -209,7 +201,7 @@ perf(cli): optimize resource scanning by 40%
 Use Conventional Commits format:
 ```
 feat(web): add dashboard analytics
-fix(cli): resolve timeout on large scans
+fix(api): resolve rate limiting issue
 ```
 
 ### Review Process

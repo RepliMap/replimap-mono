@@ -10,7 +10,6 @@
 | `VERCEL_ORG_ID` | Vercel organization ID | Vercel Dashboard -> Settings -> General |
 | `VERCEL_PROJECT_ID_WEB` | Web project ID | Vercel Dashboard -> Project -> Settings |
 | `CLOUDFLARE_API_TOKEN` | CF API token | Cloudflare Dashboard -> API Tokens |
-| `PYPI_API_TOKEN` | PyPI upload token | PyPI -> Account Settings -> API tokens |
 
 ## Platform Configuration
 
@@ -34,49 +33,6 @@ and Vercel's build cache won't work correctly.
 
 Without this setting, wrangler deploy may fail to find dependencies.
 
-### PyPI (apps/cli)
-
-CLI releases are triggered by git tags:
-```bash
-# Create and push a release tag
-make tag-cli VERSION=0.5.0
-```
-
-## PyPI OIDC Trusted Publishing Setup
-
-OIDC (OpenID Connect) eliminates the need for long-lived API tokens. Configure once on PyPI:
-
-### Step 1: Create Publisher on PyPI
-
-1. Go to https://pypi.org/manage/account/publishing/
-2. Add a new "pending publisher" with:
-   - **PyPI Project Name**: `replimap`
-   - **Owner**: `RepliMap`
-   - **Repository**: `replimap-mono`
-   - **Workflow name**: `release-cli.yml`
-   - **Environment name**: `pypi`
-
-3. Repeat for TestPyPI at https://test.pypi.org/manage/account/publishing/
-   - **Environment name**: `testpypi`
-
-### Step 2: Create GitHub Environments
-
-1. Go to Repository Settings -> Environments
-2. Create environment `pypi`:
-   - Add protection rule: Required reviewers (optional)
-   - Add protection rule: Restrict to tags matching `cli-v*`
-3. Create environment `testpypi`:
-   - No special restrictions needed
-
-### Why OIDC?
-
-| Aspect | API Token | OIDC |
-|--------|-----------|------|
-| Secret Management | Manual rotation needed | No secrets to manage |
-| Scope | Can be overly broad | Scoped to specific workflow |
-| Audit | Limited | Full GitHub audit trail |
-| Revocation | Manual | Automatic |
-
 ## Manual Deployment
 
 ```bash
@@ -85,9 +41,6 @@ make deploy-web
 
 # Deploy api to Cloudflare
 make deploy-api
-
-# Release CLI to PyPI
-make release-cli
 ```
 
 ## Troubleshooting
@@ -97,9 +50,6 @@ Run: `make build-config`
 
 ### Generated files out of sync
 Run: `make commit-config`
-
-### CLI config import fails
-Run: `make sync-cli-config`
 
 ### Vercel build fails with "command not found: pnpm"
 Ensure the installCommand in vercel.json includes `corepack enable`:
@@ -122,13 +72,10 @@ The monorepo includes the following GitHub Actions workflows:
   - Builds all packages
   - Runs linting and type checking
   - Verifies generated files are committed
-  - Tests CLI config loading
 
 - **deploy-web.yml**: Deploys to Vercel when apps/web or packages/config changes
 
 - **deploy-api.yml**: Deploys to Cloudflare when apps/api or packages/config changes
-
-- **release-cli.yml**: Publishes to PyPI when a `cli-v*` tag is pushed
 
 ## Environment Variables
 
@@ -140,7 +87,3 @@ The monorepo includes the following GitHub Actions workflows:
 ### API (apps/api)
 - Configured in `wrangler.toml` `[vars]` section
 - Secrets set via `wrangler secret put`
-
-### CLI (apps/cli)
-- No build-time environment variables required
-- Runtime configuration via CLI flags or config files

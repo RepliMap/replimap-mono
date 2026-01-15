@@ -7,9 +7,6 @@
 # API backend
 /apps/api/ @RepliMap/backend-team @RepliMap/core-team
 
-# CLI
-/apps/cli/ @RepliMap/cli-team @RepliMap/core-team
-
 # Shared configuration - requires core team review
 /packages/config/ @RepliMap/core-team
 

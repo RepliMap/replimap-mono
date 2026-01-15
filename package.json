@@ -14,8 +14,7 @@
     "dev:api": "turbo run dev --filter=@replimap/api",
     "build:web": "turbo run build --filter=@replimap/web",
     "build:api": "turbo run build --filter=@replimap/api",
-    "build:config": "turbo run build --filter=@replimap/config",
-    "sync:cli-config": "bash apps/cli/scripts/sync-config.sh"
+    "build:config": "turbo run build --filter=@replimap/config"
   },
   "devDependencies": {
     "prettier": "^3.4.0",

@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Monorepo structure with Turborepo
-- Shared configuration package with cross-language support
+- Shared configuration package
 - GitHub Actions CI/CD pipelines
-- OIDC-based PyPI publishing
 - Comprehensive Makefile for development commands
 - Cross-platform development support (Linux, macOS, Windows/WSL)
 
 ### Changed
 - Migrated from multi-repo to monorepo architecture
+- Removed CLI from public repo (moved to private repo)
 
 ## [0.5.0] - 2025-01-15
 
@@ -24,12 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial monorepo release
 - Web dashboard (Next.js 16)
 - API backend (Hono + Cloudflare Workers)
-- CLI tool (Python 3.11+)
 
 ### Security
 - Integrated CodeQL scanning
 - Added Dependabot for automated updates
-- Implemented OIDC Trusted Publishing for PyPI
 
 ---
 

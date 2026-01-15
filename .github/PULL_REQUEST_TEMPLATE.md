@@ -19,7 +19,6 @@
 
 - [ ] `apps/web` - Web Dashboard
 - [ ] `apps/api` - API Backend
-- [ ] `apps/cli` - Python CLI
 - [ ] `packages/config` - Shared Configuration
 - [ ] `.github/` - CI/CD & Workflows
 - [ ] Documentation

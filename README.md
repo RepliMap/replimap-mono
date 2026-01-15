@@ -7,15 +7,11 @@
 [![CI](https://github.com/RepliMap/replimap-mono/actions/workflows/ci.yml/badge.svg)](https://github.com/RepliMap/replimap-mono/actions/workflows/ci.yml)
 
 [![Node.js](https://img.shields.io/badge/Node.js-24.x-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-9.x-F69220?style=flat-square&logo=pnpm&logoColor=white)](https://pnpm.io/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-
-[![PyPI](https://img.shields.io/pypi/v/replimap?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/replimap/)
-[![PyPI Downloads](https://img.shields.io/pypi/dm/replimap?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/replimap/)
 [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](LICENSE)
 
-[Website](https://replimap.com) | [Documentation](https://replimap.com/docs) | [CLI](https://pypi.org/project/replimap/) | [Changelog](CHANGELOG.md)
+[Website](https://replimap.com) | [Documentation](https://replimap.com/docs) | [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -35,43 +31,20 @@ graph TB
     end
 
     subgraph "RepliMap Platform"
-        CLI["CLI<br/>(Python)"]
         API["API<br/>(Cloudflare Workers)"]
         WEB["Dashboard<br/>(Next.js)"]
         DB[("Database")]
     end
 
-    AWS -->|"1. Scan"| CLI
-    CLI -->|"2. Analyze"| API
+    AWS -->|"1. Scan"| API
     API --> DB
-    CLI -->|"3. Generate"| TF
+    API -->|"2. Generate"| TF
     WEB -->|"View Results"| API
 
     style AWS fill:#FF9900,stroke:#232F3E,color:#232F3E
-    style CLI fill:#3776AB,stroke:#FFD43B,color:white
     style API fill:#F38020,stroke:#F38020,color:white
     style WEB fill:#000000,stroke:#000000,color:white
     style TF fill:#7B42BC,stroke:#7B42BC,color:white
-```
-
-### Data Flow
-
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant C as CLI
-    participant A as API
-    participant W as AWS
-
-    U->>C: replimap scan
-    C->>W: Discover Resources
-    W-->>C: Resource Inventory
-    C->>C: Build Dependency Graph
-    C->>A: Upload Analysis
-    A-->>C: Scan ID
-    U->>C: replimap export
-    C->>C: Generate Terraform
-    C-->>U: ./terraform/*.tf
 ```
 
 ## Packages
@@ -80,39 +53,7 @@ sequenceDiagram
 |---------|-------------|---------|--------|
 | [`@replimap/web`](./apps/web) | Next.js Dashboard | Internal | [![Vercel](https://img.shields.io/badge/Vercel-Live-000?style=flat-square&logo=vercel)](https://replimap.com) |
 | [`@replimap/api`](./apps/api) | Hono API | Internal | [![Cloudflare](https://img.shields.io/badge/CF-Live-F38020?style=flat-square&logo=cloudflare)](https://api.replimap.com) |
-| [`replimap`](./apps/cli) | Python CLI | [![PyPI](https://img.shields.io/pypi/v/replimap?style=flat-square&label=)](https://pypi.org/project/replimap/) | [![Downloads](https://img.shields.io/pypi/dm/replimap?style=flat-square&label=)](https://pypi.org/project/replimap/) |
 | [`@replimap/config`](./packages/config) | Shared Config | Internal | - |
-
-## Quick Start
-
-### Install CLI
-
-```bash
-# Using pip
-pip install replimap
-
-# Using pipx (recommended for CLI tools)
-pipx install replimap
-
-# Using uv (fastest)
-uv tool install replimap
-```
-
-### Basic Usage
-
-```bash
-# Authenticate with RepliMap
-replimap auth login
-
-# Scan your AWS environment
-replimap scan --profile production --region ap-southeast-2
-
-# View dependency graph
-replimap graph --output graph.html
-
-# Generate Terraform code
-replimap export --format terraform --output ./staging-infra
-```
 
 ## Development
 
@@ -122,7 +63,6 @@ replimap export --format terraform --output ./staging-infra
 |------|---------|--------------|-------|
 | Node.js | 24.x | [nodejs.org](https://nodejs.org/) | Required for web/api |
 | pnpm | 9.x | `corepack enable` | Package manager |
-| Python | 3.11+ | [python.org](https://python.org/) | Required for CLI |
 | Make | any | Pre-installed on Linux/macOS | See Windows section |
 
 ### Setup
@@ -138,7 +78,6 @@ make setup
 # Start development servers
 make dev-web   # Web on http://localhost:3000
 make dev-api   # API on http://localhost:8787
-make dev-cli   # Install CLI in editable mode
 ```
 
 ### Available Commands
@@ -159,7 +98,6 @@ make pre-commit   # All checks before committing
 # Deployment
 make deploy-web   # Deploy to Vercel
 make deploy-api   # Deploy to Cloudflare
-make release-cli  # Publish to PyPI
 
 # Utilities
 make info         # Show environment info
@@ -197,10 +135,6 @@ pnpm build
 # Development
 pnpm --filter @replimap/web dev
 pnpm --filter @replimap/api dev
-
-# CLI development
-cd apps/cli
-pip install -e ".[dev]"
 ```
 
 #### Option 3: Git Bash
@@ -218,18 +152,14 @@ replimap-mono/
 │   │   ├── src/
 │   │   ├── package.json
 │   │   └── vercel.json
-│   ├── api/              # Hono + Cloudflare Workers
-│   │   ├── src/
-│   │   ├── package.json
-│   │   └── wrangler.toml
-│   └── cli/              # Python CLI
-│       ├── replimap/
-│       ├── pyproject.toml
-│       └── README.md
+│   └── api/              # Hono + Cloudflare Workers
+│       ├── src/
+│       ├── package.json
+│       └── wrangler.toml
 ├── packages/
 │   └── config/           # Shared configuration
 │       ├── src/          # JSON source files
-│       ├── dist/         # Generated TS + Python
+│       ├── dist/         # Generated TS
 │       └── scripts/
 ├── .github/
 │   ├── workflows/        # CI/CD pipelines
@@ -247,7 +177,7 @@ replimap-mono/
 
 We take security seriously. Our security measures include:
 
-- **OIDC-based publishing** - No long-lived secrets for PyPI
+- **OIDC-based publishing** - No long-lived secrets for deployments
 - **Dependabot** - Automated dependency updates
 - **SOC2 compliance** - Enterprise-grade infrastructure
 

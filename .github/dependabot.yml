@@ -88,34 +88,6 @@ updates:
     commit-message:
       prefix: "chore(deps-api)"
 
-  # CLI (Python)
-  - package-ecosystem: "pip"
-    directory: "/apps/cli"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    groups:
-      aws:
-        patterns:
-          - "boto3"
-          - "botocore"
-      cli:
-        patterns:
-          - "click"
-          - "rich"
-          - "typer"
-      testing:
-        patterns:
-          - "pytest*"
-          - "ruff"
-          - "mypy"
-    labels:
-      - "dependencies"
-      - "python"
-      - "cli"
-    commit-message:
-      prefix: "chore(deps-cli)"
-
   # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
