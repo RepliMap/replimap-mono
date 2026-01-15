@@ -423,18 +423,18 @@ export async function handleRightSizerSuggestions(
       throw Errors.licenseRevoked();
     }
 
-    // Check if plan includes rightsizer feature (Solo+)
+    // Check if plan includes rightsizer feature (Pro+)
     const plan = license.plan as Plan;
-    const allowedPlans: Plan[] = [Plan.SOLO, Plan.PRO, Plan.TEAM, Plan.ENTERPRISE];
+    const allowedPlans: Plan[] = [Plan.PRO, Plan.TEAM, Plan.SOVEREIGN];
 
     if (!allowedPlans.includes(plan)) {
       return new Response(
         JSON.stringify({
           success: false,
           error: 'UPGRADE_REQUIRED',
-          message: 'Right-Sizer requires Solo plan or higher',
+          message: 'Right-Sizer requires Pro plan or higher',
           current_plan: plan,
-          required_plan: 'solo',
+          required_plan: 'pro',
           upgrade_url: 'https://replimap.dev/pricing',
         }),
         {

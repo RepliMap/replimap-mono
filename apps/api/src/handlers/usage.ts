@@ -158,7 +158,7 @@ export async function handleSyncUsage(
         // Return current usage without updating
         const currentUsage = await getUsageForPeriod(db, license.id, period);
         const plan = license.plan as PlanType;
-        const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+        const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
         return new Response(JSON.stringify({
           synced: true,
@@ -183,7 +183,7 @@ export async function handleSyncUsage(
     // Get updated usage
     const currentUsage = await getUsageForPeriod(db, license.id, period);
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
     const response: SyncUsageResponse = {
       synced: true,
@@ -241,7 +241,7 @@ export async function handleGetUsage(
     // Get usage
     const usage = await getUsageForPeriod(db, license.id, period);
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
     return new Response(JSON.stringify({
       period,
@@ -363,7 +363,7 @@ export async function handleCheckQuota(
     }
 
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
     let current = 0;
     let limit: number | null = null;
@@ -677,7 +677,7 @@ async function checkEventLimit(
     };
   }
 
-  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS[Plan.FREE];
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS[Plan.COMMUNITY];
 
   // ─────────────────────────────────────────────────────────────────────────
   // METERED OPERATIONS - These consume quota

@@ -15,8 +15,9 @@ export interface Env {
 
   // Stripe Lifetime Price IDs (optional - for one-time purchases)
   // These are one-time payment products, not subscriptions
-  STRIPE_SOLO_LIFETIME_PRICE_ID?: string;
+  STRIPE_SOLO_LIFETIME_PRICE_ID?: string;  // Legacy - maps to pro
   STRIPE_PRO_LIFETIME_PRICE_ID?: string;
+  STRIPE_TEAM_LIFETIME_PRICE_ID?: string;
 
   // Machine signature verification (optional - for enhanced security)
   // If set, CLI must send HMAC-SHA256 signature of machine_id

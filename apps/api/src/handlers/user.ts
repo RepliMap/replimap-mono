@@ -132,7 +132,7 @@ export async function handleGetOwnLicense(
     }
 
     const plan = result.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
     // Get usage count
     const licenseId = await getLicenseId(db, normalizedKey);
@@ -217,7 +217,7 @@ export async function handleGetOwnMachines(
     }
 
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
     // Get machines
     const machinesResult = await db.all<{

@@ -118,7 +118,7 @@ export async function handleTrackAwsAccount(
 
     // Get plan limits
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
     const maxAccounts = features.aws_accounts;
 
     // Get current count
@@ -197,7 +197,7 @@ export async function handleGetAwsAccounts(
 
     // Get plan limits
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
     const response: GetAwsAccountsResponse = {
       accounts: accounts.map((acc) => ({

@@ -76,7 +76,7 @@ export async function handleActivateLicense(
     }
 
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
     // Check license status
     if (license.status === 'expired' || license.status === 'revoked') {

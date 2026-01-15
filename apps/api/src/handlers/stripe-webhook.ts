@@ -222,7 +222,7 @@ async function createLifetimeLicense(
 
   // Resolve plan from price mapping
   const priceMapping = getStripePriceMapping(env);
-  let plan: 'free' | 'solo' | 'pro' | 'team' = 'solo';
+  let plan: 'community' | 'pro' | 'team' | 'sovereign' = 'pro';
   let priceId: string | null = null;
 
   // Try to get price from metadata first

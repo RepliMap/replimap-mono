@@ -1,14 +1,23 @@
 /**
- * RepliMap Pricing Configuration v3.2
+ * RepliMap Pricing Configuration v4.0
  *
- * Gate Philosophy: "Gate Output, Not Input"
- * - Scanning is unlimited (resources per scan)
- * - Frequency is limited for free tier (3/month)
- * - Output (download, export, details) is gated
+ * Philosophy: "Gate Output, Not Input"
+ * - Unlimited scans for all tiers
+ * - Unlimited resources per scan
+ * - Charge when users export/download
+ *
+ * Tier Structure:
+ * - COMMUNITY ($0): Full visibility, JSON export with metadata
+ * - PRO ($29): Terraform/CSV export, API access
+ * - TEAM ($99): Drift alerts, compliance reports, CI/CD
+ * - SOVEREIGN ($2,500): SSO, signed reports, air-gap, white-labeling
  */
 
-export type PlanName = "free" | "solo" | "pro" | "team" | "enterprise";
+export type PlanName = "community" | "pro" | "team" | "sovereign";
 export type BillingPeriod = "monthly" | "annual" | "lifetime";
+
+/** Legacy plan names that map to v4.0 plans */
+export type LegacyPlanName = "free" | "solo" | "enterprise";
 
 export interface PlanPrice {
   monthly: number;
@@ -24,117 +33,167 @@ export interface PlanFeature {
 
 export interface Plan {
   name: string;
+  tagline: string;
   price: PlanPrice;
   description: string;
   features: PlanFeature[];
   cta: string;
   highlighted: boolean;
   hasLifetime: boolean;
+  badge: string | null;
 }
 
 export const PLANS: Record<PlanName, Plan> = {
-  free: {
-    name: "Free",
+  community: {
+    name: "Community",
+    tagline: "Full visibility, export when ready",
     price: { monthly: 0, annual: 0, lifetime: null },
-    description: "For evaluators exploring their infrastructure",
+    description: "See your entire AWS infrastructure. Upgrade when you're ready to take it home.",
     features: [
+      { text: "Unlimited scans", included: true },
       { text: "Unlimited resources per scan", included: true },
-      { text: "3 full scans per month", included: true },
       { text: "1 AWS account", included: true },
-      { text: "Graph visualization", included: true },
-      { text: "Code preview (100 lines)", included: true },
-      { text: "Code download", included: false },
-      { text: "Full remediation", included: false },
-      { text: "Report export", included: false },
+      { text: "Dependency graph visualization", included: true },
+      { text: "Cost analysis (view)", included: true },
+      { text: "Compliance issues (view)", included: true },
+      { text: "Security score", included: true },
+      { text: "JSON export (with upgrade prompts)", included: true },
+      { text: "Terraform export", included: false },
+      { text: "CSV export", included: false },
+      { text: "API access", included: false },
     ],
-    cta: "Get Started",
+    cta: "Get Started Free",
     highlighted: false,
     hasLifetime: false,
-  },
-  solo: {
-    name: "Solo",
-    price: { monthly: 49, annual: 490, lifetime: 299 },
-    description: "For individual DevOps professionals",
-    features: [
-      { text: "Everything in Free", included: true },
-      { text: "Unlimited scans", included: true },
-      { text: "Full code download", included: true },
-      { text: "Complete remediation steps", included: true },
-      { text: "HTML report export", included: true },
-      { text: "5 snapshots (7-day retention)", included: true },
-      { text: "Email support (48h SLA)", included: true },
-      { text: "Drift detection", included: false },
-    ],
-    cta: "Start Solo",
-    highlighted: false,
-    hasLifetime: true,
+    badge: null,
   },
   pro: {
     name: "Pro",
-    price: { monthly: 99, annual: 990, lifetime: 499 },
-    description: "For senior engineers with multi-account needs",
+    tagline: "Export your infrastructure as code",
+    price: { monthly: 29, annual: 290, lifetime: 199 },
+    description: "Take your Terraform code home. Perfect for individual DevOps engineers and SREs.",
     features: [
-      { text: "Everything in Solo", included: true },
+      { text: "Everything in Community", included: true },
       { text: "3 AWS accounts", included: true },
-      { text: "Drift detection", included: true },
-      { text: "CI/CD integration", included: true },
-      { text: "PDF report export", included: true },
-      { text: "15 snapshots (30-day retention)", included: true },
-      { text: "Remediate beta access", included: true, badge: "Priority" },
-      { text: "Email support (24h SLA)", included: true },
+      { text: "Terraform code export", included: true },
+      { text: "CSV export", included: true },
+      { text: "HTML/Markdown export", included: true },
+      { text: "API access", included: true },
+      { text: "Full audit findings", included: true },
+      { text: "Audit remediation generator", included: true },
+      { text: "Graph export (no watermark)", included: true },
+      { text: "90-day history retention", included: true },
+      { text: "48h email support SLA", included: true },
+      { text: "Drift detection", included: false },
+      { text: "Compliance reports", included: false },
     ],
-    cta: "Start Pro",
+    cta: "Start Pro Trial",
     highlighted: true,
     hasLifetime: true,
+    badge: "Most Popular",
   },
   team: {
     name: "Team",
-    price: { monthly: 199, annual: 1990, lifetime: null },
-    description: "For teams with compliance needs",
+    tagline: "Continuous compliance for your organization",
+    price: { monthly: 99, annual: 990, lifetime: 499 },
+    description: "Drift alerts, compliance reports, and CI/CD integration for growing teams.",
     features: [
       { text: "Everything in Pro", included: true },
       { text: "10 AWS accounts", included: true },
-      { text: "Trust Center (audit logging)", included: true },
-      { text: "API call recording", included: true },
-      { text: "JSON report export", included: true },
-      { text: "30 snapshots (90-day retention)", included: true },
-      { text: "Email support (12h SLA)", included: true },
-      { text: "Compliance mapping", included: false },
+      { text: "5 team members", included: true },
+      { text: "Drift detection", included: true },
+      { text: "Drift alerts (Slack/Teams/Webhook)", included: true },
+      { text: "CI/CD integration (--fail-on)", included: true },
+      { text: "CIS Benchmark reports", included: true },
+      { text: "SOC2 compliance mapping", included: true },
+      { text: "PDF export", included: true },
+      { text: "Custom compliance rules", included: true },
+      { text: "365-day history retention", included: true },
+      { text: "12h priority support SLA", included: true },
+      { text: "SSO (SAML/OIDC)", included: false },
     ],
-    cta: "Start Team",
+    cta: "Start Team Trial",
     highlighted: false,
-    hasLifetime: false,
+    hasLifetime: true,
+    badge: null,
   },
-  enterprise: {
-    name: "Enterprise",
-    price: { monthly: 500, annual: 5000, lifetime: null },
-    description: "For banks and regulated industries",
+  sovereign: {
+    name: "Sovereign",
+    tagline: "Data sovereignty for regulated industries",
+    price: { monthly: 2500, annual: 25000, lifetime: null },
+    description: "When your regulator asks 'Where does the data go?', the answer is: Nowhere.",
     features: [
       { text: "Everything in Team", included: true },
       { text: "Unlimited AWS accounts", included: true },
+      { text: "Unlimited team members", included: true },
+      { text: "SSO (SAML/OIDC)", included: true },
       { text: "APRA CPS 234 mapping", included: true },
-      { text: "RBNZ BS11 mapping", included: true },
+      { text: "DORA compliance", included: true },
       { text: "Essential Eight assessment", included: true },
-      { text: "Digital signatures (SHA256)", included: true },
-      { text: "Tamper-evident reports", included: true },
+      { text: "Custom compliance mapping", included: true },
+      { text: "SHA256 signed reports", included: true },
+      { text: "Tamper-evident audit trail", included: true },
+      { text: "Air-gap deployment", included: true },
+      { text: "White-labeling", included: true },
       { text: "4h SLA support", included: true },
+      { text: "Dedicated account manager", included: true },
     ],
-    cta: "Contact Sales",
+    cta: "Request Demo",
     highlighted: false,
     hasLifetime: false,
+    badge: "Sovereign Grade",
   },
 };
 
-export const ENTERPRISE_FEATURES = [
+export const SOVEREIGN_FEATURES = [
   "Unlimited AWS accounts",
+  "Unlimited team members",
+  "SSO (SAML/OIDC)",
   "APRA CPS 234 mapping",
-  "RBNZ BS11 mapping",
+  "DORA compliance",
   "Essential Eight assessment",
-  "Digital signatures (SHA256)",
-  "Tamper-evident reports",
-  "Unlimited snapshots (1-year retention)",
+  "RBNZ BS11 mapping",
+  "Custom compliance frameworks",
+  "SHA256 signed reports",
+  "Tamper-evident audit trail",
+  "Air-gap deployment",
+  "White-labeling",
   "4h SLA support",
+  "Dedicated account manager",
 ];
+
+// =============================================================================
+// Legacy Plan Migration
+// =============================================================================
+
+export const LEGACY_PLAN_MIGRATIONS: Record<LegacyPlanName, PlanName> = {
+  free: "community",
+  solo: "pro",
+  enterprise: "sovereign",
+};
+
+/**
+ * Normalize a plan name, converting legacy names to v4.0 names
+ */
+export function normalizePlanName(plan: string): PlanName {
+  const lower = plan.toLowerCase();
+  if (lower in PLANS) return lower as PlanName;
+  if (lower in LEGACY_PLAN_MIGRATIONS) {
+    return LEGACY_PLAN_MIGRATIONS[lower as LegacyPlanName];
+  }
+  return "community"; // Default to community for unknown plans
+}
+
+/**
+ * Check if a plan name is a legacy plan
+ */
+export function isLegacyPlan(plan: string): boolean {
+  return plan.toLowerCase() in LEGACY_PLAN_MIGRATIONS;
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
 
 export function formatPrice(
   amount: number,
@@ -142,7 +201,7 @@ export function formatPrice(
 ): string {
   if (amount === 0) return "Free";
 
-  const formattedAmount = `$${amount}`;
+  const formattedAmount = `$${amount.toLocaleString()}`;
 
   switch (period) {
     case "monthly":
@@ -178,4 +237,42 @@ export function getAnnualSavings(plan: Plan): number {
 export function getLifetimeBreakeven(plan: Plan): number {
   if (!plan.price.lifetime || !plan.price.monthly) return 0;
   return Math.ceil(plan.price.lifetime / plan.price.monthly);
+}
+
+// =============================================================================
+// Plan Comparison
+// =============================================================================
+
+export const PLAN_RANK: Record<PlanName | LegacyPlanName, number> = {
+  // v4.0 plans
+  community: 0,
+  pro: 1,
+  team: 2,
+  sovereign: 3,
+  // Legacy plans
+  free: 0,
+  solo: 1,
+  enterprise: 3,
+};
+
+export function isPlanUpgrade(from: string, to: string): boolean {
+  const fromRank = PLAN_RANK[normalizePlanName(from)] ?? 0;
+  const toRank = PLAN_RANK[normalizePlanName(to)] ?? 0;
+  return toRank > fromRank;
+}
+
+export function isPlanDowngrade(from: string, to: string): boolean {
+  const fromRank = PLAN_RANK[normalizePlanName(from)] ?? 0;
+  const toRank = PLAN_RANK[normalizePlanName(to)] ?? 0;
+  return toRank < fromRank;
+}
+
+export function getUpgradePath(currentPlan: PlanName): PlanName | null {
+  const upgradePaths: Record<PlanName, PlanName | null> = {
+    community: "pro",
+    pro: "team",
+    team: "sovereign",
+    sovereign: null,
+  };
+  return upgradePaths[currentPlan];
 }

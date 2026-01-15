@@ -84,7 +84,7 @@ export async function handleCreateLicense(
     }
 
     // Validate plan
-    const plan = (body.plan || 'free') as PlanType;
+    const plan = (body.plan || 'community') as PlanType;
     if (!PLAN_FEATURES[plan]) {
       throw Errors.invalidRequest(`Invalid plan. Must be one of: ${Object.keys(PLAN_FEATURES).join(', ')}`);
     }
@@ -217,7 +217,7 @@ export async function handleGetLicense(
       throw Errors.licenseNotFound();
     }
 
-    const features = PLAN_FEATURES[license.plan as PlanType] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[license.plan as PlanType] ?? PLAN_FEATURES.community;
 
     return new Response(JSON.stringify({
       license_key: license.licenseKey,

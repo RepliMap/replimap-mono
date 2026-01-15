@@ -1,30 +1,155 @@
 {
-  "free": {
+  "community": {
+    "name": "COMMUNITY",
+    "tagline": "Full visibility, export when ready",
+    "description": "See your entire AWS infrastructure. Upgrade when you're ready to take it home.",
     "price_monthly": 0,
-    "scans_per_month": 10,
-    "features": ["basic_scan", "graph_preview"]
+    "price_yearly": 0,
+    "price_lifetime": null,
+    "scans_per_month": null,
+    "resources_per_scan": null,
+    "aws_accounts": 1,
+    "team_members": 1,
+    "machines": 1,
+    "history_retention_days": 7,
+    "features": [
+      "basic_scanning",
+      "dependency_graph",
+      "cost_analysis",
+      "compliance_view",
+      "security_score",
+      "export_json",
+      "snapshot",
+      "snapshot_diff"
+    ],
+    "ui": {
+      "cta": "Get Started Free",
+      "badge": null,
+      "highlight": false
+    }
   },
   "pro": {
+    "name": "PRO",
+    "tagline": "Export your infrastructure as code",
+    "description": "Take your Terraform code home. Perfect for individual DevOps engineers and SREs.",
     "price_monthly": 2900,
+    "price_yearly": 29000,
+    "price_lifetime": 19900,
     "scans_per_month": null,
-    "features": ["basic_scan", "graph_preview", "terraform_download", "full_audit"]
+    "resources_per_scan": null,
+    "aws_accounts": 3,
+    "team_members": 1,
+    "machines": 2,
+    "history_retention_days": 90,
+    "features": [
+      "basic_scanning",
+      "dependency_graph",
+      "cost_analysis",
+      "compliance_view",
+      "security_score",
+      "export_json",
+      "export_terraform",
+      "export_csv",
+      "export_html",
+      "export_markdown",
+      "graph_full",
+      "graph_security",
+      "graph_export_no_watermark",
+      "audit_full_findings",
+      "audit_fix",
+      "audit_report_export",
+      "snapshot",
+      "snapshot_diff",
+      "api_access"
+    ],
+    "ui": {
+      "cta": "Start PRO Trial",
+      "badge": "Most Popular",
+      "highlight": true
+    }
   },
   "team": {
+    "name": "TEAM",
+    "tagline": "Continuous compliance for your organization",
+    "description": "Drift alerts, compliance reports, and CI/CD integration for growing teams.",
     "price_monthly": 9900,
+    "price_yearly": 99000,
+    "price_lifetime": 49900,
     "scans_per_month": null,
-    "max_accounts": 10,
-    "features": ["*"]
+    "resources_per_scan": null,
+    "aws_accounts": 10,
+    "team_members": 5,
+    "machines": 10,
+    "history_retention_days": 365,
+    "features": [
+      "*",
+      "!compliance_reports_apra",
+      "!compliance_reports_dora",
+      "!compliance_reports_essential8",
+      "!custom_compliance_mapping",
+      "!sso",
+      "!dedicated_support",
+      "!air_gap_deployment",
+      "!report_signature",
+      "!tamper_evident_audit_trail",
+      "!white_labeling"
+    ],
+    "ui": {
+      "cta": "Start TEAM Trial",
+      "badge": null,
+      "highlight": false
+    }
   },
   "sovereign": {
+    "name": "SOVEREIGN",
+    "tagline": "Data sovereignty for regulated industries",
+    "description": "When your regulator asks 'Where does the data go?', the answer is: Nowhere.",
     "price_monthly": 250000,
+    "price_yearly": 2500000,
+    "price_lifetime": null,
     "scans_per_month": null,
-    "max_accounts": null,
+    "resources_per_scan": null,
+    "aws_accounts": null,
+    "team_members": null,
+    "machines": null,
+    "history_retention_days": null,
     "features": ["*"],
     "addons": {
-      "apra_cps234": 50000,
-      "essential_eight": 30000,
-      "rbnz_bs11": 40000,
-      "dora": 50000
+      "apra_cps234": {
+        "name": "APRA CPS 234 Module",
+        "description": "Australian Prudential Regulation Authority compliance mapping",
+        "price_monthly": 50000
+      },
+      "dora": {
+        "name": "DORA Compliance Module",
+        "description": "Digital Operational Resilience Act (EU) compliance mapping",
+        "price_monthly": 50000
+      },
+      "essential_eight": {
+        "name": "Essential Eight Module",
+        "description": "Australian Cyber Security Centre maturity assessment",
+        "price_monthly": 30000
+      },
+      "rbnz_bs11": {
+        "name": "RBNZ BS11 Module",
+        "description": "Reserve Bank of New Zealand outsourcing requirements",
+        "price_monthly": 30000
+      },
+      "dedicated_am": {
+        "name": "Dedicated Account Manager",
+        "description": "Named contact for your organization",
+        "price_monthly": 50000
+      },
+      "sla_999": {
+        "name": "99.9% SLA Guarantee",
+        "description": "Uptime guarantee with financial penalties",
+        "price_monthly": 20000
+      }
+    },
+    "ui": {
+      "cta": "Request Demo",
+      "badge": "Sovereign Grade",
+      "highlight": false
     }
   }
 }
