@@ -1,6 +1,6 @@
 {
   "name": "@replimap/api",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "RepliMap License Management API - Cloudflare Workers + D1",
   "main": "src/index.ts",
   "scripts": {
