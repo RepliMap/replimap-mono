@@ -5,7 +5,6 @@
 **AWS Infrastructure Intelligence Platform**
 
 [![CI](https://github.com/RepliMap/replimap-mono/actions/workflows/ci.yml/badge.svg)](https://github.com/RepliMap/replimap-mono/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/RepliMap/replimap-mono/actions/workflows/codeql.yml/badge.svg)](https://github.com/RepliMap/replimap-mono/security/code-scanning)
 
 [![Node.js](https://img.shields.io/badge/Node.js-24.x-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org/)
@@ -249,7 +248,6 @@ replimap-mono/
 We take security seriously. Our security measures include:
 
 - **OIDC-based publishing** - No long-lived secrets for PyPI
-- **CodeQL scanning** - Static analysis on every PR
 - **Dependabot** - Automated dependency updates
 - **SOC2 compliance** - Enterprise-grade infrastructure
 
