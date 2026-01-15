@@ -1,11 +1,16 @@
 /**
- * RepliMap Feature Definitions
+ * RepliMap Feature Definitions v4.0
  *
- * Updated to include new features:
- * - deps (formerly blast)
- * - snapshot
- * - audit_fix (remediation generator)
- * - graph modes (full, security)
+ * Philosophy: "Gate Output, Not Input"
+ * - Unlimited scans for all tiers
+ * - Unlimited resources per scan
+ * - Charge when users export/download
+ *
+ * Tier Structure:
+ * - COMMUNITY ($0): Full visibility, JSON export with metadata
+ * - PRO ($29): Terraform/CSV export, API access
+ * - TEAM ($99): Drift alerts, compliance reports, CI/CD
+ * - SOVEREIGN ($2,500): SSO, signed reports, air-gap, white-labeling
  */
 
 // =============================================================================
@@ -41,7 +46,7 @@ export enum Feature {
   SNAPSHOT = 'snapshot',
   SNAPSHOT_DIFF = 'snapshot_diff',
 
-  // Advanced analysis (PRO+/TEAM+)
+  // Advanced analysis
   DEPS = 'deps',
   DEPS_EXPORT = 'deps_export',
 
@@ -59,15 +64,40 @@ export enum Feature {
   EXPORT_HTML = 'export_html',
   EXPORT_MARKDOWN = 'export_markdown',
   EXPORT_TERRAFORM = 'export_terraform',
+  EXPORT_CSV = 'export_csv',
+  EXPORT_PDF = 'export_pdf',
+
+  // Compliance features
+  COMPLIANCE_CIS = 'compliance_cis',
+  COMPLIANCE_SOC2 = 'compliance_soc2',
+  COMPLIANCE_APRA = 'compliance_apra',
+  COMPLIANCE_DORA = 'compliance_dora',
+  COMPLIANCE_ESSENTIAL8 = 'compliance_essential8',
+  COMPLIANCE_CUSTOM = 'compliance_custom',
+
+  // Enterprise features
+  REPORT_SIGNATURE = 'report_signature',
+  TAMPER_EVIDENT_AUDIT = 'tamper_evident_audit',
+  AIR_GAP_DEPLOYMENT = 'air_gap_deployment',
+  WHITE_LABELING = 'white_labeling',
+  DEDICATED_SUPPORT = 'dedicated_support',
 }
 
 export enum Plan {
-  FREE = 'free',
-  SOLO = 'solo',
+  COMMUNITY = 'community',
   PRO = 'pro',
   TEAM = 'team',
-  ENTERPRISE = 'enterprise',
+  SOVEREIGN = 'sovereign',
 }
+
+// Legacy plan names for backward compatibility
+export type LegacyPlan = 'free' | 'solo' | 'enterprise';
+
+export const LEGACY_PLAN_MIGRATIONS: Record<LegacyPlan, Plan> = {
+  free: Plan.COMMUNITY,
+  solo: Plan.PRO,
+  enterprise: Plan.SOVEREIGN,
+};
 
 // =============================================================================
 // Feature Access Matrix by Plan
@@ -76,50 +106,30 @@ export enum Plan {
 /**
  * Feature access matrix by plan
  *
- * Aligned with replimap-plan-feature-gate-prompt.md
+ * v4.0 Philosophy: "Gate Output, Not Input"
  *
- * Key decisions for NEW features:
- * - AUDIT_FIX: SOLO+ (enhances audit, key Solo differentiator)
- * - SNAPSHOT: SOLO+ (alternative to drift for non-TF users)
- * - DEPS: TEAM+ (same as original BLAST - high-value feature)
- * - GRAPH_FULL/SECURITY: SOLO+ (premium graph modes)
+ * Key decisions:
+ * - COMMUNITY: Can VIEW everything, but exports are limited
+ * - PRO: Unlocks Terraform/CSV export, API access, full audit
+ * - TEAM: Unlocks drift alerts, compliance reports, CI/CD
+ * - SOVEREIGN: Unlocks SSO, signed reports, air-gap, white-labeling
  */
 export const PLAN_FEATURES: Record<Plan, Feature[]> = {
-  // FREE ($0/mo) - Experience value, limit output
-  [Plan.FREE]: [
+  // COMMUNITY ($0/mo) - Full visibility, gated output
+  [Plan.COMMUNITY]: [
     Feature.SCAN,
+    Feature.SCAN_UNLIMITED_FREQUENCY,  // v4.0: Unlimited scans for all!
     Feature.GRAPH,
     Feature.AUDIT,
     Feature.CLONE_GENERATE,
     Feature.EXPORT_JSON,
     Feature.SNAPSHOT,
     Feature.SNAPSHOT_DIFF,
+    Feature.COST,  // v4.0: Can VIEW cost analysis
+    Feature.DEPS,  // v4.0: Can VIEW dependency graph
   ],
 
-  // SOLO ($29/mo, $199/year) - Full individual access
-  [Plan.SOLO]: [
-    Feature.SCAN,
-    Feature.SCAN_UNLIMITED_FREQUENCY,
-    Feature.GRAPH,
-    Feature.GRAPH_FULL,
-    Feature.GRAPH_SECURITY,
-    Feature.GRAPH_EXPORT_NO_WATERMARK,
-    Feature.AUDIT,
-    Feature.AUDIT_FULL_FINDINGS,
-    Feature.AUDIT_FIX,
-    Feature.AUDIT_REPORT_EXPORT,
-    Feature.CLONE_GENERATE,
-    Feature.CLONE_DOWNLOAD,
-    Feature.CLONE_FULL_PREVIEW,
-    Feature.SNAPSHOT,
-    Feature.SNAPSHOT_DIFF,
-    Feature.EXPORT_JSON,
-    Feature.EXPORT_HTML,
-    Feature.EXPORT_MARKDOWN,
-    Feature.EXPORT_TERRAFORM,
-  ],
-
-  // PRO ($79/mo, $599/year) - CI/CD and advanced analysis
+  // PRO ($29/mo) - Export your infrastructure as code
   [Plan.PRO]: [
     Feature.SCAN,
     Feature.SCAN_UNLIMITED_FREQUENCY,
@@ -131,22 +141,24 @@ export const PLAN_FEATURES: Record<Plan, Feature[]> = {
     Feature.AUDIT_FULL_FINDINGS,
     Feature.AUDIT_FIX,
     Feature.AUDIT_REPORT_EXPORT,
-    Feature.AUDIT_CI_MODE,
     Feature.CLONE_GENERATE,
     Feature.CLONE_DOWNLOAD,
     Feature.CLONE_FULL_PREVIEW,
     Feature.SNAPSHOT,
     Feature.SNAPSHOT_DIFF,
-    Feature.DRIFT,
+    Feature.DEPS,
+    Feature.DEPS_EXPORT,
     Feature.COST,
+    Feature.COST_EXPORT,
     Feature.MULTI_ACCOUNT,
     Feature.EXPORT_JSON,
     Feature.EXPORT_HTML,
     Feature.EXPORT_MARKDOWN,
     Feature.EXPORT_TERRAFORM,
+    Feature.EXPORT_CSV,
   ],
 
-  // TEAM ($149/mo, $1,199/year) - Full platform
+  // TEAM ($99/mo) - Continuous compliance for your organization
   [Plan.TEAM]: [
     Feature.SCAN,
     Feature.SCAN_UNLIMITED_FREQUENCY,
@@ -167,21 +179,25 @@ export const PLAN_FEATURES: Record<Plan, Feature[]> = {
     Feature.DRIFT,
     Feature.DRIFT_WATCH,
     Feature.DRIFT_ALERTS,
+    Feature.DEPS,
+    Feature.DEPS_EXPORT,
     Feature.COST,
     Feature.COST_EXPORT,
     Feature.MULTI_ACCOUNT,
-    Feature.DEPS,
-    Feature.DEPS_EXPORT,
     Feature.WEB_DASHBOARD,
     Feature.TEAM_COLLABORATION,
+    Feature.COMPLIANCE_CIS,
+    Feature.COMPLIANCE_SOC2,
     Feature.EXPORT_JSON,
     Feature.EXPORT_HTML,
     Feature.EXPORT_MARKDOWN,
     Feature.EXPORT_TERRAFORM,
+    Feature.EXPORT_CSV,
+    Feature.EXPORT_PDF,
   ],
 
-  // ENTERPRISE ($399/mo, $3,999/year) - Everything
-  [Plan.ENTERPRISE]: Object.values(Feature) as Feature[],
+  // SOVEREIGN ($2,500/mo) - Data sovereignty for regulated industries
+  [Plan.SOVEREIGN]: Object.values(Feature) as Feature[],
 };
 
 // =============================================================================
@@ -191,57 +207,35 @@ export const PLAN_FEATURES: Record<Plan, Feature[]> = {
 /**
  * Usage limits by plan (per month)
  *
- * Core Philosophy:
- * - SCAN: Unlimited resources, limit FREQUENCY only (not resource count!)
- * - GRAPH: Free to view, watermark on export for FREE
- * - CLONE: Generate all, block DOWNLOAD for FREE
- * - AUDIT: Scan all, limit VISIBLE findings for FREE
- * - DRIFT: PRO+ feature (not in FREE or SOLO!)
- * - COST: PRO+ feature
- * - DEPS/BLAST: TEAM+ feature
+ * v4.0 Philosophy:
+ * - SCAN: Unlimited frequency and resources for ALL tiers
+ * - GRAPH: Free to view, watermark on export for COMMUNITY
+ * - CLONE: Generate all, block DOWNLOAD for COMMUNITY
+ * - AUDIT: Scan all, limit VISIBLE findings for COMMUNITY
  */
 export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
-  // FREE TIER ($0/mo)
-  [Plan.FREE]: {
-    scan_count: 3,
-    resources_per_scan: -1,
+  // COMMUNITY TIER ($0/mo) - Unlimited scans, gated exports
+  [Plan.COMMUNITY]: {
+    scan_count: -1,              // v4.0: UNLIMITED scans
+    resources_per_scan: -1,      // v4.0: UNLIMITED resources
     graph_count: -1,
     clone_count: -1,
-    clone_preview_lines: 100,
-    clone_download: 0,
+    clone_preview_lines: 100,    // Limited preview
+    clone_download: 0,           // No download
     audit_count: -1,
-    audit_visible_findings: 3,
+    audit_visible_findings: 3,   // See 3 findings, upgrade for more
     audit_fix_count: 0,
-    snapshot_count: 1,
-    snapshot_diff_count: 1,
+    snapshot_count: 3,
+    snapshot_diff_count: 3,
     drift_count: 0,
-    cost_count: 0,
-    deps_count: 0,
+    cost_count: -1,              // v4.0: Can VIEW cost
+    deps_count: -1,              // v4.0: Can VIEW deps
     aws_accounts: 1,
     machines: 1,
+    history_retention_days: 7,
   },
 
-  // SOLO TIER ($29/mo, $199/year)
-  [Plan.SOLO]: {
-    scan_count: -1,
-    resources_per_scan: -1,
-    graph_count: -1,
-    clone_count: -1,
-    clone_preview_lines: -1,
-    clone_download: 1,
-    audit_count: -1,
-    audit_visible_findings: -1,
-    audit_fix_count: -1,
-    snapshot_count: -1,
-    snapshot_diff_count: -1,
-    drift_count: 0,
-    cost_count: 0,
-    deps_count: 0,
-    aws_accounts: 1,
-    machines: 2,
-  },
-
-  // PRO TIER ($79/mo, $599/year)
+  // PRO TIER ($29/mo)
   [Plan.PRO]: {
     scan_count: -1,
     resources_per_scan: -1,
@@ -254,14 +248,15 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     audit_fix_count: -1,
     snapshot_count: -1,
     snapshot_diff_count: -1,
-    drift_count: -1,
+    drift_count: 0,              // No drift detection in PRO
     cost_count: -1,
-    deps_count: 0,
+    deps_count: -1,
     aws_accounts: 3,
-    machines: 3,
+    machines: 2,
+    history_retention_days: 90,
   },
 
-  // TEAM TIER ($149/mo, $1,199/year)
+  // TEAM TIER ($99/mo)
   [Plan.TEAM]: {
     scan_count: -1,
     resources_per_scan: -1,
@@ -280,10 +275,11 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     aws_accounts: 10,
     machines: 10,
     team_members: 5,
+    history_retention_days: 365,
   },
 
-  // ENTERPRISE TIER ($399/mo, $3,999/year)
-  [Plan.ENTERPRISE]: {
+  // SOVEREIGN TIER ($2,500/mo)
+  [Plan.SOVEREIGN]: {
     scan_count: -1,
     resources_per_scan: -1,
     graph_count: -1,
@@ -301,6 +297,7 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     aws_accounts: -1,
     machines: -1,
     team_members: -1,
+    history_retention_days: -1,
   },
 };
 
@@ -321,116 +318,182 @@ export const FEATURE_METADATA: Partial<Record<Feature, FeatureMetadata>> = {
   [Feature.SCAN]: {
     name: 'Infrastructure Scan',
     description: 'Scan AWS resources in a region or VPC',
-    tier: Plan.FREE,
+    tier: Plan.COMMUNITY,
   },
   [Feature.GRAPH]: {
     name: 'Graph Visualization',
     description: 'Generate infrastructure dependency graphs',
-    tier: Plan.FREE,
+    tier: Plan.COMMUNITY,
   },
   [Feature.GRAPH_FULL]: {
     name: 'Full Graph Mode',
     description: 'Show all resources without simplification (--all)',
-    tier: Plan.SOLO,
-    isNew: true,
+    tier: Plan.PRO,
   },
   [Feature.GRAPH_SECURITY]: {
     name: 'Security Graph Mode',
     description: 'Security-focused view with SG rules (--security)',
-    tier: Plan.SOLO,
-    isNew: true,
+    tier: Plan.PRO,
   },
   [Feature.CLONE_GENERATE]: {
     name: 'Infrastructure Cloning',
     description: 'Generate Terraform code to clone infrastructure',
-    tier: Plan.FREE,
+    tier: Plan.COMMUNITY,
   },
   [Feature.CLONE_DOWNLOAD]: {
     name: 'Clone Download',
     description: 'Download generated Terraform code',
-    tier: Plan.SOLO,
+    tier: Plan.PRO,
   },
   [Feature.AUDIT]: {
     name: 'Security Audit',
     description: 'Scan for security misconfigurations',
-    tier: Plan.FREE,
+    tier: Plan.COMMUNITY,
   },
   [Feature.AUDIT_FIX]: {
     name: 'Audit Remediation',
     description: 'Auto-generate Terraform code to fix issues (--fix)',
-    tier: Plan.SOLO,
-    isNew: true,
+    tier: Plan.PRO,
   },
   [Feature.AUDIT_CI_MODE]: {
     name: 'Audit CI Mode',
     description: 'Use --fail-on-high in CI/CD pipelines',
-    tier: Plan.PRO,
+    tier: Plan.TEAM,
   },
   [Feature.DRIFT]: {
     name: 'Drift Detection',
     description: 'Compare AWS state vs Terraform state',
-    tier: Plan.PRO,
+    tier: Plan.TEAM,
   },
   [Feature.DRIFT_WATCH]: {
     name: 'Drift Watch Mode',
-    description: 'Continuous drift monitoring with alerts',
+    description: 'Continuous drift monitoring',
+    tier: Plan.TEAM,
+  },
+  [Feature.DRIFT_ALERTS]: {
+    name: 'Drift Alerts',
+    description: 'Slack/Teams/Webhook notifications for drift',
     tier: Plan.TEAM,
   },
   [Feature.SNAPSHOT]: {
     name: 'Infrastructure Snapshot',
-    description: 'Save infrastructure state for comparison (no Terraform needed)',
-    tier: Plan.SOLO,
-    isNew: true,
+    description: 'Save infrastructure state for comparison',
+    tier: Plan.COMMUNITY,
   },
   [Feature.SNAPSHOT_DIFF]: {
     name: 'Snapshot Comparison',
     description: 'Compare snapshots to detect changes over time',
-    tier: Plan.SOLO,
-    isNew: true,
+    tier: Plan.COMMUNITY,
   },
   [Feature.DEPS]: {
     name: 'Dependency Explorer',
-    description: 'Explore resource dependencies and potential impact of changes',
-    tier: Plan.TEAM,
-    isRenamed: true,
-    previousName: 'Blast Radius Analyzer',
+    description: 'Explore resource dependencies and blast radius',
+    tier: Plan.COMMUNITY,  // v4.0: VIEW is free
   },
   [Feature.DEPS_EXPORT]: {
     name: 'Dependency Export',
     description: 'Export dependency analysis reports',
-    tier: Plan.TEAM,
-    isRenamed: true,
-    previousName: 'Blast Radius Export',
+    tier: Plan.PRO,
   },
   [Feature.COST]: {
     name: 'Cost Estimation',
-    description: 'Estimate infrastructure costs (±20% accuracy)',
-    tier: Plan.PRO,
+    description: 'Estimate infrastructure costs',
+    tier: Plan.COMMUNITY,  // v4.0: VIEW is free
   },
   [Feature.COST_EXPORT]: {
     name: 'Cost Export',
     description: 'Export cost estimation reports',
-    tier: Plan.TEAM,
+    tier: Plan.PRO,
   },
   [Feature.EXPORT_JSON]: {
     name: 'JSON Export',
     description: 'Export data as JSON',
-    tier: Plan.FREE,
+    tier: Plan.COMMUNITY,
   },
   [Feature.EXPORT_HTML]: {
     name: 'HTML Export',
     description: 'Export reports as HTML',
-    tier: Plan.SOLO,
+    tier: Plan.PRO,
   },
   [Feature.EXPORT_MARKDOWN]: {
     name: 'Markdown Export',
     description: 'Export reports as Markdown',
-    tier: Plan.SOLO,
+    tier: Plan.PRO,
   },
   [Feature.EXPORT_TERRAFORM]: {
     name: 'Terraform Export',
     description: 'Export as Terraform code',
-    tier: Plan.SOLO,
+    tier: Plan.PRO,
+  },
+  [Feature.EXPORT_CSV]: {
+    name: 'CSV Export',
+    description: 'Export data as CSV for spreadsheets',
+    tier: Plan.PRO,
+  },
+  [Feature.EXPORT_PDF]: {
+    name: 'PDF Export',
+    description: 'Export reports as PDF',
+    tier: Plan.TEAM,
+  },
+  [Feature.COMPLIANCE_CIS]: {
+    name: 'CIS Benchmark',
+    description: 'CIS Benchmark compliance reports',
+    tier: Plan.TEAM,
+  },
+  [Feature.COMPLIANCE_SOC2]: {
+    name: 'SOC2 Compliance',
+    description: 'SOC2 compliance mapping',
+    tier: Plan.TEAM,
+  },
+  [Feature.COMPLIANCE_APRA]: {
+    name: 'APRA CPS 234',
+    description: 'Australian prudential regulation compliance',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.COMPLIANCE_DORA]: {
+    name: 'DORA Compliance',
+    description: 'EU Digital Operational Resilience Act',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.COMPLIANCE_ESSENTIAL8]: {
+    name: 'Essential Eight',
+    description: 'Australian Cyber Security Centre maturity assessment',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.COMPLIANCE_CUSTOM]: {
+    name: 'Custom Compliance',
+    description: 'Create custom compliance frameworks',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.SSO]: {
+    name: 'Single Sign-On',
+    description: 'SAML/OIDC integration',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.REPORT_SIGNATURE]: {
+    name: 'Signed Reports',
+    description: 'SHA256 digital signatures for audit evidence',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.TAMPER_EVIDENT_AUDIT]: {
+    name: 'Tamper-Evident Audit',
+    description: 'Immutable audit trail for compliance',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.AIR_GAP_DEPLOYMENT]: {
+    name: 'Air-Gap Deployment',
+    description: 'Deploy in isolated networks with zero external connections',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.WHITE_LABELING]: {
+    name: 'White-Labeling',
+    description: 'Remove RepliMap branding for client deliverables',
+    tier: Plan.SOVEREIGN,
+  },
+  [Feature.DEDICATED_SUPPORT]: {
+    name: 'Dedicated Support',
+    description: 'Named account manager',
+    tier: Plan.SOVEREIGN,
   },
 };
 
@@ -451,7 +514,7 @@ export function planHasFeature(plan: Plan, feature: Feature): boolean {
  */
 export function getRequiredPlan(feature: Feature): Plan {
   const metadata = FEATURE_METADATA[feature];
-  return metadata?.tier ?? Plan.ENTERPRISE;
+  return metadata?.tier ?? Plan.SOVEREIGN;
 }
 
 /**
@@ -467,6 +530,32 @@ export function getLimit(plan: Plan, limitKey: string): number {
  */
 export function isUnlimited(limit: number): boolean {
   return limit === -1;
+}
+
+/**
+ * Normalize a plan name, converting legacy names to v4.0 names
+ */
+export function normalizePlan(plan: string): Plan {
+  const lower = plan.toLowerCase();
+
+  // Check v4.0 plan names
+  if (Object.values(Plan).includes(lower as Plan)) {
+    return lower as Plan;
+  }
+
+  // Check legacy plan names
+  if (lower in LEGACY_PLAN_MIGRATIONS) {
+    return LEGACY_PLAN_MIGRATIONS[lower as LegacyPlan];
+  }
+
+  return Plan.COMMUNITY; // Default to community for unknown plans
+}
+
+/**
+ * Check if a plan name is a legacy plan
+ */
+export function isLegacyPlan(plan: string): boolean {
+  return plan.toLowerCase() in LEGACY_PLAN_MIGRATIONS;
 }
 
 /**
@@ -499,9 +588,21 @@ export interface FeatureFlagsType {
   graph_security: boolean;
   drift: boolean;
   drift_watch: boolean;
+  drift_alerts: boolean;
   cost: boolean;
   clone_download: boolean;
   audit_ci_mode: boolean;
+  export_terraform: boolean;
+  export_csv: boolean;
+  export_pdf: boolean;
+  compliance_cis: boolean;
+  compliance_soc2: boolean;
+  compliance_apra: boolean;
+  compliance_dora: boolean;
+  sso: boolean;
+  report_signature: boolean;
+  air_gap: boolean;
+  white_labeling: boolean;
 }
 
 /**
@@ -518,8 +619,58 @@ export function getFeatureFlags(plan: Plan): FeatureFlagsType {
     graph_security: features.includes(Feature.GRAPH_SECURITY),
     drift: features.includes(Feature.DRIFT),
     drift_watch: features.includes(Feature.DRIFT_WATCH),
+    drift_alerts: features.includes(Feature.DRIFT_ALERTS),
     cost: features.includes(Feature.COST),
     clone_download: features.includes(Feature.CLONE_DOWNLOAD),
     audit_ci_mode: features.includes(Feature.AUDIT_CI_MODE),
+    export_terraform: features.includes(Feature.EXPORT_TERRAFORM),
+    export_csv: features.includes(Feature.EXPORT_CSV),
+    export_pdf: features.includes(Feature.EXPORT_PDF),
+    compliance_cis: features.includes(Feature.COMPLIANCE_CIS),
+    compliance_soc2: features.includes(Feature.COMPLIANCE_SOC2),
+    compliance_apra: features.includes(Feature.COMPLIANCE_APRA),
+    compliance_dora: features.includes(Feature.COMPLIANCE_DORA),
+    sso: features.includes(Feature.SSO),
+    report_signature: features.includes(Feature.REPORT_SIGNATURE),
+    air_gap: features.includes(Feature.AIR_GAP_DEPLOYMENT),
+    white_labeling: features.includes(Feature.WHITE_LABELING),
   };
+}
+
+// =============================================================================
+// Plan Comparison
+// =============================================================================
+
+export const PLAN_RANK: Record<Plan | LegacyPlan, number> = {
+  // v4.0 plans
+  [Plan.COMMUNITY]: 0,
+  [Plan.PRO]: 1,
+  [Plan.TEAM]: 2,
+  [Plan.SOVEREIGN]: 3,
+  // Legacy plans
+  free: 0,
+  solo: 1,
+  enterprise: 3,
+};
+
+export function isPlanUpgrade(from: string, to: string): boolean {
+  const fromPlan = normalizePlan(from);
+  const toPlan = normalizePlan(to);
+  return PLAN_RANK[toPlan] > PLAN_RANK[fromPlan];
+}
+
+export function isPlanDowngrade(from: string, to: string): boolean {
+  const fromPlan = normalizePlan(from);
+  const toPlan = normalizePlan(to);
+  return PLAN_RANK[toPlan] < PLAN_RANK[fromPlan];
+}
+
+export function getUpgradePath(currentPlan: Plan): Plan | null {
+  const upgradePaths: Record<Plan, Plan | null> = {
+    [Plan.COMMUNITY]: Plan.PRO,
+    [Plan.PRO]: Plan.TEAM,
+    [Plan.TEAM]: Plan.SOVEREIGN,
+    [Plan.SOVEREIGN]: null,
+  };
+  return upgradePaths[currentPlan];
 }

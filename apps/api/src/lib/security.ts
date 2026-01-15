@@ -285,13 +285,17 @@ export function isCIEnvironment(machineId: string, isCIFlag?: boolean): boolean 
 
 /**
  * CI device limits per plan (more generous than regular devices)
+ * v4.0: community, pro, team, sovereign
  */
 export const CI_DEVICE_LIMITS: Record<string, number> = {
-  free: 3,
-  solo: 10,
+  community: 3,
   pro: 25,
   team: 50,
-  enterprise: -1, // Unlimited
+  sovereign: -1, // Unlimited
+  // Legacy plan names for backward compatibility
+  free: 3,
+  solo: 25,
+  enterprise: -1,
 };
 
 // ============================================================================

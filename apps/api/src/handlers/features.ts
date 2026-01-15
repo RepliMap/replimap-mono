@@ -93,7 +93,7 @@ export async function handleGetFeatures(
   try {
     // Check if license key provided
     const licenseKey = request.headers.get('X-License-Key');
-    let plan: Plan = Plan.FREE;
+    let plan: Plan = Plan.COMMUNITY;
 
     if (licenseKey) {
       try {
@@ -267,7 +267,7 @@ export async function handleGetFeatureFlags(
 
   try {
     const licenseKey = request.headers.get('X-License-Key');
-    let plan: Plan = Plan.FREE;
+    let plan: Plan = Plan.COMMUNITY;
 
     if (licenseKey) {
       try {
@@ -278,7 +278,7 @@ export async function handleGetFeatureFlags(
           plan = license.plan as Plan;
         }
       } catch {
-        // Invalid license key - default to FREE
+        // Invalid license key - default to COMMUNITY
       }
     }
 

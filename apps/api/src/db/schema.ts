@@ -195,9 +195,9 @@ export const licenses = sqliteTable("licenses", {
         .references(() => user.id, { onDelete: "cascade" }),
     licenseKey: text("license_key").unique().notNull(),
 
-    // Plan information
-    plan: text("plan", { enum: ["free", "solo", "pro", "team"] })
-        .default("free")
+    // Plan information (v4.0: community, pro, team, sovereign + legacy: free, solo)
+    plan: text("plan", { enum: ["community", "pro", "team", "sovereign", "free", "solo"] })
+        .default("community")
         .notNull(),
     planType: text("plan_type", { enum: ["free", "monthly", "annual", "lifetime"] })
         .default("monthly")

@@ -131,7 +131,7 @@ export async function handleValidateLicense(
     }
 
     const plan = license.plan as PlanType;
-    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.free;
+    const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Device Abuse Detection (check ACTIVE devices, not lifetime total)
@@ -213,7 +213,7 @@ export async function handleValidateLicense(
     // Get new feature flags and limits
     const planEnum = license.plan as Plan;
     const featureFlags = getFeatureFlags(planEnum);
-    const newLimits = PLAN_LIMITS[planEnum] || PLAN_LIMITS[Plan.FREE];
+    const newLimits = PLAN_LIMITS[planEnum] || PLAN_LIMITS[Plan.COMMUNITY];
 
     // Build success response
     const response: ValidateLicenseResponse & {

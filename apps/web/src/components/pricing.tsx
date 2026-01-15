@@ -3,14 +3,14 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, X, Sparkles } from "lucide-react"
-import { PLANS, ENTERPRISE_FEATURES, type PlanName, type BillingPeriod } from "@/lib/pricing"
+import { Check, X, Sparkles, Shield } from "lucide-react"
+import { PLANS, SOVEREIGN_FEATURES, type PlanName, type BillingPeriod } from "@/lib/pricing"
 
 const TALLY_FORM_URL = "https://tally.so/r/2EaYae"
 
-// Transform PLANS object to array for rendering, excluding enterprise (shown separately)
+// Transform PLANS object to array for rendering, excluding sovereign (shown separately)
 const plansList = (Object.entries(PLANS) as [PlanName, (typeof PLANS)[PlanName]][])
-  .filter(([key]) => key !== "enterprise")
+  .filter(([key]) => key !== "sovereign")
   .map(([key, plan]) => ({
     key,
     ...plan,
@@ -38,7 +38,9 @@ export function Pricing() {
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             Simple, transparent pricing
           </h2>
-          <p className="text-muted-foreground">Start free, upgrade when you need to export</p>
+          <p className="text-muted-foreground">
+            Unlimited scanning. Pay only when you export.
+          </p>
         </div>
 
         {/* Billing Toggle */}
@@ -63,7 +65,7 @@ export function Pricing() {
               } rounded-md px-4 py-2 text-sm font-medium transition-colors flex items-center gap-1`}
             >
               Annual
-              <span className="text-xs opacity-75">(Save 17%)</span>
+              <span className="text-xs opacity-75">(2 months free)</span>
             </button>
             <button
               onClick={() => setBillingPeriod("lifetime")}
@@ -79,8 +81,8 @@ export function Pricing() {
           </div>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Pricing Cards - 3 columns (Community, Pro, Team) */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {plansList.map((plan) => (
             <div
               key={plan.key}
@@ -92,18 +94,19 @@ export function Pricing() {
             >
               {/* Badges */}
               <div className="flex gap-2 mb-3 min-h-[28px]">
-                {plan.highlighted && (
-                  <Badge className="bg-emerald-500 text-white">Most Popular</Badge>
+                {plan.badge && (
+                  <Badge className="bg-emerald-500 text-white">{plan.badge}</Badge>
                 )}
                 {billingPeriod === "lifetime" && plan.hasLifetime && (
                   <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
-                    🔥 Early Bird
+                    Early Bird
                   </Badge>
                 )}
               </div>
 
-              {/* Plan Name */}
-              <h3 className="text-xl font-bold text-foreground mb-2">{plan.name}</h3>
+              {/* Plan Name & Tagline */}
+              <h3 className="text-xl font-bold text-foreground mb-1">{plan.name}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{plan.tagline}</p>
 
               {/* Price */}
               <div className="mb-2">
@@ -140,7 +143,7 @@ export function Pricing() {
                     }`}
                     variant={plan.highlighted ? "default" : "outline"}
                   >
-                    Join Waitlist
+                    {plan.cta}
                   </Button>
                 </a>
               )}
@@ -177,21 +180,28 @@ export function Pricing() {
           ))}
         </div>
 
-        {/* Enterprise Banner */}
+        {/* Sovereign Banner */}
         <div className="mt-12 rounded-2xl p-8 bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border border-purple-500/30">
           <div className="flex flex-col lg:flex-row items-center gap-8">
             <div className="lg:w-1/3">
               <Badge className="mb-3 bg-purple-500/20 text-purple-400 border-purple-500/50">
-                For Regulated Industries
+                <Shield className="w-3 h-3 mr-1" />
+                Sovereign Grade
               </Badge>
-              <h3 className="text-2xl font-bold text-foreground mb-2">Enterprise</h3>
+              <h3 className="text-2xl font-bold text-foreground mb-2">Sovereign</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Data sovereignty for regulated industries
+              </p>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-foreground">From $500</span>
+                <span className="text-3xl font-bold text-foreground">From $2,500</span>
                 <span className="text-muted-foreground ml-2">/month</span>
               </div>
+              <p className="text-xs text-muted-foreground">
+                When your regulator asks &ldquo;Where does the data go?&rdquo;, the answer is: Nowhere.
+              </p>
             </div>
             <div className="lg:w-1/2 grid grid-cols-2 gap-4">
-              {ENTERPRISE_FEATURES.map((feature, index) => (
+              {SOVEREIGN_FEATURES.map((feature, index) => (
                 <div key={index} className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
                   <span className="text-muted-foreground text-sm">{feature}</span>
@@ -200,8 +210,8 @@ export function Pricing() {
             </div>
             <div className="lg:w-auto">
               <Button asChild className="bg-purple-500 hover:bg-purple-600 text-white">
-                <a href="mailto:david@replimap.com?subject=RepliMap Enterprise Inquiry">
-                  Contact Sales
+                <a href="mailto:david@replimap.com?subject=RepliMap Sovereign Inquiry">
+                  Request Demo
                 </a>
               </Button>
             </div>
