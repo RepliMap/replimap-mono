@@ -2,13 +2,20 @@
 node_modules/
 .pnpm-store/
 
-# Build outputs (except packages/config/dist which is committed)
+# Build outputs
 .next/
-.turbo/
+out/
 build/
+*.egg-info/
+dist/
 
-# Environment files
+# IMPORTANT: Keep generated config files (they are committed)
+!packages/config/dist/
+
+# Environment
 .env
+.env.*
+!.env.example
 .env.local
 .env.*.local
 
@@ -17,32 +24,43 @@ build/
 .vscode/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Turbo
+.turbo/
+
+# Vercel
+.vercel/
+
+# Wrangler/Cloudflare
+.wrangler/
+.dev.vars
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 .Python
-*.egg-info/
-dist/
-!packages/config/dist/
-.eggs/
-*.egg
-.venv/
-venv/
-ENV/
 .pytest_cache/
-.mypy_cache/
 .ruff_cache/
+.mypy_cache/
+venv/
+.venv/
+ENV/
+*.whl
+*.egg
+.eggs/
+MANIFEST
 
-# Testing
+# Test coverage
 coverage/
 .nyc_output/
 htmlcov/
+.coverage
 
 # Logs
 *.log
@@ -52,6 +70,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Misc
+*.bak
+*.tmp
+.cache/
 *.tsbuildinfo
-.vercel
-.wrangler/

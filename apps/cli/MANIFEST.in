@@ -3,6 +3,8 @@ include README.md
 include CHANGELOG.md
 recursive-include replimap/templates *.tf *.tf.j2 *.jinja2
 recursive-include replimap *.py
+include replimap/_generated/*.py
+include replimap/_generated/**/*.py
 global-exclude __pycache__
 global-exclude *.pyc
 global-exclude *.pyo

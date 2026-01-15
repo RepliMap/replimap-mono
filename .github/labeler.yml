@@ -1,0 +1,35 @@
+# Requires: https://github.com/actions/labeler
+
+web:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/web/**/*'
+
+api:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/api/**/*'
+
+cli:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/cli/**/*'
+
+config:
+  - changed-files:
+      - any-glob-to-any-file: 'packages/config/**/*'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - 'docs/**/*'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: '.github/**/*'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/package.json'
+          - '**/pnpm-lock.yaml'
+          - '**/pyproject.toml'
+          - '**/requirements*.txt'

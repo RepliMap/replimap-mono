@@ -9,6 +9,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "dev:web": "turbo run dev --filter=@replimap/web",
     "dev:api": "turbo run dev --filter=@replimap/api",
     "build:web": "turbo run build --filter=@replimap/web",
@@ -17,12 +18,13 @@
     "sync:cli-config": "bash apps/cli/scripts/sync-config.sh"
   },
   "devDependencies": {
+    "prettier": "^3.4.0",
     "turbo": "^2.3.0",
     "typescript": "^5.3.0"
   },
-  "packageManager": "pnpm@9.14.4",
+  "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=24",
-    "pnpm": ">=9"
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   }
 }

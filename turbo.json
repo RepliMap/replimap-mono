@@ -1,10 +1,12 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env*"],
+  "globalEnv": ["NODE_ENV", "VERCEL_ENV", "NEXT_PUBLIC_*"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", ".next/**", "build/**"]
+      "outputs": ["dist/**", ".next/**", "build/**", "out/**"],
+      "env": ["NODE_ENV"]
     },
     "dev": {
       "cache": false,
@@ -12,18 +14,18 @@
     },
     "lint": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$"]
+      "outputs": []
     },
     "typecheck": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$"]
+      "outputs": []
     },
     "clean": {
       "cache": false
     },
     "check": {
       "dependsOn": ["build"],
-      "inputs": ["$TURBO_DEFAULT$"]
+      "outputs": []
     }
   }
 }

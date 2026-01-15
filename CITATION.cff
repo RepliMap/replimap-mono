@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+title: "RepliMap: AWS Infrastructure Intelligence Platform"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - name: "RepliMap Team"
+    email: "team@replimap.com"
+repository-code: "https://github.com/RepliMap/replimap-mono"
+url: "https://replimap.com"
+abstract: >-
+  RepliMap scans AWS production environments and generates
+  Terraform code for infrastructure replication, disaster
+  recovery, and compliance testing.
+keywords:
+  - aws
+  - terraform
+  - infrastructure-as-code
+  - devops
+  - cloud
+  - disaster-recovery
+license: Proprietary
+version: "0.5.0"
+date-released: "2025-01-15"
