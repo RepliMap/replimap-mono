@@ -1,0 +1,66 @@
+name = "replimap-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+# Enable Node.js compatibility (Critical for Stripe and Clerk SDKs)
+compatibility_flags = ["nodejs_compat"]
+
+# ============================================================================
+# Development Environment (default)
+# ============================================================================
+
+[vars]
+ENVIRONMENT = "development"
+# Allow all origins in dev for localhost debugging
+CORS_ORIGIN = "*"
+API_VERSION = "v1"
+
+# D1 Database (development)
+[[d1_databases]]
+binding = "DB"
+database_name = "replimap-dev"
+database_id = "212335fc-ffeb-40d2-8794-c0d84a0991a1"
+
+# KV for rate limiting (development)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "32520e34a8d54faf90e71692462e9f96"         # remote dev
+preview_id = "58ccea22fa7f4e6689adbec8270356b0" # local dev
+
+# ============================================================================
+# Production Environment
+# ============================================================================
+
+[env.production]
+name = "replimap-api-prod"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+CORS_ORIGIN = "https://replimap.com"
+API_VERSION = "v1"
+
+routes = [
+  { pattern = "api.replimap.com", custom_domain = true }
+]
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "replimap-prod"
+database_id = "0cda6e12-5087-4b1a-8dfe-207960c88f2d"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "705a8c1a808a4656894a0c787787b76c" # remote prod
+
+# ============================================================================
+# Secrets Checklist (Run these commands manually in terminal!)
+# ============================================================================
+# 1. Stripe Payments
+# npx wrangler secret put STRIPE_SECRET_KEY --env production
+# npx wrangler secret put STRIPE_WEBHOOK_SECRET --env production
+
+# 2. Clerk Authentication
+# npx wrangler secret put CLERK_SECRET_KEY --env production
+# npx wrangler secret put CLERK_PUBLISHABLE_KEY --env production
+
+# 3. Admin Tools
+# npx wrangler secret put ADMIN_API_KEY --env production

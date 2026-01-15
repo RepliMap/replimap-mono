@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+build/
+*.egg-info/
+dist/
+
+# IMPORTANT: Keep generated config files (they are committed)
+!packages/config/dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Turbo
+.turbo/
+
+# Vercel
+.vercel/
+
+# Wrangler/Cloudflare
+.wrangler/
+.dev.vars
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+venv/
+.venv/
+ENV/
+*.whl
+*.egg
+.eggs/
+MANIFEST
+
+# Test coverage
+coverage/
+.nyc_output/
+htmlcov/
+.coverage
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+*.bak
+*.tmp
+.cache/
+*.tsbuildinfo

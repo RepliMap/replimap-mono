@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "component": "replimap-mono",
+      "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
+    },
+    "apps/web": {
+      "release-type": "node",
+      "component": "replimap-web",
+      "changelog-path": "CHANGELOG.md"
+    },
+    "apps/api": {
+      "release-type": "node",
+      "component": "replimap-api",
+      "changelog-path": "CHANGELOG.md"
+    }
+  },
+  "plugins": [
+    {
+      "type": "node-workspace",
+      "updateAllPackages": true,
+      "merge": false
+    }
+  ],
+  "changelog-sections": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "perf", "section": "Performance"},
+    {"type": "docs", "section": "Documentation"},
+    {"type": "refactor", "section": "Refactoring"},
+    {"type": "chore", "section": "Maintenance", "hidden": true},
+    {"type": "test", "section": "Tests", "hidden": true},
+    {"type": "ci", "section": "CI/CD", "hidden": true}
+  ],
+  "separate-pull-requests": false
+}

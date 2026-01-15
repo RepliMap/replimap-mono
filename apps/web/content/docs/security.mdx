@@ -1,0 +1,144 @@
+---
+title: Security
+description: How RepliMap handles your data and security principles
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+RepliMap is designed with **Sovereignty** and **Security** as core principles. We understand that your infrastructure map is sensitive data.
+
+## Core Principles
+
+### 1. Read-Only Access
+
+RepliMap **only requires read permissions** to your AWS environment. We never:
+- Create, modify, or delete AWS resources
+- Require write permissions to any service
+- Make changes to your infrastructure
+
+### 2. Local Processing
+
+All data processing happens **on your machine**:
+- AWS API responses are processed locally
+- Terraform code is generated locally
+- No infrastructure data is sent to external servers
+- All data stored in `~/.replimap/` or your output directory
+
+### 3. No Data Collection
+
+RepliMap does **not collect** your infrastructure data:
+- No telemetry of scanned resources
+- No upload of generated Terraform code
+- No tracking of your AWS resource configurations
+- Only license key validation touches our servers
+
+## Data Handling
+
+| Data Type | Accessed | Stored Locally | Sent Externally |
+|-----------|----------|----------------|-----------------|
+| VPC configurations | ✅ | Optional | ❌ |
+| EC2 instance metadata | ✅ | Optional | ❌ |
+| Security group rules | ✅ | Optional | ❌ |
+| RDS configurations | ✅ | Optional | ❌ |
+| S3 bucket metadata | ✅ | Optional | ❌ |
+| S3 bucket contents | ❌ | ❌ | ❌ |
+| Database contents | ❌ | ❌ | ❌ |
+| Secrets/credentials | ❌ | ❌ | ❌ |
+
+## Sensitive Data Protection
+
+### Secret Scrubber
+
+RepliMap includes a built-in **Secret Scrubber** that automatically detects and redacts sensitive data from generated code:
+
+- AWS Access Keys (`AKIA*`, `ASIA*` for STS)
+- AWS Secret Access Keys
+- Private Keys (RSA, EC, DSA, OpenSSH)
+- Database URLs with embedded passwords
+- Bearer tokens, API keys
+- Generic secrets (`password=`, `api_key=`, etc.)
+
+When secrets are detected:
+
+```
+⚠️  Sensitive Data Redacted:
+   • AWS Access Key ID: 2 instances
+   • Generic Secret: 3 instances
+
+Review generated files. Use Terraform variables for secrets.
+```
+
+### Account ID Replacement
+
+AWS account IDs are automatically replaced with variables:
+
+```hcl
+# Before
+arn:aws:ec2:us-east-1:123456789012:vpc/vpc-abc123
+
+# After  
+arn:aws:ec2:us-east-1:${var.aws_account_id}:vpc/vpc-abc123
+```
+
+## Trust Center (Enterprise)
+
+For Enterprise users, RepliMap provides a **Trust Center** audit mode that generates cryptographically signed compliance reports proving all API calls were read-only.
+
+```bash
+# Enable Trust Center auditing during scan
+replimap scan --profile prod --trust-center
+
+# Generate compliance report
+replimap trust-center report
+replimap trust-center report --format pdf --output compliance.pdf
+```
+
+### Compliance Statement
+
+```
+========================================================================
+TRUST CENTER COMPLIANCE REPORT
+========================================================================
+
+Tool: RepliMap v1.0.0
+Generated: 2025-01-15T12:00:00
+
+EXECUTIVE SUMMARY
+  Total AWS API Calls:   1,247
+  Read-Only Operations:  100.0%
+
+COMPLIANCE STATEMENT:
+  COMPLIANT: This tool performed 100% READ-ONLY operations during
+  the audit period. No AWS resources were created, modified, or
+  deleted.
+```
+
+## Vulnerability Reporting
+
+If you discover a security vulnerability, please report it responsibly:
+
+**Email**: [support@replimap.com](mailto:support@replimap.com)
+
+Please include:
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+
+### Response Timeline
+
+| Severity | Fix Timeline |
+|----------|--------------|
+| Critical | 24-48 hours |
+| High | 1 week |
+| Medium | 2 weeks |
+| Low | Next release |
+
+## Best Practices
+
+<Callout type="info">
+  **For Users:**
+  1. Use dedicated IAM credentials for RepliMap
+  2. Restrict permissions by region
+  3. Always review generated code before applying
+  4. Rotate AWS access keys regularly
+</Callout>

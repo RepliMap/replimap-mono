@@ -1,0 +1,31 @@
+{
+  "name": "@replimap/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared configuration for RepliMap - generates TypeScript and Python code from JSON",
+  "type": "module",
+  "main": "./dist/index.ts",
+  "types": "./dist/index.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.ts",
+      "types": "./dist/index.ts"
+    },
+    "./python": "./dist/config.py"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsx scripts/build.ts",
+    "dev": "tsx watch scripts/build.ts",
+    "check": "tsx scripts/build.ts --check",
+    "clean": "rm -rf dist && mkdir dist"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "free": {
+    "price_monthly": 0,
+    "scans_per_month": 10,
+    "features": ["basic_scan", "graph_preview"]
+  },
+  "pro": {
+    "price_monthly": 2900,
+    "scans_per_month": null,
+    "features": ["basic_scan", "graph_preview", "terraform_download", "full_audit"]
+  },
+  "team": {
+    "price_monthly": 9900,
+    "scans_per_month": null,
+    "max_accounts": 10,
+    "features": ["*"]
+  },
+  "sovereign": {
+    "price_monthly": 250000,
+    "scans_per_month": null,
+    "max_accounts": null,
+    "features": ["*"],
+    "addons": {
+      "apra_cps234": 50000,
+      "essential_eight": 30000,
+      "rbnz_bs11": 40000,
+      "dora": 50000
+    }
+  }
+}
