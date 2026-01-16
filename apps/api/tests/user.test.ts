@@ -6,7 +6,7 @@
  * POST /v1/me/resend-key - Resend license key via email
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   handleGetOwnLicense,
   handleGetOwnMachines,
@@ -21,6 +21,23 @@ import {
 } from './helpers';
 import type { Env } from '../src/types';
 import type { ErrorResponse } from '../src/types/api';
+import * as db from '../src/lib/db';
+
+// Mock the db module
+vi.mock('../src/lib/db', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/lib/db')>();
+  return {
+    ...original,
+    getLicenseByKey: vi.fn(),
+    getLicensesForUser: vi.fn().mockResolvedValue([]),
+    getActiveMachines: vi.fn().mockResolvedValue([]),
+    getMachineChangesThisMonth: vi.fn().mockResolvedValue(0),
+    createDb: vi.fn(() => ({
+      get: vi.fn().mockResolvedValue(null),
+      all: vi.fn().mockResolvedValue([]),
+    })),
+  };
+});
 
 describe('User Self-Service Endpoints', () => {
   let env: Env;
@@ -52,6 +69,11 @@ describe('User Self-Service Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      // Mock createDb to return null for license lookup
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue(null),
+      } as unknown as ReturnType<typeof db.createDb>);
+
       const request = createRequest('GET', '/v1/me/license?license_key=RM-XXXX-XXXX-XXXX-XXXX');
 
       const response = await handleGetOwnLicense(request, env, '1.2.3.4');
@@ -62,26 +84,20 @@ describe('User Self-Service Endpoints', () => {
     });
 
     it('should return license details for valid key', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => ({
-              license_key: mockLicense.license_key,
-              plan: 'pro',
-              status: 'active',
-              current_period_start: mockLicense.current_period_start,
-              current_period_end: mockLicense.current_period_end,
-              stripe_subscription_id: 'sub_123',
-              created_at: mockLicense.created_at,
-              active_machines: 2,
-              active_aws_accounts: 1,
-              id: mockLicense.id,
-            }),
-          }),
+      // Mock createDb to return license details
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue({
+          license_key: mockLicense.license_key,
+          plan: 'pro',
+          status: 'active',
+          current_period_start: mockLicense.current_period_start,
+          current_period_end: mockLicense.current_period_end,
+          stripe_subscription_id: 'sub_123',
+          created_at: mockLicense.created_at,
+          active_machines: 2,
+          active_aws_accounts: 1,
         }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      } as unknown as ReturnType<typeof db.createDb>);
 
       const request = createRequest('GET', `/v1/me/license?license_key=${mockLicense.license_key}`);
 
@@ -110,6 +126,9 @@ describe('User Self-Service Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      // Mock getLicenseByKey to return null
+      vi.mocked(db.getLicenseByKey).mockResolvedValue(null);
+
       const request = createRequest('GET', '/v1/me/machines?license_key=RM-XXXX-XXXX-XXXX-XXXX');
 
       const response = await handleGetOwnMachines(request, env, '1.2.3.4');
@@ -119,36 +138,38 @@ describe('User Self-Service Endpoints', () => {
     });
 
     it('should return machines list for valid license', async () => {
-      let callCount = 0;
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => {
-              callCount++;
-              // First call: getLicenseByKey
-              if (callCount === 1) {
-                return { id: mockLicense.id, plan: 'pro' };
-              }
-              // Third call: machine changes count
-              return { count: 1 };
-            },
-            all: async () => ({
-              results: [
-                {
-                  machine_id: mockMachine.machine_id,
-                  machine_name: 'Test Machine',
-                  is_active: 1,
-                  first_seen_at: mockMachine.first_seen_at,
-                  last_seen_at: mockMachine.last_seen_at,
-                },
-              ],
-              success: true,
-            }),
-          }),
-        }),
-      } as unknown as D1Database;
+      // Mock getLicenseByKey to return license
+      vi.mocked(db.getLicenseByKey).mockResolvedValue({
+        id: mockLicense.id,
+        userId: 'user_123',
+        licenseKey: mockLicense.license_key,
+        plan: 'pro',
+        planType: 'monthly',
+        status: 'active',
+        currentPeriodStart: mockLicense.current_period_start,
+        currentPeriodEnd: mockLicense.current_period_end,
+        stripeSubscriptionId: null,
+        stripePriceId: null,
+        stripeSessionId: null,
+        createdAt: mockLicense.created_at,
+        updatedAt: mockLicense.updated_at,
+        canceledAt: null,
+        revokedAt: null,
+        revokedReason: null,
+      });
 
-      env = createMockEnv({ DB: mockDB });
+      // Mock createDb to return machines via all() and changes via get()
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue({ count: 1 }), // Machine changes count
+        all: vi.fn().mockResolvedValue([{
+          machine_id: mockMachine.machine_id,
+          machine_name: 'Test Machine',
+          is_active: 1,
+          first_seen_at: mockMachine.first_seen_at,
+          last_seen_at: mockMachine.last_seen_at,
+        }]),
+        query: { licenses: { findFirst: vi.fn() } },
+      } as unknown as ReturnType<typeof db.createDb>);
 
       const request = createRequest('GET', `/v1/me/machines?license_key=${mockLicense.license_key}`);
 
@@ -164,32 +185,38 @@ describe('User Self-Service Endpoints', () => {
     });
 
     it('should truncate machine IDs in response', async () => {
-      let callCount = 0;
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => {
-              callCount++;
-              if (callCount === 1) return { id: mockLicense.id, plan: 'pro' };
-              return { count: 0 };
-            },
-            all: async () => ({
-              results: [
-                {
-                  machine_id: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6',
-                  machine_name: null,
-                  is_active: 1,
-                  first_seen_at: new Date().toISOString(),
-                  last_seen_at: new Date().toISOString(),
-                },
-              ],
-              success: true,
-            }),
-          }),
-        }),
-      } as unknown as D1Database;
+      // Mock getLicenseByKey to return license
+      vi.mocked(db.getLicenseByKey).mockResolvedValue({
+        id: mockLicense.id,
+        userId: 'user_123',
+        licenseKey: mockLicense.license_key,
+        plan: 'pro',
+        planType: 'monthly',
+        status: 'active',
+        currentPeriodStart: mockLicense.current_period_start,
+        currentPeriodEnd: mockLicense.current_period_end,
+        stripeSubscriptionId: null,
+        stripePriceId: null,
+        stripeSessionId: null,
+        createdAt: mockLicense.created_at,
+        updatedAt: mockLicense.updated_at,
+        canceledAt: null,
+        revokedAt: null,
+        revokedReason: null,
+      });
 
-      env = createMockEnv({ DB: mockDB });
+      // Mock createDb
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue({ count: 0 }),
+        all: vi.fn().mockResolvedValue([{
+          machine_id: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6',
+          machine_name: null,
+          is_active: 1,
+          first_seen_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
+        }]),
+        query: { licenses: { findFirst: vi.fn() } },
+      } as unknown as ReturnType<typeof db.createDb>);
 
       const request = createRequest('GET', `/v1/me/machines?license_key=${mockLicense.license_key}`);
 
@@ -239,18 +266,11 @@ describe('User Self-Service Endpoints', () => {
     });
 
     it('should return success even if email not found (prevent enumeration)', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            all: async () => ({
-              results: [],
-              success: true,
-            }),
-          }),
-        }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      // Mock createDb to return empty results
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue(null),
+        all: vi.fn().mockResolvedValue([]),
+      } as unknown as ReturnType<typeof db.createDb>);
 
       const request = createRequest('POST', '/v1/me/resend-key', {
         email: 'nonexistent@example.com',
@@ -265,24 +285,15 @@ describe('User Self-Service Endpoints', () => {
     });
 
     it('should return success for existing email', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            all: async () => ({
-              results: [
-                {
-                  license_key: mockLicense.license_key,
-                  plan: 'pro',
-                  status: 'active',
-                },
-              ],
-              success: true,
-            }),
-          }),
-        }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      // Mock createDb to return a license
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue(null),
+        all: vi.fn().mockResolvedValue([{
+          license_key: mockLicense.license_key,
+          plan: 'pro',
+          status: 'active',
+        }]),
+      } as unknown as ReturnType<typeof db.createDb>);
 
       const request = createRequest('POST', '/v1/me/resend-key', {
         email: 'test@example.com',

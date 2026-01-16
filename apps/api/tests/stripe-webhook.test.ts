@@ -125,13 +125,11 @@ describe('Stripe Price Mapping for Lifetime', () => {
 
   describe('isLifetimePriceId', () => {
     it('should return true for test lifetime price IDs', () => {
-      expect(isLifetimePriceId('price_test_solo_lifetime')).toBe(true);
       expect(isLifetimePriceId('price_test_pro_lifetime')).toBe(true);
       expect(isLifetimePriceId('price_test_team_lifetime')).toBe(true);
     });
 
     it('should return false for regular price IDs', () => {
-      expect(isLifetimePriceId('price_test_solo')).toBe(false);
       expect(isLifetimePriceId('price_test_pro')).toBe(false);
       expect(isLifetimePriceId('unknown_price')).toBe(false);
     });
@@ -225,7 +223,7 @@ describe('Webhook Event Type Handling', () => {
         subscription: null,
         line_items: {
           data: [{
-            price: { id: 'price_test_solo_lifetime' },
+            price: { id: 'price_test_pro_lifetime' },
           }],
         },
       };

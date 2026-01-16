@@ -90,15 +90,6 @@ export enum Plan {
   SOVEREIGN = 'sovereign',
 }
 
-// Legacy plan names for backward compatibility
-export type LegacyPlan = 'free' | 'solo' | 'enterprise';
-
-export const LEGACY_PLAN_MIGRATIONS: Record<LegacyPlan, Plan> = {
-  free: Plan.COMMUNITY,
-  solo: Plan.PRO,
-  enterprise: Plan.SOVEREIGN,
-};
-
 // =============================================================================
 // Feature Access Matrix by Plan
 // =============================================================================
@@ -533,29 +524,16 @@ export function isUnlimited(limit: number): boolean {
 }
 
 /**
- * Normalize a plan name, converting legacy names to v4.0 names
+ * Normalize a plan name to a valid v4.0 plan type
  */
 export function normalizePlan(plan: string): Plan {
   const lower = plan.toLowerCase();
 
-  // Check v4.0 plan names
   if (Object.values(Plan).includes(lower as Plan)) {
     return lower as Plan;
   }
 
-  // Check legacy plan names
-  if (lower in LEGACY_PLAN_MIGRATIONS) {
-    return LEGACY_PLAN_MIGRATIONS[lower as LegacyPlan];
-  }
-
   return Plan.COMMUNITY; // Default to community for unknown plans
-}
-
-/**
- * Check if a plan name is a legacy plan
- */
-export function isLegacyPlan(plan: string): boolean {
-  return plan.toLowerCase() in LEGACY_PLAN_MIGRATIONS;
 }
 
 /**
@@ -641,16 +619,11 @@ export function getFeatureFlags(plan: Plan): FeatureFlagsType {
 // Plan Comparison
 // =============================================================================
 
-export const PLAN_RANK: Record<Plan | LegacyPlan, number> = {
-  // v4.0 plans
+export const PLAN_RANK: Record<Plan, number> = {
   [Plan.COMMUNITY]: 0,
   [Plan.PRO]: 1,
   [Plan.TEAM]: 2,
   [Plan.SOVEREIGN]: 3,
-  // Legacy plans
-  free: 0,
-  solo: 1,
-  enterprise: 3,
 };
 
 export function isPlanUpgrade(from: string, to: string): boolean {

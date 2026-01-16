@@ -17,10 +17,22 @@ import {
 } from './helpers';
 import type { Env } from '../src/types';
 import type { ErrorResponse } from '../src/types/api';
+import * as db from '../src/lib/db';
 
 // Mock fetch for Stripe API calls
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
+
+// Mock the db module
+vi.mock('../src/lib/db', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/lib/db')>();
+  return {
+    ...original,
+    createDb: vi.fn(() => ({
+      get: vi.fn().mockResolvedValue(null),
+    })),
+  };
+});
 
 describe('Billing Endpoints', () => {
   let env: Env;
@@ -214,6 +226,11 @@ describe('Billing Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      // Mock createDb to return null for license lookup
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue(null),
+      } as unknown as ReturnType<typeof db.createDb>);
+
       const request = createRequest('POST', '/v1/billing/portal', {
         license_key: 'RM-XXXX-XXXX-XXXX-XXXX',
         return_url: 'https://example.com/dashboard',
@@ -227,18 +244,13 @@ describe('Billing Endpoints', () => {
     });
 
     it('should reject license without billing account', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => ({
-              stripe_subscription_id: null,
-              stripe_customer_id: null, // No billing account
-            }),
-          }),
+      // Mock createDb to return license without billing account
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue({
+          stripe_subscription_id: null,
+          customer_id: null, // No billing account
         }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      } as unknown as ReturnType<typeof db.createDb>);
 
       const request = createRequest('POST', '/v1/billing/portal', {
         license_key: 'RM-TEST-1234-5678-ABCD',
@@ -253,18 +265,13 @@ describe('Billing Endpoints', () => {
     });
 
     it('should create portal session successfully', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => ({
-              stripe_subscription_id: 'sub_123',
-              stripe_customer_id: 'cus_123',
-            }),
-          }),
+      // Mock createDb to return license with billing account
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue({
+          stripe_subscription_id: 'sub_123',
+          customer_id: 'cus_123',
         }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      } as unknown as ReturnType<typeof db.createDb>);
 
       mockFetch.mockResolvedValueOnce({
         ok: true,

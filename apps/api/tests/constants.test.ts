@@ -27,16 +27,6 @@ describe('Plan Features v4.0', () => {
     expect(PLAN_FEATURES.sovereign).toBeDefined();
   });
 
-  it('should have legacy plan aliases for backward compatibility', () => {
-    expect(PLAN_FEATURES.free).toBeDefined();
-    expect(PLAN_FEATURES.solo).toBeDefined();
-    expect(PLAN_FEATURES.enterprise).toBeDefined();
-    // Legacy aliases should map to v4.0 plans
-    expect(PLAN_FEATURES.free).toBe(PLAN_FEATURES.community);
-    expect(PLAN_FEATURES.solo).toBe(PLAN_FEATURES.pro);
-    expect(PLAN_FEATURES.enterprise).toBe(PLAN_FEATURES.sovereign);
-  });
-
   it('should have correct community plan limits (v4.0: unlimited scans)', () => {
     expect(PLAN_FEATURES.community.resources_per_scan).toBe(-1); // v4.0: UNLIMITED
     expect(PLAN_FEATURES.community.scans_per_month).toBe(-1);    // v4.0: UNLIMITED
@@ -122,11 +112,9 @@ describe('CLI Version Check', () => {
 describe('Stripe Price Mapping v4.0', () => {
   it('should have a primary price ID for each paid plan in PLAN_TO_STRIPE_PRICE', () => {
     // v4.0 plans: pro, team, sovereign
-    expect(PLAN_TO_STRIPE_PRICE['pro']).toBeDefined();
-    expect(PLAN_TO_STRIPE_PRICE['team']).toBeDefined();
-    expect(PLAN_TO_STRIPE_PRICE['sovereign']).toBeDefined();
-    // Legacy alias should also work
-    expect(PLAN_TO_STRIPE_PRICE['solo']).toBeDefined();
+    expect(PLAN_TO_STRIPE_PRICE.pro).toBeDefined();
+    expect(PLAN_TO_STRIPE_PRICE.team).toBeDefined();
+    expect(PLAN_TO_STRIPE_PRICE.sovereign).toBeDefined();
   });
 
   it('should have price-to-plan mappings that include all v4.0 plans', () => {
@@ -142,7 +130,6 @@ describe('Stripe Price Mapping v4.0', () => {
   });
 
   it('should return correct plan for known price IDs', () => {
-    expect(getPlanFromPriceId('price_test_solo')).toBe('pro');  // v4.0: solo → pro
     expect(getPlanFromPriceId('price_test_pro')).toBe('pro');
     expect(getPlanFromPriceId('price_test_team')).toBe('team');
     expect(getPlanFromPriceId('price_test_sovereign')).toBe('sovereign');
@@ -164,13 +151,11 @@ describe('Lifetime Plan Constants', () => {
 
   describe('isLifetimePriceId', () => {
     it('should return true for test lifetime price IDs', () => {
-      expect(isLifetimePriceId('price_test_solo_lifetime')).toBe(true);  // Legacy
       expect(isLifetimePriceId('price_test_pro_lifetime')).toBe(true);
       expect(isLifetimePriceId('price_test_team_lifetime')).toBe(true);
     });
 
     it('should return false for subscription price IDs', () => {
-      expect(isLifetimePriceId('price_test_solo')).toBe(false);
       expect(isLifetimePriceId('price_test_pro')).toBe(false);
     });
 
@@ -181,20 +166,20 @@ describe('Lifetime Plan Constants', () => {
 
   describe('getPlanInfoFromPriceId', () => {
     it('should return lifetime billing type for lifetime prices', () => {
-      const result = getPlanInfoFromPriceId('price_test_solo_lifetime');
-      expect(result.plan).toBe('pro');  // v4.0: solo → pro
+      const result = getPlanInfoFromPriceId('price_test_pro_lifetime');
+      expect(result.plan).toBe('pro');
       expect(result.billingType).toBe('lifetime');
     });
 
     it('should return monthly billing type for subscription prices', () => {
-      const result = getPlanInfoFromPriceId('price_test_solo');
-      expect(result.plan).toBe('pro');  // v4.0: solo → pro
+      const result = getPlanInfoFromPriceId('price_test_pro');
+      expect(result.plan).toBe('pro');
       expect(result.billingType).toBe('monthly');
     });
 
     it('should return community plan for unknown prices', () => {
       const result = getPlanInfoFromPriceId('unknown');
-      expect(result.plan).toBe('community');  // v4.0: free → community
+      expect(result.plan).toBe('community');
       expect(result.billingType).toBe('monthly');
     });
   });
@@ -202,9 +187,9 @@ describe('Lifetime Plan Constants', () => {
   describe('getStripePriceMapping', () => {
     it('should include test lifetime prices', () => {
       const mapping = getStripePriceMapping({} as any);
-      expect(mapping['price_test_solo_lifetime']).toBeDefined();
-      expect(mapping['price_test_solo_lifetime'].billingType).toBe('lifetime');
-      expect(mapping['price_test_solo_lifetime'].plan).toBe('pro');  // v4.0: solo → pro
+      expect(mapping['price_test_pro_lifetime']).toBeDefined();
+      expect(mapping['price_test_pro_lifetime'].billingType).toBe('lifetime');
+      expect(mapping['price_test_pro_lifetime'].plan).toBe('pro');
     });
 
     it('should include environment-configured lifetime prices', () => {
@@ -226,9 +211,9 @@ describe('Lifetime Plan Constants', () => {
 
     it('should include subscription prices as monthly', () => {
       const mapping = getStripePriceMapping({} as any);
-      expect(mapping['price_test_solo']).toBeDefined();
-      expect(mapping['price_test_solo'].billingType).toBe('monthly');
-      expect(mapping['price_test_solo'].plan).toBe('pro');  // v4.0: solo → pro
+      expect(mapping['price_test_pro']).toBeDefined();
+      expect(mapping['price_test_pro'].billingType).toBe('monthly');
+      expect(mapping['price_test_pro'].plan).toBe('pro');
     });
   });
 

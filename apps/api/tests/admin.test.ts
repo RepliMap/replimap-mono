@@ -30,7 +30,7 @@ vi.mock('../src/lib/db', async (importOriginal) => {
     getLicenseWithUserDetails: vi.fn(),
     createLicense: vi.fn(),
     revokeLicense: vi.fn(),
-    getOrCreateUser: vi.fn(),
+    findOrCreateUser: vi.fn(),
     getActiveMachines: vi.fn().mockResolvedValue([]),
     getActiveAwsAccountCount: vi.fn().mockResolvedValue(0),
   };
@@ -124,7 +124,7 @@ describe('Admin Endpoints', () => {
       const now = new Date().toISOString();
 
       // Mock user creation
-      vi.mocked(db.getOrCreateUser).mockResolvedValue({
+      vi.mocked(db.findOrCreateUser).mockResolvedValue({
         id: 'user_test_123',
         email: 'test@example.com',
         customerId: null,
@@ -193,19 +193,24 @@ describe('Admin Endpoints', () => {
     });
 
     it('should return license details for valid key', async () => {
-      vi.mocked(db.getLicenseWithUserDetails).mockResolvedValue({
+      // Mock getLicenseByKey (not getLicenseWithUserDetails)
+      vi.mocked(db.getLicenseByKey).mockResolvedValue({
         id: 'lic_123',
-        license_key: 'RM-TEST-1234-5678-ABCD',
+        userId: 'user_123',
+        licenseKey: 'RM-TEST-1234-5678-ABCD',
         plan: 'pro',
+        planType: 'monthly',
         status: 'active',
-        current_period_start: new Date().toISOString(),
-        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        email: 'test@example.com',
-        stripe_customer_id: 'cus_123',
-        stripe_subscription_id: 'sub_123',
-        created_at: new Date().toISOString(),
-        active_machines: 2,
-        active_aws_accounts: 1,
+        currentPeriodStart: new Date().toISOString(),
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        stripeSubscriptionId: 'sub_123',
+        stripePriceId: null,
+        stripeSessionId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        canceledAt: null,
+        revokedAt: null,
+        revokedReason: null,
       });
 
       const request = createRequest('GET', '/v1/admin/licenses/RM-TEST-1234-5678-ABCD', undefined, {

@@ -162,7 +162,7 @@ export async function handleValidateLicense(
     let ciWarning: string | undefined;
     if (isCI) {
       const activeCIDevices = await getActiveCIDeviceCount(db, license.license_id, 30);
-      const ciLimit = CI_DEVICE_LIMITS[plan] ?? CI_DEVICE_LIMITS.free;
+      const ciLimit = CI_DEVICE_LIMITS[plan] ?? CI_DEVICE_LIMITS.community;
 
       if (ciLimit !== -1 && activeCIDevices >= ciLimit) {
         throw new AppError(
