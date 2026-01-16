@@ -18,7 +18,7 @@ import { sql } from 'drizzle-orm';
 // ============================================================================
 
 interface CreateCheckoutRequest {
-  plan: 'solo' | 'pro' | 'team';
+  plan: 'pro' | 'team' | 'sovereign';
   email: string;
   success_url: string;
   cancel_url: string;
@@ -136,7 +136,7 @@ export async function handleCreateCheckout(
     // Validate plan
     const priceId = PLAN_TO_STRIPE_PRICE[body.plan];
     if (!priceId) {
-      throw Errors.invalidRequest(`Invalid plan. Must be one of: solo, pro, team`);
+      throw Errors.invalidRequest(`Invalid plan. Must be one of: pro, team, sovereign`);
     }
 
     // Validate URLs
