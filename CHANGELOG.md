@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.1.0...replimap-mono-v1.1.1) (2026-01-16)
+
+
+### Documentation
+
+* update documentation for v4.0 pricing tiers ([d5d341a](https://github.com/RepliMap/replimap-mono/commit/d5d341a4f8293fd9579d350ade0798f5a914b4d8))
+* update documentation for v4.0 pricing tiers ([44a1c8f](https://github.com/RepliMap/replimap-mono/commit/44a1c8f8281e7f7c651b9e9da919e847cfcd3f72))
+
 ## [1.1.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.0.2...replimap-mono-v1.1.0) (2026-01-15)
 
 
