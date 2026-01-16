@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.2](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.1.1...replimap-api-v1.1.2) (2026-01-16)
+
+
+### Bug Fixes
+
+* **api:** update billing handler to use v4.0 plan names ([18417ac](https://github.com/RepliMap/replimap-mono/commit/18417ac234c62273f2440c239a67073d8a40a0c9))
+
+
+### Refactoring
+
+* **api:** remove legacy plan names and fix test mocks ([ae411c1](https://github.com/RepliMap/replimap-mono/commit/ae411c103871656157736ea7ecf7284bc9caa160))
+
 ## [1.1.1](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.1.0...replimap-api-v1.1.1) (2026-01-16)
 
 
