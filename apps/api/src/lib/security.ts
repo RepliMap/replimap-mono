@@ -292,10 +292,6 @@ export const CI_DEVICE_LIMITS: Record<string, number> = {
   pro: 25,
   team: 50,
   sovereign: -1, // Unlimited
-  // Legacy plan names for backward compatibility
-  free: 3,
-  solo: 25,
-  enterprise: -1,
 };
 
 // ============================================================================

@@ -15,11 +15,31 @@ import {
 } from './helpers';
 import type { Env } from '../src/types';
 import type { ValidateLicenseResponse, ErrorResponse } from '../src/types/api';
+import * as db from '../src/lib/db';
+
+// Mock the db module
+vi.mock('../src/lib/db', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/lib/db')>();
+  return {
+    ...original,
+    getLicenseForValidation: vi.fn(),
+    getActiveDeviceCount: vi.fn().mockResolvedValue(1),
+    getNewDeviceCount: vi.fn().mockResolvedValue(0),
+    getActiveCIDeviceCount: vi.fn().mockResolvedValue(0),
+    updateMachineLastSeen: vi.fn().mockResolvedValue(undefined),
+    registerMachine: vi.fn().mockResolvedValue(undefined),
+    recordMachineChange: vi.fn().mockResolvedValue(undefined),
+    logUsage: vi.fn().mockResolvedValue(undefined),
+    getMonthlyUsageCount: vi.fn().mockResolvedValue(0),
+    getActiveMachines: vi.fn().mockResolvedValue([]),
+  };
+});
 
 describe('POST /v1/license/validate', () => {
   let env: Env;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     env = createMockEnv();
   });
 
@@ -74,7 +94,6 @@ describe('POST /v1/license/validate', () => {
       const data = await parseResponse<ErrorResponse>(response);
 
       expect(response.status).toBe(400);
-      // Zod validation returns INVALID_REQUEST with descriptive message
       expect(data.error_code).toBe('INVALID_REQUEST');
       expect(data.message).toContain('license');
     });
@@ -89,7 +108,6 @@ describe('POST /v1/license/validate', () => {
       const data = await parseResponse<ErrorResponse>(response);
 
       expect(response.status).toBe(400);
-      // Zod validation returns INVALID_REQUEST with descriptive message
       expect(data.error_code).toBe('INVALID_REQUEST');
       expect(data.message).toContain('machine');
     });
@@ -97,6 +115,9 @@ describe('POST /v1/license/validate', () => {
 
   describe('license lookup', () => {
     it('should return 404 for non-existent license', async () => {
+      // Mock returns null for non-existent license
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue(null);
+
       const request = createRequest('POST', '/v1/license/validate', {
         license_key: 'RM-XXXX-XXXX-XXXX-XXXX',
         machine_id: generateMachineId(),
@@ -112,27 +133,19 @@ describe('POST /v1/license/validate', () => {
 
   describe('response format', () => {
     it('should include all required fields in success response', async () => {
-      // Create mock DB with license data
-      const mockDB = {
-        prepare: (query: string) => ({
-          bind: () => ({
-            first: async () => ({
-              license_id: mockLicense.id,
-              plan: 'pro',
-              status: 'active',
-              current_period_end: mockLicense.current_period_end,
-              machine_is_active: 1,
-              active_machines: 1,
-              monthly_changes: 0,
-              active_aws_accounts: 1,
-            }),
-            all: async () => ({ results: [], success: true }),
-            run: async () => ({ success: true, results: [] }),
-          }),
-        }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      // Mock license data
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue({
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'active',
+        current_period_end: mockLicense.current_period_end,
+        machine_is_active: 1,
+        machine_last_seen: new Date().toISOString(),
+        active_machines: 1,
+        monthly_changes: 0,
+        active_aws_accounts: 1,
+      });
 
       const request = createRequest('POST', '/v1/license/validate', {
         license_key: 'RM-TEST-1234-5678-ABCD',
@@ -148,8 +161,8 @@ describe('POST /v1/license/validate', () => {
       expect(data.plan).toBe('pro');
       expect(data.status).toBe('active');
       expect(data.features).toBeDefined();
-      expect(data.features.resources_per_scan).toBe(-1); // unlimited for pro
-      expect(data.features.machines).toBe(3);
+      expect(data.features.resources_per_scan).toBe(-1); // unlimited for pro (v4.0)
+      expect(data.features.machines).toBe(2); // v4.0 pro plan has 2 machines
       expect(data.usage).toBeDefined();
       expect(data.cache_until).toBeDefined();
       expect(data.cli_version).toBeDefined();
@@ -159,26 +172,18 @@ describe('POST /v1/license/validate', () => {
 
   describe('CLI version check', () => {
     it('should return ok for current version', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => ({
-              license_id: mockLicense.id,
-              plan: 'pro',
-              status: 'active',
-              current_period_end: mockLicense.current_period_end,
-              machine_is_active: 1,
-              active_machines: 1,
-              monthly_changes: 0,
-              active_aws_accounts: 0,
-            }),
-            all: async () => ({ results: [], success: true }),
-            run: async () => ({ success: true, results: [] }),
-          }),
-        }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue({
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'active',
+        current_period_end: mockLicense.current_period_end,
+        machine_is_active: 1,
+        machine_last_seen: new Date().toISOString(),
+        active_machines: 1,
+        monthly_changes: 0,
+        active_aws_accounts: 0,
+      });
 
       const request = createRequest('POST', '/v1/license/validate', {
         license_key: 'RM-TEST-1234-5678-ABCD',
@@ -193,26 +198,18 @@ describe('POST /v1/license/validate', () => {
     });
 
     it('should return deprecated for old versions', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => ({
-              license_id: mockLicense.id,
-              plan: 'pro',
-              status: 'active',
-              current_period_end: mockLicense.current_period_end,
-              machine_is_active: 1,
-              active_machines: 1,
-              monthly_changes: 0,
-              active_aws_accounts: 0,
-            }),
-            all: async () => ({ results: [], success: true }),
-            run: async () => ({ success: true, results: [] }),
-          }),
-        }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue({
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'active',
+        current_period_end: mockLicense.current_period_end,
+        machine_is_active: 1,
+        machine_last_seen: new Date().toISOString(),
+        active_machines: 1,
+        monthly_changes: 0,
+        active_aws_accounts: 0,
+      });
 
       const request = createRequest('POST', '/v1/license/validate', {
         license_key: 'RM-TEST-1234-5678-ABCD',
@@ -228,26 +225,18 @@ describe('POST /v1/license/validate', () => {
     });
 
     it('should return unsupported for very old versions', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => ({
-              license_id: mockLicense.id,
-              plan: 'pro',
-              status: 'active',
-              current_period_end: mockLicense.current_period_end,
-              machine_is_active: 1,
-              active_machines: 1,
-              monthly_changes: 0,
-              active_aws_accounts: 0,
-            }),
-            all: async () => ({ results: [], success: true }),
-            run: async () => ({ success: true, results: [] }),
-          }),
-        }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue({
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'active',
+        current_period_end: mockLicense.current_period_end,
+        machine_is_active: 1,
+        machine_last_seen: new Date().toISOString(),
+        active_machines: 1,
+        monthly_changes: 0,
+        active_aws_accounts: 0,
+      });
 
       const request = createRequest('POST', '/v1/license/validate', {
         license_key: 'RM-TEST-1234-5678-ABCD',

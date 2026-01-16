@@ -19,6 +19,7 @@ interface MockPreparedStatement {
   first: <T = unknown>() => Promise<T | null>;
   all: <T = unknown>() => Promise<{ results: T[]; success: boolean }>;
   run: () => Promise<MockResult>;
+  raw: <T = unknown[]>() => Promise<T[]>;
 }
 
 export function createMockDB(data: Record<string, unknown[]> = {}): D1Database {
@@ -50,6 +51,18 @@ export function createMockDB(data: Record<string, unknown[]> = {}): D1Database {
         results: [],
         meta: { changes: 1 },
       }),
+      raw: async <T = unknown[]>() => {
+        // raw() returns results as arrays instead of objects
+        const table = extractTableName(query);
+        const results = data[table] ?? [];
+        // Convert objects to arrays of values
+        return results.map((row) => {
+          if (typeof row === 'object' && row !== null) {
+            return Object.values(row) as T;
+          }
+          return [row] as T;
+        });
+      },
     };
 
     return statement;
@@ -193,7 +206,7 @@ export const mockLifetimeLicense = {
   id: 'lic_lifetime_123',
   license_key: 'RM-LIFE-1234-5678-ABCD',
   user_id: 'user_test_123',
-  plan: 'solo',
+  plan: 'pro',
   plan_type: 'lifetime',
   status: 'active',
   current_period_start: new Date().toISOString(),
@@ -212,7 +225,7 @@ export const mockRevokedLicense = {
   id: 'lic_revoked_123',
   license_key: 'RM-REVK-1234-5678-ABCD',
   user_id: 'user_test_123',
-  plan: 'solo',
+  plan: 'pro',
   plan_type: 'lifetime',
   status: 'revoked',
   current_period_start: new Date().toISOString(),

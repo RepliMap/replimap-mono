@@ -5,7 +5,7 @@
  * GET /v1/licenses/{key}/aws-accounts - Get AWS accounts for license
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   handleTrackAwsAccount,
   handleGetAwsAccounts,
@@ -19,11 +19,25 @@ import {
 } from './helpers';
 import type { Env } from '../src/types';
 import type { ErrorResponse } from '../src/types/api';
+import * as db from '../src/lib/db';
+
+// Mock the db module
+vi.mock('../src/lib/db', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/lib/db')>();
+  return {
+    ...original,
+    getLicenseByKey: vi.fn(),
+    trackAwsAccount: vi.fn(),
+    getActiveAwsAccountCount: vi.fn().mockResolvedValue(0),
+    getAwsAccountsForLicense: vi.fn().mockResolvedValue([]),
+  };
+});
 
 describe('AWS Account Endpoints', () => {
   let env: Env;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     env = createMockEnv();
   });
 
@@ -79,6 +93,8 @@ describe('AWS Account Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      vi.mocked(db.getLicenseByKey).mockResolvedValue(null);
+
       const request = createRequest('POST', '/v1/aws-accounts/track', {
         license_key: 'RM-XXXX-XXXX-XXXX-XXXX',
         aws_account_id: generateAwsAccountId(),
@@ -102,6 +118,8 @@ describe('AWS Account Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      vi.mocked(db.getLicenseByKey).mockResolvedValue(null);
+
       const request = createRequest('GET', '/v1/licenses/RM-XXXX-XXXX-XXXX-XXXX/aws-accounts');
 
       const response = await handleGetAwsAccounts(request, env, 'RM-XXXX-XXXX-XXXX-XXXX', '1.2.3.4');

@@ -19,32 +19,42 @@ import {
   getLifetimePriceIds,
 } from '../src/lib/constants';
 
-describe('Plan Features', () => {
-  it('should have all plan types defined', () => {
-    expect(PLAN_FEATURES.free).toBeDefined();
-    expect(PLAN_FEATURES.solo).toBeDefined();
+describe('Plan Features v4.0', () => {
+  it('should have all v4.0 plan types defined', () => {
+    expect(PLAN_FEATURES.community).toBeDefined();
     expect(PLAN_FEATURES.pro).toBeDefined();
     expect(PLAN_FEATURES.team).toBeDefined();
+    expect(PLAN_FEATURES.sovereign).toBeDefined();
   });
 
-  it('should have correct free plan limits', () => {
-    expect(PLAN_FEATURES.free.resources_per_scan).toBe(5);
-    expect(PLAN_FEATURES.free.scans_per_month).toBe(3);
-    expect(PLAN_FEATURES.free.aws_accounts).toBe(1);
-    expect(PLAN_FEATURES.free.machines).toBe(1);
-    expect(PLAN_FEATURES.free.export_formats).toContain('terraform');
+  it('should have correct community plan limits (v4.0: unlimited scans)', () => {
+    expect(PLAN_FEATURES.community.resources_per_scan).toBe(-1); // v4.0: UNLIMITED
+    expect(PLAN_FEATURES.community.scans_per_month).toBe(-1);    // v4.0: UNLIMITED
+    expect(PLAN_FEATURES.community.aws_accounts).toBe(1);
+    expect(PLAN_FEATURES.community.machines).toBe(1);
+    expect(PLAN_FEATURES.community.export_formats).toContain('json');
+    expect(PLAN_FEATURES.community.export_formats).not.toContain('terraform'); // v4.0: JSON only for community
   });
 
-  it('should have unlimited resources for paid plans', () => {
-    expect(PLAN_FEATURES.solo.resources_per_scan).toBe(-1);
+  it('should have unlimited resources for all plans (v4.0 philosophy)', () => {
+    expect(PLAN_FEATURES.community.resources_per_scan).toBe(-1);
     expect(PLAN_FEATURES.pro.resources_per_scan).toBe(-1);
     expect(PLAN_FEATURES.team.resources_per_scan).toBe(-1);
+    expect(PLAN_FEATURES.sovereign.resources_per_scan).toBe(-1);
   });
 
-  it('should have increasing machine limits', () => {
-    expect(PLAN_FEATURES.free.machines).toBeLessThan(PLAN_FEATURES.solo.machines);
-    expect(PLAN_FEATURES.solo.machines).toBeLessThan(PLAN_FEATURES.pro.machines);
+  it('should have increasing machine limits across tiers', () => {
+    expect(PLAN_FEATURES.community.machines).toBeLessThan(PLAN_FEATURES.pro.machines);
     expect(PLAN_FEATURES.pro.machines).toBeLessThan(PLAN_FEATURES.team.machines);
+    // Sovereign has unlimited machines (-1)
+    expect(PLAN_FEATURES.sovereign.machines).toBe(-1);
+  });
+
+  it('should have increasing AWS account limits across tiers', () => {
+    expect(PLAN_FEATURES.community.aws_accounts).toBe(1);
+    expect(PLAN_FEATURES.pro.aws_accounts).toBe(3);
+    expect(PLAN_FEATURES.team.aws_accounts).toBe(10);
+    expect(PLAN_FEATURES.sovereign.aws_accounts).toBe(-1); // Unlimited
   });
 });
 
@@ -99,30 +109,30 @@ describe('CLI Version Check', () => {
   });
 });
 
-describe('Stripe Price Mapping', () => {
+describe('Stripe Price Mapping v4.0', () => {
   it('should have a primary price ID for each paid plan in PLAN_TO_STRIPE_PRICE', () => {
-    // Each plan should have at least one price ID for checkout
-    expect(PLAN_TO_STRIPE_PRICE['solo']).toBeDefined();
-    expect(PLAN_TO_STRIPE_PRICE['pro']).toBeDefined();
-    expect(PLAN_TO_STRIPE_PRICE['team']).toBeDefined();
+    // v4.0 plans: pro, team, sovereign
+    expect(PLAN_TO_STRIPE_PRICE.pro).toBeDefined();
+    expect(PLAN_TO_STRIPE_PRICE.team).toBeDefined();
+    expect(PLAN_TO_STRIPE_PRICE.sovereign).toBeDefined();
   });
 
-  it('should have price-to-plan mappings that include all plans', () => {
-    // All plans with prices should appear in STRIPE_PRICE_TO_PLAN values
+  it('should have price-to-plan mappings that include all v4.0 plans', () => {
+    // v4.0 plans should appear in STRIPE_PRICE_TO_PLAN values
     const plans = new Set(Object.values(STRIPE_PRICE_TO_PLAN));
-    expect(plans.has('solo')).toBe(true);
     expect(plans.has('pro')).toBe(true);
     expect(plans.has('team')).toBe(true);
+    expect(plans.has('sovereign')).toBe(true);
   });
 
-  it('should return free for unknown price IDs', () => {
-    expect(getPlanFromPriceId('unknown_price_id')).toBe('free');
+  it('should return community for unknown price IDs', () => {
+    expect(getPlanFromPriceId('unknown_price_id')).toBe('community');
   });
 
   it('should return correct plan for known price IDs', () => {
-    expect(getPlanFromPriceId('price_test_solo')).toBe('solo');
     expect(getPlanFromPriceId('price_test_pro')).toBe('pro');
     expect(getPlanFromPriceId('price_test_team')).toBe('team');
+    expect(getPlanFromPriceId('price_test_sovereign')).toBe('sovereign');
   });
 });
 
@@ -141,12 +151,11 @@ describe('Lifetime Plan Constants', () => {
 
   describe('isLifetimePriceId', () => {
     it('should return true for test lifetime price IDs', () => {
-      expect(isLifetimePriceId('price_test_solo_lifetime')).toBe(true);
       expect(isLifetimePriceId('price_test_pro_lifetime')).toBe(true);
+      expect(isLifetimePriceId('price_test_team_lifetime')).toBe(true);
     });
 
     it('should return false for subscription price IDs', () => {
-      expect(isLifetimePriceId('price_test_solo')).toBe(false);
       expect(isLifetimePriceId('price_test_pro')).toBe(false);
     });
 
@@ -157,80 +166,82 @@ describe('Lifetime Plan Constants', () => {
 
   describe('getPlanInfoFromPriceId', () => {
     it('should return lifetime billing type for lifetime prices', () => {
-      const result = getPlanInfoFromPriceId('price_test_solo_lifetime');
-      expect(result.plan).toBe('solo');
+      const result = getPlanInfoFromPriceId('price_test_pro_lifetime');
+      expect(result.plan).toBe('pro');
       expect(result.billingType).toBe('lifetime');
     });
 
     it('should return monthly billing type for subscription prices', () => {
-      const result = getPlanInfoFromPriceId('price_test_solo');
-      expect(result.plan).toBe('solo');
+      const result = getPlanInfoFromPriceId('price_test_pro');
+      expect(result.plan).toBe('pro');
       expect(result.billingType).toBe('monthly');
     });
 
-    it('should return free plan for unknown prices', () => {
+    it('should return community plan for unknown prices', () => {
       const result = getPlanInfoFromPriceId('unknown');
-      expect(result.plan).toBe('free');
+      expect(result.plan).toBe('community');
       expect(result.billingType).toBe('monthly');
     });
   });
 
   describe('getStripePriceMapping', () => {
     it('should include test lifetime prices', () => {
-      const mapping = getStripePriceMapping({});
-      expect(mapping['price_test_solo_lifetime']).toBeDefined();
-      expect(mapping['price_test_solo_lifetime'].billingType).toBe('lifetime');
+      const mapping = getStripePriceMapping({} as any);
+      expect(mapping['price_test_pro_lifetime']).toBeDefined();
+      expect(mapping['price_test_pro_lifetime'].billingType).toBe('lifetime');
+      expect(mapping['price_test_pro_lifetime'].plan).toBe('pro');
     });
 
     it('should include environment-configured lifetime prices', () => {
       const env = {
-        STRIPE_SOLO_LIFETIME_PRICE_ID: 'price_live_solo_lt',
         STRIPE_PRO_LIFETIME_PRICE_ID: 'price_live_pro_lt',
+        STRIPE_TEAM_LIFETIME_PRICE_ID: 'price_live_team_lt',
       };
-      const mapping = getStripePriceMapping(env);
+      const mapping = getStripePriceMapping(env as any);
 
-      expect(mapping['price_live_solo_lt']).toEqual({
-        plan: 'solo',
-        billingType: 'lifetime',
-      });
       expect(mapping['price_live_pro_lt']).toEqual({
         plan: 'pro',
+        billingType: 'lifetime',
+      });
+      expect(mapping['price_live_team_lt']).toEqual({
+        plan: 'team',
         billingType: 'lifetime',
       });
     });
 
     it('should include subscription prices as monthly', () => {
-      const mapping = getStripePriceMapping({});
-      expect(mapping['price_test_solo']).toBeDefined();
-      expect(mapping['price_test_solo'].billingType).toBe('monthly');
+      const mapping = getStripePriceMapping({} as any);
+      expect(mapping['price_test_pro']).toBeDefined();
+      expect(mapping['price_test_pro'].billingType).toBe('monthly');
+      expect(mapping['price_test_pro'].plan).toBe('pro');
     });
   });
 
   describe('getLifetimePriceIds', () => {
     it('should return empty array when no lifetime prices configured', () => {
-      const ids = getLifetimePriceIds({});
+      const ids = getLifetimePriceIds({} as any);
       expect(ids).toEqual([]);
     });
 
     it('should return configured lifetime price IDs', () => {
       const env = {
-        STRIPE_SOLO_LIFETIME_PRICE_ID: 'price_solo_lt',
         STRIPE_PRO_LIFETIME_PRICE_ID: 'price_pro_lt',
+        STRIPE_TEAM_LIFETIME_PRICE_ID: 'price_team_lt',
       };
-      const ids = getLifetimePriceIds(env);
+      const ids = getLifetimePriceIds(env as any);
 
-      expect(ids).toContain('price_solo_lt');
       expect(ids).toContain('price_pro_lt');
+      expect(ids).toContain('price_team_lt');
       expect(ids.length).toBe(2);
     });
 
     it('should handle partial configuration', () => {
       const env = {
-        STRIPE_SOLO_LIFETIME_PRICE_ID: 'price_solo_lt',
+        STRIPE_PRO_LIFETIME_PRICE_ID: 'price_pro_lt',
       };
-      const ids = getLifetimePriceIds(env);
+      const ids = getLifetimePriceIds(env as any);
 
-      expect(ids).toContain('price_solo_lt');
+      expect(ids).toContain('price_pro_lt');
       expect(ids.length).toBe(1);
     });
   });

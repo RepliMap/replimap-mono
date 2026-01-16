@@ -17,29 +17,14 @@ import type { Env } from '../types/env';
 export type PlanType = 'community' | 'pro' | 'team' | 'sovereign';
 export type PlanBillingType = 'free' | 'monthly' | 'annual' | 'lifetime';
 
-/** Legacy plan names for backward compatibility */
-export type LegacyPlanType = 'free' | 'solo' | 'enterprise';
-
-export const LEGACY_PLAN_MIGRATIONS: Record<LegacyPlanType, PlanType> = {
-  free: 'community',
-  solo: 'pro',
-  enterprise: 'sovereign',
-};
-
 /**
- * Normalize a plan name, converting legacy names to v4.0 names
+ * Normalize a plan name to a valid v4.0 plan type
  */
 export function normalizePlanName(plan: string): PlanType {
   const lower = plan.toLowerCase();
 
-  // Check v4.0 plan names
   if (['community', 'pro', 'team', 'sovereign'].includes(lower)) {
     return lower as PlanType;
-  }
-
-  // Check legacy plan names
-  if (lower in LEGACY_PLAN_MIGRATIONS) {
-    return LEGACY_PLAN_MIGRATIONS[lower as LegacyPlanType];
   }
 
   return 'community'; // Default to community for unknown plans
@@ -52,6 +37,10 @@ export function normalizePlanName(plan: string): PlanType {
 /** Far future expiry date for lifetime licenses - effectively "never expires" */
 export const LIFETIME_EXPIRY = '2099-12-31T23:59:59.000Z';
 
+/**
+ * Plan features configuration for v4.0 pricing tiers.
+ * All plans have unlimited scans and resources - gating is on exports.
+ */
 export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
   community: {
     resources_per_scan: -1,      // v4.0: UNLIMITED
@@ -98,16 +87,11 @@ export const MAX_MACHINE_CHANGES_PER_MONTH = 3;
  * Plan rank - higher number = higher tier plan
  * Used to detect upgrades vs downgrades
  */
-export const PLAN_RANK: Record<string, number> = {
-  // v4.0 plans
+export const PLAN_RANK: Record<PlanType, number> = {
   community: 0,
   pro: 1,
   team: 2,
   sovereign: 3,
-  // Legacy plans (mapped to v4.0 equivalents)
-  free: 0,
-  solo: 1,
-  enterprise: 3,
 };
 
 /**
@@ -190,44 +174,32 @@ export const AWS_ACCOUNT_ID_PATTERN = /^\d{12}$/;
 /**
  * Plan prices in cents (monthly)
  */
-export const PLAN_PRICES: Record<string, number> = {
-  'community': 0,
-  'pro': 2900,           // $29/month
-  'team': 9900,          // $99/month
-  'sovereign': 250000,   // $2,500/month
-  // Legacy plan prices (mapped to v4.0)
-  'free': 0,
-  'solo': 2900,          // $29/month (same as PRO)
-  'enterprise': 250000,  // $2,500/month (same as SOVEREIGN)
+export const PLAN_PRICES: Record<PlanType, number> = {
+  community: 0,
+  pro: 2900,           // $29/month
+  team: 9900,          // $99/month
+  sovereign: 250000,   // $2,500/month
 } as const;
 
 /**
  * Annual plan prices in cents (total per year)
  * 2 months free compared to monthly billing
  */
-export const PLAN_ANNUAL_PRICES: Record<string, number> = {
-  'community': 0,
-  'pro': 29000,          // $290/year (~$24/month, 2 months free)
-  'team': 99000,         // $990/year (~$83/month, 2 months free)
-  'sovereign': 2500000,  // $25,000/year (~$2,083/month, 2 months free)
-  // Legacy plans
-  'free': 0,
-  'solo': 29000,
-  'enterprise': 2500000,
+export const PLAN_ANNUAL_PRICES: Record<PlanType, number> = {
+  community: 0,
+  pro: 29000,          // $290/year (~$24/month, 2 months free)
+  team: 99000,         // $990/year (~$83/month, 2 months free)
+  sovereign: 2500000,  // $25,000/year (~$2,083/month, 2 months free)
 } as const;
 
 /**
  * Lifetime plan prices in cents (one-time payment)
  */
-export const PLAN_LIFETIME_PRICES: Record<string, number | null> = {
-  'community': null,     // No lifetime for free tier
-  'pro': 19900,          // $199 Early Bird (Regular: $249)
-  'team': 49900,         // $499 Early Bird (Regular: $699)
-  'sovereign': null,     // No lifetime for enterprise
-  // Legacy plans
-  'free': null,
-  'solo': 19900,
-  'enterprise': null,
+export const PLAN_LIFETIME_PRICES: Record<PlanType, number | null> = {
+  community: null,     // No lifetime for free tier
+  pro: 19900,          // $199 Early Bird (Regular: $249)
+  team: 49900,         // $499 Early Bird (Regular: $699)
+  sovereign: null,     // No lifetime for enterprise
 } as const;
 
 // ============================================================================
@@ -246,20 +218,18 @@ export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
   'price_v4_team_annual': 'team',
   'price_v4_sovereign_annual': 'sovereign',
 
-  // Legacy price IDs (keep for backward compatibility)
-  'price_1SiMWsAKLIiL9hdweoTnH17A': 'pro',   // Legacy solo → pro
-  'price_1SiMYgAKLIiL9hdwZLjLUOPm': 'pro',   // Legacy pro → pro
-  'price_1SiMZvAKLIiL9hdw8LAIvjrS': 'team',  // Legacy team → team
-  'price_1SiMpmAKLIiL9hdwhhn1dAVG': 'pro',   // Legacy solo annual
-  'price_1SiMqMAKLIiL9hdwj1EgfQMs': 'pro',   // Legacy pro annual
-  'price_1SiMrJAKLIiL9hdwF8xq4poz': 'team',  // Legacy team annual
+  // Production Stripe price IDs (legacy subscriptions still active)
+  'price_1SiMWsAKLIiL9hdweoTnH17A': 'pro',   // Legacy solo monthly → pro
+  'price_1SiMYgAKLIiL9hdwZLjLUOPm': 'pro',   // Legacy pro monthly → pro
+  'price_1SiMZvAKLIiL9hdw8LAIvjrS': 'team',  // Legacy team monthly → team
+  'price_1SiMpmAKLIiL9hdwhhn1dAVG': 'pro',   // Legacy solo annual → pro
+  'price_1SiMqMAKLIiL9hdwj1EgfQMs': 'pro',   // Legacy pro annual → pro
+  'price_1SiMrJAKLIiL9hdwF8xq4poz': 'team',  // Legacy team annual → team
 
-  // Test price IDs (for unit testing) - Monthly
+  // Test price IDs (for unit testing)
   'price_test_pro': 'pro',
   'price_test_team': 'team',
   'price_test_sovereign': 'sovereign',
-
-  // Test price IDs (for unit testing) - Annual
   'price_test_pro_annual': 'pro',
   'price_test_team_annual': 'team',
   'price_test_sovereign_annual': 'sovereign',
@@ -269,20 +239,19 @@ export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
  * Plan to Stripe Price ID (for creating checkout sessions)
  * TODO: Update these after creating new prices in Stripe Dashboard
  */
-export const PLAN_TO_STRIPE_PRICE: Record<string, string> = {
-  // v4.0 Monthly prices
-  'pro': 'price_v4_pro_monthly',
-  'team': 'price_v4_team_monthly',
-  'sovereign': 'price_v4_sovereign_monthly',
+export const PLAN_TO_STRIPE_PRICE: Record<Exclude<PlanType, 'community'>, string> = {
+  pro: 'price_v4_pro_monthly',
+  team: 'price_v4_team_monthly',
+  sovereign: 'price_v4_sovereign_monthly',
 };
 
 /**
  * Plan to Stripe Annual Price ID (for annual checkout sessions)
  */
-export const PLAN_TO_STRIPE_ANNUAL_PRICE: Record<string, string> = {
-  'pro': 'price_v4_pro_annual',
-  'team': 'price_v4_team_annual',
-  'sovereign': 'price_v4_sovereign_annual',
+export const PLAN_TO_STRIPE_ANNUAL_PRICE: Record<Exclude<PlanType, 'community'>, string> = {
+  pro: 'price_v4_pro_annual',
+  team: 'price_v4_team_annual',
+  sovereign: 'price_v4_sovereign_annual',
 };
 
 /**
@@ -305,7 +274,7 @@ export const STRIPE_LIFETIME_PRICE_TO_PLAN: Record<string, { plan: PlanType; bil
   'price_v4_pro_lifetime': { plan: 'pro', billingType: 'lifetime' },
   'price_v4_team_lifetime': { plan: 'team', billingType: 'lifetime' },
 
-  // Legacy test price IDs
+  // Test price IDs
   'price_test_pro_lifetime': { plan: 'pro', billingType: 'lifetime' },
   'price_test_team_lifetime': { plan: 'team', billingType: 'lifetime' },
 };
