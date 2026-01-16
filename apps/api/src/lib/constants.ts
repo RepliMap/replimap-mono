@@ -52,7 +52,7 @@ export function normalizePlanName(plan: string): PlanType {
 /** Far future expiry date for lifetime licenses - effectively "never expires" */
 export const LIFETIME_EXPIRY = '2099-12-31T23:59:59.000Z';
 
-export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
+const V4_PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
   community: {
     resources_per_scan: -1,      // v4.0: UNLIMITED
     scans_per_month: -1,         // v4.0: UNLIMITED
@@ -81,6 +81,20 @@ export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
     machines: -1,                // Unlimited
     export_formats: ['json', 'terraform', 'csv', 'html', 'markdown', 'pdf'],
   },
+};
+
+/**
+ * Plan features with legacy aliases for backward compatibility.
+ * - `free` → `community`
+ * - `solo` → `pro`
+ * - `enterprise` → `sovereign`
+ */
+export const PLAN_FEATURES: Record<string, PlanFeatures> = {
+  ...V4_PLAN_FEATURES,
+  // Legacy aliases
+  free: V4_PLAN_FEATURES.community,
+  solo: V4_PLAN_FEATURES.pro,
+  enterprise: V4_PLAN_FEATURES.sovereign,
 };
 
 // ============================================================================
@@ -263,6 +277,10 @@ export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
   'price_test_pro_annual': 'pro',
   'price_test_team_annual': 'team',
   'price_test_sovereign_annual': 'sovereign',
+
+  // Legacy test price IDs (for backward compatibility)
+  'price_test_solo': 'pro',         // solo → pro
+  'price_test_solo_annual': 'pro',  // solo annual → pro
 };
 
 /**
@@ -274,6 +292,8 @@ export const PLAN_TO_STRIPE_PRICE: Record<string, string> = {
   'pro': 'price_v4_pro_monthly',
   'team': 'price_v4_team_monthly',
   'sovereign': 'price_v4_sovereign_monthly',
+  // Legacy aliases
+  'solo': 'price_v4_pro_monthly',  // solo → pro
 };
 
 /**
@@ -308,6 +328,7 @@ export const STRIPE_LIFETIME_PRICE_TO_PLAN: Record<string, { plan: PlanType; bil
   // Legacy test price IDs
   'price_test_pro_lifetime': { plan: 'pro', billingType: 'lifetime' },
   'price_test_team_lifetime': { plan: 'team', billingType: 'lifetime' },
+  'price_test_solo_lifetime': { plan: 'pro', billingType: 'lifetime' },  // solo → pro
 };
 
 /**
