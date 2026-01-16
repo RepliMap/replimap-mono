@@ -127,6 +127,7 @@ describe('Stripe Price Mapping for Lifetime', () => {
     it('should return true for test lifetime price IDs', () => {
       expect(isLifetimePriceId('price_test_solo_lifetime')).toBe(true);
       expect(isLifetimePriceId('price_test_pro_lifetime')).toBe(true);
+      expect(isLifetimePriceId('price_test_team_lifetime')).toBe(true);
     });
 
     it('should return false for regular price IDs', () => {
@@ -138,20 +139,20 @@ describe('Stripe Price Mapping for Lifetime', () => {
 
   describe('getPlanInfoFromPriceId', () => {
     it('should return lifetime billing type for lifetime price IDs', () => {
-      const result = getPlanInfoFromPriceId('price_test_solo_lifetime');
-      expect(result.plan).toBe('solo');
+      const result = getPlanInfoFromPriceId('price_test_pro_lifetime');
+      expect(result.plan).toBe('pro');
       expect(result.billingType).toBe('lifetime');
     });
 
     it('should return monthly billing type for regular price IDs', () => {
-      const result = getPlanInfoFromPriceId('price_test_solo');
-      expect(result.plan).toBe('solo');
+      const result = getPlanInfoFromPriceId('price_test_pro');
+      expect(result.plan).toBe('pro');
       expect(result.billingType).toBe('monthly');
     });
 
-    it('should return free plan for unknown price IDs', () => {
+    it('should return community plan for unknown price IDs', () => {
       const result = getPlanInfoFromPriceId('unknown_price');
-      expect(result.plan).toBe('free');
+      expect(result.plan).toBe('community');
       expect(result.billingType).toBe('monthly');
     });
   });
@@ -159,18 +160,18 @@ describe('Stripe Price Mapping for Lifetime', () => {
   describe('getStripePriceMapping', () => {
     it('should include lifetime prices from environment', () => {
       const mockEnv = {
-        STRIPE_SOLO_LIFETIME_PRICE_ID: 'price_prod_solo_lifetime',
         STRIPE_PRO_LIFETIME_PRICE_ID: 'price_prod_pro_lifetime',
+        STRIPE_TEAM_LIFETIME_PRICE_ID: 'price_prod_team_lifetime',
       };
 
       const mapping = getStripePriceMapping(mockEnv);
 
-      expect(mapping['price_prod_solo_lifetime']).toEqual({
-        plan: 'solo',
-        billingType: 'lifetime',
-      });
       expect(mapping['price_prod_pro_lifetime']).toEqual({
         plan: 'pro',
+        billingType: 'lifetime',
+      });
+      expect(mapping['price_prod_team_lifetime']).toEqual({
+        plan: 'team',
         billingType: 'lifetime',
       });
     });
@@ -179,8 +180,8 @@ describe('Stripe Price Mapping for Lifetime', () => {
       const mockEnv = {};
       const mapping = getStripePriceMapping(mockEnv);
 
-      expect(mapping['price_test_solo_lifetime']).toEqual({
-        plan: 'solo',
+      expect(mapping['price_test_pro_lifetime']).toEqual({
+        plan: 'pro',
         billingType: 'lifetime',
       });
     });
@@ -189,8 +190,8 @@ describe('Stripe Price Mapping for Lifetime', () => {
       const mockEnv = {};
       const mapping = getStripePriceMapping(mockEnv);
 
-      expect(mapping['price_test_solo']).toEqual({
-        plan: 'solo',
+      expect(mapping['price_test_pro']).toEqual({
+        plan: 'pro',
         billingType: 'monthly',
       });
     });

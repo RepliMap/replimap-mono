@@ -6,7 +6,7 @@
  * POST /v1/admin/licenses/{key}/revoke - Revoke license
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   handleCreateLicense,
   handleGetLicense,
@@ -19,11 +19,28 @@ import {
 } from './helpers';
 import type { Env } from '../src/types';
 import type { ErrorResponse } from '../src/types/api';
+import * as db from '../src/lib/db';
+
+// Mock the db module
+vi.mock('../src/lib/db', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/lib/db')>();
+  return {
+    ...original,
+    getLicenseByKey: vi.fn(),
+    getLicenseWithUserDetails: vi.fn(),
+    createLicense: vi.fn(),
+    revokeLicense: vi.fn(),
+    getOrCreateUser: vi.fn(),
+    getActiveMachines: vi.fn().mockResolvedValue([]),
+    getActiveAwsAccountCount: vi.fn().mockResolvedValue(0),
+  };
+});
 
 describe('Admin Endpoints', () => {
   let env: Env;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     env = createMockEnv();
   });
 
@@ -104,48 +121,36 @@ describe('Admin Endpoints', () => {
     });
 
     it('should create license with valid request', async () => {
-      let firstCallCount = 0;
       const now = new Date().toISOString();
-      const mockDB = {
-        prepare: (query: string) => ({
-          bind: (...args: unknown[]) => ({
-            first: async () => {
-              firstCallCount++;
-              // First call: check existing user (SELECT ... FROM users WHERE email = ?)
-              if (firstCallCount === 1) {
-                return null; // No existing user
-              }
-              // Second call: return created user (SELECT * FROM users WHERE id = ?)
-              if (firstCallCount === 2) {
-                return {
-                  id: 'user_test_123',
-                  email: 'test@example.com',
-                  stripe_customer_id: null,
-                  created_at: now,
-                  updated_at: now,
-                };
-              }
-              // Third call: return created license (SELECT * FROM licenses WHERE id = ?)
-              // The createLicense function uses: bind(id, userId, licenseKey, ...)
-              // So args[2] is the license key in INSERT, but for SELECT it's just the id
-              return {
-                id: 'lic_test_123',
-                user_id: 'user_test_123',
-                license_key: 'RM-TEST-1234-5678-ABCD', // Use fixed test key
-                plan: 'pro',
-                status: 'active',
-                current_period_start: now,
-                current_period_end: null,
-                created_at: now,
-                updated_at: now,
-              };
-            },
-            run: async () => ({ success: true, results: [], meta: { last_row_id: 1, changes: 1 } }),
-          }),
-        }),
-      } as unknown as D1Database;
 
-      env = createMockEnv({ DB: mockDB });
+      // Mock user creation
+      vi.mocked(db.getOrCreateUser).mockResolvedValue({
+        id: 'user_test_123',
+        email: 'test@example.com',
+        customerId: null,
+        createdAt: new Date(now),
+        updatedAt: new Date(now),
+      });
+
+      // Mock license creation
+      vi.mocked(db.createLicense).mockResolvedValue({
+        id: 'lic_test_123',
+        userId: 'user_test_123',
+        licenseKey: 'RM-TEST-1234-5678-ABCD',
+        plan: 'pro',
+        planType: 'monthly',
+        status: 'active',
+        currentPeriodStart: now,
+        currentPeriodEnd: null,
+        stripeSubscriptionId: null,
+        stripePriceId: null,
+        stripeSessionId: null,
+        createdAt: now,
+        updatedAt: now,
+        canceledAt: null,
+        revokedAt: null,
+        revokedReason: null,
+      });
 
       const request = createRequest('POST', '/v1/admin/licenses', {
         customer_email: 'test@example.com',
@@ -158,7 +163,7 @@ describe('Admin Endpoints', () => {
       const data = await response.json() as { license_key: string; plan: string };
 
       expect(response.status).toBe(201);
-      expect(data.license_key).toMatch(/^RM-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+      expect(data.license_key).toBe('RM-TEST-1234-5678-ABCD');
       expect(data.plan).toBe('pro');
     });
   });
@@ -174,6 +179,8 @@ describe('Admin Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      vi.mocked(db.getLicenseWithUserDetails).mockResolvedValue(null);
+
       const request = createRequest('GET', '/v1/admin/licenses/RM-XXXX-XXXX-XXXX-XXXX', undefined, {
         'X-API-Key': 'test-admin-key',
       });
@@ -186,29 +193,20 @@ describe('Admin Endpoints', () => {
     });
 
     it('should return license details for valid key', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => ({
-              id: 'lic_123',
-              license_key: 'RM-TEST-1234-5678-ABCD',
-              plan: 'pro',
-              status: 'active',
-              current_period_start: new Date().toISOString(),
-              current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-              email: 'test@example.com',
-              stripe_customer_id: 'cus_123',
-              stripe_subscription_id: 'sub_123',
-              created_at: new Date().toISOString(),
-              active_machines: 2,
-              active_aws_accounts: 1,
-            }),
-            all: async () => ({ results: [], success: true }),
-          }),
-        }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      vi.mocked(db.getLicenseWithUserDetails).mockResolvedValue({
+        id: 'lic_123',
+        license_key: 'RM-TEST-1234-5678-ABCD',
+        plan: 'pro',
+        status: 'active',
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        email: 'test@example.com',
+        stripe_customer_id: 'cus_123',
+        stripe_subscription_id: 'sub_123',
+        created_at: new Date().toISOString(),
+        active_machines: 2,
+        active_aws_accounts: 1,
+      });
 
       const request = createRequest('GET', '/v1/admin/licenses/RM-TEST-1234-5678-ABCD', undefined, {
         'X-API-Key': 'test-admin-key',
@@ -235,6 +233,8 @@ describe('Admin Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      vi.mocked(db.getLicenseByKey).mockResolvedValue(null);
+
       const request = createRequest('POST', '/v1/admin/licenses/RM-XXXX-XXXX-XXXX-XXXX/revoke', {
         reason: 'Test revocation',
       }, {
@@ -249,19 +249,25 @@ describe('Admin Endpoints', () => {
     });
 
     it('should revoke license successfully', async () => {
-      const mockDB = {
-        prepare: () => ({
-          bind: () => ({
-            first: async () => ({
-              id: 'lic_123',
-              status: 'active',
-            }),
-            run: async () => ({ success: true, results: [] }),
-          }),
-        }),
-      } as unknown as D1Database;
-
-      env = createMockEnv({ DB: mockDB });
+      vi.mocked(db.getLicenseByKey).mockResolvedValue({
+        id: 'lic_123',
+        userId: 'user_123',
+        licenseKey: 'RM-TEST-1234-5678-ABCD',
+        plan: 'pro',
+        planType: 'monthly',
+        status: 'active',
+        currentPeriodStart: new Date().toISOString(),
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        stripeSubscriptionId: null,
+        stripePriceId: null,
+        stripeSessionId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        canceledAt: null,
+        revokedAt: null,
+        revokedReason: null,
+      });
+      vi.mocked(db.revokeLicense).mockResolvedValue(undefined);
 
       const request = createRequest('POST', '/v1/admin/licenses/RM-TEST-1234-5678-ABCD/revoke', {
         reason: 'Fraud detected',
