@@ -25,9 +25,9 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-6 rounded-lg border border-border bg-card">
             <h3 className="font-semibold text-foreground mb-2">License</h3>
-            <p className="text-2xl font-bold text-emerald-400">Free Tier</p>
+            <p className="text-2xl font-bold text-emerald-400">Community</p>
             <p className="text-sm text-muted-foreground mt-1">
-              3 scans remaining this month
+              Unlimited scans · JSON export
             </p>
           </div>
 

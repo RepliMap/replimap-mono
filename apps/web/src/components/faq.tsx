@@ -14,7 +14,7 @@ const faqs = [
   {
     question: "Can I use RepliMap in air-gapped environments?",
     answer:
-      "Yes. Solo and Pro plans support offline license activation with machine ID binding. Enterprise customers get additional support for air-gapped deployments.",
+      "Yes. Pro and Team plans support offline license activation with machine ID binding. Sovereign customers get additional support for air-gapped deployments with signed audit reports.",
   },
   {
     question: "What AWS services are supported?",
@@ -24,7 +24,7 @@ const faqs = [
   {
     question: "How does the Lifetime deal work?",
     answer:
-      "Pay once, use forever. Lifetime licenses include all features of the selected tier (Solo or Pro) and all future updates. No recurring charges. Limited to the first 50 customers at Early Bird pricing.",
+      "Pay once, use forever. Lifetime licenses include all features of the selected tier (Pro or Team) and all future updates. No recurring charges. Limited availability at Early Bird pricing.",
   },
   {
     question: "Can I upgrade or downgrade my plan?",
@@ -34,7 +34,7 @@ const faqs = [
   {
     question: "What if I need more than 10 AWS accounts?",
     answer:
-      "Enterprise plans support unlimited AWS accounts. Contact our sales team for custom pricing based on your organization's needs.",
+      "Sovereign plans support unlimited AWS accounts. Contact our sales team for custom pricing based on your organization's needs.",
   },
 ]
 
