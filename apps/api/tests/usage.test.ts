@@ -7,7 +7,7 @@
  * POST /v1/usage/check-quota - Check quota availability
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   handleSyncUsage,
   handleGetUsage,
@@ -23,11 +23,27 @@ import {
 } from './helpers';
 import type { Env } from '../src/types';
 import type { ErrorResponse } from '../src/types/api';
+import * as db from '../src/lib/db';
+
+// Mock the db module
+vi.mock('../src/lib/db', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../src/lib/db')>();
+  return {
+    ...original,
+    getLicenseByKey: vi.fn(),
+    logUsage: vi.fn(),
+    recordUsageEvent: vi.fn(),
+    getUsageForPeriod: vi.fn().mockResolvedValue({ scans: 0, resources: 0 }),
+    getUsageHistory: vi.fn().mockResolvedValue([]),
+    getMonthlyUsageCount: vi.fn().mockResolvedValue(0),
+  };
+});
 
 describe('Usage Endpoints', () => {
   let env: Env;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     env = createMockEnv();
   });
 
@@ -86,6 +102,8 @@ describe('Usage Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      vi.mocked(db.getLicenseByKey).mockResolvedValue(null);
+
       const request = createRequest('POST', '/v1/usage/sync', {
         license_key: 'RM-XXXX-XXXX-XXXX-XXXX',
         machine_id: generateMachineId(),
@@ -112,6 +130,8 @@ describe('Usage Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      vi.mocked(db.getLicenseByKey).mockResolvedValue(null);
+
       const request = createRequest('GET', '/v1/usage/RM-XXXX-XXXX-XXXX-XXXX');
 
       const response = await handleGetUsage(request, env, 'RM-XXXX-XXXX-XXXX-XXXX', '1.2.3.4');
@@ -132,6 +152,8 @@ describe('Usage Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      vi.mocked(db.getLicenseByKey).mockResolvedValue(null);
+
       const request = createRequest('GET', '/v1/usage/RM-XXXX-XXXX-XXXX-XXXX/history');
 
       const response = await handleGetUsageHistory(request, env, 'RM-XXXX-XXXX-XXXX-XXXX', '1.2.3.4');
@@ -181,6 +203,8 @@ describe('Usage Endpoints', () => {
     });
 
     it('should return 404 for non-existent license', async () => {
+      vi.mocked(db.getLicenseByKey).mockResolvedValue(null);
+
       const request = createRequest('POST', '/v1/usage/check-quota', {
         license_key: 'RM-XXXX-XXXX-XXXX-XXXX',
         operation: 'scans',
