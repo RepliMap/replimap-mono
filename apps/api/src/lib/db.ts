@@ -377,28 +377,51 @@ export async function updateLicensePlan(
 // Machine Queries & Mutations
 // ============================================================================
 
+/** Fingerprint type for machine registration */
+export type FingerprintType = 'machine' | 'ci' | 'container';
+
+/** Fingerprint metadata for registration */
+export interface FingerprintMetadata {
+  ci_provider?: string;
+  ci_repo?: string;
+  container_type?: string;
+}
+
 /**
- * Register a new machine for a license
+ * Register a new machine for a license with fingerprint metadata.
+ *
+ * @param db - Drizzle database client
+ * @param licenseId - License ID to bind machine to
+ * @param machineId - Machine fingerprint (32 char hex)
+ * @param machineName - Optional friendly name for the machine
+ * @param fingerprintType - Type of fingerprint: machine, ci, or container
+ * @param metadata - Additional metadata for CI/container environments
  */
 export async function registerMachine(
   db: DrizzleDb,
   licenseId: string,
   machineId: string,
-  machineName?: string
+  machineName?: string,
+  fingerprintType: FingerprintType = 'machine',
+  metadata?: FingerprintMetadata
 ): Promise<void> {
   const id = generateId();
   const now = nowISO();
   const normalizedMachineId = normalizeMachineId(machineId);
 
-  await db.insert(schema.licenseMachines).values({
-    id,
-    licenseId,
-    machineId: normalizedMachineId,
-    machineName: machineName ?? null,
-    isActive: true,
-    firstSeenAt: now,
-    lastSeenAt: now,
-  });
+  // Use raw SQL to support new columns that may not be in Drizzle schema yet
+  await db.run(sql`
+    INSERT INTO license_machines (
+      id, license_id, machine_id, machine_name,
+      fingerprint_type, ci_provider, ci_repo, container_type,
+      is_active, first_seen_at, last_seen_at
+    ) VALUES (
+      ${id}, ${licenseId}, ${normalizedMachineId}, ${machineName ?? null},
+      ${fingerprintType}, ${metadata?.ci_provider ?? null},
+      ${metadata?.ci_repo ?? null}, ${metadata?.container_type ?? null},
+      1, ${now}, ${now}
+    )
+  `);
 }
 
 /**

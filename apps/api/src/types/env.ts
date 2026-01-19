@@ -27,6 +27,11 @@ export interface Env {
   // If set, includes a signed JWT in validate response that CLI can cache
   LEASE_TOKEN_SECRET?: string;
 
+  // Ed25519 License Signing (required for license_blob generation)
+  // Generate with: npx tsx scripts/generate-keys.ts
+  // Store via: wrangler secret put ED25519_PRIVATE_KEY
+  ED25519_PRIVATE_KEY: string;
+
   // Environment variables
   ENVIRONMENT: 'development' | 'production';
   CORS_ORIGIN: string;

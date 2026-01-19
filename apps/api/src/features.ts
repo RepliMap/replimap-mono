@@ -13,6 +13,8 @@
  * - SOVEREIGN ($2,500): SSO, signed reports, air-gap, white-labeling
  */
 
+import type { SecureLicenseLimits } from './lib/ed25519';
+
 // =============================================================================
 // Feature Enum
 // =============================================================================
@@ -224,6 +226,7 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     aws_accounts: 1,
     machines: 1,
     history_retention_days: 7,
+    offline_grace_days: 0,       // Must be online
   },
 
   // PRO TIER ($29/mo)
@@ -245,6 +248,7 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     aws_accounts: 3,
     machines: 2,
     history_retention_days: 90,
+    offline_grace_days: 7,       // 7 days offline grace
   },
 
   // TEAM TIER ($99/mo)
@@ -267,6 +271,7 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     machines: 10,
     team_members: 5,
     history_retention_days: 365,
+    offline_grace_days: 14,      // 14 days offline grace
   },
 
   // SOVEREIGN TIER ($2,500/mo)
@@ -289,8 +294,29 @@ export const PLAN_LIMITS: Record<Plan, Record<string, number>> = {
     machines: -1,
     team_members: -1,
     history_retention_days: -1,
+    offline_grace_days: 365,     // 365 days offline grace (air-gap support)
   },
 };
+
+// =============================================================================
+// Offline Grace Days by Plan
+// =============================================================================
+
+/**
+ * Offline grace period (days) by plan.
+ *
+ * When CLI cannot connect to the server:
+ * - COMMUNITY: Must be online (0 days)
+ * - PRO: 7 days grace
+ * - TEAM: 14 days grace
+ * - SOVEREIGN: 365 days grace (air-gap deployment support)
+ */
+export const OFFLINE_GRACE_DAYS: Record<Plan, number> = {
+  [Plan.COMMUNITY]: 0,
+  [Plan.PRO]: 7,
+  [Plan.TEAM]: 14,
+  [Plan.SOVEREIGN]: 365,
+} as const;
 
 // =============================================================================
 // Feature Metadata
@@ -613,6 +639,34 @@ export function getFeatureFlags(plan: Plan): FeatureFlagsType {
     air_gap: features.includes(Feature.AIR_GAP_DEPLOYMENT),
     white_labeling: features.includes(Feature.WHITE_LABELING),
   };
+}
+
+// =============================================================================
+// License Blob Helpers
+// =============================================================================
+
+/**
+ * Build SecureLicenseLimits for license blob signing.
+ * Maps plan limits to the structure expected by CLI.
+ */
+export function buildSecureLicenseLimits(plan: Plan): SecureLicenseLimits {
+  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS[Plan.COMMUNITY];
+
+  return {
+    max_accounts: limits.aws_accounts ?? 1,
+    max_regions: -1, // Unlimited
+    max_resources_per_scan: limits.resources_per_scan ?? -1,
+    max_concurrent_scans: 1,
+    max_scans_per_day: limits.scan_count === -1 ? -1 : Math.ceil((limits.scan_count ?? 3) / 30),
+    offline_grace_days: limits.offline_grace_days ?? 0,
+  };
+}
+
+/**
+ * Get enabled features as string array for license blob.
+ */
+export function getEnabledFeatures(plan: Plan): string[] {
+  return (PLAN_FEATURES[plan] ?? []).map((f) => f.toString());
 }
 
 // =============================================================================

@@ -2,20 +2,59 @@
  * API Request/Response types for RepliMap Backend
  */
 
+import type { FingerprintType } from '../lib/ed25519';
+
 // ============================================================================
 // Request Types
 // ============================================================================
 
+/**
+ * Machine info sent by CLI for fingerprint detection and analytics.
+ */
+export interface MachineInfoRequest {
+  platform?: string;
+  platform_version?: string;
+  platform_release?: string;
+  python_version?: string;
+  hostname?: string;
+  // CI-related
+  ci_provider?: string;
+  ci_repo?: string;
+  ci_run_id?: string;
+  // Container-related
+  container_type?: string;
+  workspace_id?: string;
+}
+
 export interface ValidateLicenseRequest {
   license_key: string;
-  machine_id: string;
+  /** Machine fingerprint (32 char hex). Also accepts legacy 'machine_id' field. */
+  machine_fingerprint?: string;
+  /** @deprecated Use machine_fingerprint instead */
+  machine_id?: string;
+  /** Fingerprint type (auto-detected if not provided) */
+  fingerprint_type?: FingerprintType;
+  /** Machine info for detection and analytics */
+  machine_info?: MachineInfoRequest;
   cli_version?: string;
+  // Legacy security fields
+  machine_signature?: string;
+  timestamp?: number;
+  is_ci?: boolean;
 }
 
 export interface ActivateLicenseRequest {
   license_key: string;
-  machine_id: string;
+  /** Machine fingerprint (32 char hex). Also accepts legacy 'machine_id' field. */
+  machine_fingerprint?: string;
+  /** @deprecated Use machine_fingerprint instead */
+  machine_id?: string;
+  /** Fingerprint type (auto-detected if not provided) */
+  fingerprint_type?: FingerprintType;
+  /** Machine info for detection and analytics */
+  machine_info?: MachineInfoRequest;
   machine_name?: string;
+  cli_version?: string;
 }
 
 export interface DeactivateLicenseRequest {
@@ -79,12 +118,16 @@ export interface ExtendedLimits {
   cost_count: number;
   clone_preview_lines: number;
   audit_visible_findings: number;
+  /** Offline grace period in days */
+  offline_grace_days: number;
 }
 
 export interface ValidateLicenseResponse {
   valid: true;
   plan: string;
   status: string;
+  /** Ed25519 signed license blob for offline validation */
+  license_blob: string;
   features: PlanFeatures;
   usage: UsageInfo;
   expires_at: string | null;
@@ -98,7 +141,10 @@ export interface ValidateLicenseResponse {
 
 export interface ActivateLicenseResponse {
   activated: true;
+  /** Ed25519 signed license blob for offline validation */
+  license_blob: string;
   plan: string;
+  status: string;
   machines_used: number;
   machines_limit: number;
 }
