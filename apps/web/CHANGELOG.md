@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.4.0...replimap-web-v0.4.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* **web:** resolve sitemap and middleware issues for Vercel deployment ([8b53d25](https://github.com/RepliMap/replimap-mono/commit/8b53d25384064f2b1059632e765ccb6006fcee8e))
+* **web:** resolve sitemap and middleware issues for Vercel deployment ([e22d8d6](https://github.com/RepliMap/replimap-mono/commit/e22d8d6f9611cc7170da52ade87f651c4d4cea4d))
+
 ## [0.4.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.3.1...replimap-web-v0.4.0) (2026-01-20)
 
 
