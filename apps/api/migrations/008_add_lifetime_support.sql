@@ -11,8 +11,8 @@
 -- Add plan_type column (default to 'monthly' for existing subscriptions)
 ALTER TABLE licenses ADD COLUMN plan_type TEXT NOT NULL DEFAULT 'monthly';
 
--- Add stripe_session_id column (unique, for lifetime idempotency)
-ALTER TABLE licenses ADD COLUMN stripe_session_id TEXT UNIQUE;
+-- Add stripe_session_id column (for lifetime idempotency)
+ALTER TABLE licenses ADD COLUMN stripe_session_id TEXT;
 
 -- Add status tracking columns
 ALTER TABLE licenses ADD COLUMN canceled_at TEXT;
@@ -21,4 +21,4 @@ ALTER TABLE licenses ADD COLUMN revoked_reason TEXT;
 
 -- Create indexes for new columns
 CREATE INDEX IF NOT EXISTS licenses_plan_type_idx ON licenses(plan_type);
-CREATE INDEX IF NOT EXISTS licenses_session_id_idx ON licenses(stripe_session_id);
+CREATE UNIQUE INDEX IF NOT EXISTS licenses_session_id_idx ON licenses(stripe_session_id);
