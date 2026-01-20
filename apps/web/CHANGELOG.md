@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.4.1...replimap-web-v0.4.2) (2026-01-20)
+
+
+### Bug Fixes
+
+* **web:** bypass Clerk middleware for sitemap.xml and robots.txt ([02eb8fc](https://github.com/RepliMap/replimap-mono/commit/02eb8fcf2a706ee50306383217b3d943d04d2098))
+* **web:** bypass Clerk middleware for sitemap.xml and robots.txt ([1c0dc38](https://github.com/RepliMap/replimap-mono/commit/1c0dc38d4e20118410bf6ee23295e5a482b57d0e))
+
 ## [0.4.1](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.4.0...replimap-web-v0.4.1) (2026-01-20)
 
 
