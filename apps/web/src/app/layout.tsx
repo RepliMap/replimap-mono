@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { ClerkProviderWrapper } from "@/components/clerk-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { generateSiteSchema } from "@/lib/schema";
 import "./globals.css";
 
 const geistSans = localFont({
@@ -22,6 +23,8 @@ const geistMono = localFont({
 
 // SEO Metadata
 export const metadata: Metadata = {
+  metadataBase: new URL('https://replimap.com'),
+
   title: {
     default: "RepliMap - AWS Infrastructure Intelligence",
     template: "%s | RepliMap",
@@ -38,17 +41,25 @@ export const metadata: Metadata = {
     "DevOps",
     "SRE",
     "infrastructure audit",
+    "AWS to Terraform",
+    "reverse engineer AWS",
+    "Terraform import",
   ],
   authors: [{ name: "RepliMap" }],
   creator: "RepliMap",
-  // Icons from v0 (enhanced)
-  icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      { url: "/icon.svg", type: "image/svg+xml" },
-    ],
-    apple: "/apple-icon.png",
+  publisher: "RepliMap",
+
+  // CRITICAL FIX: './' instead of '/'
+  // './' = relative to current path, each page gets correct canonical
+  // '/' = absolute path, all pages point to homepage (fatal SEO error!)
+  alternates: {
+    canonical: './',
   },
+
+  icons: {
+    icon: [{ url: "/favicon.ico" }],
+  },
+
   openGraph: {
     title: "RepliMap - AWS Infrastructure Intelligence",
     description: "Reverse-engineer your AWS infrastructure into Terraform",
@@ -65,32 +76,28 @@ export const metadata: Metadata = {
     locale: "en_US",
     type: "website",
   },
+
   twitter: {
     card: "summary_large_image",
     title: "RepliMap - AWS Infrastructure Intelligence",
     description: "Reverse-engineer your AWS infrastructure into Terraform",
     images: ["/og-image.png"],
   },
+
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
-};
 
-// JSON-LD Structured Data for SEO
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "RepliMap",
-  applicationCategory: "DeveloperApplication",
-  operatingSystem: "Linux, macOS, Windows",
-  description:
-    "AWS Infrastructure Intelligence Engine - Reverse-engineer infrastructure into Terraform, detect drift, generate IAM policies",
-  offers: [
-    { "@type": "Offer", price: "0", priceCurrency: "USD", name: "Free" },
-    { "@type": "Offer", price: "49", priceCurrency: "USD", name: "Solo" },
-    { "@type": "Offer", price: "99", priceCurrency: "USD", name: "Pro" },
-  ],
+  category: 'Technology',
+  applicationName: 'RepliMap',
 };
 
 export default function RootLayout({
@@ -98,6 +105,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const jsonLd = generateSiteSchema();
+
   return (
     <ClerkProviderWrapper>
       <html lang="en" suppressHydrationWarning className="dark">
