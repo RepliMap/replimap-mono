@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.2.1...replimap-mono-v1.3.0) (2026-01-20)
+
+
+### Features
+
+* **web:** fix critical SEO issues and add AI-friendly infrastructure ([72f0c2b](https://github.com/RepliMap/replimap-mono/commit/72f0c2b385ec7be74853a829e3f237aada3de81c))
+* **web:** fix critical SEO issues and add AI-friendly infrastructure ([cc61b9e](https://github.com/RepliMap/replimap-mono/commit/cc61b9e521130b21a447ac10880170ccf7a432d2))
+* **web:** implement SEO improvements with SSOT pricing and dynamic OG images ([2afbe41](https://github.com/RepliMap/replimap-mono/commit/2afbe41ad9c9ba38df14b505fc3c52ee78f49278))
+
+
+### Bug Fixes
+
+* **web:** remove docs opengraph-image incompatible with catch-all route ([033dab9](https://github.com/RepliMap/replimap-mono/commit/033dab901ddfd8a6b6be1461149e5054e47f4fcc))
+
 ## [1.2.1](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.2.0...replimap-mono-v1.2.1) (2026-01-20)
 
 
