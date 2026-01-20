@@ -77,7 +77,7 @@ export interface SecureLicenseLimits {
  * Sign a license payload using Ed25519.
  *
  * @param payload - License payload to sign
- * @param privateKeyBase64 - Base64 encoded Ed25519 private key (32 bytes seed or 64 bytes full)
+ * @param privateKeyBase64 - Base64 encoded Ed25519 private key (PKCS8 format)
  * @returns Base64URL encoded blob: "payload.signature"
  */
 export async function signLicenseBlob(
@@ -89,25 +89,12 @@ export async function signLicenseBlob(
   const payloadBytes = new TextEncoder().encode(payloadJson);
   const payloadBase64 = base64UrlEncode(payloadBytes);
 
-  // 2. Import private key
+  // 2. Import private key (PKCS8 format from Web Crypto exportKey)
   const privateKeyBytes = base64Decode(privateKeyBase64);
 
-  // Ed25519 keys can be 32-byte seed or 64-byte full key (seed + public)
-  // Web Crypto API expects the 32-byte seed
-  const keyData =
-    privateKeyBytes.length === 64
-      ? privateKeyBytes.slice(0, 32)
-      : privateKeyBytes;
-
-  if (keyData.length !== 32) {
-    throw new Error(
-      `Invalid Ed25519 key length: ${keyData.length} (expected 32 or 64 bytes)`
-    );
-  }
-
   const privateKey = await crypto.subtle.importKey(
-    'raw',
-    keyData,
+    'pkcs8',
+    privateKeyBytes,
     { name: 'Ed25519' },
     false,
     ['sign']
@@ -126,7 +113,7 @@ export async function signLicenseBlob(
  * Verify a license blob (for testing and debug purposes).
  *
  * @param blob - The signed blob: "payload_base64.signature_base64"
- * @param publicKeyBase64 - Base64 encoded Ed25519 public key (32 bytes)
+ * @param publicKeyBase64 - Base64 encoded Ed25519 public key (SPKI format)
  * @returns Parsed payload if valid, null if invalid
  */
 export async function verifyLicenseBlob(
@@ -148,12 +135,8 @@ export async function verifyLicenseBlob(
     const signatureBytes = base64UrlDecode(signatureBase64);
     const publicKeyBytes = base64Decode(publicKeyBase64);
 
-    if (publicKeyBytes.length !== 32) {
-      return null;
-    }
-
     const publicKey = await crypto.subtle.importKey(
-      'raw',
+      'spki',
       publicKeyBytes,
       { name: 'Ed25519' },
       false,
