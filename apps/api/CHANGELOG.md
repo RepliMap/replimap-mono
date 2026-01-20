@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.2.4](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.2.3...replimap-api-v1.2.4) (2026-01-20)
+
 ## [1.2.3](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.2.2...replimap-api-v1.2.3) (2026-01-20)
 
 ## [1.2.2](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.2.1...replimap-api-v1.2.2) (2026-01-20)
