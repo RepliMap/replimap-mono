@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.2.2...replimap-web-v0.3.0) (2026-01-20)
+
+
+### Features
+
+* **api:** implement backend/frontend license system for CLI Phase 3 ([41abb0c](https://github.com/RepliMap/replimap-mono/commit/41abb0c49f0a0765c599fe6c032de8686992d36e))
+* **web:** implement license dashboard for CLI Phase 3 ([bfb822a](https://github.com/RepliMap/replimap-mono/commit/bfb822a9e20edc73fb9641467925282f567d2c2e))
+
 ## [0.2.2](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.2.1...replimap-web-v0.2.2) (2026-01-16)
 
 ## [0.2.1](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.2.0...replimap-web-v0.2.1) (2026-01-16)

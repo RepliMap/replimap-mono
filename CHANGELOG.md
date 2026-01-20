@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.1.2...replimap-mono-v1.2.0) (2026-01-20)
+
+
+### Features
+
+* **api:** implement backend license system for CLI Phase 3 ([4030a1b](https://github.com/RepliMap/replimap-mono/commit/4030a1bd5d5efcf5bf18aba7f0325f9d6e7d6bd2))
+* **api:** implement backend/frontend license system for CLI Phase 3 ([41abb0c](https://github.com/RepliMap/replimap-mono/commit/41abb0c49f0a0765c599fe6c032de8686992d36e))
+* **web:** implement license dashboard for CLI Phase 3 ([bfb822a](https://github.com/RepliMap/replimap-mono/commit/bfb822a9e20edc73fb9641467925282f567d2c2e))
+
+
+### Bug Fixes
+
+* **api:** SQLite cannot add UNIQUE column directly ([5fb172a](https://github.com/RepliMap/replimap-mono/commit/5fb172ae63667b1a45087bb29f59dcc7a18d7ea2))
+
 ## [1.1.2](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.1.1...replimap-mono-v1.1.2) (2026-01-16)
 
 
