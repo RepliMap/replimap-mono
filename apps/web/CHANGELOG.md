@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.3.1](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.3.0...replimap-web-v0.3.1) (2026-01-20)
+
 ## [0.3.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.2.2...replimap-web-v0.3.0) (2026-01-20)
 
 

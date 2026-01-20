@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.2.0...replimap-mono-v1.2.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* **api:** use PKCS8/SPKI format for Ed25519 keys ([37d90af](https://github.com/RepliMap/replimap-mono/commit/37d90af14df7daae981a888e142301df56e2c4e5))
+* **api:** use PKCS8/SPKI format for Ed25519 keys ([904d9a0](https://github.com/RepliMap/replimap-mono/commit/904d9a0eecee2c382a4f2a04662d06454a967a20))
+
 ## [1.2.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.1.2...replimap-mono-v1.2.0) (2026-01-20)
 
 
