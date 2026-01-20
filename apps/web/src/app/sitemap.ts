@@ -1,23 +1,20 @@
 import { MetadataRoute } from 'next'
-import fs from 'fs'
-import path from 'path'
-
-function getDocSlugs(): string[] {
-  const docsDir = path.join(process.cwd(), 'content/docs')
-  try {
-    return fs
-      .readdirSync(docsDir)
-      .filter((file) => file.endsWith('.mdx'))
-      .map((file) => file.replace('.mdx', ''))
-      .filter((slug) => slug !== 'index')
-  } catch {
-    return []
-  }
-}
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://replimap.com'
   const now = new Date()
+
+  // Static list - more reliable than fs.readdirSync in Vercel monorepo
+  // Update this when adding new docs (matches content/docs/*.mdx)
+  const docSlugs = [
+    'quick-start',
+    'installation',
+    'cli-reference',
+    'iam-policy',
+    'security',
+    'changelog',
+    'contributing',
+  ]
 
   // Core pages
   const coreRoutes: MetadataRoute.Sitemap = [
@@ -25,8 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/docs`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
   ]
 
-  // Dynamic documentation pages
-  const docSlugs = getDocSlugs()
+  // Documentation pages
   const docRoutes: MetadataRoute.Sitemap = docSlugs.map((slug) => ({
     url: `${baseUrl}/docs/${slug}`,
     lastModified: now,
