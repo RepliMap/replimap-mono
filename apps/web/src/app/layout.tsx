@@ -22,6 +22,8 @@ const geistMono = localFont({
 
 // SEO Metadata
 export const metadata: Metadata = {
+  metadataBase: new URL('https://replimap.com'),
+
   title: {
     default: "RepliMap - AWS Infrastructure Intelligence",
     template: "%s | RepliMap",
@@ -38,17 +40,25 @@ export const metadata: Metadata = {
     "DevOps",
     "SRE",
     "infrastructure audit",
+    "AWS to Terraform",
+    "reverse engineer AWS",
+    "Terraform import",
   ],
   authors: [{ name: "RepliMap" }],
   creator: "RepliMap",
-  // Icons from v0 (enhanced)
-  icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      { url: "/icon.svg", type: "image/svg+xml" },
-    ],
-    apple: "/apple-icon.png",
+  publisher: "RepliMap",
+
+  // CRITICAL FIX: './' instead of '/'
+  // './' = relative to current path, each page gets correct canonical
+  // '/' = absolute path, all pages point to homepage (fatal SEO error!)
+  alternates: {
+    canonical: './',
   },
+
+  icons: {
+    icon: [{ url: "/favicon.ico" }],
+  },
+
   openGraph: {
     title: "RepliMap - AWS Infrastructure Intelligence",
     description: "Reverse-engineer your AWS infrastructure into Terraform",
@@ -65,31 +75,83 @@ export const metadata: Metadata = {
     locale: "en_US",
     type: "website",
   },
+
   twitter: {
     card: "summary_large_image",
     title: "RepliMap - AWS Infrastructure Intelligence",
     description: "Reverse-engineer your AWS infrastructure into Terraform",
     images: ["/og-image.png"],
   },
+
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
+
+  category: 'Technology',
+  applicationName: 'RepliMap',
 };
 
 // JSON-LD Structured Data for SEO
 const jsonLd = {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "RepliMap",
-  applicationCategory: "DeveloperApplication",
-  operatingSystem: "Linux, macOS, Windows",
-  description:
-    "AWS Infrastructure Intelligence Engine - Reverse-engineer infrastructure into Terraform, detect drift, generate IAM policies",
-  offers: [
-    { "@type": "Offer", price: "0", priceCurrency: "USD", name: "Free" },
-    { "@type": "Offer", price: "49", priceCurrency: "USD", name: "Solo" },
-    { "@type": "Offer", price: "99", priceCurrency: "USD", name: "Pro" },
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://replimap.com/#software",
+      name: "RepliMap",
+      applicationCategory: "DeveloperApplication",
+      applicationSubCategory: "Infrastructure as Code Tool",
+      operatingSystem: "Linux, macOS, Windows",
+      description:
+        "AWS Infrastructure Intelligence Engine - Reverse-engineer infrastructure into Terraform, detect drift, generate IAM policies",
+      url: "https://replimap.com",
+      downloadUrl: "https://replimap.com/docs/installation",
+      softwareVersion: "1.0.0",
+      releaseNotes: "https://replimap.com/docs/changelog",
+      screenshot: "https://replimap.com/og-image.png",
+      featureList: [
+        "Reverse-engineer AWS to Terraform",
+        "Infrastructure drift detection",
+        "Least-privilege IAM policy generation",
+        "Multi-region scanning",
+        "Offline/air-gapped support",
+      ],
+      offers: [
+        { "@type": "Offer", price: "0", priceCurrency: "USD", name: "Community" },
+        { "@type": "Offer", price: "49", priceCurrency: "USD", name: "Solo" },
+        { "@type": "Offer", price: "99", priceCurrency: "USD", name: "Pro" },
+      ],
+      author: { "@id": "https://replimap.com/#organization" },
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://replimap.com/#organization",
+      name: "RepliMap",
+      url: "https://replimap.com",
+      logo: { "@type": "ImageObject", url: "https://replimap.com/og-image.png" },
+      sameAs: ["https://github.com/RepliMap/replimap-mono"],
+      contactPoint: {
+        "@type": "ContactPoint",
+        email: "hello@replimap.com",
+        contactType: "customer support",
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://replimap.com/#website",
+      url: "https://replimap.com",
+      name: "RepliMap",
+      description: "AWS Infrastructure Intelligence",
+      publisher: { "@id": "https://replimap.com/#organization" },
+    },
   ],
 };
 
