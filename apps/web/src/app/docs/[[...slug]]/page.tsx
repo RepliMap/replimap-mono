@@ -51,9 +51,17 @@ export async function generateMetadata(props: {
   if (!page) notFound()
 
   const data = page.data as unknown as ExtendedPageData
+  const slug = params.slug?.join('/') || ''
 
   return {
     title: `${data.title} | RepliMap Docs`,
     description: data.description,
+    openGraph: {
+      title: data.title,
+      description: data.description,
+      url: `https://replimap.com/docs/${slug}`,
+      siteName: 'RepliMap',
+      type: 'article',
+    },
   }
 }
