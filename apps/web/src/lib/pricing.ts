@@ -41,6 +41,8 @@ export interface Plan {
   highlighted: boolean;
   hasLifetime: boolean;
   badge: string | null;
+  /** Offline grace period in days */
+  offlineGraceDays: number;
 }
 
 export const PLANS: Record<PlanName, Plan> = {
@@ -49,6 +51,7 @@ export const PLANS: Record<PlanName, Plan> = {
     tagline: "Full visibility, export when ready",
     price: { monthly: 0, annual: 0, lifetime: null },
     description: "See your entire AWS infrastructure. Upgrade when you're ready to take it home.",
+    offlineGraceDays: 0,
     features: [
       { text: "Unlimited scans", included: true },
       { text: "Unlimited resources per scan", included: true },
@@ -58,6 +61,7 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "Compliance issues (view)", included: true },
       { text: "Security score", included: true },
       { text: "JSON export (with upgrade prompts)", included: true },
+      { text: "Requires internet connection", included: true, badge: "Online only" },
       { text: "Terraform export", included: false },
       { text: "CSV export", included: false },
       { text: "API access", included: false },
@@ -72,9 +76,11 @@ export const PLANS: Record<PlanName, Plan> = {
     tagline: "Export your infrastructure as code",
     price: { monthly: 29, annual: 290, lifetime: 199 },
     description: "Take your Terraform code home. Perfect for individual DevOps engineers and SREs.",
+    offlineGraceDays: 7,
     features: [
       { text: "Everything in Community", included: true },
       { text: "3 AWS accounts", included: true },
+      { text: "7 days offline grace period", included: true },
       { text: "Terraform code export", included: true },
       { text: "CSV export", included: true },
       { text: "HTML/Markdown export", included: true },
@@ -97,10 +103,12 @@ export const PLANS: Record<PlanName, Plan> = {
     tagline: "Continuous compliance for your organization",
     price: { monthly: 99, annual: 990, lifetime: 499 },
     description: "Drift alerts, compliance reports, and CI/CD integration for growing teams.",
+    offlineGraceDays: 14,
     features: [
       { text: "Everything in Pro", included: true },
       { text: "10 AWS accounts", included: true },
       { text: "5 team members", included: true },
+      { text: "14 days offline grace period", included: true },
       { text: "Drift detection", included: true },
       { text: "Drift alerts (Slack/Teams/Webhook)", included: true },
       { text: "CI/CD integration (--fail-on)", included: true },
@@ -122,10 +130,12 @@ export const PLANS: Record<PlanName, Plan> = {
     tagline: "Data sovereignty for regulated industries",
     price: { monthly: 2500, annual: 25000, lifetime: null },
     description: "When your regulator asks 'Where does the data go?', the answer is: Nowhere.",
+    offlineGraceDays: 365,
     features: [
       { text: "Everything in Team", included: true },
       { text: "Unlimited AWS accounts", included: true },
       { text: "Unlimited team members", included: true },
+      { text: "365 days offline grace", included: true, badge: "Air-gapped" },
       { text: "SSO (SAML/OIDC)", included: true },
       { text: "APRA CPS 234 mapping", included: true },
       { text: "DORA compliance", included: true },
@@ -275,4 +285,26 @@ export function getUpgradePath(currentPlan: PlanName): PlanName | null {
     sovereign: null,
   };
   return upgradePaths[currentPlan];
+}
+
+// =============================================================================
+// Offline Grace Days
+// =============================================================================
+
+/**
+ * Get offline grace days for a plan
+ */
+export function getOfflineGraceDays(plan: string): number {
+  const normalized = normalizePlanName(plan);
+  return PLANS[normalized]?.offlineGraceDays ?? 0;
+}
+
+/**
+ * Get offline grace label for display
+ */
+export function getOfflineGraceLabel(plan: string): string {
+  const days = getOfflineGraceDays(plan);
+  if (days === 0) return "Requires internet";
+  if (days >= 365) return `${days} days (air-gap support)`;
+  return `${days} days grace`;
 }

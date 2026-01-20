@@ -4,6 +4,8 @@
  *
  * This is called on every CLI run, so it must be fast (<50ms target)
  *
+ * Returns Ed25519 signed license_blob for offline validation.
+ *
  * Security features:
  * - Zod schema validation for all inputs
  * - Optional HMAC signature verification for machine IDs
@@ -19,7 +21,9 @@ import {
   checkCliVersion,
   type PlanType,
 } from '../lib/constants';
-import { Plan, getFeatureFlags, PLAN_LIMITS } from '../features';
+import { Plan, getFeatureFlags, PLAN_LIMITS, buildSecureLicenseLimits, getEnabledFeatures } from '../features';
+import { signLicenseBlob, type LicensePayload } from '../lib/ed25519';
+import { detectFingerprintType } from '../lib/fingerprint';
 import { Errors, AppError } from '../lib/errors';
 import {
   normalizeLicenseKey,
@@ -89,7 +93,17 @@ export async function handleValidateLicense(
 
     const body = parseResult.data;
     const licenseKey = normalizeLicenseKey(body.license_key);
-    const machineId = normalizeMachineId(body.machine_id);
+
+    // Support both machine_fingerprint (new) and machine_id (legacy)
+    const rawFingerprint = (body as { machine_fingerprint?: string }).machine_fingerprint || body.machine_id;
+    const machineId = normalizeMachineId(rawFingerprint);
+
+    // Detect fingerprint type from machine_info if available
+    const bodyWithMachineInfo = body as { machine_info?: { ci_provider?: string; ci_repo?: string; container_type?: string }; fingerprint_type?: 'machine' | 'ci' | 'container' };
+    const fpMetadata = detectFingerprintType(
+      bodyWithMachineInfo.machine_info,
+      bodyWithMachineInfo.fingerprint_type
+    );
 
     // Verify machine signature if MACHINE_SIGNATURE_SECRET is configured
     // This prevents machine ID forgery
@@ -215,16 +229,36 @@ export async function handleValidateLicense(
     const featureFlags = getFeatureFlags(planEnum);
     const newLimits = PLAN_LIMITS[planEnum] || PLAN_LIMITS[Plan.COMMUNITY];
 
+    // Generate Ed25519 signed license blob
+    const now = Math.floor(Date.now() / 1000);
+    const expSeconds = 24 * 60 * 60; // 24 hours
+
+    const licensePayload: LicensePayload = {
+      license_key: licenseKey,
+      plan: license.plan,
+      status: license.status,
+      machine_fingerprint: machineId,
+      fingerprint_type: fpMetadata.type,
+      limits: buildSecureLicenseLimits(planEnum),
+      features: getEnabledFeatures(planEnum),
+      iat: now,
+      exp: now + expSeconds,
+      nbf: now - 60, // 1 minute clock skew tolerance
+    };
+
+    const licenseBlob = await signLicenseBlob(licensePayload, env.ED25519_PRIVATE_KEY);
+
     // Build success response
     const response: ValidateLicenseResponse & {
       _warning?: { message: string; upgrade_command: string };
       _device_warning?: string;
       _ci_warning?: string;
-      lease_token?: string;  // Offline validation token
+      lease_token?: string;  // Offline validation token (legacy)
     } = {
       valid: true,
       plan: license.plan,
       status: license.status,
+      license_blob: licenseBlob,
       features: {
         resources_per_scan: features.resources_per_scan,
         scans_per_month: features.scans_per_month,
@@ -246,7 +280,7 @@ export async function handleValidateLicense(
       cli_version: cliVersionCheck,
       // NEW: Include feature flags for new features
       new_features: featureFlags,
-      // NEW: Include extended limits
+      // NEW: Include extended limits with offline_grace_days
       limits: {
         audit_fix_count: newLimits.audit_fix_count,
         snapshot_count: newLimits.snapshot_count,
@@ -256,6 +290,7 @@ export async function handleValidateLicense(
         cost_count: newLimits.cost_count,
         clone_preview_lines: newLimits.clone_preview_lines,
         audit_visible_findings: newLimits.audit_visible_findings,
+        offline_grace_days: newLimits.offline_grace_days ?? 0,
       },
     };
 
