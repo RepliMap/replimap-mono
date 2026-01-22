@@ -66,41 +66,43 @@
 
 /* ============================================
    CSS Variables - Light Theme (default)
+   sRGB fallback for Firefox < 113 compatibility
    ============================================ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.6 0.17 162);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.6 0.17 162);
+  /* sRGB fallback values (for browsers without OKLCH support) */
+  --background: #ffffff;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #10b981;
+  --primary-foreground: #fafafa;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #262626;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #262626;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #10b981;
   --radius: 0.625rem;
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --chart-1: #f97316;
+  --chart-2: #0891b2;
+  --chart-3: #1e40af;
+  --chart-4: #fbbf24;
+  --chart-5: #f59e0b;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #262626;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #262626;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #a3a3a3;
 
   /* Fumadocs Variable Mapping - Point to Shadcn variables */
   --fd-background: var(--background);
@@ -118,59 +120,120 @@
   --fd-accent-foreground: var(--accent-foreground);
 }
 
+/* OKLCH enhanced colors (for modern browsers) */
+@supports (color: oklch(0 0 0)) {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.6 0.17 162);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.985 0 0);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.6 0.17 162);
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+  }
+}
+
 /* ============================================
    CSS Variables - Dark Theme (RepliMap default)
+   sRGB fallback for Firefox < 113 compatibility
    ============================================ */
 .dark {
-  /* Base colors - RepliMap dark theme */
-  --background: oklch(0.12 0.01 260);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.16 0.01 260);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.16 0.01 260);
-  --popover-foreground: oklch(0.985 0 0);
+  /* sRGB fallback values (for browsers without OKLCH support) */
+  --background: #030712;
+  --foreground: #fafafa;
+  --card: #0f172a;
+  --card-foreground: #fafafa;
+  --popover: #0f172a;
+  --popover-foreground: #fafafa;
+  --primary: #34d399;
+  --primary-foreground: #fafafa;
+  --secondary: #1e293b;
+  --secondary-foreground: #fafafa;
+  --muted: #1e293b;
+  --muted-foreground: #a3a3a3;
+  --accent: #1e293b;
+  --accent-foreground: #fafafa;
+  --destructive: #b91c1c;
+  --destructive-foreground: #fafafa;
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #34d399;
+  --chart-1: #3b82f6;
+  --chart-2: #34d399;
+  --chart-3: #f59e0b;
+  --chart-4: #a855f7;
+  --chart-5: #ef4444;
+  --sidebar: #030712;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #34d399;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #737373;
+}
 
-  /* Emerald primary - RepliMap accent */
-  --primary: oklch(0.696 0.17 162.48);
-  --primary-foreground: oklch(0.985 0 0);
-
-  /* Secondary */
-  --secondary: oklch(0.269 0.015 260);
-  --secondary-foreground: oklch(0.985 0 0);
-
-  /* Muted */
-  --muted: oklch(0.269 0.015 260);
-  --muted-foreground: oklch(0.708 0 0);
-
-  /* Accent */
-  --accent: oklch(0.269 0.015 260);
-  --accent-foreground: oklch(0.985 0 0);
-
-  /* Destructive */
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.985 0 0);
-
-  /* Borders */
-  --border: oklch(0.269 0.015 260);
-  --input: oklch(0.269 0.015 260);
-  --ring: oklch(0.696 0.17 162.48);
-
-  /* Charts */
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-
-  /* Sidebar */
-  --sidebar: oklch(0.12 0.01 260);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.696 0.17 162.48);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0.015 260);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0.015 260);
-  --sidebar-ring: oklch(0.556 0 0);
+/* OKLCH enhanced colors for dark theme (for modern browsers) */
+@supports (color: oklch(0 0 0)) {
+  .dark {
+    --background: oklch(0.12 0.01 260);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.16 0.01 260);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.16 0.01 260);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.696 0.17 162.48);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.269 0.015 260);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0.015 260);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0.015 260);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.396 0.141 25.723);
+    --destructive-foreground: oklch(0.985 0 0);
+    --border: oklch(0.269 0.015 260);
+    --input: oklch(0.269 0.015 260);
+    --ring: oklch(0.696 0.17 162.48);
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+    --sidebar: oklch(0.12 0.01 260);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.696 0.17 162.48);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0.015 260);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(0.269 0.015 260);
+    --sidebar-ring: oklch(0.556 0 0);
+  }
 }
 
 /* ============================================
@@ -185,7 +248,21 @@
     @apply bg-background text-foreground;
   }
 
-  /* Custom scrollbar for dark mode */
+  /* ==========================================
+     Cross-browser Scrollbar Styling
+     ========================================== */
+
+  /* Firefox standard scrollbar properties */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: #374151 transparent; /* gray-700 transparent */
+  }
+
+  .dark {
+    scrollbar-color: #374151 transparent;
+  }
+
+  /* WebKit browsers (Chrome, Safari, Edge) */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -210,10 +287,19 @@
 @layer utilities {
   /* Dot pattern background for Hero section */
   .bg-dot-pattern {
-    background-image: 
-      linear-gradient(to right, oklch(0.5 0 0 / 0.07) 1px, transparent 1px),
-      linear-gradient(to bottom, oklch(0.5 0 0 / 0.07) 1px, transparent 1px);
+    /* sRGB fallback */
+    background-image:
+      linear-gradient(to right, rgba(115, 115, 115, 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(115, 115, 115, 0.07) 1px, transparent 1px);
     background-size: 24px 24px;
+  }
+
+  @supports (color: oklch(0 0 0)) {
+    .bg-dot-pattern {
+      background-image:
+        linear-gradient(to right, oklch(0.5 0 0 / 0.07) 1px, transparent 1px),
+        linear-gradient(to bottom, oklch(0.5 0 0 / 0.07) 1px, transparent 1px);
+    }
   }
 
   /* Gradient text utility */
@@ -221,17 +307,31 @@
     @apply bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent;
   }
 
-  /* Glow effects */
+  /* Glow effects - sRGB fallback with OKLCH enhancement */
   .glow-emerald {
-    box-shadow: 0 0 20px oklch(0.696 0.17 162.48 / 0.3);
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.3);
   }
 
   .glow-emerald-sm {
-    box-shadow: 0 0 10px oklch(0.696 0.17 162.48 / 0.2);
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.2);
   }
 
   /* Card hover glow */
   .hover-glow:hover {
-    box-shadow: 0 0 30px oklch(0.696 0.17 162.48 / 0.15);
+    box-shadow: 0 0 30px rgba(52, 211, 153, 0.15);
+  }
+
+  @supports (color: oklch(0 0 0)) {
+    .glow-emerald {
+      box-shadow: 0 0 20px oklch(0.696 0.17 162.48 / 0.3);
+    }
+
+    .glow-emerald-sm {
+      box-shadow: 0 0 10px oklch(0.696 0.17 162.48 / 0.2);
+    }
+
+    .hover-glow:hover {
+      box-shadow: 0 0 30px oklch(0.696 0.17 162.48 / 0.15);
+    }
   }
 }
