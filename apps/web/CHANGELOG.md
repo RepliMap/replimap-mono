@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.2](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.1...replimap-web-v0.5.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* add Firefox compatibility for CSS colors, scrollbar, and backdrop-filter ([d04ff5c](https://github.com/RepliMap/replimap-mono/commit/d04ff5c462cebbc675cd09b2cdf6c8de51cbde08))
+* add Firefox compatibility for CSS colors, scrollbar, and backdrop-filter ([49249f7](https://github.com/RepliMap/replimap-mono/commit/49249f78b6dcfc68ba277b2a67915e0a03e643ee))
+
 ## [0.5.1](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.0...replimap-web-v0.5.1) (2026-01-22)
 
 ## [0.5.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.4.2...replimap-web-v0.5.0) (2026-01-22)

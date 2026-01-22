@@ -1,6 +1,6 @@
 {
   "name": "replimap-mono",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "description": "RepliMap Monorepo - Cloud Infrastructure Visualization & Compliance",
   "scripts": {
