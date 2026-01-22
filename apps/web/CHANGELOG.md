@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.4.2...replimap-web-v0.5.0) (2026-01-22)
+
+
+### Features
+
+* **web:** update GitHub links to use public community repo ([a6072a6](https://github.com/RepliMap/replimap-mono/commit/a6072a6982e55c8757457c217da2181ce9c62d68))
+* **web:** update GitHub links to use public community repo ([c1e2d86](https://github.com/RepliMap/replimap-mono/commit/c1e2d860721cfa7b055d8c1edb5082e35161e40c))
+
 ## [0.4.2](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.4.1...replimap-web-v0.4.2) (2026-01-20)
 
 

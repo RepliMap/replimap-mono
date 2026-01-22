@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.3.2...replimap-mono-v1.4.0) (2026-01-22)
+
+
+### Features
+
+* **web:** update GitHub links to use public community repo ([a6072a6](https://github.com/RepliMap/replimap-mono/commit/a6072a6982e55c8757457c217da2181ce9c62d68))
+* **web:** update GitHub links to use public community repo ([c1e2d86](https://github.com/RepliMap/replimap-mono/commit/c1e2d860721cfa7b055d8c1edb5082e35161e40c))
+
 ## [1.3.2](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.3.1...replimap-mono-v1.3.2) (2026-01-20)
 
 
