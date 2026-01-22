@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.4.1...replimap-mono-v1.4.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* add Firefox compatibility for CSS colors, scrollbar, and backdrop-filter ([d04ff5c](https://github.com/RepliMap/replimap-mono/commit/d04ff5c462cebbc675cd09b2cdf6c8de51cbde08))
+* add Firefox compatibility for CSS colors, scrollbar, and backdrop-filter ([49249f7](https://github.com/RepliMap/replimap-mono/commit/49249f78b6dcfc68ba277b2a67915e0a03e643ee))
+
 ## [1.4.1](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.4.0...replimap-mono-v1.4.1) (2026-01-22)
 
 
