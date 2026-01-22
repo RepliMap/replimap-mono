@@ -108,7 +108,7 @@ export function Hero() {
             variant="outline"
             className="border-border text-muted-foreground hover:bg-muted h-12 px-8 bg-transparent"
           >
-            <Link href="https://github.com/replimap/replimap" target="_blank" rel="noopener noreferrer">
+            <Link href="https://github.com/RepliMap/replimap-community" target="_blank" rel="noopener noreferrer">
               <Github className="mr-2 h-4 w-4" />
               View on GitHub
             </Link>

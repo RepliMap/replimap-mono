@@ -51,7 +51,7 @@ export function Header() {
         <div className="flex items-center gap-4">
           {/* GitHub Stars */}
           <Link
-            href="https://github.com/replimap/replimap"
+            href="https://github.com/RepliMap/replimap-community"
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
@@ -124,7 +124,7 @@ export function Header() {
                 ))}
                 <div className="border-t border-border pt-4 mt-4 flex flex-col gap-3">
                   <Link
-                    href="https://github.com/replimap/replimap"
+                    href="https://github.com/RepliMap/replimap-community"
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={handleLinkClick}

@@ -17,7 +17,7 @@ export const baseOptions: BaseLayoutProps = {
     },
     {
       text: 'GitHub',
-      url: 'https://github.com/RepliMap/replimap-frontend',
+      url: 'https://github.com/RepliMap/replimap-community',
       external: true,
     },
   ],

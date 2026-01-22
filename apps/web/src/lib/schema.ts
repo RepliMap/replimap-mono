@@ -51,7 +51,7 @@ export function generateSiteSchema() {
         name: 'RepliMap',
         url: 'https://replimap.com',
         logo: { '@type': 'ImageObject', url: 'https://replimap.com/og-image.png' },
-        sameAs: ['https://github.com/RepliMap/replimap-mono'],
+        sameAs: ['https://github.com/RepliMap/replimap-community'],
         contactPoint: {
           '@type': 'ContactPoint',
           email: 'hello@replimap.com',

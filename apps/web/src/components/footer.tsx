@@ -24,7 +24,7 @@ const footerLinks = {
 }
 
 const socialLinks = [
-  { icon: Github, href: "https://github.com/replimap/replimap", label: "GitHub" },
+  { icon: Github, href: "https://github.com/RepliMap/replimap-community", label: "GitHub" },
   { icon: Twitter, href: "https://twitter.com/replimap_io", label: "Twitter" },
   { icon: MessageCircle, href: "https://discord.gg/CXa7ZJmFM6", label: "Discord" },
 ]
