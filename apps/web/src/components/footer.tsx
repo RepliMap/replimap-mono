@@ -7,7 +7,7 @@ const footerLinks: Record<string, FooterLink[]> = {
   product: [
     { label: "Features", href: "#features" },
     { label: "Pricing", href: "#pricing" },
-    { label: "Changelog", href: "https://github.com/RepliMap/replimap-community/releases", external: true },
+    { label: "Changelog", href: "https://github.com/RepliMap/replimap-community/blob/main/CHANGELOG.md", external: true },
   ],
   resources: [
     { label: "Documentation", href: "https://github.com/RepliMap/replimap-community#readme", external: true },
