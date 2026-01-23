@@ -1,23 +1,19 @@
 import Link from "next/link"
 import { Github, Twitter, MessageCircle, Terminal } from "lucide-react"
 
-const footerLinks = {
+type FooterLink = { label: string; href: string; external?: boolean }
+
+const footerLinks: Record<string, FooterLink[]> = {
   product: [
     { label: "Features", href: "#features" },
     { label: "Pricing", href: "#pricing" },
-    { label: "Changelog", href: "/changelog" },
-    { label: "Roadmap", href: "/roadmap" },
+    { label: "Changelog", href: "https://github.com/RepliMap/replimap-community/blob/main/CHANGELOG.md", external: true },
   ],
   resources: [
-    { label: "Documentation", href: "/docs" },
-    { label: "API Reference", href: "/api" },
-    { label: "CLI Guide", href: "/cli" },
-    { label: "Examples", href: "/examples" },
+    { label: "Documentation", href: "https://github.com/RepliMap/replimap-community#readme", external: true },
   ],
   company: [
-    { label: "About", href: "/about" },
-    { label: "Blog", href: "/blog" },
-    { label: "Contact", href: "/contact" },
+    { label: "Support", href: "https://github.com/RepliMap/replimap-community/issues", external: true },
     { label: "Privacy", href: "/privacy" },
     { label: "Terms", href: "/terms" },
   ],
@@ -51,6 +47,7 @@ export function Footer() {
                 <li key={index}>
                   <Link
                     href={link.href}
+                    {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                   >
                     {link.label}
@@ -68,6 +65,7 @@ export function Footer() {
                 <li key={index}>
                   <Link
                     href={link.href}
+                    {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                   >
                     {link.label}
@@ -85,6 +83,7 @@ export function Footer() {
                 <li key={index}>
                   <Link
                     href={link.href}
+                    {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                     className="text-muted-foreground hover:text-foreground text-sm transition-colors"
                   >
                     {link.label}
@@ -119,7 +118,7 @@ export function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-muted-foreground text-sm">© 2025 RepliMap. All rights reserved.</p>
+          <p className="text-muted-foreground text-sm">© 2025-{new Date().getFullYear()} RepliMap. All rights reserved.</p>
           <p className="text-muted-foreground text-sm">Made with ❤️ in New Zealand</p>
         </div>
       </div>
