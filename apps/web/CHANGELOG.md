@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.3](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.2...replimap-web-v0.5.3) (2026-01-23)
+
+
+### Bug Fixes
+
+* remove broken footer links and redirect to GitHub ([ae36c39](https://github.com/RepliMap/replimap-mono/commit/ae36c3942f6959da6ec6cfd636e969d328a2f41f))
+* remove broken footer links and redirect to GitHub ([336c4af](https://github.com/RepliMap/replimap-mono/commit/336c4af69a1be60d3355fcf0635b3db49ba402a8))
+* update Changelog link to CHANGELOG.md ([7f468ac](https://github.com/RepliMap/replimap-mono/commit/7f468ac7b6a5a84af0aa8d065e58605f1d005bb6))
+
 ## [0.5.2](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.1...replimap-web-v0.5.2) (2026-01-22)
 
 
