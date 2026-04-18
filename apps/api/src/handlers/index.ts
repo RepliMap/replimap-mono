@@ -36,6 +36,9 @@ export {
   handleCreateBillingPortal,
 } from './billing';
 
+// Post-checkout license lookup (used by /checkout/success page)
+export { handleGetCheckoutLicense } from './checkout-license';
+
 // User self-service handlers
 export {
   handleGetOwnLicense,

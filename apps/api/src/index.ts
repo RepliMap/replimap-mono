@@ -67,6 +67,7 @@ import {
   handleTrackEvent,
   handleCreateCheckout,
   handleCreateBillingPortal,
+  handleGetCheckoutLicense,
   handleGetOwnLicense,
   handleGetOwnMachines,
   handleResendKey,
@@ -216,6 +217,20 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = await handleCreateCheckout(request, env, clientIP);
     } else if (path === '/v1/billing/portal' && method === 'POST') {
       response = await handleCreateBillingPortal(request, env, clientIP);
+    } else if (method === 'GET') {
+      // GET /v1/checkout/session/{session_id}/license — post-payment lookup
+      const checkoutSessionId = matchPathParam(
+        path,
+        '/v1/checkout/session/{id}/license'
+      );
+      if (checkoutSessionId) {
+        response = await handleGetCheckoutLicense(
+          request,
+          env,
+          clientIP,
+          checkoutSessionId
+        );
+      }
     }
 
     // ========================================================================
