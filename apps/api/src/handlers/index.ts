@@ -39,6 +39,9 @@ export {
 // Post-checkout license lookup (used by /checkout/success page)
 export { handleGetCheckoutLicense } from './checkout-license';
 
+// Community tier auto-provisioning (used on first dashboard load)
+export { handleProvisionCommunity } from './provision-community';
+
 // User self-service handlers
 export {
   handleGetOwnLicense,

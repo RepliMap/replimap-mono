@@ -53,6 +53,7 @@ import {
   handleValidateLicense,
   handleActivateLicense,
   handleDeactivateLicense,
+  handleProvisionCommunity,
   handleStripeWebhook,
   handleCreateLicense,
   handleRevokeLicense,
@@ -208,6 +209,8 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = await handleActivateLicense(request, env, clientIP);
     } else if (path === '/v1/license/deactivate' && method === 'POST') {
       response = await handleDeactivateLicense(request, env, clientIP);
+    } else if (path === '/v1/license/provision-community' && method === 'POST') {
+      response = await handleProvisionCommunity(request, env, clientIP);
     }
 
     // ========================================================================
