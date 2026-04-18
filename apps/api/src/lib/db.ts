@@ -844,6 +844,35 @@ export async function getLicenseBySessionId(
 }
 
 /**
+ * Get the most recent active license for a user identified by email.
+ * Used by post-payment lookup (subscription checkout_session has no session_id
+ * stamped on the license) and by free-tier provisioning idempotency.
+ *
+ * Returns null if no user exists for the email, or no active license is found.
+ */
+export async function getLicenseByUserEmailLatest(
+  db: DrizzleDb,
+  email: string
+): Promise<schema.License | null> {
+  const normalizedEmail = email.toLowerCase();
+
+  const userRow = await db.query.user.findFirst({
+    where: eq(schema.user.email, normalizedEmail),
+  });
+  if (!userRow) return null;
+
+  const license = await db.query.licenses.findFirst({
+    where: and(
+      eq(schema.licenses.userId, userRow.id),
+      eq(schema.licenses.status, 'active')
+    ),
+    orderBy: desc(schema.licenses.createdAt),
+  });
+
+  return license ?? null;
+}
+
+/**
  * Get the most recent lifetime license for a user.
  * Used for refund processing when charge.refunded doesn't include session ID.
  */
