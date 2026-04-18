@@ -125,25 +125,20 @@ export async function deactivateDevice(
 }
 
 /**
- * Get the user's license key from their profile
+ * Get the user's license key, provisioning a free community license on
+ * first call. The API is idempotent — safe to call on every dashboard
+ * load. Paid licenses are never overwritten.
  *
- * This would typically fetch from a user-license mapping endpoint
- * or from Clerk user metadata.
- *
- * @param userId - Clerk user ID
- * @returns License key or null if not found
+ * @param email - The authenticated user's email (from Clerk)
+ * @returns License key, or null on API failure
  */
-export async function getUserLicenseKey(
-  userId: string
+export async function getOrProvisionLicenseKey(
+  email: string
 ): Promise<string | null> {
   try {
-    const response = await request<{ license_key: string | null }>(
-      `/v1/users/${userId}/license-key`,
-      { method: 'GET' }
-    );
+    const response = await provisionCommunityLicense(email);
     return response.license_key;
   } catch {
-    // User may not have a license yet
     return null;
   }
 }

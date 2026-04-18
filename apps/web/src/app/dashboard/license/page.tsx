@@ -1,7 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getLicenseDetails, getUserLicenseKey, getMachinesLimit } from '@/lib/api';
+import { getLicenseDetails, getOrProvisionLicenseKey, getMachinesLimit } from '@/lib/api';
 import { LicenseCard } from '@/components/license-card';
 import { DeviceList } from '@/components/device-list';
 import { GracePeriodInfo } from '@/components/grace-period-info';
@@ -15,8 +15,9 @@ export default async function LicensePage() {
     redirect('/sign-in');
   }
 
-  // Get user's license key
-  const licenseKey = await getUserLicenseKey(user.id);
+  // Get user's license key — auto-provision community license if none exists
+  const email = user.emailAddresses[0]?.emailAddress ?? null;
+  const licenseKey = email ? await getOrProvisionLicenseKey(email) : null;
 
   if (!licenseKey) {
     return (

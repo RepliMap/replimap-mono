@@ -1,7 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getLicenseDetails, getUserLicenseKey, getMachinesLimit } from '@/lib/api';
+import { getLicenseDetails, getOrProvisionLicenseKey, getMachinesLimit } from '@/lib/api';
 import { LicenseSummaryCard } from '@/components/license-summary-card';
 import { DeviceSummaryCard } from '@/components/device-summary-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,8 +19,9 @@ export default async function DashboardPage() {
   const displayName =
     user.firstName || user.emailAddresses[0]?.emailAddress || 'User';
 
-  // Try to get license
-  const licenseKey = await getUserLicenseKey(user.id);
+  // Get (or auto-provision) community license for this user
+  const email = user.emailAddresses[0]?.emailAddress ?? null;
+  const licenseKey = email ? await getOrProvisionLicenseKey(email) : null;
   let license = null;
 
   if (licenseKey) {
