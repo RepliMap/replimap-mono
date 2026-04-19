@@ -1,12 +1,12 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Check, X, Sparkles, Shield } from "lucide-react"
 import { PLANS, SOVEREIGN_FEATURES, type PlanName, type BillingPeriod } from "@/lib/pricing"
-
-const TALLY_FORM_URL = "https://tally.so/r/2EaYae"
+import { checkoutHref, freeSignupHref, SOVEREIGN_CONTACT } from "@/lib/cta-links"
 
 // Transform PLANS object to array for rendering, excluding sovereign (shown separately)
 const plansList = (Object.entries(PLANS) as [PlanName, (typeof PLANS)[PlanName]][])
@@ -131,21 +131,26 @@ export function Pricing() {
                   No Lifetime Option
                 </Button>
               ) : (
-                <a
-                  href={`${TALLY_FORM_URL}?source=pricing_${plan.key}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full mb-6"
+                <Button
+                  asChild
+                  className={`w-full mb-6 ${
+                    plan.highlighted ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""
+                  }`}
+                  variant={plan.highlighted ? "default" : "outline"}
                 >
-                  <Button
-                    className={`w-full ${
-                      plan.highlighted ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""
-                    }`}
-                    variant={plan.highlighted ? "default" : "outline"}
+                  <Link
+                    href={
+                      plan.key === "community"
+                        ? freeSignupHref(`pricing_community`)
+                        : checkoutHref(
+                            plan.key as "pro" | "team",
+                            billingPeriod
+                          )
+                    }
                   >
                     {plan.cta}
-                  </Button>
-                </a>
+                  </Link>
+                </Button>
               )}
 
               {/* Features List */}
@@ -210,7 +215,7 @@ export function Pricing() {
             </div>
             <div className="lg:w-auto">
               <Button asChild className="bg-purple-500 hover:bg-purple-600 text-white">
-                <a href="mailto:david@replimap.com?subject=RepliMap Sovereign Inquiry">
+                <a href={SOVEREIGN_CONTACT}>
                   Request Demo
                 </a>
               </Button>
