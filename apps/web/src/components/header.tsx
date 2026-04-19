@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Github, Menu, Terminal, Star } from "lucide-react"
-
-const TALLY_FORM_URL = "https://tally.so/r/2EaYae"
+import { freeSignupHref } from "@/lib/cta-links"
 
 export function Header() {
   // Controlled state for mobile sheet - ensures it closes on navigation
@@ -90,15 +89,13 @@ export function Header() {
                   Sign In
                 </Button>
               </SignInButton>
-              <a
-                href={`${TALLY_FORM_URL}?source=nav`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Button
+                asChild
+                size="sm"
+                className="bg-emerald-500 hover:bg-emerald-600 text-white"
               >
-                <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                  Get Started
-                </Button>
-              </a>
+                <Link href={freeSignupHref("nav")}>Get Started</Link>
+              </Button>
             </SignedOut>
           </div>
 
@@ -168,16 +165,17 @@ export function Header() {
                         Sign In
                       </Button>
                     </SignInButton>
-                    <a
-                      href={`${TALLY_FORM_URL}?source=nav_mobile`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={handleLinkClick}
+                    <Button
+                      asChild
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
                     >
-                      <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                      <Link
+                        href={freeSignupHref("nav_mobile")}
+                        onClick={handleLinkClick}
+                      >
                         Get Started
-                      </Button>
-                    </a>
+                      </Link>
+                    </Button>
                   </SignedOut>
                 </div>
               </nav>
