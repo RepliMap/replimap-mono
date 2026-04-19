@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.4.3...replimap-mono-v1.5.0) (2026-04-19)
+
+
+### Features
+
+* **api:** add GET /v1/checkout/session/:id/license post-payment lookup ([ffdb8b4](https://github.com/RepliMap/replimap-mono/commit/ffdb8b475bbbec401b17a720b820cb3782f87533))
+* **api:** add getLicenseByUserEmailLatest helper ([1f4134e](https://github.com/RepliMap/replimap-mono/commit/1f4134ebea41473bcbdb56218377be525f7e96ba))
+* **api:** add POST /v1/license/provision-community for free-tier auto-signup ([c7d71e5](https://github.com/RepliMap/replimap-mono/commit/c7d71e5d3e1a83e5338b5951670f2153367b77e6))
+* **api:** add RATE_LIMIT_DISABLED env flag for local dev/e2e ([7fbff44](https://github.com/RepliMap/replimap-mono/commit/7fbff449a531e2b7c7b0d735c241b9bd56c664ed))
+* **api:** extend handleCreateCheckout to support lifetime billing ([704ded8](https://github.com/RepliMap/replimap-mono/commit/704ded807d0335efb58252f134ccd93181e6d924))
+* **web:** add cta-links helper with checkoutHref/freeSignupHref ([a276fbf](https://github.com/RepliMap/replimap-mono/commit/a276fbf96c743466ce30be196e721ac45fdb2064))
+* **web:** add getCheckoutLicense + provisionCommunityLicense api clients ([3e18dba](https://github.com/RepliMap/replimap-mono/commit/3e18dba37a51adb7f91f3b222dffa3b4802233f7))
+* **web:** poll and display license key on /checkout/success page ([06ba075](https://github.com/RepliMap/replimap-mono/commit/06ba075cc399642fbfcb4cabfbe403a5595354a7))
+* **web:** route header + bottom CTAs to sign-up instead of Tally ([aee075c](https://github.com/RepliMap/replimap-mono/commit/aee075c9b05f3de057c64422e76dee6d6a1eb402))
+* **web:** route hero 'Get Started Free' to Clerk sign-up ([d8226e6](https://github.com/RepliMap/replimap-mono/commit/d8226e6c9c82d6378b329e01f93a9cf1e8b582b0))
+* **web:** route pricing CTAs to checkout + support lifetime in /checkout ([556db81](https://github.com/RepliMap/replimap-mono/commit/556db819e6f81b45e6b134b0852174cf489d32d7))
+
+
+### Bug Fixes
+
+* **api:** add migration to bootstrap Drizzle schema on local D1 ([aa29216](https://github.com/RepliMap/replimap-mono/commit/aa29216bd7410de1edb72df95a23d286563e2db0))
+* **api:** guard checkout-license route so it doesn't swallow all GET requests ([6aa25dc](https://github.com/RepliMap/replimap-mono/commit/6aa25dc329fbdc8269fefeb13aa4b29e291b4d43))
+* **api:** self-heal subscription.created when user not yet in DB ([df74f99](https://github.com/RepliMap/replimap-mono/commit/df74f99c851e18ec90183a274c245b108586ff25))
+* **web:** link Clerk user to license via email, auto-provision community ([30d088f](https://github.com/RepliMap/replimap-mono/commit/30d088f068391b828f949371e3686beba23d3caa))
+* **web:** pass license_key as query param to /v1/me/license ([1051aaa](https://github.com/RepliMap/replimap-mono/commit/1051aaa860838207fc156ca596eb72c7069cd144))
+
+
+### Documentation
+
+* add commercial flow testing guide ([a1db780](https://github.com/RepliMap/replimap-mono/commit/a1db780a52331396e1bac88c4b8ece21348c1068))
+* add production rollback playbook + follow-ups tracker ([cb38f0e](https://github.com/RepliMap/replimap-mono/commit/cb38f0eb97e0bec90f51b239aff2593bf9a79f5f))
+* document commercial flow e2e harness and update README ([7ad9b2e](https://github.com/RepliMap/replimap-mono/commit/7ad9b2e10be8232fbfd5cb7f509a9dc0ea652300))
+
 ## [1.4.3](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.4.2...replimap-mono-v1.4.3) (2026-01-23)
 
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.3...replimap-web-v0.6.0) (2026-04-19)
+
+
+### Features
+
+* **web:** add cta-links helper with checkoutHref/freeSignupHref ([a276fbf](https://github.com/RepliMap/replimap-mono/commit/a276fbf96c743466ce30be196e721ac45fdb2064))
+* **web:** add getCheckoutLicense + provisionCommunityLicense api clients ([3e18dba](https://github.com/RepliMap/replimap-mono/commit/3e18dba37a51adb7f91f3b222dffa3b4802233f7))
+* **web:** poll and display license key on /checkout/success page ([06ba075](https://github.com/RepliMap/replimap-mono/commit/06ba075cc399642fbfcb4cabfbe403a5595354a7))
+* **web:** route header + bottom CTAs to sign-up instead of Tally ([aee075c](https://github.com/RepliMap/replimap-mono/commit/aee075c9b05f3de057c64422e76dee6d6a1eb402))
+* **web:** route hero 'Get Started Free' to Clerk sign-up ([d8226e6](https://github.com/RepliMap/replimap-mono/commit/d8226e6c9c82d6378b329e01f93a9cf1e8b582b0))
+* **web:** route pricing CTAs to checkout + support lifetime in /checkout ([556db81](https://github.com/RepliMap/replimap-mono/commit/556db819e6f81b45e6b134b0852174cf489d32d7))
+
+
+### Bug Fixes
+
+* **web:** link Clerk user to license via email, auto-provision community ([30d088f](https://github.com/RepliMap/replimap-mono/commit/30d088f068391b828f949371e3686beba23d3caa))
+* **web:** pass license_key as query param to /v1/me/license ([1051aaa](https://github.com/RepliMap/replimap-mono/commit/1051aaa860838207fc156ca596eb72c7069cd144))
+
 ## [0.5.3](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.2...replimap-web-v0.5.3) (2026-01-23)
 
 
