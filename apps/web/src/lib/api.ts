@@ -80,15 +80,18 @@ async function request<T>(
 /**
  * Get license details for the authenticated user
  *
+ * The API accepts the license key as a `?license_key=` query param
+ * (see handleGetOwnLicense).
+ *
  * @param licenseKey - The user's license key
  * @returns License details including plan, status, and devices
  */
 export async function getLicenseDetails(
   licenseKey: string
 ): Promise<LicenseDetails> {
-  return request<LicenseDetails>('/v1/me/license', {
+  const qs = new URLSearchParams({ license_key: licenseKey }).toString();
+  return request<LicenseDetails>(`/v1/me/license?${qs}`, {
     method: 'GET',
-    licenseKey,
     cache: 'no-store',
   });
 }
@@ -102,9 +105,9 @@ export async function getLicenseDetails(
 export async function getLicenseUsage(
   licenseKey: string
 ): Promise<LicenseUsage> {
-  return request<LicenseUsage>('/v1/me/usage', {
+  const qs = new URLSearchParams({ license_key: licenseKey }).toString();
+  return request<LicenseUsage>(`/v1/me/usage?${qs}`, {
     method: 'GET',
-    licenseKey,
     cache: 'no-store',
   });
 }
