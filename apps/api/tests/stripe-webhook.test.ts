@@ -31,9 +31,9 @@ describe('Lifetime License Support', () => {
 
     it('should be a valid ISO date string', () => {
       const date = new Date(LIFETIME_EXPIRY);
-      expect(date.getFullYear()).toBe(2099);
-      expect(date.getMonth()).toBe(11); // December
-      expect(date.getDate()).toBe(31);
+      expect(date.getUTCFullYear()).toBe(2099);
+      expect(date.getUTCMonth()).toBe(11); // December
+      expect(date.getUTCDate()).toBe(31);
     });
   });
 });

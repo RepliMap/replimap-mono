@@ -145,7 +145,7 @@ describe('Lifetime Plan Constants', () => {
     it('should be a valid ISO date string', () => {
       const date = new Date(LIFETIME_EXPIRY);
       expect(date.toString()).not.toBe('Invalid Date');
-      expect(date.getFullYear()).toBe(2099);
+      expect(date.getUTCFullYear()).toBe(2099);
     });
   });
 

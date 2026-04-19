@@ -117,6 +117,12 @@ export function createMockKV(): KVNamespace {
 // Mock Environment
 // ============================================================================
 
+// Valid throwaway Ed25519 PKCS8 key (base64 DER), generated with:
+//   node -e "const c=require('crypto'); const {privateKey}=c.generateKeyPairSync('ed25519'); console.log(privateKey.export({type:'pkcs8',format:'der'}).toString('base64'))"
+// Only used in tests — never signs real licenses.
+const TEST_ED25519_PRIVATE_KEY =
+  'MC4CAQAwBQYDK2VwBCIEIGC5v0PBhH8RkoiqTt9rEt2mS9SXA2WvCz08lilmjSIO';
+
 export function createMockEnv(overrides: Partial<Env> = {}): Env {
   return {
     DB: createMockDB(),
@@ -127,6 +133,7 @@ export function createMockEnv(overrides: Partial<Env> = {}): Env {
     ADMIN_API_KEY: 'test-admin-key',
     CORS_ORIGIN: '*',
     API_VERSION: 'v1',
+    ED25519_PRIVATE_KEY: TEST_ED25519_PRIVATE_KEY,
     ...overrides,
   };
 }
