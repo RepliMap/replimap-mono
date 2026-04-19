@@ -8,7 +8,11 @@
 import type { Env } from '../types/env';
 import { Errors, AppError } from '../lib/errors';
 import { validateLicenseKey, normalizeLicenseKey } from '../lib/license';
-import { PLAN_TO_STRIPE_PRICE } from '../lib/constants';
+import {
+  PLAN_TO_STRIPE_PRICE,
+  PLAN_TO_STRIPE_ANNUAL_PRICE,
+  STRIPE_LIFETIME_PRICE_TO_PLAN,
+} from '../lib/constants';
 import { rateLimit } from '../lib/rate-limiter';
 import { createDb } from '../lib/db';
 import { sql } from 'drizzle-orm';
@@ -19,6 +23,7 @@ import { sql } from 'drizzle-orm';
 
 interface CreateCheckoutRequest {
   plan: 'pro' | 'team' | 'sovereign';
+  billing_period?: 'monthly' | 'annual' | 'lifetime';
   email: string;
   success_url: string;
   cancel_url: string;
@@ -133,10 +138,27 @@ export async function handleCreateCheckout(
       throw Errors.invalidRequest('Invalid email format');
     }
 
-    // Validate plan
-    const priceId = PLAN_TO_STRIPE_PRICE[body.plan];
+    // Validate plan and resolve price ID based on billing period
+    const billingPeriod = body.billing_period || 'monthly';
+
+    let priceId: string | undefined;
+    let isLifetime = false;
+    if (billingPeriod === 'lifetime') {
+      // Reverse-lookup lifetime price by plan name
+      priceId = Object.entries(STRIPE_LIFETIME_PRICE_TO_PLAN).find(
+        ([, info]) => info.plan === body.plan
+      )?.[0];
+      isLifetime = true;
+    } else if (billingPeriod === 'annual') {
+      priceId = PLAN_TO_STRIPE_ANNUAL_PRICE[body.plan];
+    } else {
+      priceId = PLAN_TO_STRIPE_PRICE[body.plan];
+    }
+
     if (!priceId) {
-      throw Errors.invalidRequest(`Invalid plan. Must be one of: pro, team, sovereign`);
+      throw Errors.invalidRequest(
+        `Invalid plan "${body.plan}" for ${billingPeriod} billing`
+      );
     }
 
     // Validate URLs
@@ -144,9 +166,11 @@ export async function handleCreateCheckout(
       throw Errors.invalidRequest('Invalid URL format');
     }
 
-    // Create Stripe Checkout Session
-    const session = await stripeRequest(env, 'checkout/sessions', {
-      'mode': 'subscription',
+    // Lifetime = one-time payment, subscription = recurring
+    // Stripe's API requires mode=payment for one-time line items and
+    // disallows subscription_data in that case.
+    const checkoutBody: Record<string, string | number | boolean | undefined> = {
+      'mode': isLifetime ? 'payment' : 'subscription',
       'payment_method_types[0]': 'card',
       'customer_email': body.email,
       'line_items[0][price]': priceId,
@@ -154,9 +178,15 @@ export async function handleCreateCheckout(
       'success_url': `${body.success_url}${body.success_url.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`,
       'cancel_url': body.cancel_url,
       'metadata[plan]': body.plan,
-      'subscription_data[metadata][plan]': body.plan,
+      'metadata[billing_period]': billingPeriod,
       'allow_promotion_codes': true,
-    });
+    };
+
+    if (!isLifetime) {
+      checkoutBody['subscription_data[metadata][plan]'] = body.plan;
+    }
+
+    const session = await stripeRequest(env, 'checkout/sessions', checkoutBody);
 
     const response: CreateCheckoutResponse = {
       checkout_url: session.url as string,

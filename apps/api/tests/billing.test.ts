@@ -171,6 +171,37 @@ describe('Billing Endpoints', () => {
       expect(data.session_id).toBe('cs_test_123');
     });
 
+    it('should create lifetime checkout session with mode=payment', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'cs_test_lifetime_123',
+          url: 'https://checkout.stripe.com/pay/cs_test_lifetime_123',
+        }),
+      });
+
+      const request = createRequest('POST', '/v1/checkout/session', {
+        plan: 'pro',
+        billing_period: 'lifetime',
+        email: 'test@example.com',
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+      });
+
+      const response = await handleCreateCheckout(request, env, '1.2.3.4');
+      const data = await response.json() as { checkout_url: string };
+
+      expect(response.status).toBe(200);
+      expect(data.checkout_url).toBe('https://checkout.stripe.com/pay/cs_test_lifetime_123');
+
+      // Verify mode=payment (one-time) was passed, not subscription
+      const fetchCall = mockFetch.mock.calls[0];
+      const requestBody = fetchCall[1]?.body as string;
+      expect(requestBody).toContain('mode=payment');
+      expect(requestBody).not.toContain('mode=subscription');
+      expect(requestBody).not.toContain('subscription_data');
+    });
+
     it('should handle Stripe API errors', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
