@@ -43,7 +43,7 @@ export async function handleActivateLicense(
   clientIP: string
 ): Promise<Response> {
   // Rate limiting (stricter for activation)
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'activate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'activate', clientIP);
 
   // Create Drizzle client
   const db = createDb(env.DB);

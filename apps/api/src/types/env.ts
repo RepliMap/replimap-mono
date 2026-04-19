@@ -36,6 +36,10 @@ export interface Env {
   ENVIRONMENT: 'development' | 'production';
   CORS_ORIGIN: string;
   API_VERSION: string;
+
+  // Set to 'true' in local dev to bypass rate limiting during e2e runs.
+  // Must NEVER be set in production — rate limits are our DoS defence.
+  RATE_LIMIT_DISABLED?: string;
 }
 
 /**

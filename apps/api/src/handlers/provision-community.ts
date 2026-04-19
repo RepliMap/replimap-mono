@@ -40,7 +40,7 @@ export async function handleProvisionCommunity(
   env: Env,
   clientIP: string
 ): Promise<Response> {
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'activate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'activate', clientIP);
 
   try {
     let body: ProvisionCommunityRequest;

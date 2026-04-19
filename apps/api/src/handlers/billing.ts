@@ -99,7 +99,7 @@ export async function handleCreateCheckout(
   env: Env,
   clientIP: string
 ): Promise<Response> {
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'activate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'activate', clientIP);
 
   try {
     // Validate Stripe is configured
@@ -226,7 +226,7 @@ export async function handleCreateBillingPortal(
   env: Env,
   clientIP: string
 ): Promise<Response> {
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'activate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'activate', clientIP);
 
   try {
     // Validate Stripe is configured

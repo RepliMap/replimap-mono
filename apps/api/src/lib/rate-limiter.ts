@@ -2,6 +2,7 @@
  * KV-based rate limiting for Cloudflare Workers
  */
 
+import type { Env } from '../types/env';
 import { Errors } from './errors';
 import { RATE_LIMITS } from './constants';
 
@@ -81,20 +82,45 @@ export function getRateLimitHeaders(
 
 /**
  * Rate limiter middleware - returns headers to add to response
+ *
+ * Accepts either a plain KVNamespace (legacy) or the full Env (preferred).
+ * When Env is passed and `RATE_LIMIT_DISABLED === 'true'`, the check is
+ * skipped entirely — used by local dev and e2e harnesses so back-to-back
+ * test runs don't trip production thresholds. NEVER set in production.
  */
 export async function rateLimit(
-  kv: KVNamespace,
+  kvOrEnv: KVNamespace | Env,
   endpoint: keyof typeof RATE_LIMITS,
   clientIP: string
 ): Promise<Record<string, string>> {
-  await checkRateLimit(kv, endpoint, clientIP);
+  const env = isEnv(kvOrEnv) ? kvOrEnv : undefined;
+  const kv: KVNamespace = env ? env.CACHE : (kvOrEnv as KVNamespace);
 
-  // Return headers (simplified - actual remaining would need state lookup)
   const config = RATE_LIMITS[endpoint];
   const now = Date.now();
+
+  if (env?.RATE_LIMIT_DISABLED === 'true') {
+    return getRateLimitHeaders(
+      endpoint,
+      config.requests - 1,
+      now + config.window * 1000
+    );
+  }
+
+  await checkRateLimit(kv, endpoint, clientIP);
+
   return getRateLimitHeaders(
     endpoint,
     config.requests - 1,
     now + config.window * 1000
+  );
+}
+
+function isEnv(x: KVNamespace | Env): x is Env {
+  return (
+    typeof x === 'object' &&
+    x !== null &&
+    'CACHE' in x &&
+    'ENVIRONMENT' in x
   );
 }
