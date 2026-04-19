@@ -268,46 +268,74 @@ async function createLifetimeLicense(
 
 /**
  * Handle customer.subscription.created
- * Creates a new license for the subscription
+ * Creates a new license for the subscription.
  *
- * RACE CONDITION HANDLING:
- * If user doesn't exist yet (checkout.session.completed hasn't fired),
- * we return a 500 error to trigger Stripe's exponential backoff retry.
- * This is the expected behavior - Stripe will retry until user exists.
+ * EVENT ORDERING HANDLING:
+ * Stripe often delivers `customer.subscription.created` BEFORE
+ * `checkout.session.completed`, even though the latter logically precedes
+ * the former. Rather than relying on Stripe's retry for the race, we
+ * self-heal by fetching the customer's email directly from Stripe and
+ * creating the user in-place. This works identically in production and
+ * local `stripe listen` (which does not auto-retry 5xx responses).
  */
 async function handleSubscriptionCreated(
   db: DrizzleDb,
-  subscription: StripeSubscription
+  subscription: StripeSubscription,
+  env: Env
 ): Promise<{ success: boolean; retry?: boolean }> {
   // Check if license already exists for this subscription (idempotency)
   const existingLicense = await getLicenseBySubscriptionId(db, subscription.id);
   if (existingLicense) {
     console.log(`[Stripe] License already exists for subscription ${subscription.id}`);
-    return { success: true }; // Already processed
+    return { success: true };
   }
 
-  // Get user by Stripe customer ID
-  // Note: User should have been created by checkout.session.completed event
-  const user = await getUserByStripeCustomerId(db, subscription.customer);
+  // Get user by Stripe customer ID — if not found, fetch email from Stripe
+  // and create the user in place. This removes the "checkout.session.completed
+  // hasn't fired yet" race entirely.
+  let user = await getUserByStripeCustomerId(db, subscription.customer);
   if (!user) {
-    // Race condition: checkout.session.completed hasn't fired yet
-    // Return 500 to trigger Stripe retry with exponential backoff
-    console.warn(
-      `[Stripe] User not found for customer ${subscription.customer}. ` +
-      `This is expected if checkout.session.completed hasn't fired yet. ` +
-      `Triggering retry...`
+    const customerRes = await fetch(
+      `https://api.stripe.com/v1/customers/${encodeURIComponent(subscription.customer)}`,
+      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
     );
-    return { success: false, retry: true };
+    if (!customerRes.ok) {
+      console.warn(
+        `[Stripe] Could not fetch customer ${subscription.customer} from Stripe ` +
+        `(status ${customerRes.status}). Triggering retry.`
+      );
+      return { success: false, retry: true };
+    }
+    const customer = (await customerRes.json()) as {
+      email?: string | null;
+      deleted?: boolean;
+    };
+    if (!customer.email) {
+      console.warn(
+        `[Stripe] Customer ${subscription.customer} has no email. Triggering retry.`
+      );
+      return { success: false, retry: true };
+    }
+    user = await findOrCreateUser(db, customer.email, subscription.customer);
   }
 
   // Get plan from price ID
   const priceId = subscription.items.data[0]?.price.id ?? '';
   const plan = getPlanFromPriceId(priceId);
 
-  // Create license
-  // Note: Schema has UNIQUE constraint on stripe_subscription_id for extra safety.
-  // If a race condition causes duplicate INSERT, SQLite will reject it and
-  // Stripe's retry will find the existing license via the check above.
+  // Stripe omits current_period_start/end on some newly-created subscriptions
+  // (e.g. when the first invoice hasn't been generated yet). Guard the
+  // conversion — `invoice.paid` will backfill accurate periods.
+  const periodStart =
+    typeof subscription.current_period_start === 'number'
+      ? timestampToISO(subscription.current_period_start)
+      : nowISO();
+  const periodEnd =
+    typeof subscription.current_period_end === 'number'
+      ? timestampToISO(subscription.current_period_end)
+      : undefined;
+
+  // Create license. Schema has UNIQUE(stripe_subscription_id) as a safety net.
   try {
     await createLicense(db, {
       userId: user.id,
@@ -315,20 +343,19 @@ async function handleSubscriptionCreated(
       plan,
       stripeSubscriptionId: subscription.id,
       stripePriceId: priceId,
-      currentPeriodStart: timestampToISO(subscription.current_period_start),
-      currentPeriodEnd: timestampToISO(subscription.current_period_end),
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: periodEnd,
     });
 
     console.log(`[Stripe] Created license for subscription ${subscription.id}`);
     return { success: true };
   } catch (error) {
-    // Handle race condition: if UNIQUE constraint fails, check if license exists
     const existingAfterRace = await getLicenseBySubscriptionId(db, subscription.id);
     if (existingAfterRace) {
       console.log(`[Stripe] License created by concurrent request for ${subscription.id}`);
       return { success: true };
     }
-    throw error; // Re-throw if it's a different error
+    throw error;
   }
 }
 
@@ -625,7 +652,8 @@ export async function handleStripeWebhook(
       case 'customer.subscription.created': {
         const result = await handleSubscriptionCreated(
           db,
-          event.data.object as unknown as StripeSubscription
+          event.data.object as unknown as StripeSubscription,
+          env
         );
         if (!result.success && result.retry) {
           // Return 500 to trigger Stripe retry
