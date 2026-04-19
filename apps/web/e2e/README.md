@@ -31,35 +31,21 @@ pnpm e2e community-signup
 
 ## Prerequisites
 
-### 1. Clerk testing token
+### 1. Clerk test mode
 
-Clerk's free tier rate-limits anonymous sign-up creation. For headless
-Playwright tests to bypass the rate limit and the email-verification OTP,
-you must set a `CLERK_TESTING_TOKEN`.
+Tests use [`@clerk/testing`](https://clerk.com/docs/testing/playwright/overview)
+to bypass Clerk's bot protection automatically. Two env vars are required
+in `apps/web/.env.local` (same as normal dev):
 
-**How to obtain:**
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
 
-1. Go to https://dashboard.clerk.com → your app → **Configure** → **API Keys**
-2. Scroll to **Testing Tokens** (under "Advanced")
-3. Click **Create token**, copy the value (starts with `clerk_testing_...`)
+Email verification is skipped because the test fixture uses `+clerk_test`
+email addresses (e.g. `e2e+clerk_test+abc123@replimap-test.dev`). Clerk
+recognises this suffix and uses a **fixed OTP of `424242`** instead of
+sending a real email — see https://clerk.com/docs/testing/test-emails.
 
-**How to use:**
-
-```bash
-# .env.local in apps/web/
-CLERK_TESTING_TOKEN=clerk_testing_...
-```
-
-Or inline:
-
-```bash
-CLERK_TESTING_TOKEN=... pnpm e2e
-```
-
-The spec will fail with a clear error if the token is not configured.
-
-> **Why is this not committed?** The token lets anyone create unlimited
-> users in your Clerk project. Treat it like a secret.
+No extra token setup is needed.
 
 ### 2. Stripe CLI (for pro-checkout.spec.ts only)
 

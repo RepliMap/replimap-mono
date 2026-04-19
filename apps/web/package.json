@@ -71,12 +71,14 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.0.17",
     "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "^15",
     "postcss": "^8.5",

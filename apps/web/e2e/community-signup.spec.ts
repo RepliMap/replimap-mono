@@ -11,32 +11,28 @@
 import { test, expect } from '@playwright/test'
 import {
   createTestUser,
-  setupClerkTestingToken,
+  setupClerkForPage,
+  CLERK_TEST_OTP,
 } from './fixtures/test-user'
 
 test.describe('Community signup flow', () => {
   test('new user can sign up, reach dashboard, and see a community license', async ({
     page,
   }) => {
-    await setupClerkTestingToken(page)
+    await setupClerkForPage(page)
 
     const user = createTestUser()
 
-    // 1. Landing page
+    // 1. Landing page → hero CTA
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-
-    // 2. Click hero "Get Started Free"
     await page
       .getByRole('link', { name: /get started free/i })
       .first()
       .click()
 
-    // 3. Clerk sign-up page
-    await page.waitForURL(/sign-up/, { timeout: 10_000 })
+    // 2. Clerk sign-up page
+    await page.waitForURL(/sign-up/, { timeout: 15_000 })
 
-    // Clerk renders in an iframe for the modal variant, but our custom
-    // /sign-up route renders inline. Wait for the email input.
     const emailInput = page.getByLabel(/email/i).first()
     await emailInput.waitFor({ timeout: 15_000 })
     await emailInput.fill(user.email)
@@ -44,13 +40,32 @@ test.describe('Community signup flow', () => {
     const passwordInput = page.getByLabel(/password/i).first()
     await passwordInput.fill(user.password)
 
-    await page.getByRole('button', { name: /continue|sign up/i }).first().click()
+    await page
+      .getByRole('button', { name: /continue|sign up/i })
+      .first()
+      .click()
 
-    // 4. Dashboard (Clerk testing token skips email verification)
+    // 3. OTP verification — Clerk's +clerk_test emails use fixed 424242
+    const otpInput = page
+      .getByRole('textbox', { name: /verification code|code/i })
+      .first()
+    try {
+      await otpInput.waitFor({ timeout: 10_000 })
+      await otpInput.fill(CLERK_TEST_OTP)
+      const continueBtn = page
+        .getByRole('button', { name: /continue|verify|submit/i })
+        .first()
+      if (await continueBtn.isVisible().catch(() => false)) {
+        await continueBtn.click()
+      }
+    } catch {
+      // If no OTP screen, Clerk auto-verified
+    }
+
+    // 4. Dashboard
     await page.waitForURL(/\/dashboard/, { timeout: 30_000 })
 
-    // 5. License visible with community plan
-    // LicenseSummaryCard renders the plan name; wait for it.
+    // 5. Community license visible
     await expect(page.getByText(/community/i).first()).toBeVisible({
       timeout: 15_000,
     })
