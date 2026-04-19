@@ -162,6 +162,145 @@ wrangler d1 execute replimap-db --local --command \
    DELETE FROM user WHERE email LIKE 'e2e+%@replimap-test.dev'"
 ```
 
+## Production Rollback Playbook
+
+> Assume prod D1 is `replimap-prod` and prod worker is `replimap-api-prod`. Replace `--local` with `--remote --env prod` in all wrangler commands below. Stripe Dashboard links default to live mode unless noted.
+
+### Scenario 1 — User paid but license wasn't delivered
+
+Symptom: customer emails saying they paid but `/checkout/success` never revealed a key, or the dashboard shows "No License".
+
+```bash
+# 1. Did the webhook reach us at all?
+#    Stripe Dashboard → Developers → Webhooks → https://api.replimap.com/v1/webhooks/stripe
+#    Check "Recent deliveries" for the session_id; look for 4xx/5xx responses.
+
+# 2. Do we have the user?
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "SELECT id, email, customer_id FROM user WHERE email = 'customer@example.com'"
+
+# 3. Was the webhook event received and marked processed?
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "SELECT event_id, event_type, processed_at FROM processed_events
+   WHERE event_id = 'evt_...' OR processed_at > datetime('now', '-1 hour')
+   ORDER BY processed_at DESC LIMIT 10"
+
+# 4. Does a license exist for that session/customer?
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "SELECT license_key, plan, status, stripe_session_id, stripe_subscription_id, created_at
+   FROM licenses WHERE stripe_session_id = 'cs_live_...'
+      OR user_id IN (SELECT id FROM user WHERE email = 'customer@example.com')
+   ORDER BY created_at DESC LIMIT 5"
+
+# 5. Manual re-delivery from Stripe:
+#    Dashboard → Developers → Events → find the checkout.session.completed / customer.subscription.created
+#    → "Resend event". Our webhook is idempotent on event_id.
+
+# 6. If event_id was already marked processed but no license exists (stuck state),
+#    delete the idempotency row and resend:
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "DELETE FROM processed_events WHERE event_id = 'evt_...'"
+
+# 7. Last resort — manual license creation (customer_id required):
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "INSERT INTO licenses (id, user_id, license_key, plan, plan_type, status,
+                         stripe_subscription_id, stripe_price_id,
+                         current_period_start, current_period_end,
+                         created_at, updated_at)
+   VALUES (lower(hex(randomblob(16))),
+           (SELECT id FROM user WHERE email = 'customer@example.com'),
+           'RM-XXXX-XXXX-XXXX-XXXX', 'pro', 'monthly', 'active',
+           'sub_...', 'price_...',
+           datetime('now'), datetime('now', '+30 days'),
+           datetime('now'), datetime('now'))"
+# Then email the license_key to the customer.
+```
+
+### Scenario 2 — Double payment (duplicate license)
+
+Symptom: customer has two active licenses for the same plan, or their Stripe account shows two successful payments close together.
+
+```bash
+# 1. Find duplicates
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "SELECT l.id, l.license_key, l.plan, l.status, l.stripe_subscription_id,
+          l.stripe_session_id, l.created_at
+   FROM licenses l
+   WHERE l.user_id = (SELECT id FROM user WHERE email = 'customer@example.com')
+     AND l.status = 'active'
+   ORDER BY l.created_at DESC"
+
+# 2. Refund the duplicate charge in Stripe:
+#    Dashboard → Payments → find the extra payment intent
+#    → "Refund payment" (full refund)
+#    This fires charge.refunded → our webhook revokes the lifetime license
+#    automatically. For subscriptions, ALSO cancel the subscription:
+#    Dashboard → Customers → find customer → Subscriptions → Cancel immediately
+
+# 3. For subscription duplicates, revoke the newer (kept-in-error) license manually
+#    if the cancel webhook hasn't fired yet:
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "UPDATE licenses
+   SET status = 'revoked',
+       revoked_at = datetime('now'),
+       revoked_reason = 'Duplicate charge refunded: pi_...',
+       updated_at = datetime('now')
+   WHERE id = 'lic_duplicate_...'"
+
+# 4. Deactivate any machines bound to the revoked license
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "UPDATE license_machines SET is_active = 0 WHERE license_id = 'lic_duplicate_...'"
+
+# 5. Verify the customer retains exactly one active license
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "SELECT COUNT(*) FROM licenses
+   WHERE user_id = (SELECT id FROM user WHERE email = 'customer@example.com')
+     AND status = 'active'"
+```
+
+### Scenario 3 — Migration 011 fails on production D1
+
+Symptom: `pnpm exec wrangler d1 migrations apply replimap-prod --remote --env prod` fails mid-transaction.
+
+**Important:** Production D1 is already on the Drizzle schema (user/session/account/verification exist, licenses plan enum already v4). Migration 011 is designed to be a near no-op there. If it's failing, something is unexpected — **do not force**.
+
+```bash
+# 1. Check which migrations have been recorded
+wrangler d1 migrations list replimap-prod --remote --env prod
+
+# 2. Inspect actual prod schema before touching anything
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "SELECT type, name FROM sqlite_master
+   WHERE name IN ('user','users','session','account','verification','licenses','license_machine_counts')
+   ORDER BY type, name"
+
+# 3. If migration 011 is already marked applied but the run errored,
+#    remove its row so a fixed version can be re-applied:
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "DELETE FROM d1_migrations WHERE name = '011_drizzle_schema_bootstrap.sql'"
+
+# 4. If a partial rebuild left licenses_new orphaned (mid-migration crash),
+#    check whether rows exist and decide to keep or drop:
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "SELECT COUNT(*) FROM licenses_new"   # error = doesn't exist (clean)
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "DROP TABLE IF EXISTS licenses_new"   # only if confirmed empty / orphaned
+
+# 5. If `license_machine_counts` view was dropped but not recreated:
+wrangler d1 execute replimap-prod --remote --env prod --command \
+  "CREATE VIEW IF NOT EXISTS license_machine_counts AS
+   SELECT l.id AS license_id, l.license_key, l.plan, l.status,
+          COUNT(CASE WHEN lm.is_active = 1 THEN 1 END) AS active_machines
+   FROM licenses l
+   LEFT JOIN license_machines lm ON l.id = lm.license_id
+   GROUP BY l.id"
+
+# 6. D1 supports time-travel restore (30-day retention). If everything is broken:
+#    https://developers.cloudflare.com/d1/reference/time-travel/
+#    wrangler d1 time-travel restore replimap-prod --timestamp '2026-04-19T00:00:00Z' --env prod
+#    WARNING: this replaces the DB; coordinate with on-call.
+```
+
 ## Common failures
 
 | Symptom | Likely cause | Fix |
