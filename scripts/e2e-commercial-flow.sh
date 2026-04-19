@@ -8,8 +8,7 @@
 # Prereqs:
 #   - pnpm install already run at the repo root
 #   - stripe CLI installed + `stripe login` completed
-#   - CLERK_TESTING_TOKEN env var exported
-#   - apps/web/.env.local populated with Stripe test keys
+#   - apps/web/.env.local populated with Clerk + Stripe test keys
 #
 # Usage:
 #   ./scripts/e2e-commercial-flow.sh             # run all e2e specs
@@ -29,16 +28,24 @@ mkdir -p "$LOG_DIR"
 # ─────────────────────────────────────────────────────────────────────
 # Prereq checks
 # ─────────────────────────────────────────────────────────────────────
-if [[ -z "${CLERK_TESTING_TOKEN:-}" ]]; then
-  echo "❌ CLERK_TESTING_TOKEN is not set." >&2
-  echo "   See apps/web/e2e/README.md for how to obtain one." >&2
+ENV_FILE="$ROOT/apps/web/.env.local"
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "❌ $ENV_FILE not found." >&2
+  echo "   Copy from apps/web/.env.local.example and fill in values." >&2
+  exit 1
+fi
+
+if ! grep -q "^NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=" "$ENV_FILE" || \
+   ! grep -q "^CLERK_SECRET_KEY=" "$ENV_FILE"; then
+  echo "❌ Clerk keys missing in apps/web/.env.local." >&2
+  echo "   See apps/web/e2e/README.md." >&2
   exit 1
 fi
 
 if ! command -v stripe >/dev/null 2>&1; then
-  echo "❌ Stripe CLI not found on PATH." >&2
+  echo "⚠  Stripe CLI not found on PATH — pro-checkout.spec will fail." >&2
   echo "   Install: https://stripe.com/docs/stripe-cli" >&2
-  exit 1
+  echo "   (Continuing — community-signup.spec doesn't need Stripe.)"
 fi
 
 # ─────────────────────────────────────────────────────────────────────

@@ -28,15 +28,22 @@ Manual and automated test procedures for the end-to-end commercial flow
 ## Prerequisites
 
 - `pnpm install` at repo root
-- Stripe CLI installed + `stripe login` completed
-- `CLERK_TESTING_TOKEN` env var exported (see `apps/web/e2e/README.md`)
-- `apps/web/.env.local` populated with Stripe test keys:
+- Stripe CLI installed (and authenticated — either `stripe login` or `stripe --api-key sk_test_...`)
+- `apps/web/.env.local` populated with:
+  - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` (from your Clerk dashboard)
   - `STRIPE_SECRET_KEY` (sk_test_...)
-  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (pk_test_...)
   - `STRIPE_WEBHOOK_SECRET` (whsec_...) — captured automatically by the harness script
+  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (pk_test_...)
   - `NEXT_PUBLIC_API_URL=http://localhost:8787`
-  - Clerk test keys (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`)
-- `apps/api` has the same Stripe secrets configured for `wrangler dev`
+  - `STRIPE_PRO_*_PRICE_ID` / `STRIPE_TEAM_*_PRICE_ID` (monthly/annual/lifetime)
+- `apps/api/.dev.vars` populated with the same secrets + `CORS_ORIGIN` that includes the Playwright port + `RATE_LIMIT_DISABLED=true`
+- Local D1 bootstrapped via migrations:
+  ```bash
+  cd apps/api && pnpm exec wrangler d1 migrations apply replimap-dev --local
+  ```
+  Migration `011_drizzle_schema_bootstrap.sql` creates the Better-Auth `user` table and updates the `licenses` plan enum to the v4 values (community/pro/team/sovereign).
+
+**Clerk test mode:** e2e tests use [`@clerk/testing`](https://clerk.com/docs/testing/playwright/overview), which bypasses Clerk bot protection automatically using only the publishable + secret keys. No extra token or dashboard configuration is needed. Email verification is skipped because tests use `+clerk_test` email addresses (Clerk's test OTP is always `424242`).
 
 ## Stripe test cards
 
@@ -65,7 +72,17 @@ To run one spec only:
 ```bash
 ./scripts/e2e-commercial-flow.sh community-signup
 ./scripts/e2e-commercial-flow.sh pro-checkout
+./scripts/e2e-commercial-flow.sh lifetime-checkout
 ```
+
+**What each spec covers:**
+
+| Spec | Flow | External services |
+|---|---|---|
+| `community-signup` (UI) | Landing → sign-up → dashboard → community license visible | Clerk only |
+| `community-signup` (API) | Direct `POST /v1/license/provision-community` + idempotency | none |
+| `pro-checkout` | Sign-up → `/checkout?plan=pro&billing=monthly` → Stripe → success page shows license → activate via API | Clerk + Stripe + webhook |
+| `lifetime-checkout` | Sign-up → `/checkout?plan=pro&billing=lifetime` → Stripe (`mode=payment`) → success page shows license with `plan_type=lifetime` → activate | Clerk + Stripe + webhook |
 
 ## Manual walkthrough
 

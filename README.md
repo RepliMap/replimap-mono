@@ -27,24 +27,33 @@ RepliMap scans your AWS production environment and generates Terraform code to r
 graph TB
     subgraph "User Environment"
         AWS[("AWS Cloud<br/>Production")]
+        CLI["RepliMap CLI<br/>(Python)"]
         TF["Terraform Code<br/>Generated"]
     end
 
     subgraph "RepliMap Platform"
-        API["API<br/>(Cloudflare Workers)"]
-        WEB["Dashboard<br/>(Next.js)"]
-        DB[("Database")]
+        WEB["Dashboard<br/>(Next.js on Vercel)"]
+        API["API<br/>(Hono on CF Workers)"]
+        DB[("D1 Database")]
+        STRIPE["Stripe<br/>Billing"]
+        CLERK["Clerk<br/>Auth"]
     end
 
-    AWS -->|"1. Scan"| API
+    CLI -->|"1. Scan"| AWS
+    CLI -->|"2. Generate"| TF
+    CLI -->|"3. Validate License"| API
+    WEB -->|"Auth"| CLERK
+    WEB -->|"Checkout"| STRIPE
+    STRIPE -->|"Webhooks"| API
     API --> DB
-    API -->|"2. Generate"| TF
-    WEB -->|"View Results"| API
 
     style AWS fill:#FF9900,stroke:#232F3E,color:#232F3E
+    style CLI fill:#10b981,stroke:#10b981,color:white
     style API fill:#F38020,stroke:#F38020,color:white
     style WEB fill:#000000,stroke:#000000,color:white
     style TF fill:#7B42BC,stroke:#7B42BC,color:white
+    style STRIPE fill:#635BFF,stroke:#635BFF,color:white
+    style CLERK fill:#6C47FF,stroke:#6C47FF,color:white
 ```
 
 ## Packages
@@ -104,6 +113,28 @@ make info         # Show environment info
 make clean        # Clean build artifacts
 ```
 
+### Commercial Flow (Checkout + License Delivery)
+
+RepliMap's paid tier is powered by Stripe Checkout + an idempotent license webhook. Visitors go:
+
+```
+Landing  ──►  /sign-up (Clerk)  ──►  /dashboard (community license auto-provisioned)
+   │
+   └─ Pricing ──► /checkout?plan=pro&billing=monthly ──► Stripe  ──► /checkout/success
+                                                            │
+                                                            └── webhook creates license
+                                                                success page polls + displays key
+```
+
+All three tiers (community / pro / team) and all billing cadences (monthly / annual / lifetime) share this flow. See [`docs/testing/commercial-flow.md`](docs/testing/commercial-flow.md) for the full test harness and prerequisites.
+
+**E2E tests:**
+
+```bash
+./scripts/e2e-commercial-flow.sh           # full suite (requires stripe CLI)
+./scripts/e2e-commercial-flow.sh community # community signup only (no Stripe)
+```
+
 ### Windows Development
 
 <details>
@@ -148,28 +179,31 @@ Install [Git for Windows](https://gitforwindows.org/) which includes Git Bash, t
 ```
 replimap-mono/
 ├── apps/
-│   ├── web/              # Next.js 16 frontend
+│   ├── web/              # Next.js 16 frontend (Vercel)
 │   │   ├── src/
+│   │   │   ├── app/
+│   │   │   │   ├── (auth)/       # Clerk sign-in/sign-up
+│   │   │   │   ├── checkout/     # Stripe checkout flow
+│   │   │   │   ├── dashboard/    # User dashboard
+│   │   │   │   └── docs/         # Documentation
+│   │   │   ├── components/       # React components
+│   │   │   └── lib/              # API client, pricing config
 │   │   ├── package.json
 │   │   └── vercel.json
 │   └── api/              # Hono + Cloudflare Workers
 │       ├── src/
+│       │   ├── handlers/         # billing, webhooks, license, usage
+│       │   ├── lib/              # constants, rate-limiter, errors
+│       │   └── db/               # Drizzle ORM schema
 │       ├── package.json
 │       └── wrangler.toml
 ├── packages/
-│   └── config/           # Shared configuration
-│       ├── src/          # JSON source files
-│       ├── dist/         # Generated TS
-│       └── scripts/
-├── .github/
-│   ├── workflows/        # CI/CD pipelines
-│   ├── ISSUE_TEMPLATE/   # Bug/feature templates
-│   └── CODEOWNERS
+│   └── config/           # Shared configuration (plans, features)
+├── .github/workflows/    # CI/CD pipelines
 ├── Makefile              # Development commands
 ├── turbo.json            # Turborepo config
+├── DEPLOYMENT.md         # Deployment + Stripe setup guide
 ├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── SECURITY.md
 └── LICENSE
 ```
 
