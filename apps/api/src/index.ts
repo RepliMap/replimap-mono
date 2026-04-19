@@ -220,7 +220,11 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = await handleCreateCheckout(request, env, clientIP);
     } else if (path === '/v1/billing/portal' && method === 'POST') {
       response = await handleCreateBillingPortal(request, env, clientIP);
-    } else if (method === 'GET') {
+    } else if (
+      method === 'GET' &&
+      path.startsWith('/v1/checkout/session/') &&
+      path.endsWith('/license')
+    ) {
       // GET /v1/checkout/session/{session_id}/license — post-payment lookup
       const checkoutSessionId = matchPathParam(
         path,

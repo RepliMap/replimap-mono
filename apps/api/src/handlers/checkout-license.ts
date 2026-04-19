@@ -67,7 +67,7 @@ export async function handleGetCheckoutLicense(
   clientIP: string,
   sessionId: string
 ): Promise<Response> {
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'validate', clientIP);
 
   try {
     if (!SESSION_ID_PATTERN.test(sessionId)) {
