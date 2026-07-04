@@ -38,40 +38,107 @@ The API accepts deprecated event types (`blast`, `blast_analyze`, `blast_export`
 ```
 replimap-backend/
 ├── src/
-│   ├── index.ts              # Main router
+│   ├── index.ts              # Main router (Hono)
 │   ├── features.ts           # Feature definitions & plan limits
 │   ├── handlers/
 │   │   ├── index.ts          # Handler exports
 │   │   ├── validate-license.ts   # License validation
+│   │   ├── billing.ts        # Stripe Checkout + Customer Portal
+│   │   ├── stripe-webhook.ts # Stripe webhook event handler
 │   │   ├── usage.ts          # Usage tracking & limits
 │   │   ├── features.ts       # Feature info endpoints
 │   │   └── metrics.ts        # Admin metrics
 │   ├── lib/
-│   │   ├── db.ts             # Drizzle ORM client & database operations
+│   │   ├── constants.ts      # Plan config, Stripe price IDs
+│   │   ├── db.ts             # Drizzle ORM client
 │   │   ├── crypto.ts         # License key generation/validation
 │   │   ├── errors.ts         # Error handling
-│   │   └── helpers.ts        # Utility functions
+│   │   └── rate-limiter.ts   # Rate limiting
 │   ├── db/
 │   │   └── schema.ts         # Drizzle ORM schema definitions
-│   ├── types/
-│   │   ├── api.ts            # API types
-│   │   └── db.ts             # Database types
-│   └── utils/
-│       └── event-compat.ts   # Blast → Deps compatibility layer
+│   └── types/
+│       ├── api.ts            # API types
+│       ├── db.ts             # Database types
+│       └── env.ts            # Cloudflare env bindings
 ├── migrations/
-│   ├── 001_initial.sql
-│   ├── 002_usage_tracking.sql
-│   ├── 003_new_features.sql
-│   ├── 004_blast_to_deps_rename.sql
-│   ├── 005_add_usage_daily.sql     # Telemetry aggregation table
-│   ├── 006_add_last_seen_index.sql # Device activity queries
-│   ├── 007_add_billing_index.sql   # Quota/billing queries
-│   └── 008_add_lifetime_support.sql # Lifetime plan support
+│   ├── 001_initial.sql       ... 008_add_lifetime_support.sql
 ├── schema.sql                # Full database schema
 └── wrangler.toml             # Cloudflare config
 ```
 
 ## API Endpoints
+
+### Billing & Checkout
+
+```bash
+# Create Stripe Checkout Session
+POST /v1/checkout/session
+```
+
+**Request:**
+```json
+{
+  "plan": "pro",
+  "billing_period": "monthly",
+  "email": "user@example.com",
+  "success_url": "https://replimap.com/checkout/success",
+  "cancel_url": "https://replimap.com/checkout?plan=pro&billing=monthly"
+}
+```
+
+**Response:**
+```json
+{
+  "checkout_url": "https://checkout.stripe.com/c/pay/cs_test_...",
+  "session_id": "cs_test_..."
+}
+```
+
+**Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `plan` | `pro \| team \| sovereign` | Yes | Target plan |
+| `billing_period` | `monthly \| annual` | No | Default: `monthly` |
+| `email` | string | Yes | Customer email |
+| `success_url` | string | Yes | Redirect after payment |
+| `cancel_url` | string | Yes | Redirect on cancel |
+
+```bash
+# Create Stripe Customer Portal Session
+POST /v1/billing/portal
+```
+
+**Request:**
+```json
+{
+  "license_key": "RM-XXXX-XXXX-XXXX-XXXX",
+  "return_url": "https://replimap.com/dashboard"
+}
+```
+
+**Response:**
+```json
+{
+  "portal_url": "https://billing.stripe.com/p/session/..."
+}
+```
+
+### Stripe Webhooks
+
+```bash
+POST /v1/webhooks/stripe
+```
+
+Handled events:
+| Event | Action |
+|-------|--------|
+| `checkout.session.completed` | Create user + license (subscription or lifetime) |
+| `customer.subscription.created` | Create/update license |
+| `customer.subscription.updated` | Update plan, handle up/downgrade |
+| `customer.subscription.deleted` | Cancel license |
+| `invoice.paid` | Update payment record |
+| `invoice.payment_failed` | Flag payment issue |
+| `charge.refunded` | Revoke lifetime license |
 
 ### Admin Endpoints (require X-API-Key)
 
@@ -281,15 +348,21 @@ POST /v1/usage/track
 | `blast_analyze` | `deps_explore` | 2025-06-01 |
 | `blast_export` | `deps_export` | 2025-06-01 |
 
-## Plan Limits
+## Plan Limits (v4.0)
 
-| Feature | FREE | SOLO | PRO | TEAM | ENTERPRISE |
-|---------|------|------|-----|------|------------|
-| Scans/month | 10 | 100 | 500 | ∞ | ∞ |
-| Audit fixes | 0 | 50 | 200 | ∞ | ∞ |
-| Snapshots | 0 | 20 | 100 | ∞ | ∞ |
-| Dependencies | 0 | 0 | 0 | ∞ | ∞ |
-| Machine limit | 1 | 2 | 5 | 20 | ∞ |
+| Feature | COMMUNITY | PRO | TEAM | SOVEREIGN |
+|---------|-----------|-----|------|-----------|
+| Scans | Unlimited | Unlimited | Unlimited | Unlimited |
+| Resources/scan | Unlimited | Unlimited | Unlimited | Unlimited |
+| AWS accounts | 1 | 3 | 10 | Unlimited |
+| Machines | 1 | 2 | 10 | Unlimited |
+| Export formats | JSON | JSON, TF, CSV, HTML, MD | + PDF | + PDF |
+| Offline grace | 0 days | 7 days | 14 days | 365 days |
+| Price (monthly) | $0 | $29 | $99 | $2,500 |
+| Price (annual) | $0 | $290 | $990 | $25,000 |
+| Lifetime | — | $199 | $499 | — |
+
+Philosophy: **"Gate Output, Not Input"** — scanning is always free and unlimited.
 
 ## Deployment
 
@@ -356,11 +429,11 @@ Set via `wrangler secret put <NAME>`:
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `STRIPE_SECRET_KEY` | Stripe API key | No |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | No |
+| `STRIPE_SECRET_KEY` | Stripe API key (sk_test_ or sk_live_) | Yes (for billing) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (whsec_) | Yes (for billing) |
 | `ADMIN_API_KEY` | Admin endpoint auth | Yes |
-| `STRIPE_SOLO_LIFETIME_PRICE_ID` | Stripe price ID for Solo lifetime plan | No |
 | `STRIPE_PRO_LIFETIME_PRICE_ID` | Stripe price ID for Pro lifetime plan | No |
+| `STRIPE_TEAM_LIFETIME_PRICE_ID` | Stripe price ID for Team lifetime plan | No |
 
 ## Database Schema
 
@@ -411,6 +484,21 @@ curl -X POST https://your-api.workers.dev/v1/usage/track \
 ```
 
 ## Changelog
+
+### v2.4.0 (2026-03)
+
+**Stripe Checkout Integration:**
+- Replaced placeholder price IDs with real Stripe test price IDs
+- Added `billing_period` support to `POST /v1/checkout/session` (monthly/annual)
+- Billing period metadata tracked in Stripe checkout session
+- Updated `PLAN_TO_STRIPE_PRICE` and `PLAN_TO_STRIPE_ANNUAL_PRICE` mappings
+- Updated lifetime price mappings with real Stripe IDs
+
+**Price IDs (Test Mode):**
+| Plan | Monthly | Annual | Lifetime |
+|------|---------|--------|----------|
+| Pro ($29/$290/$199) | `price_1SiMYg...` | `price_1SiMqM...` | `price_1SnWdS...` |
+| Team ($99/$990/$499) | `price_1SiMZv...` | `price_1SiMrJ...` | `price_1TFWke...` |
 
 ### v2.3.0 (2026-01)
 

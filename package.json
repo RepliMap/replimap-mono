@@ -14,7 +14,8 @@
     "dev:api": "turbo run dev --filter=@replimap/api",
     "build:web": "turbo run build --filter=@replimap/web",
     "build:api": "turbo run build --filter=@replimap/api",
-    "build:config": "turbo run build --filter=@replimap/config"
+    "build:config": "turbo run build --filter=@replimap/config",
+    "test": "turbo run test"
   },
   "devDependencies": {
     "prettier": "^3.4.0",

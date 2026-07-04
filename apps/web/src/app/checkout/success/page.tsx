@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -54,7 +54,7 @@ type PollState =
   | { kind: "ready"; license: CheckoutLicenseResponse }
   | { kind: "timeout" }
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessContent() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get("session_id")
   const [state, setState] = useState<PollState>(
@@ -310,5 +310,21 @@ export default function CheckoutSuccessPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+// useSearchParams() requires a Suspense boundary for prerendering —
+// without it `next build` fails on this page (missing-suspense-with-csr-bailout).
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background pt-20 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <CheckoutSuccessContent />
+    </Suspense>
   )
 }

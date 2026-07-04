@@ -33,7 +33,20 @@ Items deliberately scoped out of the 2026-04-19 commercial-flow work but worth t
 
 ## 3. Webhook idempotency stress test
 
-**Status:** Idempotency is verified by unit tests (`isEventProcessed` / `markEventProcessed`) and by the e2e harness's happy-path webhook delivery. Not stress-tested.
+**Status (updated 2026-07-04):** Idempotency is now genuinely covered by
+`apps/api/tests/stripe-webhook.test.ts` against the real `handleStripeWebhook`
+handler and a real (Miniflare D1) database: sequential redelivery of the same
+`evt_` id, 5× concurrent redelivery of the same event, and redelivery of the
+same subscription/session under *different* event ids (relies on
+`UNIQUE(stripe_subscription_id)` and the `UNIQUE(stripe_session_id)` index
+restored by migration 012). Historical note: before 2026-07-04 this section
+claimed unit-test coverage that did not exist — the old stripe-webhook.test.ts
+never invoked the handler.
+
+Still NOT covered: high-volume stress (50+ concurrent), event-ordering
+permutations (`subscription.created` before `checkout.session.completed`,
+interleaved `invoice.paid`), and redelivery through a real `wrangler dev`
+HTTP stack rather than direct handler invocation.
 
 **Why it matters:** Production Stripe retries events aggressively (up to 3 days with exponential backoff). Local `stripe listen` delivers each event exactly once — fundamentally different behaviour. A bug that surfaces only under retries won't be caught by current tests.
 
@@ -65,6 +78,31 @@ Add a CI guard that fails the build if `RATE_LIMIT_DISABLED` appears in `wrangle
 **Also:** consider renaming to `DEV_BYPASS_RATE_LIMIT` so the name itself is a tripwire — a production reviewer seeing that name would immediately question it.
 
 **Estimate:** ~20min (verify + add CI check).
+
+---
+
+## 5. First-cycle period backfill can be lost to event ordering
+
+**Status (2026-07-04):** Open. Observed live on dev during E2E validation Item 3
+(see `E2E_DEV_VALIDATION_LOG.md`): Stripe delivered `invoice.paid` ~1.3s
+*before* `customer.subscription.created`. The license didn't exist yet, so
+`handleInvoicePaid` no-op'd ("No license found") — but the event was still
+marked processed, so event-level idempotency rejects any redelivery. Net
+effect: the first billing cycle's period backfill is permanently lost (the
+license keeps the `nowISO()` fallback from `handleSubscriptionCreated` until
+the *next* renewal invoice).
+
+**Note:** distinct from the `invoice.subscription` field bug fixed on
+2026-07-04 (`INVOICE_SUBSCRIPTION_FIELD_FIX_LOG.md`) — this is pure ordering,
+and persists after that fix.
+
+**How to fix (options):**
+- Don't mark `invoice.paid` processed when no license exists yet — return 500
+  so Stripe retries (mirrors the subscription.created retry path); or
+- Self-heal: on `customer.subscription.created`, fetch the latest invoice for
+  the subscription and backfill periods in the same handler.
+
+**Estimate:** ~1h either way, plus an ordering-permutation test.
 
 ---
 

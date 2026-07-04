@@ -33,7 +33,10 @@ jobs:
         run: pnpm build
 
       - name: Lint
-        run: pnpm lint || true
+        run: pnpm lint
 
       - name: Type check
-        run: pnpm typecheck || true
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test

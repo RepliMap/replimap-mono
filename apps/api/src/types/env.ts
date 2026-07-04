@@ -13,6 +13,14 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET: string;
   ADMIN_API_KEY: string;
 
+  // Clerk session-token verification (required for authenticated endpoints
+  // like /v1/license/provision-community). CLERK_ISSUER is the instance's
+  // Frontend API origin (the `iss` claim + JWKS host); CLERK_SECRET_KEY is
+  // used to resolve a user's email via the Clerk Backend API when the session
+  // token carries no email claim.
+  CLERK_ISSUER?: string;
+  CLERK_SECRET_KEY?: string;
+
   // Stripe Lifetime Price IDs (optional - for one-time purchases)
   // These are one-time payment products, not subscriptions
   STRIPE_SOLO_LIFETIME_PRICE_ID?: string;  // Legacy - maps to pro

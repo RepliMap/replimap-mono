@@ -15,7 +15,7 @@
 
 import type { Env } from '../types/env';
 import { generateLicenseKey, timestampToISO, nowISO } from '../lib/license';
-import { getPlanFromPriceId, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY } from '../lib/constants';
+import { getPlanFromPriceId, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY, PLAN_RANK } from '../lib/constants';
 import {
   createDb,
   type DrizzleDb,
@@ -74,8 +74,16 @@ interface StripeSubscription {
 interface StripeInvoice {
   id: string;
   customer: string;
-  subscription: string;
+  // Absent on API versions ≥2025-03-31 (basil/clover) — see `parent`.
+  subscription?: string | null;
   status: string;
+  // API versions ≥2025-03-31 moved the subscription id here.
+  parent?: {
+    type?: string;
+    subscription_details?: {
+      subscription?: string | null;
+    } | null;
+  } | null;
   lines: {
     data: Array<{
       period: {
@@ -86,10 +94,31 @@ interface StripeInvoice {
   };
 }
 
+/**
+ * Resolve the subscription id an invoice belongs to.
+ *
+ * API versions ≥2025-03-31 (basil, clover) removed the top-level
+ * `invoice.subscription` field and moved it to
+ * `parent.subscription_details.subscription`. Older-version events still
+ * carry the top-level field, so keep it as a fallback. An invoice with
+ * neither is genuinely not a subscription invoice.
+ */
+function getInvoiceSubscriptionId(invoice: StripeInvoice): string | null {
+  return (
+    invoice.parent?.subscription_details?.subscription ??
+    invoice.subscription ??
+    null
+  );
+}
+
 interface StripeCheckoutSession {
   id: string;
-  customer: string;
-  customer_email: string;
+  customer: string | null;
+  // Stripe only populates the top-level customer_email when it was passed at
+  // session creation. The email the customer actually entered always lands in
+  // customer_details.email, so both must be consulted.
+  customer_email: string | null;
+  customer_details?: { email?: string | null } | null;
   subscription: string | null;
   mode: 'subscription' | 'payment' | 'setup';
   metadata?: Record<string, string>;
@@ -185,8 +214,23 @@ async function handleCheckoutCompleted(
 ): Promise<void> {
   console.log(`[Stripe] Checkout completed: ${session.id}, mode: ${session.mode}`);
 
+  // Resolve the customer email defensively: top-level customer_email is only
+  // set when passed at session creation; the entered address always lands in
+  // customer_details.email. (Mirrors checkout-license.ts.)
+  const email = session.customer_email ?? session.customer_details?.email ?? null;
+  if (!email) {
+    // Nothing we can do without an email. Do NOT throw — a 5xx would make
+    // Stripe retry this same emailless event for ~3 days to no effect.
+    // Acknowledge and skip (the caller marks the event processed → 200).
+    console.warn(
+      `[Stripe] Checkout session ${session.id} has no resolvable email ` +
+      `(customer_email and customer_details.email both empty). Acking and skipping.`
+    );
+    return;
+  }
+
   // Find or create user first (needed for both modes)
-  const user = await findOrCreateUser(db, session.customer_email, session.customer);
+  const user = await findOrCreateUser(db, email, session.customer ?? undefined);
 
   if (session.mode === 'subscription') {
     // For subscriptions, just ensure user exists. License created in subscription.created event.
@@ -220,23 +264,41 @@ async function createLifetimeLicense(
     return;
   }
 
-  // Resolve plan from price mapping
+  // Resolve the plan. CRITICAL: never default to a paid tier. If we cannot
+  // determine the plan from the checkout metadata (our billing.ts always sets
+  // metadata.plan) or from a mapped lifetime price, we must NOT guess — issuing
+  // the wrong tier for a real payment is a revenue-integrity failure.
   const priceMapping = getStripePriceMapping(env);
-  let plan: 'community' | 'pro' | 'team' | 'sovereign' = 'pro';
+  let plan: 'community' | 'pro' | 'team' | 'sovereign' | null = null;
   let priceId: string | null = null;
 
-  // Try to get price from metadata first
-  if (session.metadata?.plan) {
-    plan = session.metadata.plan as typeof plan;
+  // Try metadata first — only accept a recognized plan name.
+  const metaPlan = session.metadata?.plan;
+  if (metaPlan && metaPlan in PLAN_RANK) {
+    plan = metaPlan as NonNullable<typeof plan>;
   }
 
-  // Try to get from line items
+  // Try line items — a mapped price is authoritative and overrides metadata.
   if (session.line_items?.data?.[0]?.price?.id) {
     priceId = session.line_items.data[0].price.id;
     const planInfo = priceMapping[priceId];
     if (planInfo) {
       plan = planInfo.plan;
     }
+  }
+
+  if (!plan) {
+    // A payment was received but we cannot determine which tier to grant.
+    // Do NOT issue a (wrong) license, do NOT 500 (retry yields no new info):
+    // acknowledge, and flag loudly for manual intervention. This ERROR line is
+    // the manual-review signal — alert on the "MANUAL_REVIEW" token via Logpush.
+    console.error(
+      `[Stripe][MANUAL_REVIEW] Lifetime payment with UNRESOLVABLE plan — NO license issued. ` +
+      `session=${session.id}, user=${user.id}, email=${user.email}, ` +
+      `priceId=${priceId ?? 'none'}, metadata.plan=${metaPlan ?? 'none'}. ` +
+      `A payment was received but no plan could be determined; manual intervention required.`
+    );
+    return;
   }
 
   console.log(`[Stripe] Creating Lifetime license: user=${user.id}, plan=${plan}`);
@@ -420,12 +482,22 @@ async function handleSubscriptionUpdated(
     console.log(`[Stripe] Deactivated ${devicesDeactivated} devices for license ${license.id}`);
   }
 
+  // Stripe can omit current_period_start/end on the subscription object
+  // (newer API versions move them to subscription items). Guard the
+  // conversion like handleSubscriptionCreated does — an unguarded
+  // timestampToISO(undefined) throws and turns the plan change into a 500.
   await updateLicensePlan(db, license.id, {
     plan: newPlan,
     status,
     stripePriceId: priceId,
-    currentPeriodStart: timestampToISO(subscription.current_period_start),
-    currentPeriodEnd: timestampToISO(subscription.current_period_end),
+    currentPeriodStart:
+      typeof subscription.current_period_start === 'number'
+        ? timestampToISO(subscription.current_period_start)
+        : undefined,
+    currentPeriodEnd:
+      typeof subscription.current_period_end === 'number'
+        ? timestampToISO(subscription.current_period_end)
+        : undefined,
   });
 }
 
@@ -455,13 +527,14 @@ async function handleInvoicePaid(
   db: DrizzleDb,
   invoice: StripeInvoice
 ): Promise<void> {
-  if (!invoice.subscription) {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) {
     return; // Not a subscription invoice
   }
 
-  const license = await getLicenseBySubscriptionId(db, invoice.subscription);
+  const license = await getLicenseBySubscriptionId(db, subscriptionId);
   if (!license) {
-    console.error(`No license found for subscription ${invoice.subscription}`);
+    console.error(`No license found for subscription ${subscriptionId}`);
     return;
   }
 
@@ -484,13 +557,14 @@ async function handlePaymentFailed(
   db: DrizzleDb,
   invoice: StripeInvoice
 ): Promise<void> {
-  if (!invoice.subscription) {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) {
     return;
   }
 
-  const license = await getLicenseBySubscriptionId(db, invoice.subscription);
+  const license = await getLicenseBySubscriptionId(db, subscriptionId);
   if (!license) {
-    console.error(`No license found for subscription ${invoice.subscription}`);
+    console.error(`No license found for subscription ${subscriptionId}`);
     return;
   }
 
@@ -540,10 +614,23 @@ async function handleCustomerDeleted(
  */
 async function handleChargeRefunded(
   db: DrizzleDb,
-  charge: StripeCharge
+  charge: StripeCharge,
+  env: Env
 ): Promise<void> {
   console.log(`[Stripe] Charge refunded: ${charge.id}`);
 
+  // Exact resolution first: map the charge to the checkout session it paid
+  // for and revoke that specific license. Lifetime charges usually carry NO
+  // customer (checkout payment mode defaults to customer_creation=
+  // if_required), and the customer heuristic below picks the *most recent*
+  // lifetime license — wrong when an account holds several.
+  if (charge.payment_intent) {
+    const resolved = await revokeLicenseByPaymentIntent(db, charge, env);
+    if (resolved) return;
+  }
+
+  // Fallback: legacy events without payment_intent, or no session/license
+  // matched — resolve via customer → most recent lifetime license.
   if (!charge.customer) {
     console.warn(`[Stripe] No customer on refunded charge ${charge.id}`);
     return;
@@ -578,6 +665,78 @@ async function handleChargeRefunded(
   // Revoke the license
   await revokeLicense(db, license.id, `Refunded: charge_${charge.id}`);
   console.log(`[Stripe] Lifetime license ${license.id} revoked due to refund`);
+}
+
+/**
+ * Resolve the exact license a refunded charge paid for:
+ * charge.payment_intent → checkout session → licenses.stripe_session_id.
+ *
+ * Returns true when the charge was definitively resolved to a license
+ * (revoked, or deliberately skipped because it isn't an active lifetime
+ * license). Returns false when no session/license matched, so the caller
+ * may fall back to the customer heuristic.
+ */
+async function revokeLicenseByPaymentIntent(
+  db: DrizzleDb,
+  charge: StripeCharge,
+  env: Env
+): Promise<boolean> {
+  let sessionId: string | undefined;
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/checkout/sessions?payment_intent=${encodeURIComponent(
+        charge.payment_intent ?? ''
+      )}&limit=1`,
+      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(
+        `[Stripe] Session lookup for payment_intent ${charge.payment_intent} ` +
+        `failed (status ${res.status}). Falling back to customer resolution.`
+      );
+      return false;
+    }
+    const body = (await res.json()) as { data?: Array<{ id?: string }> };
+    sessionId = body.data?.[0]?.id;
+  } catch (error) {
+    console.warn(
+      `[Stripe] Session lookup for payment_intent ${charge.payment_intent} ` +
+      `threw: ${error instanceof Error ? error.message : String(error)}. ` +
+      `Falling back to customer resolution.`
+    );
+    return false;
+  }
+
+  if (!sessionId) {
+    return false; // Charge wasn't made through Checkout (or session expired).
+  }
+
+  const license = await getLicenseBySessionId(db, sessionId);
+  if (!license) {
+    return false; // e.g. subscription checkout — no session id on the license.
+  }
+
+  if (license.planType !== 'lifetime') {
+    console.log(
+      `[Stripe] License ${license.id} for session ${sessionId} is not ` +
+      `lifetime (${license.planType}), ignoring refund`
+    );
+    return true;
+  }
+
+  if (license.status !== 'active') {
+    console.log(
+      `[Stripe] License ${license.id} already ${license.status}, ignoring refund`
+    );
+    return true;
+  }
+
+  await revokeLicense(db, license.id, `Refunded: charge_${charge.id}`);
+  console.log(
+    `[Stripe] Lifetime license ${license.id} revoked due to refund ` +
+    `(resolved via payment_intent ${charge.payment_intent})`
+  );
+  return true;
 }
 
 /**
@@ -706,7 +865,8 @@ export async function handleStripeWebhook(
       case 'charge.refunded':
         await handleChargeRefunded(
           db,
-          event.data.object as unknown as StripeCharge
+          event.data.object as unknown as StripeCharge,
+          env
         );
         break;
 

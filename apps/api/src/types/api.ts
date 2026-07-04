@@ -183,6 +183,8 @@ export type ErrorCode =
   | 'WEBHOOK_SIGNATURE_INVALID'
   | 'NOT_FOUND'
   | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
+  | 'SERVER_CONFIG_ERROR'
   | 'INTERNAL_ERROR';
 
 export interface ErrorResponse {

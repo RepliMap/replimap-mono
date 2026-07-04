@@ -6,7 +6,6 @@
 
 import type {
   LicenseDetails,
-  LicenseUsage,
   DeactivateRequest,
   DeactivateResponse,
   ApiErrorResponse,
@@ -35,9 +34,9 @@ export class ApiError extends Error {
  */
 async function request<T>(
   endpoint: string,
-  options: RequestInit & { licenseKey?: string } = {}
+  options: RequestInit & { licenseKey?: string; authToken?: string } = {}
 ): Promise<T> {
-  const { licenseKey, ...fetchOptions } = options;
+  const { licenseKey, authToken, ...fetchOptions } = options;
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -46,6 +45,10 @@ async function request<T>(
 
   if (licenseKey) {
     (headers as Record<string, string>)['X-License-Key'] = licenseKey;
+  }
+
+  if (authToken) {
+    (headers as Record<string, string>)['Authorization'] = `Bearer ${authToken}`;
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -97,22 +100,6 @@ export async function getLicenseDetails(
 }
 
 /**
- * Get license usage statistics
- *
- * @param licenseKey - The user's license key
- * @returns Usage statistics
- */
-export async function getLicenseUsage(
-  licenseKey: string
-): Promise<LicenseUsage> {
-  const qs = new URLSearchParams({ license_key: licenseKey }).toString();
-  return request<LicenseUsage>(`/v1/me/usage?${qs}`, {
-    method: 'GET',
-    cache: 'no-store',
-  });
-}
-
-/**
  * Deactivate a device from the license
  *
  * @param data - License key and fingerprint to deactivate
@@ -128,21 +115,45 @@ export async function deactivateDevice(
 }
 
 /**
+ * Result of license-key acquisition: a failure to reach the API must be
+ * distinguishable from "this user has no license" so the dashboard can show
+ * an actionable error instead of silently degrading to the empty state.
+ */
+export type LicenseKeyResult =
+  | { status: 'ok'; licenseKey: string }
+  | { status: 'error'; message: string };
+
+/**
  * Get the user's license key, provisioning a free community license on
  * first call. The API is idempotent — safe to call on every dashboard
  * load. Paid licenses are never overwritten.
  *
- * @param email - The authenticated user's email (from Clerk)
- * @returns License key, or null on API failure
+ * @param authToken - The caller's Clerk session token (from auth().getToken()).
+ *   The backend derives the account email from this token — it is never taken
+ *   from the client — so a user can only provision/retrieve their own license.
+ * @returns ok + license key, or error + user-facing message on API failure
  */
 export async function getOrProvisionLicenseKey(
-  email: string
-): Promise<string | null> {
+  authToken: string | null
+): Promise<LicenseKeyResult> {
+  if (!authToken) {
+    return {
+      status: 'error',
+      message:
+        'Your session has expired. Please sign in again to load your license.',
+    };
+  }
   try {
-    const response = await provisionCommunityLicense(email);
-    return response.license_key;
-  } catch {
-    return null;
+    const response = await provisionCommunityLicense(authToken);
+    return { status: 'ok', licenseKey: response.license_key };
+  } catch (error) {
+    console.error('[api] provision-community failed:', error);
+    return {
+      status: 'error',
+      message:
+        'We could not load your license right now. Please refresh in a ' +
+        'moment — if this keeps happening, contact support@replimap.com.',
+    };
   }
 }
 
@@ -242,19 +253,23 @@ export interface ProvisionCommunityResponse {
 }
 
 /**
- * Create (or return the existing) community license for an email address.
- * Idempotent — safe to call on every dashboard load. Never overwrites a
- * paid license; if the user already has one, the existing license is
+ * Create (or return the existing) community license for the authenticated
+ * caller. Idempotent — safe to call on every dashboard load. Never overwrites
+ * a paid license; if the user already has one, the existing license is
  * returned with `created: false`.
+ *
+ * The account is identified by the Clerk session token (forwarded as a bearer
+ * token); no email is sent from the client.
  */
 export async function provisionCommunityLicense(
-  email: string
+  authToken: string
 ): Promise<ProvisionCommunityResponse> {
   return request<ProvisionCommunityResponse>(
     '/v1/license/provision-community',
     {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({}),
+      authToken,
     }
   );
 }

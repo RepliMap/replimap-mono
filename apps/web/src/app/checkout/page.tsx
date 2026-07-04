@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -13,7 +13,7 @@ import { createCheckoutSession } from "@/lib/api"
 const VALID_PLANS: PlanName[] = ["pro", "team"]
 const VALID_BILLING: BillingPeriod[] = ["monthly", "annual", "lifetime"]
 
-export default function CheckoutPage() {
+function CheckoutForm() {
   const { user, isLoaded } = useUser()
   const searchParams = useSearchParams()
 
@@ -292,5 +292,21 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// useSearchParams() requires a Suspense boundary for prerendering —
+// without it `next build` fails on this page (missing-suspense-with-csr-bailout).
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background pt-20 flex items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <CheckoutForm />
+    </Suspense>
   )
 }

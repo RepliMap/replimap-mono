@@ -1,4 +1,4 @@
-import { currentUser } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getLicenseDetails, getOrProvisionLicenseKey, getMachinesLimit } from '@/lib/api';
@@ -19,9 +19,16 @@ export default async function DashboardPage() {
   const displayName =
     user.firstName || user.emailAddresses[0]?.emailAddress || 'User';
 
-  // Get (or auto-provision) community license for this user
-  const email = user.emailAddresses[0]?.emailAddress ?? null;
-  const licenseKey = email ? await getOrProvisionLicenseKey(email) : null;
+  // Get (or auto-provision) community license for this user. The backend
+  // derives the account from the Clerk session token, not a client-supplied
+  // email, so we forward the token rather than an email.
+  const { getToken } = await auth();
+  const token = await getToken();
+  const keyResult = await getOrProvisionLicenseKey(token);
+  const licenseKey = keyResult?.status === 'ok' ? keyResult.licenseKey : null;
+  // API failure is NOT "no license" — tell the user instead of quietly
+  // rendering the empty state.
+  const licenseError = keyResult?.status === 'error' ? keyResult.message : null;
   let license = null;
 
   if (licenseKey) {
@@ -39,6 +46,15 @@ export default async function DashboardPage() {
           Welcome, {displayName}
         </h1>
         <p className="text-muted-foreground mb-8">Your RepliMap Dashboard</p>
+
+        {licenseError && (
+          <div
+            role="alert"
+            className="mb-6 p-4 rounded-lg border border-red-500/30 bg-red-500/5 text-sm text-foreground"
+          >
+            ⚠️ {licenseError}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* License overview */}

@@ -205,26 +205,26 @@ export const PLAN_LIFETIME_PRICES: Record<PlanType, number | null> = {
 // ============================================================================
 // Stripe Price ID to Plan Mapping v4.0
 // ============================================================================
+//
+// ⚠️ All price IDs below are Stripe SANDBOX (test mode) as of 2026-07.
+// Before going live, replace every entry with production Stripe price IDs
+// and remove/update this notice.
+// ============================================================================
 
-// TODO: Update these Stripe Price IDs after creating new prices in Stripe Dashboard
 export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
-  // Development/test price IDs - Monthly v4.0
-  'price_v4_pro_monthly': 'pro',
-  'price_v4_team_monthly': 'team',
-  'price_v4_sovereign_monthly': 'sovereign',
+  // Pro prices
+  'price_1SiMYgAKLIiL9hdwZLjLUOPm': 'pro',   // Pro monthly $29 — Stripe SANDBOX (test mode)
+  'price_1SiMqMAKLIiL9hdwj1EgfQMs': 'pro',   // Pro annual $290 — Stripe SANDBOX (test mode)
+  'price_1SnWdSAKLIiL9hdwRH0bMHtw': 'pro',   // Pro lifetime $199 — Stripe SANDBOX (test mode)
 
-  // Development/test price IDs - Annual v4.0
-  'price_v4_pro_annual': 'pro',
-  'price_v4_team_annual': 'team',
-  'price_v4_sovereign_annual': 'sovereign',
+  // Team prices
+  'price_1SiMZvAKLIiL9hdw8LAIvjrS': 'team',  // Team monthly $99 — Stripe SANDBOX (test mode)
+  'price_1SiMrJAKLIiL9hdwF8xq4poz': 'team',  // Team annual $990 — Stripe SANDBOX (test mode)
+  'price_1TFWkeAKLIiL9hdwVxqwqC8m': 'team',  // Team lifetime $499 — Stripe SANDBOX (test mode)
 
-  // Production Stripe price IDs (legacy subscriptions still active)
-  'price_1SiMWsAKLIiL9hdweoTnH17A': 'pro',   // Legacy solo monthly → pro
-  'price_1SiMYgAKLIiL9hdwZLjLUOPm': 'pro',   // Legacy pro monthly → pro
-  'price_1SiMZvAKLIiL9hdw8LAIvjrS': 'team',  // Legacy team monthly → team
-  'price_1SiMpmAKLIiL9hdwhhn1dAVG': 'pro',   // Legacy solo annual → pro
-  'price_1SiMqMAKLIiL9hdwj1EgfQMs': 'pro',   // Legacy pro annual → pro
-  'price_1SiMrJAKLIiL9hdwF8xq4poz': 'team',  // Legacy team annual → team
+  // Legacy solo prices → map to pro
+  'price_1SiMWsAKLIiL9hdweoTnH17A': 'pro',   // Legacy solo monthly — Stripe SANDBOX (test mode)
+  'price_1SiMpmAKLIiL9hdwhhn1dAVG': 'pro',   // Legacy solo annual — Stripe SANDBOX (test mode)
 
   // Test price IDs (for unit testing)
   'price_test_pro': 'pro',
@@ -237,21 +237,20 @@ export const STRIPE_PRICE_TO_PLAN: Record<string, PlanType> = {
 
 /**
  * Plan to Stripe Price ID (for creating checkout sessions)
- * TODO: Update these after creating new prices in Stripe Dashboard
  */
 export const PLAN_TO_STRIPE_PRICE: Record<Exclude<PlanType, 'community'>, string> = {
-  pro: 'price_v4_pro_monthly',
-  team: 'price_v4_team_monthly',
-  sovereign: 'price_v4_sovereign_monthly',
+  pro: 'price_1SiMYgAKLIiL9hdwZLjLUOPm',   // Stripe SANDBOX (test mode)
+  team: 'price_1SiMZvAKLIiL9hdw8LAIvjrS',  // Stripe SANDBOX (test mode)
+  sovereign: 'price_v4_sovereign_monthly',  // Not yet created in Stripe
 };
 
 /**
  * Plan to Stripe Annual Price ID (for annual checkout sessions)
  */
 export const PLAN_TO_STRIPE_ANNUAL_PRICE: Record<Exclude<PlanType, 'community'>, string> = {
-  pro: 'price_v4_pro_annual',
-  team: 'price_v4_team_annual',
-  sovereign: 'price_v4_sovereign_annual',
+  pro: 'price_1SiMqMAKLIiL9hdwj1EgfQMs',   // Stripe SANDBOX (test mode)
+  team: 'price_1SiMrJAKLIiL9hdwF8xq4poz',  // Stripe SANDBOX (test mode)
+  sovereign: 'price_v4_sovereign_annual',  // Not yet created in Stripe
 };
 
 /**
@@ -270,9 +269,8 @@ export function getPlanFromPriceId(priceId: string): PlanType {
  * These are one-time payment products, not subscriptions.
  */
 export const STRIPE_LIFETIME_PRICE_TO_PLAN: Record<string, { plan: PlanType; billingType: PlanBillingType }> = {
-  // Development/test lifetime price IDs - v4.0
-  'price_v4_pro_lifetime': { plan: 'pro', billingType: 'lifetime' },
-  'price_v4_team_lifetime': { plan: 'team', billingType: 'lifetime' },
+  'price_1SnWdSAKLIiL9hdwRH0bMHtw': { plan: 'pro', billingType: 'lifetime' },   // Stripe SANDBOX (test mode)
+  'price_1TFWkeAKLIiL9hdwVxqwqC8m': { plan: 'team', billingType: 'lifetime' },  // Stripe SANDBOX (test mode)
 
   // Test price IDs
   'price_test_pro_lifetime': { plan: 'pro', billingType: 'lifetime' },
