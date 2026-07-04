@@ -64,11 +64,48 @@ interface StripeSubscription {
       price: {
         id: string;
       };
+      // API versions ≥2025-03-31 (basil/clover) moved the billing period
+      // here from the subscription top level.
+      current_period_start?: number;
+      current_period_end?: number;
     }>;
   };
-  current_period_start: number;
-  current_period_end: number;
+  // Present on API versions <2025-03-31 only — absent on real clover events.
+  current_period_start?: number;
+  current_period_end?: number;
   cancel_at_period_end: boolean;
+}
+
+/**
+ * Resolve the billing period of a subscription across API versions.
+ *
+ * <2025-03-31: top-level `current_period_start/end`.
+ * ≥2025-03-31 (basil/clover): moved to `items.data[].current_period_*`.
+ * Verified against a real clover subscription (sub_1TpNk4AKLIiL9hdw5SKhWU18,
+ * 2026-07-05) — this is why live licenses fell into the nowISO() fallback:
+ * the top-level fields simply don't exist on current events.
+ */
+function getSubscriptionPeriod(subscription: StripeSubscription): {
+  startISO: string | null;
+  endISO: string | null;
+} {
+  const item = subscription.items?.data?.[0];
+  const start =
+    typeof subscription.current_period_start === 'number'
+      ? subscription.current_period_start
+      : typeof item?.current_period_start === 'number'
+        ? item.current_period_start
+        : null;
+  const end =
+    typeof subscription.current_period_end === 'number'
+      ? subscription.current_period_end
+      : typeof item?.current_period_end === 'number'
+        ? item.current_period_end
+        : null;
+  return {
+    startISO: start === null ? null : timestampToISO(start),
+    endISO: end === null ? null : timestampToISO(end),
+  };
 }
 
 interface StripeInvoice {
@@ -385,17 +422,15 @@ async function handleSubscriptionCreated(
   const priceId = subscription.items.data[0]?.price.id ?? '';
   const plan = getPlanFromPriceId(priceId);
 
-  // Stripe omits current_period_start/end on some newly-created subscriptions
-  // (e.g. when the first invoice hasn't been generated yet). Guard the
-  // conversion — `invoice.paid` will backfill accurate periods.
-  const periodStart =
-    typeof subscription.current_period_start === 'number'
-      ? timestampToISO(subscription.current_period_start)
-      : nowISO();
-  const periodEnd =
-    typeof subscription.current_period_end === 'number'
-      ? timestampToISO(subscription.current_period_end)
-      : undefined;
+  // Billing period: top-level on old API versions, items.data[] on ≥2025-03-31
+  // (clover). Reading items here is the §5 fix — it makes the first cycle's
+  // period self-contained in this event instead of depending on invoice.paid,
+  // whose delivery order Stripe explicitly does not guarantee. Falls back to
+  // nowISO()/undefined only when neither location has the fields (in which
+  // case a retried invoice.paid still backfills — see handleInvoicePaid).
+  const period = getSubscriptionPeriod(subscription);
+  const periodStart = period.startISO ?? nowISO();
+  const periodEnd = period.endISO ?? undefined;
 
   // Create license. Schema has UNIQUE(stripe_subscription_id) as a safety net.
   try {
@@ -482,22 +517,17 @@ async function handleSubscriptionUpdated(
     console.log(`[Stripe] Deactivated ${devicesDeactivated} devices for license ${license.id}`);
   }
 
-  // Stripe can omit current_period_start/end on the subscription object
-  // (newer API versions move them to subscription items). Guard the
-  // conversion like handleSubscriptionCreated does — an unguarded
-  // timestampToISO(undefined) throws and turns the plan change into a 500.
+  // Billing period across API versions (top-level, or items.data[] on
+  // ≥2025-03-31) — see getSubscriptionPeriod. Fields stay undefined when
+  // absent everywhere (P1-5: never corrupt existing values, never let an
+  // unguarded timestampToISO(undefined) turn the plan change into a 500).
+  const period = getSubscriptionPeriod(subscription);
   await updateLicensePlan(db, license.id, {
     plan: newPlan,
     status,
     stripePriceId: priceId,
-    currentPeriodStart:
-      typeof subscription.current_period_start === 'number'
-        ? timestampToISO(subscription.current_period_start)
-        : undefined,
-    currentPeriodEnd:
-      typeof subscription.current_period_end === 'number'
-        ? timestampToISO(subscription.current_period_end)
-        : undefined,
+    currentPeriodStart: period.startISO ?? undefined,
+    currentPeriodEnd: period.endISO ?? undefined,
   });
 }
 
@@ -526,19 +556,29 @@ async function handleSubscriptionDeleted(
 async function handleInvoicePaid(
   db: DrizzleDb,
   invoice: StripeInvoice
-): Promise<void> {
+): Promise<{ success: boolean; retry?: boolean }> {
   const subscriptionId = getInvoiceSubscriptionId(invoice);
   if (!subscriptionId) {
-    return; // Not a subscription invoice
+    return { success: true }; // Not a subscription invoice — acknowledge
   }
 
   const license = await getLicenseBySubscriptionId(db, subscriptionId);
   if (!license) {
-    console.error(`No license found for subscription ${subscriptionId}`);
-    return;
+    // §5 ordering race: Stripe doesn't guarantee event order, and invoice.paid
+    // can land before customer.subscription.created has created the license
+    // (observed twice on live, 2026-07-04). Do NOT mark the event processed —
+    // return retry so the caller answers 500 and Stripe redelivers once the
+    // license exists. Safety net only: the primary fix reads the period from
+    // subscription.items in handleSubscriptionCreated.
+    console.warn(
+      `[Stripe] invoice.paid for subscription ${subscriptionId} arrived ` +
+      `before its license exists. Triggering retry.`
+    );
+    return { success: false, retry: true };
   }
 
-  // Get period from invoice line items
+  // Get period from invoice line items. Setting absolute values keeps this
+  // idempotent — redelivery writes the same period, never extends it.
   const lineItem = invoice.lines.data[0];
   if (lineItem) {
     await updateLicensePlan(db, license.id, {
@@ -547,6 +587,7 @@ async function handleInvoicePaid(
       currentPeriodEnd: timestampToISO(lineItem.period.end),
     });
   }
+  return { success: true };
 }
 
 /**
@@ -841,12 +882,24 @@ export async function handleStripeWebhook(
         );
         break;
 
-      case 'invoice.paid':
-        await handleInvoicePaid(
+      case 'invoice.paid': {
+        const result = await handleInvoicePaid(
           db,
           event.data.object as unknown as StripeInvoice
         );
+        if (!result.success && result.retry) {
+          // Early return skips markEventProcessed — Stripe will redeliver
+          // this event id and it will be processed for real next time.
+          return new Response(JSON.stringify({
+            error: 'License not found yet, retry needed',
+            retry: true,
+          }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
         break;
+      }
 
       case 'invoice.payment_failed':
         await handlePaymentFailed(

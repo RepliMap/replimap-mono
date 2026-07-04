@@ -83,26 +83,94 @@ Add a CI guard that fails the build if `RATE_LIMIT_DISABLED` appears in `wrangle
 
 ## 5. First-cycle period backfill can be lost to event ordering
 
-**Status (2026-07-04):** Open. Observed live on dev during E2E validation Item 3
-(see `E2E_DEV_VALIDATION_LOG.md`): Stripe delivered `invoice.paid` ~1.3s
-*before* `customer.subscription.created`. The license didn't exist yet, so
-`handleInvoicePaid` no-op'd ("No license found") — but the event was still
-marked processed, so event-level idempotency rejects any redelivery. Net
-effect: the first billing cycle's period backfill is permanently lost (the
-license keeps the `nowISO()` fallback from `handleSubscriptionCreated` until
-the *next* renewal invoice).
+**Status (2026-07-05): FIXED** — see `INVOICE_ORDERING_BACKFILL_FIX_LOG.md`
+for the full reproduction, root-cause analysis, and dev validation evidence.
 
-**Note:** distinct from the `invoice.subscription` field bug fixed on
-2026-07-04 (`INVOICE_SUBSCRIPTION_FIELD_FIX_LOG.md`) — this is pure ordering,
-and persists after that fix.
+Originally observed live on dev during E2E validation Item 3 and again on both
+real production purchases (2026-07-04): Stripe delivered `invoice.paid`
+*before* `customer.subscription.created`; the license didn't exist yet, so
+`handleInvoicePaid` no-op'd but still marked the event processed —
+permanently losing the first cycle's period backfill (`current_period_end`
+stuck at null).
 
-**How to fix (options):**
-- Don't mark `invoice.paid` processed when no license exists yet — return 500
-  so Stripe retries (mirrors the subscription.created retry path); or
-- Self-heal: on `customer.subscription.created`, fetch the latest invoice for
-  the subscription and backfill periods in the same handler.
+**Fix shipped (both proposed directions, B primary + A safety net):**
+- **B (primary, zero API calls):** root cause turned out to be an API-version
+  field move — on ≥2025-03-31 (basil/clover) the billing period lives on
+  `subscription.items.data[].current_period_*`, not the subscription top
+  level, so the period was *in the event all along* and the code never read
+  it. `getSubscriptionPeriod()` now reads top-level with an items fallback;
+  `handleSubscriptionCreated` and `handleSubscriptionUpdated` both use it.
+  The first cycle's period is now self-contained in the subscription event —
+  no dependence on `invoice.paid` ordering or Stripe retry timing at all.
+- **A (safety net):** `handleInvoicePaid` no longer consumes the event when
+  the license doesn't exist yet — it returns 500 *without* marking the event
+  processed (mirrors the existing subscription.created retry path), so
+  Stripe's redelivery processes it for real. Scoped strictly to
+  subscription-bearing invoices; non-subscription invoices still ack 200.
+  Chosen as backup, not primary, because Stripe's retry timing is
+  undisclosed (live: ≤3 days exponential backoff; sandbox: only 3 retries).
 
-**Estimate:** ~1h either way, plus an ordering-permutation test.
+**Dev validation (2026-07-04, real sandbox events):** the race reproduced
+naturally on the first attempt (`invoice.paid` 110ms ahead) — invoice.paid
+500'd unmarked, subscription.created created the license with the real
+period from items (`current_period_end` correctly set, not null), and
+Stripe's retry ~15s later processed invoice.paid for real. Covered by 5
+ordering-permutation tests in `tests/stripe-webhook.test.ts`.
+
+---
+
+## 6. Dashboard license detail: device list always shows 0
+
+**Status (2026-07-05):** Open. Surfaced right after the dashboard was moved to
+client-side fetching (commit `e6bd1c9`) and the `.fingerprints` crash was fixed
+(`7b829cd`). The `/dashboard/license` page now renders without crashing but the
+"Active Devices" count and the device list are always empty/0.
+
+**Root cause:** `GET /v1/me/license` (Worker `handleGetOwnLicense`) does **not**
+return a `fingerprints` array — it returns `features` / `usage` / `subscription`
+/ `created_at`. The device list lives in a **separate** endpoint,
+`GET /v1/me/machines` (Worker `handleGetOwnMachines`, already implemented). The
+frontend `LicenseDetails` type used to (incorrectly) declare `fingerprints` as
+required; `7b829cd` made it optional and centralized a `?? []` fallback in
+`apps/web/src/lib/license-view.ts`, so a missing array reads as 0 instead of
+crashing. That is correct crash-handling but the real device list is still never
+fetched.
+
+**How to fix:**
+- In the client license flow (`apps/web/src/hooks/useLicense.ts` or the detail
+  page), additionally call `GET /v1/me/machines?license_key=...` and feed the
+  returned machines into `DeviceList` / `activeDeviceCount`.
+- `usage.machines_active` from `/v1/me/license` gives the *count* already, so at
+  minimum the "Active Devices" number can be sourced from there without a second
+  request; the full list still needs `/v1/me/machines`.
+- Note these calls are now browser-side (see item context), so they must stay
+  off Vercel SSR to avoid Cloudflare Bot Fight Mode (same reason as `e6bd1c9`).
+
+**Estimate:** ~1–1.5h (fetch + wire into DeviceList + a hook test).
+
+---
+
+## 7. Dashboard license detail: "undefined Days Grace" / "Expires: Never"
+
+**Status (2026-07-05):** Open. Same `/v1/me/license` ↔ `LicenseDetails` contract
+drift as item 6, but non-crashing (cosmetic).
+
+**Root cause:** `LicenseDetails` declares `offline_grace_days` and `expires_at`,
+but `/v1/me/license` returns neither. At runtime `offline_grace_days` is
+`undefined` → `GracePeriodInfo` renders "undefined Days Grace"; `expires_at` is
+`undefined` → `LicenseCard` shows "Never" for every license.
+
+**How to fix (choose one):**
+- **Frontend mapping:** derive these from fields the endpoint *does* return —
+  `subscription.current_period_end` for the expiry, and `offline_grace_days`
+  from the plan (there's a `GRACE_PERIOD_DAYS` / per-plan notion in
+  `apps/api/src/lib/constants.ts`; expose it via `features` or map client-side).
+- **Backend:** add `offline_grace_days` and `expires_at` directly to the
+  `/v1/me/license` response so the frontend type finally matches reality
+  (preferred — kills the drift at the source; update `GetLicenseResponse` in
+  `apps/api/src/handlers/user.ts` and the frontend `LicenseDetails` together).
+
+**Estimate:** ~1h (backend option, incl. keeping the two types in sync).
 
 ---
 

@@ -724,6 +724,161 @@ describe('invoice.paid', () => {
   });
 });
 
+// ============================================================================
+// Event ordering: invoice.paid before customer.subscription.created
+// (followups §5 — reproduced twice on live 2026-07-04: invoice.paid processed
+// at 11:59:40.126Z, before the license was created at .551Z)
+// ============================================================================
+
+/**
+ * Clover-shaped (API ≥2025-03-31) subscription event: NO top-level
+ * current_period_start/end — the billing period lives on items.data[0].
+ * Mirrors the real sandbox/live payloads (verified against
+ * sub_1TpNk4AKLIiL9hdw5SKhWU18, 2026-07-05).
+ */
+function cloverSubscriptionEvent(
+  type:
+    | 'customer.subscription.created'
+    | 'customer.subscription.updated' = 'customer.subscription.created',
+  overrides: Record<string, unknown> = {},
+  id = eventId()
+) {
+  return subscriptionEvent(
+    type,
+    {
+      // JSON.stringify drops undefined keys — the signed payload genuinely
+      // lacks the top-level period fields, like real clover events.
+      current_period_start: undefined,
+      current_period_end: undefined,
+      items: {
+        data: [
+          {
+            price: { id: PRO_MONTHLY_PRICE },
+            current_period_start: PERIOD_START,
+            current_period_end: PERIOD_END,
+          },
+        ],
+      },
+      ...overrides,
+    },
+    id
+  );
+}
+
+/** Clover-shaped invoice.paid: subscription id under parent.subscription_details. */
+function cloverInvoicePaidEvent(id = eventId()) {
+  return invoiceEvent(
+    'invoice.paid',
+    {
+      subscription: null,
+      parent: {
+        type: 'subscription_details',
+        quote_details: null,
+        subscription_details: { metadata: {}, subscription: SUBSCRIPTION },
+      },
+    },
+    id
+  );
+}
+
+describe('event ordering: invoice.paid before customer.subscription.created (§5)', () => {
+  it('clover subscription.created reads the billing period from items — no dependence on invoice.paid', async () => {
+    await deliver(checkoutCompletedEvent());
+    const res = await deliver(cloverSubscriptionEvent());
+    expect(res.status).toBe(200);
+
+    const [license] = await licenseRows();
+    expect(license.current_period_start).toBe(
+      new Date(PERIOD_START * 1000).toISOString()
+    );
+    expect(license.current_period_end).toBe(
+      new Date(PERIOD_END * 1000).toISOString()
+    );
+  });
+
+  it('raced sequence: even if invoice.paid is never redelivered, the license still ends with the real billing period', async () => {
+    // The exact live failure mode: invoice.paid lands first, license absent.
+    await deliver(cloverInvoicePaidEvent());
+    await deliver(checkoutCompletedEvent());
+    await deliver(cloverSubscriptionEvent());
+
+    const [license] = await licenseRows();
+    // Pre-fix: current_period_end stayed null (nowISO/undefined fallback) and
+    // the consumed invoice.paid could never backfill it.
+    expect(license.current_period_end).toBe(
+      new Date(PERIOD_END * 1000).toISOString()
+    );
+  });
+
+  it('invoice.paid with no license: 500, NOT marked processed, succeeds on redelivery after the license exists', async () => {
+    const invoiceId = eventId();
+    const first = await deliver(cloverInvoicePaidEvent(invoiceId));
+    expect(first.status).toBe(500);
+
+    const processedAfterFirst = await rows<{ event_id: string }>(
+      'SELECT event_id FROM processed_events'
+    );
+    expect(processedAfterFirst.map((r) => r.event_id)).not.toContain(invoiceId);
+
+    await seedSubscriptionLicense();
+
+    // Stripe redelivers the SAME event id — must now be processed for real.
+    const second = await deliver(cloverInvoicePaidEvent(invoiceId));
+    expect(second.status).toBe(200);
+
+    const [license] = await licenseRows();
+    expect(license.current_period_start).toBe(
+      new Date((PERIOD_START + 100) * 1000).toISOString()
+    );
+    expect(license.current_period_end).toBe(
+      new Date((PERIOD_END + 100) * 1000).toISOString()
+    );
+
+    // Idempotency intact: a further redelivery is a duplicate no-op.
+    const third = await deliver(cloverInvoicePaidEvent(invoiceId));
+    expect(third.status).toBe(200);
+    expect(await third.json()).toMatchObject({ duplicate: true });
+  });
+
+  it('non-subscription invoices are still acknowledged with 200 (no retry storm)', async () => {
+    const res = await deliver(
+      invoiceEvent('invoice.paid', { subscription: null })
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('clover subscription.updated also sources the period from items', async () => {
+    await seedSubscriptionLicense();
+
+    // Distinct values from the seeded top-level periods, so this fails if the
+    // handler ignores items (instead of passing on stale seeded values).
+    const renewalStart = PERIOD_START + 5_000;
+    const renewalEnd = PERIOD_END + 5_000;
+    const res = await deliver(
+      cloverSubscriptionEvent('customer.subscription.updated', {
+        items: {
+          data: [
+            {
+              price: { id: PRO_MONTHLY_PRICE },
+              current_period_start: renewalStart,
+              current_period_end: renewalEnd,
+            },
+          ],
+        },
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const [license] = await licenseRows();
+    expect(license.current_period_start).toBe(
+      new Date(renewalStart * 1000).toISOString()
+    );
+    expect(license.current_period_end).toBe(
+      new Date(renewalEnd * 1000).toISOString()
+    );
+  });
+});
+
 describe('invoice.payment_failed', () => {
   it('marks the license past_due', async () => {
     await seedSubscriptionLicense();
