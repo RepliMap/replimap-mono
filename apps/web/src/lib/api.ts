@@ -264,12 +264,23 @@ export interface ProvisionCommunityResponse {
 export async function provisionCommunityLicense(
   authToken: string
 ): Promise<ProvisionCommunityResponse> {
+  // This call runs server-side (Vercel SSR). Cloudflare Bot Fight Mode blocks
+  // requests from Vercel's cloud ASN before they reach the Worker; a Cloudflare
+  // WAF "Skip" rule matches the X-Internal-Auth header to let this legitimate
+  // SSR request through. It is NOT an auth mechanism — the Clerk bearer token
+  // is the real auth; this header is only a signal for the edge rule. Read from
+  // a server-only env var (no NEXT_PUBLIC_ prefix) so it never ships in the
+  // client bundle. Omitted when unset (local dev against localhost:8787, tests).
+  const internalSecret = process.env.INTERNAL_API_SECRET;
   return request<ProvisionCommunityResponse>(
     '/v1/license/provision-community',
     {
       method: 'POST',
       body: JSON.stringify({}),
       authToken,
+      headers: internalSecret
+        ? { 'X-Internal-Auth': internalSecret }
+        : undefined,
     }
   );
 }
