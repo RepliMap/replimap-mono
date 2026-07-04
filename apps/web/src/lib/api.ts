@@ -272,12 +272,6 @@ export async function provisionCommunityLicense(
   // a server-only env var (no NEXT_PUBLIC_ prefix) so it never ships in the
   // client bundle. Omitted when unset (local dev against localhost:8787, tests).
   const internalSecret = process.env.INTERNAL_API_SECRET;
-  // TEMP DEBUG (remove after diagnosis): confirm the env var is readable at
-  // runtime and non-empty. Logs LENGTH ONLY — never the value.
-  console.log(
-    '[DEBUG] INTERNAL_API_SECRET length:',
-    internalSecret?.length ?? 'undefined'
-  );
   return request<ProvisionCommunityResponse>(
     '/v1/license/provision-community',
     {
