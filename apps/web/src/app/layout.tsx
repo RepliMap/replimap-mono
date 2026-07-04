@@ -23,7 +23,7 @@ const geistMono = localFont({
 
 // SEO Metadata
 export const metadata: Metadata = {
-  metadataBase: new URL('https://replimap.com'),
+  metadataBase: new URL('https://www.replimap.com'),
 
   title: {
     default: "RepliMap - AWS Infrastructure Intelligence",
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "RepliMap - AWS Infrastructure Intelligence",
     description: "Reverse-engineer your AWS infrastructure into Terraform",
-    url: "https://replimap.com",
+    url: "https://www.replimap.com",
     siteName: "RepliMap",
     images: [
       {

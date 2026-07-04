@@ -24,7 +24,7 @@ import {
   vi,
 } from 'vitest';
 import { handleStripeWebhook } from '../src/handlers/stripe-webhook';
-import { LIFETIME_EXPIRY } from '../src/lib/constants';
+import { LIFETIME_EXPIRY, PLAN_TO_STRIPE_PRICE } from '../src/lib/constants';
 import type { Env } from '../src/types/env';
 import { createDb, findOrCreateUser } from '../src/lib/db';
 import { AppError } from '../src/lib/errors';
@@ -79,8 +79,9 @@ function eventId(): string {
 const CUSTOMER = 'cus_TestCustomer01';
 const EMAIL = 'buyer@example.com';
 const SUBSCRIPTION = 'sub_TestSub01';
-const PRO_MONTHLY_PRICE = 'price_1SiMYgAKLIiL9hdwZLjLUOPm'; // real mapping: pro
-const TEAM_MONTHLY_PRICE = 'price_1SiMZvAKLIiL9hdw8LAIvjrS'; // real mapping: team
+// Derived from the live mapping so price-ID rotations never break these tests.
+const PRO_MONTHLY_PRICE = PLAN_TO_STRIPE_PRICE.pro; // real mapping: pro
+const TEAM_MONTHLY_PRICE = PLAN_TO_STRIPE_PRICE.team; // real mapping: team
 
 const PERIOD_START = 1_750_000_000;
 const PERIOD_END = 1_752_600_000;

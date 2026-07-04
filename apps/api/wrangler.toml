@@ -88,7 +88,7 @@ name = "replimap-api-prod"
 
 [env.prod.vars]
 ENVIRONMENT = "production"
-CORS_ORIGIN = "https://replimap.com"
+CORS_ORIGIN = "https://www.replimap.com,https://replimap.com"
 API_VERSION = "v1"
 
 # Custom domain for production API

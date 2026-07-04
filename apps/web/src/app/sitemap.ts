@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://replimap.com'
+  const baseUrl = 'https://www.replimap.com'
   const now = new Date()
 
   // Static list - more reliable than fs.readdirSync in Vercel monorepo
