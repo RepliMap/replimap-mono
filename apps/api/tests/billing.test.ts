@@ -117,6 +117,60 @@ describe('Billing Endpoints', () => {
       expect(data.message).toContain('email');
     });
 
+    it('P2-8: rejects sovereign monthly checkout with contact-sales guidance instead of calling Stripe', async () => {
+      const request = createRequest('POST', '/v1/checkout/session', {
+        plan: 'sovereign',
+        email: 'enterprise@example.com',
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+      });
+
+      const response = await handleCreateCheckout(request, env, '1.2.3.4');
+      const data = await parseResponse<ErrorResponse>(response);
+
+      // The sovereign price ids are placeholders that do not exist in
+      // Stripe — forwarding the request would surface an opaque Stripe
+      // error. The API must refuse it with a clear, actionable message.
+      expect(response.status).toBe(400);
+      expect(data.message.toLowerCase()).toContain('sovereign');
+      expect(data.message.toLowerCase()).toContain('contact sales');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('P2-8: rejects sovereign annual checkout without calling Stripe', async () => {
+      const request = createRequest('POST', '/v1/checkout/session', {
+        plan: 'sovereign',
+        billing_period: 'annual',
+        email: 'enterprise@example.com',
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+      });
+
+      const response = await handleCreateCheckout(request, env, '1.2.3.4');
+      const data = await parseResponse<ErrorResponse>(response);
+
+      expect(response.status).toBe(400);
+      expect(data.message.toLowerCase()).toContain('contact sales');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('P2-8: rejects sovereign lifetime checkout without calling Stripe', async () => {
+      const request = createRequest('POST', '/v1/checkout/session', {
+        plan: 'sovereign',
+        billing_period: 'lifetime',
+        email: 'enterprise@example.com',
+        success_url: 'https://example.com/success',
+        cancel_url: 'https://example.com/cancel',
+      });
+
+      const response = await handleCreateCheckout(request, env, '1.2.3.4');
+      const data = await parseResponse<ErrorResponse>(response);
+
+      expect(response.status).toBe(400);
+      expect(data.message.toLowerCase()).toContain('contact sales');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
     it('should reject invalid plan', async () => {
       const request = createRequest('POST', '/v1/checkout/session', {
         plan: 'invalid',

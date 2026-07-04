@@ -62,7 +62,7 @@ async function fetchStripeSessionEmail(
 }
 
 export async function handleGetCheckoutLicense(
-  request: Request,
+  _request: Request,
   env: Env,
   clientIP: string,
   sessionId: string

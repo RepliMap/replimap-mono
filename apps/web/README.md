@@ -38,13 +38,51 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ```
 src/
-├── app/           # Next.js App Router pages
-├── components/    # React components
-│   ├── ui/        # Shadcn UI primitives
-│   ├── landing/   # Landing page sections
-│   └── shared/    # Header, Footer
-└── lib/           # Utilities, constants
+├── app/
+│   ├── (auth)/           # Clerk sign-in/sign-up pages
+│   ├── (marketing)/      # Landing page (public)
+│   ├── checkout/         # Stripe checkout flow (auth required)
+│   │   ├── page.tsx      # Plan summary + redirect to Stripe
+│   │   └── success/      # Post-payment onboarding
+│   ├── dashboard/        # User dashboard (auth required)
+│   └── docs/             # Documentation (Fumadocs)
+├── components/
+│   ├── ui/               # Shadcn UI primitives
+│   ├── hero.tsx          # Landing page hero
+│   ├── pricing.tsx       # Pricing cards
+│   ├── header.tsx        # Site header with auth
+│   └── auth-components.tsx  # Clerk wrapper components
+└── lib/
+    ├── api.ts            # Backend API client
+    └── pricing.ts        # Plan definitions
 ```
+
+## Checkout Flow
+
+```
+User clicks CTA
+  → Clerk sign-in (if not authenticated)
+    → /checkout?plan=pro&billing=monthly
+      → Shows plan summary, billing toggle
+      → "Continue to Payment" calls POST /v1/checkout/session
+        → Redirects to Stripe hosted checkout
+          → On success: /checkout/success
+            → Shows: pip install, auth login, scan
+          → On cancel: back to /checkout
+```
+
+**Protected routes** (require Clerk auth): `/dashboard(.*)`, `/checkout(.*)`
+
+**Environment variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk auth (pk_test_ or pk_live_) |
+| `CLERK_SECRET_KEY` | Clerk server key |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
+| `STRIPE_SECRET_KEY` | Stripe secret key |
+| `NEXT_PUBLIC_APP_URL` | App URL (http://localhost:3000) |
+| `NEXT_PUBLIC_API_URL` | API URL (http://localhost:8787) |
 
 ## License
 

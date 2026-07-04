@@ -6,7 +6,7 @@
  */
 
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
-import { eq, and, sql, desc, gte, count } from 'drizzle-orm';
+import { eq, and, ne, sql, desc, gte, count } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { generateId, nowISO, normalizeLicenseKey, normalizeMachineId } from './license';
 
@@ -527,16 +527,34 @@ export async function findOrCreateUser(
   const id = generateId();
   const now = new Date();
 
-  await db.insert(schema.user).values({
-    id,
-    name: normalizedEmail.split('@')[0], // Default name from email
-    email: normalizedEmail,
-    normalizedEmail,
-    emailVerified: false,
-    customerId: stripeCustomerId ?? null,
-    createdAt: now,
-    updatedAt: now,
-  });
+  try {
+    await db.insert(schema.user).values({
+      id,
+      name: normalizedEmail.split('@')[0], // Default name from email
+      email: normalizedEmail,
+      normalizedEmail,
+      emailVerified: false,
+      customerId: stripeCustomerId ?? null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  } catch (error) {
+    // Race fallback: a concurrent request (e.g. Stripe redelivering the same
+    // webhook) may have inserted this email between our find and insert.
+    // UNIQUE(email) rejects the loser — recover by re-reading the winner.
+    const concurrent = await db.query.user.findFirst({
+      where: eq(schema.user.email, normalizedEmail),
+    });
+    if (!concurrent) throw error;
+    if (stripeCustomerId && concurrent.customerId !== stripeCustomerId) {
+      await db
+        .update(schema.user)
+        .set({ customerId: stripeCustomerId, updatedAt: new Date() })
+        .where(eq(schema.user.id, concurrent.id));
+      return { ...concurrent, customerId: stripeCustomerId };
+    }
+    return concurrent;
+  }
 
   const newUser = await db.query.user.findFirst({
     where: eq(schema.user.id, id),
@@ -865,6 +883,38 @@ export async function getLicenseByUserEmailLatest(
     where: and(
       eq(schema.licenses.userId, userRow.id),
       eq(schema.licenses.status, 'active')
+    ),
+    orderBy: desc(schema.licenses.createdAt),
+  });
+
+  return license ?? null;
+}
+
+/**
+ * Get the most recent NON-EXPIRED license for a user identified by email —
+ * any status except 'expired' (active, past_due, canceled, revoked).
+ *
+ * Used by free-tier provisioning idempotency: a paid license that lapsed
+ * into past_due/canceled must still block a fresh community license from
+ * being issued for the same email (it would shadow the billing problem and
+ * leave the user with two keys). Only a fully expired license frees the
+ * email for re-provisioning.
+ */
+export async function getNonExpiredLicenseByUserEmail(
+  db: DrizzleDb,
+  email: string
+): Promise<schema.License | null> {
+  const normalizedEmail = email.toLowerCase();
+
+  const userRow = await db.query.user.findFirst({
+    where: eq(schema.user.email, normalizedEmail),
+  });
+  if (!userRow) return null;
+
+  const license = await db.query.licenses.findFirst({
+    where: and(
+      eq(schema.licenses.userId, userRow.id),
+      ne(schema.licenses.status, 'expired')
     ),
     orderBy: desc(schema.licenses.createdAt),
   });

@@ -33,7 +33,20 @@ Items deliberately scoped out of the 2026-04-19 commercial-flow work but worth t
 
 ## 3. Webhook idempotency stress test
 
-**Status:** Idempotency is verified by unit tests (`isEventProcessed` / `markEventProcessed`) and by the e2e harness's happy-path webhook delivery. Not stress-tested.
+**Status (updated 2026-07-04):** Idempotency is now genuinely covered by
+`apps/api/tests/stripe-webhook.test.ts` against the real `handleStripeWebhook`
+handler and a real (Miniflare D1) database: sequential redelivery of the same
+`evt_` id, 5× concurrent redelivery of the same event, and redelivery of the
+same subscription/session under *different* event ids (relies on
+`UNIQUE(stripe_subscription_id)` and the `UNIQUE(stripe_session_id)` index
+restored by migration 012). Historical note: before 2026-07-04 this section
+claimed unit-test coverage that did not exist — the old stripe-webhook.test.ts
+never invoked the handler.
+
+Still NOT covered: high-volume stress (50+ concurrent), event-ordering
+permutations (`subscription.created` before `checkout.session.completed`,
+interleaved `invoice.paid`), and redelivery through a real `wrangler dev`
+HTTP stack rather than direct handler invocation.
 
 **Why it matters:** Production Stripe retries events aggressively (up to 3 days with exponential backoff). Local `stripe listen` delivers each event exactly once — fundamentally different behaviour. A bug that surfaces only under retries won't be caught by current tests.
 

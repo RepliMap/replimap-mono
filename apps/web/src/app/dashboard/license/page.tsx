@@ -1,4 +1,4 @@
-import { currentUser } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getLicenseDetails, getOrProvisionLicenseKey, getMachinesLimit } from '@/lib/api';
@@ -15,9 +15,34 @@ export default async function LicensePage() {
     redirect('/sign-in');
   }
 
-  // Get user's license key — auto-provision community license if none exists
-  const email = user.emailAddresses[0]?.emailAddress ?? null;
-  const licenseKey = email ? await getOrProvisionLicenseKey(email) : null;
+  // Get user's license key — auto-provision community license if none exists.
+  // The account is identified by the Clerk session token (forwarded to the
+  // backend), never by a client-supplied email.
+  const { getToken } = await auth();
+  const token = await getToken();
+  const keyResult = await getOrProvisionLicenseKey(token);
+
+  // API failure is NOT "no license" — surface it so the user can retry.
+  if (keyResult?.status === 'error') {
+    return (
+      <div className="min-h-screen bg-background pt-20">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold">License</h1>
+            <Link
+              href="/dashboard"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              ← Back to Dashboard
+            </Link>
+          </div>
+          <ErrorState error={new Error(keyResult.message)} />
+        </div>
+      </div>
+    );
+  }
+
+  const licenseKey = keyResult?.status === 'ok' ? keyResult.licenseKey : null;
 
   if (!licenseKey) {
     return (

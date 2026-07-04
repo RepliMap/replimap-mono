@@ -74,3 +74,10 @@ yarn-error.log*
 *.tmp
 .cache/
 *.tsbuildinfo
+
+# Claude tooling / claude-mem artifacts (not project source)
+CLAUDE.md
+.agents/
+.claude/
+skills-lock.json
+all_docs_replimap_mono.txt

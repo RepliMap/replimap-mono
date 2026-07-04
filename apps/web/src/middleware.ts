@@ -1,9 +1,12 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// Whitelist approach: ONLY dashboard requires auth
+// Whitelist approach: dashboard and checkout require auth
 // Landing page, docs, pricing, etc. - all public
-const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
+const isProtectedRoute = createRouteMatcher([
+  "/dashboard(.*)",
+  "/checkout(.*)",
+]);
 
 // Paths that should completely bypass Clerk
 const BYPASS_PATHS = ["/sitemap.xml", "/robots.txt"];

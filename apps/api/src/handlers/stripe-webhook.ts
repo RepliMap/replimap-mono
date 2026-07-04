@@ -420,12 +420,22 @@ async function handleSubscriptionUpdated(
     console.log(`[Stripe] Deactivated ${devicesDeactivated} devices for license ${license.id}`);
   }
 
+  // Stripe can omit current_period_start/end on the subscription object
+  // (newer API versions move them to subscription items). Guard the
+  // conversion like handleSubscriptionCreated does — an unguarded
+  // timestampToISO(undefined) throws and turns the plan change into a 500.
   await updateLicensePlan(db, license.id, {
     plan: newPlan,
     status,
     stripePriceId: priceId,
-    currentPeriodStart: timestampToISO(subscription.current_period_start),
-    currentPeriodEnd: timestampToISO(subscription.current_period_end),
+    currentPeriodStart:
+      typeof subscription.current_period_start === 'number'
+        ? timestampToISO(subscription.current_period_start)
+        : undefined,
+    currentPeriodEnd:
+      typeof subscription.current_period_end === 'number'
+        ? timestampToISO(subscription.current_period_end)
+        : undefined,
   });
 }
 

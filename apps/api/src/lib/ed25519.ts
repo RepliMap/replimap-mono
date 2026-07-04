@@ -198,16 +198,23 @@ export async function generateEd25519KeyPair(): Promise<{
     ['sign', 'verify']
   )) as CryptoKeyPair;
 
-  const privateKeyBuffer = await crypto.subtle.exportKey('raw', keyPair.privateKey);
-  const publicKeyBuffer = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+  // Export in the formats the signer/verifier import: signLicenseBlob
+  // expects PKCS8 for the private key, verifyLicenseBlob expects SPKI for
+  // the public key. ('raw' export is not even supported for Ed25519
+  // private keys — the previous implementation threw at runtime.)
+  const privateKeyBuffer = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+  const publicKeyBuffer = await crypto.subtle.exportKey('spki', keyPair.publicKey);
+  // The raw 32-byte public key is what the CLI embeds (hex).
+  const publicKeyRawBuffer = await crypto.subtle.exportKey('raw', keyPair.publicKey);
 
   const privateKeyBytes = new Uint8Array(privateKeyBuffer as ArrayBuffer);
   const publicKeyBytes = new Uint8Array(publicKeyBuffer as ArrayBuffer);
+  const publicKeyRawBytes = new Uint8Array(publicKeyRawBuffer as ArrayBuffer);
 
   return {
     privateKey: base64Encode(privateKeyBytes),
     publicKey: base64Encode(publicKeyBytes),
-    publicKeyHex: bytesToHex(publicKeyBytes),
+    publicKeyHex: bytesToHex(publicKeyRawBytes),
   };
 }
 

@@ -18,18 +18,31 @@ import { Errors } from './errors';
 /**
  * Generate a random license key
  * Format: RM-XXXX-XXXX-XXXX-XXXX
+ *
+ * License keys are bearer credentials, so the characters come from the
+ * platform CSPRNG (crypto.getRandomValues), never Math.random. Rejection
+ * sampling (accept < 252 = 7×36) keeps the 36-character alphabet unbiased.
  */
 export function generateLicenseKey(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const segments: string[] = [];
+  const needed = 16;
+  const out: string[] = [];
 
-  for (let i = 0; i < 4; i++) {
-    let segment = '';
-    for (let j = 0; j < 4; j++) {
-      segment += chars[Math.floor(Math.random() * chars.length)];
+  while (out.length < needed) {
+    const bytes = crypto.getRandomValues(new Uint8Array(needed * 2));
+    for (const byte of bytes) {
+      if (byte < 252 && out.length < needed) {
+        out.push(chars[byte % chars.length]);
+      }
     }
-    segments.push(segment);
   }
+
+  const segments = [
+    out.slice(0, 4).join(''),
+    out.slice(4, 8).join(''),
+    out.slice(8, 12).join(''),
+    out.slice(12, 16).join(''),
+  ];
 
   return `RM-${segments.join('-')}`;
 }

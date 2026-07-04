@@ -138,6 +138,16 @@ export async function handleCreateCheckout(
       throw Errors.invalidRequest('Invalid email format');
     }
 
+    // Sovereign is sales-assisted only: its Stripe price ids are placeholders
+    // that don't exist, so forwarding the request would fail with an opaque
+    // Stripe error. Refuse it up front with an actionable message.
+    if (body.plan === 'sovereign') {
+      throw Errors.invalidRequest(
+        'The sovereign plan is not available for self-serve checkout. ' +
+          'Please contact sales to purchase sovereign.'
+      );
+    }
+
     // Validate plan and resolve price ID based on billing period
     const billingPeriod = body.billing_period || 'monthly';
 
