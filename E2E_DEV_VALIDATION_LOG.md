@@ -29,8 +29,8 @@
 | 6a | (插入)refund license 定位修复(B:payment_intent 精确定位 + A:customer_creation=always) | ✅ 2026-07-04 已修复+部署+真实事件复验 |
 | 7 | customer.deleted → licenses expired | ✅ 2026-07-04(注意复合行为:active→expired,past_due→canceled,见小节) |
 | 8 | 幂等性压力测试(迁移 012 UNIQUE 层) | ✅ 2026-07-04(方式:远程 D1 约束直压 + 真实 handler 5 路并发,原因见小节) |
-| 9 | CLI 侧验证(真实 key 功能门禁) | ⬜ |
-| 收尾 | 清理全部测试数据,恢复 D1 基线,行数对比 | ⬜ |
+| 9 | CLI 侧验证(真实 key 功能门禁) | ✅ 2026-07-04 |
+| 收尾 | 清理全部测试数据,恢复 D1 基线,行数对比 | ✅ 2026-07-04 全部完成 |
 
 ## 权威任务清单(A6 剩余验证项,用户 2026-07-04 提供原文)
 
@@ -193,9 +193,39 @@ Item 3 的 P1 发现按用户决定**立即修复**(理由:收入完整性 + Ite
   2. **真实 handler 并发压**(真 `handleStripeWebhook` + 真 HMAC 签名 + 真 D1,唯一非生产处是 Miniflare SQLite 而非远程 D1):新增 **5 路 Promise.all 并发**、5 个**不同 event.id**、同一 session 的 lifetime 投递 → 全部 200、5 个事件全部入账 `processed_events`、**仅 1 张 license**。既有的 2 路并发与"subscription.created 不同 event id 重投"测试同时保持绿。文件内 48/48。
 - **结论**:012 的 UNIQUE 约束在生产形态数据库上确实生效;竞态下 handler 依赖它收敛到单张 license 且无异常(race fallback 吞掉重复插入并返回 200)。两层证据合起来覆盖清单目标;"经部署 HTTP 栈的不同 event.id 并发"因签名不可伪造而不可达,此局限已如实记录(与 PAYMENT_HARDENING_LOG §3 的历史备注一致)。
 
+## Item 9:CLI 侧验证 ✅
+
+- **环境安全确认**:CLI(`org-replimap/replimap` Python 仓库,`replimap/licensing/manager.py`)**默认**就指向 dev worker(`API_BASE_URL_DEV = replimap-api.davidlu1001.workers.dev/v1`,注释 "Use dev API by default until production is ready"),另有 `REPLIMAP_LICENSE_API` 环境变量覆盖。执行时显式设 `REPLIMAP_LICENSE_API=https://api-dev.replimap.com/v1` 并确保 `REPLIMAP_DEV_MODE` 未设(它会绕过全部校验)。**无误打 prod 风险**(prod 常量是 api.replimap.io,未被使用)。
+- **触发方式**:备份本机 `~/.replimap/license.json` → `uv run replimap license activate RM-XRLI-E40S-N9CO-MN09` → `license status` → 恢复备份。
+- **实际结果**:PASS。
+  - activate:`POST api-dev…/v1/license/validate` 200,识别 **Plan: PRO**,Expires **2099-12-31**(lifetime 语义正确);
+  - 功能门禁矩阵与 pro 档位定义精确一致——**可用**:Unlimited Resources / Async Scanning / Multi-Account(AWS Accounts 限 3,符合 pro `max_aws_accounts=3`);**不可用**(更高档位专属):Team Collaboration / SSO / Audit Logs / Web Dashboard / Custom Templates;
+  - 服务端注册了机器行 `license_machines/62ad4f54-…`(07:43:19,ON DELETE CASCADE,随 license 清理)。
+- **小观察(cosmetic)**:activate/status 面板的 Email 字段为空(license 归属 stripe@example.com)——validate 响应或 CLI 展示未带 email,不影响门禁,记录备查。
+
 ---
 
-## 清理台账(9 项全部完成后统一执行)
+## 收尾:清理执行记录(2026-07-04)✅
+
+**D1 行数对比(replimap-dev,remote)**:
+
+| 表 | 清理前 | 清理后 | 基线(验证前) | 删除内容 |
+|---|---|---|---|---|
+| licenses | 8 | **3** | 3 ✅ | 5 张测试 license(RM-XRLI/CCEM/BM7S/VN6K/TCCB) |
+| user | 4 | **1** | 1 ✅ | 3 个测试 user(stripe@example.com、e2e-community、e2e-upgrade) |
+| license_machines | 1 | **0** | 0 ✅ | Item 9 的机器注册(随 license 级联,DELETE changes=7 含级联行) |
+| processed_events | 21 | **1** | 1 ✅ | 今天全部 20 个测试事件 + 尾扫 1 个(删 cus_UozcA 触发的 customer.deleted);保留 2026-01-09 基线行 |
+| usage_logs | 1 | **0** | 0 ✅ | Item 9 CLI validate 日志 |
+
+基线数据完好:3 张 2025-12 license(user 81857627/davidlu1001@gmail.com)与 2026-01-09 的 processed_event 原样保留。
+
+**Stripe sandbox**:customer `cus_Up1nPIHB7WPdqJ`(Item 7 已删)、`cus_UozcAiSe7rlbHG`(收尾删除,附带订阅已在 Item 4 取消);6 个 fixture "myproduct" product 全部归档(active=false);refund/已付 invoice 属不可删的账务记录,归档留存;未支付 session `cs_test_b1hA90…` 24h 自动过期。
+
+**Clerk(dev)**:测试用户 `user_3G1TPqmZ3eXxPww8xFmLy9RPFvl` 已删除(sessions 随之失效)。
+
+**本机**:`~/.replimap/license.json` 已在 Item 9 结束时恢复原备份。
+
+## 清理台账(9 项全部完成后统一执行)——已全部执行,见上方收尾记录
 
 | 类型 | 对象 | 来源 |
 |------|------|------|
