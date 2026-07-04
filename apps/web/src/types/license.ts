@@ -50,8 +50,13 @@ export interface LicenseDetails {
   expires_at: string | null;
   /** Offline grace period in days */
   offline_grace_days: number;
-  /** List of activated devices */
-  fingerprints: Fingerprint[];
+  /**
+   * List of activated devices. Optional: `GET /v1/me/license` does NOT include
+   * this field (the device list comes from `GET /v1/me/machines`), so it is
+   * absent at runtime for licenses loaded from that endpoint. Access it via
+   * the helpers in `lib/license-view` so a missing array never crashes.
+   */
+  fingerprints?: Fingerprint[];
 }
 
 /**

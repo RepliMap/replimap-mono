@@ -5,6 +5,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { LicenseDetails } from '@/types/license';
+import { activeDeviceCount } from '@/lib/license-view';
 
 interface LicenseCardProps {
   license: LicenseDetails;
@@ -54,7 +55,7 @@ export function LicenseCard({ license }: LicenseCardProps) {
           <div>
             <dt className="text-sm text-muted-foreground">Active Devices</dt>
             <dd className="text-2xl font-bold mt-1">
-              {license.fingerprints.length}
+              {activeDeviceCount(license)}
             </dd>
           </div>
         </dl>

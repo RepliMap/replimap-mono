@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { getMachinesLimit } from '@/lib/api';
+import { licenseFingerprints } from '@/lib/license-view';
 import { useLicense, type LicenseState } from '@/hooks/useLicense';
 import { LicenseCard } from '@/components/license-card';
 import { DeviceList } from '@/components/device-list';
@@ -63,7 +64,7 @@ function LicenseBody({
         plan={license.plan}
       />
       <DeviceList
-        devices={license.fingerprints}
+        devices={licenseFingerprints(license)}
         licenseKey={licenseKey}
         machinesLimit={getMachinesLimit(license.plan)}
         onDeactivated={reload}
