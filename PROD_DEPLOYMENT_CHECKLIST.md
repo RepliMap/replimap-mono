@@ -104,10 +104,12 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
 
 ### 1.5 部署后端到端冒烟测试
 
-参照 `E2E_DEV_VALIDATION_LOG.md` 的方法,在 prod 上至少验证:
-- [ ] 一次真实 test-mode(如果 prod 连的是 live Stripe 账户,用 Stripe 的测试卡功能;如果还没切到 live,继续用 sandbox)lifetime checkout → webhook 200 → license 正确落库
-- [ ] 一次 provision-community 调用(真实 Clerk 登录)→ 正确开通,且伪造他人邮箱会被拒绝(403)
-- [ ] 确认 `[Stripe][MANUAL_REVIEW]` 这类关键错误日志在 prod 上是否有实际可见的监控/告警渠道(如果只有 `wrangler tail` 能看到,建议先接入 Cloudflare Logpush 或等效告警,否则这类"收了钱但发错/不发 license"的情况不会被及时发现)
+**✅ 支付主链路(正向 + 退款/取消)已在 live 环境端到端验证 —— 证据:[`PROD_E2E_SMOKE_TEST_LOG.md`](./PROD_E2E_SMOKE_TEST_LOG.md)(2026-07-05:真实 $29 Pro Monthly 购买 → 退款 + 立即取消,全程按预期)。**
+
+参照 `E2E_DEV_VALIDATION_LOG.md` 的方法,在 prod 上验证:
+- [x] 真实 live 交易 → webhook 200 → license 正确落库:本次以 **subscription 模式 + 全额退款/取消**验证(比"test-mode lifetime"更强);`checkout.session.completed`/`customer.subscription.created`/`invoice.paid` 三事件均入 processed_events,退款/取消逆向链路也验证通过,全表零漂移。lifetime checkout 未单独跑,可选补测。
+- [ ] provision-community:鉴权闸门已验证(无 token → 503→401,见前述只读探测);**正向开通(真实 Clerk 登录)+ 伪造他人邮箱被拒(403)仍待验证**。
+- [ ] 确认 `[Stripe][MANUAL_REVIEW]` 这类关键错误日志在 prod 上是否有实际可见的监控/告警渠道(**仍未接入**;建议 Cloudflare Logpush 或等效告警,否则"收了钱但发错/不发 license"不会被及时发现)。
 
 ---
 
