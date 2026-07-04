@@ -31,12 +31,19 @@ interface DeviceListProps {
   devices: Fingerprint[];
   licenseKey: string;
   machinesLimit: number;
+  /**
+   * Called after a device is successfully deactivated. When the parent owns the
+   * device data (client-side fetching), it should re-fetch here. Falls back to
+   * router.refresh() for server-rendered callers that don't pass it.
+   */
+  onDeactivated?: () => void;
 }
 
 export function DeviceList({
   devices,
   licenseKey,
   machinesLimit,
+  onDeactivated,
 }: DeviceListProps) {
   const router = useRouter();
   const [deactivating, setDeactivating] = useState<string | null>(null);
@@ -51,7 +58,11 @@ export function DeviceList({
         license_key: licenseKey,
         machine_fingerprint: fingerprint,
       });
-      router.refresh();
+      if (onDeactivated) {
+        onDeactivated();
+      } else {
+        router.refresh();
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to deactivate device'
