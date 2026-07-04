@@ -194,6 +194,13 @@ export async function handleCreateCheckout(
 
     if (!isLifetime) {
       checkoutBody['subscription_data[metadata][plan]'] = body.plan;
+    } else {
+      // Payment mode defaults to customer_creation=if_required, which
+      // usually creates NO Customer — the resulting charge then has
+      // customer=null and refund handling can only resolve the license via
+      // payment_intent. Always create one so the buyer's user row gets a
+      // customer_id and customer-based flows (refunds, support lookups) work.
+      checkoutBody['customer_creation'] = 'always';
     }
 
     const session = await stripeRequest(env, 'checkout/sessions', checkoutBody);

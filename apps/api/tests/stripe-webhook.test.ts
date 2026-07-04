@@ -757,6 +757,83 @@ describe('charge.refunded', () => {
     expect(licenses[0].revoked_reason).toContain('ch_test_Charge01');
   });
 
+  // Real lifetime purchases have NO customer on the charge (checkout payment
+  // mode defaults to customer_creation=if_required). The charge must be
+  // mapped to its checkout session via payment_intent instead. Verified live
+  // on dev 2026-07-04: refund re_3TpKfg… no-op'd with
+  // "[Stripe] No customer on refunded charge".
+  it('customer=null: resolves the license via payment_intent → checkout session and revokes it', async () => {
+    await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        metadata: { plan: 'pro', billing_period: 'lifetime' },
+      })
+    );
+
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe(
+        'https://api.stripe.com/v1/checkout/sessions?payment_intent=pi_test_PI01&limit=1'
+      );
+      return new Response(
+        JSON.stringify({ data: [{ id: 'cs_test_Session01' }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const res = await deliver(
+      chargeEvent({ customer: null, payment_intent: 'pi_test_PI01' })
+    );
+    expect(res.status).toBe(200);
+
+    const licenses = await licenseRows();
+    expect(licenses[0].status).toBe('revoked');
+    expect(licenses[0].revoked_reason).toContain('ch_test_Charge01');
+  });
+
+  it('with several lifetime licenses, payment_intent resolution revokes exactly the purchased one', async () => {
+    // Two lifetime purchases on the same account, different sessions.
+    await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        metadata: { plan: 'pro', billing_period: 'lifetime' },
+      })
+    );
+    await deliver(
+      checkoutCompletedEvent({
+        id: 'cs_test_Session02',
+        mode: 'payment',
+        subscription: null,
+        metadata: { plan: 'team', billing_period: 'lifetime' },
+      })
+    );
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ data: [{ id: 'cs_test_Session01' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      )
+    );
+
+    // The refund is for the FIRST purchase. The customer heuristic
+    // ("most recent lifetime") would pick Session02's license — wrong.
+    const res = await deliver(
+      chargeEvent({ customer: CUSTOMER, payment_intent: 'pi_test_PI01' })
+    );
+    expect(res.status).toBe(200);
+
+    const bySession = Object.fromEntries(
+      (await licenseRows()).map((l) => [l.stripe_session_id, l])
+    );
+    expect(bySession['cs_test_Session01'].status).toBe('revoked');
+    expect(bySession['cs_test_Session02'].status).toBe('active');
+  });
+
   it('leaves subscription licenses untouched (refund handled via subscription.deleted)', async () => {
     await seedSubscriptionLicense();
 

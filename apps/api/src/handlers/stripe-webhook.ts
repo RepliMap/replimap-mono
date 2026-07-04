@@ -614,10 +614,23 @@ async function handleCustomerDeleted(
  */
 async function handleChargeRefunded(
   db: DrizzleDb,
-  charge: StripeCharge
+  charge: StripeCharge,
+  env: Env
 ): Promise<void> {
   console.log(`[Stripe] Charge refunded: ${charge.id}`);
 
+  // Exact resolution first: map the charge to the checkout session it paid
+  // for and revoke that specific license. Lifetime charges usually carry NO
+  // customer (checkout payment mode defaults to customer_creation=
+  // if_required), and the customer heuristic below picks the *most recent*
+  // lifetime license — wrong when an account holds several.
+  if (charge.payment_intent) {
+    const resolved = await revokeLicenseByPaymentIntent(db, charge, env);
+    if (resolved) return;
+  }
+
+  // Fallback: legacy events without payment_intent, or no session/license
+  // matched — resolve via customer → most recent lifetime license.
   if (!charge.customer) {
     console.warn(`[Stripe] No customer on refunded charge ${charge.id}`);
     return;
@@ -652,6 +665,78 @@ async function handleChargeRefunded(
   // Revoke the license
   await revokeLicense(db, license.id, `Refunded: charge_${charge.id}`);
   console.log(`[Stripe] Lifetime license ${license.id} revoked due to refund`);
+}
+
+/**
+ * Resolve the exact license a refunded charge paid for:
+ * charge.payment_intent → checkout session → licenses.stripe_session_id.
+ *
+ * Returns true when the charge was definitively resolved to a license
+ * (revoked, or deliberately skipped because it isn't an active lifetime
+ * license). Returns false when no session/license matched, so the caller
+ * may fall back to the customer heuristic.
+ */
+async function revokeLicenseByPaymentIntent(
+  db: DrizzleDb,
+  charge: StripeCharge,
+  env: Env
+): Promise<boolean> {
+  let sessionId: string | undefined;
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/checkout/sessions?payment_intent=${encodeURIComponent(
+        charge.payment_intent ?? ''
+      )}&limit=1`,
+      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(
+        `[Stripe] Session lookup for payment_intent ${charge.payment_intent} ` +
+        `failed (status ${res.status}). Falling back to customer resolution.`
+      );
+      return false;
+    }
+    const body = (await res.json()) as { data?: Array<{ id?: string }> };
+    sessionId = body.data?.[0]?.id;
+  } catch (error) {
+    console.warn(
+      `[Stripe] Session lookup for payment_intent ${charge.payment_intent} ` +
+      `threw: ${error instanceof Error ? error.message : String(error)}. ` +
+      `Falling back to customer resolution.`
+    );
+    return false;
+  }
+
+  if (!sessionId) {
+    return false; // Charge wasn't made through Checkout (or session expired).
+  }
+
+  const license = await getLicenseBySessionId(db, sessionId);
+  if (!license) {
+    return false; // e.g. subscription checkout — no session id on the license.
+  }
+
+  if (license.planType !== 'lifetime') {
+    console.log(
+      `[Stripe] License ${license.id} for session ${sessionId} is not ` +
+      `lifetime (${license.planType}), ignoring refund`
+    );
+    return true;
+  }
+
+  if (license.status !== 'active') {
+    console.log(
+      `[Stripe] License ${license.id} already ${license.status}, ignoring refund`
+    );
+    return true;
+  }
+
+  await revokeLicense(db, license.id, `Refunded: charge_${charge.id}`);
+  console.log(
+    `[Stripe] Lifetime license ${license.id} revoked due to refund ` +
+    `(resolved via payment_intent ${charge.payment_intent})`
+  );
+  return true;
 }
 
 /**
@@ -780,7 +865,8 @@ export async function handleStripeWebhook(
       case 'charge.refunded':
         await handleChargeRefunded(
           db,
-          event.data.object as unknown as StripeCharge
+          event.data.object as unknown as StripeCharge,
+          env
         );
         break;
 

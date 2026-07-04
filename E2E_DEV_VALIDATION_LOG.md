@@ -23,7 +23,52 @@
 | 2 | 社区版授权开通(auth 必须) | ✅ 2026-07-04 |
 | 3 | 订阅升级/降级(subscription.updated) | ✅ 2026-07-04 |
 | 3a | (插入)invoice.subscription 字段修复(Item 3 发现的 P1) | ✅ 2026-07-04 已修复+部署+真实事件复验 |
-| 4–9 | (按任务清单继续,完成一项补一行) | ⬜ |
+| 4 | 订阅取消(subscription.deleted) | ✅ 2026-07-04 |
+| 5 | 扣款失败(invoice.payment_failed + P1-7) | ✅ 2026-07-04 |
+| 6 | 退款 lifetime(charge.refunded) | ✅ 2026-07-04(首测发现缺陷 → 6a 修复后真实场景复验通过) |
+| 6a | (插入)refund license 定位修复(B:payment_intent 精确定位 + A:customer_creation=always) | ✅ 2026-07-04 已修复+部署+真实事件复验 |
+| 7 | customer.deleted → licenses expired | ⬜ |
+| 8 | 幂等性压力测试(迁移 012 UNIQUE 层) | ⬜ |
+| 9 | CLI 侧验证(真实 key 功能门禁) | ⬜ |
+| 收尾 | 清理全部测试数据,恢复 D1 基线,行数对比 | ⬜ |
+
+## 权威任务清单(A6 剩余验证项,用户 2026-07-04 提供原文)
+
+> 以下为用户提供的原文,是本轮验证的**权威清单**。新会话直接读本节,不要依赖会话记忆重建。
+
+### 4. 订阅取消
+- 触发 customer.subscription.deleted
+- 确认:license 状态正确变为 canceled 或对应状态,而不是被删除或者卡在 active
+
+### 5. 扣款失败
+- 触发 invoice.payment_failed
+- 确认:license 状态变为 past_due(或对应状态);同时验证 P1-7
+  ——此时如果同一用户触发 provision-community,不会因为付费 license 变
+  non-active 就被社区版覆盖
+
+### 6. 退款(lifetime)
+- 对 Item 1 创建的那个 lifetime license 对应的 charge 触发 charge.refunded
+- 确认:该 lifetime license 被正确撤销(状态变为 revoked 或对应状态)
+
+### 7. customer.deleted
+- 触发 customer.deleted
+- 确认:该 customer 名下所有 license 正确置为 expired
+
+### 8. 幂等性压力测试
+- 对 Item 1 的 checkout.session.completed 事件,用 Stripe CLI 或脚本方式
+  快速连续投递 3-5 次(模拟并发重投)
+- 确认:只有一张 license 被创建,没有因为竞态产生重复或报错
+- 这一项是真正验证迁移 012 UNIQUE 约束的地方(Item 1 的 Resend 验证的只是
+  事件级幂等,不是 012 那层)
+
+### 9. CLI 侧验证
+- 用 Item 1 真实生成的 license key,跑一次 replimap CLI 命令
+- 确认:CLI 能正确识别这个 plan,功能门禁符合对应档位应有的权限
+
+### 收尾(9 项全部完成后)
+清理本轮产生的全部测试数据(license、user、customer、订阅——注意 sub_1TpLd5...
+是活跃订阅,需要先 cancel 再清理,否则 sandbox 会持续续费产生事件),恢复
+dev D1 到验证前的基线状态,汇报清理前后的行数对比。
 
 ---
 
@@ -78,6 +123,58 @@ Item 3 的 P1 发现按用户决定**立即修复**(理由:收入完整性 + Ite
 - **真实事件复验**:对 `sub_1TpLd5…` 创建并支付真实订阅发票 `in_1TpNPwAKLIiL9hdwqRdwfiuo` → 事件 `evt_1TpNQ1AKLIiL9hdw7ozVQJDg` 200 处理,license `current_period_end`:**null → 2026-08-04T04:56:39Z**(line period end 精确一致),`current_period_start` 同步修正为真实值,plan/status 不受影响。
 - **未覆盖**:`invoice.payment_failed` 的真实投递验证留给 Item 5(clover 形态已有单测锁定)。
 
+## Item 4:订阅取消(customer.subscription.deleted)✅
+
+- **触发方式**:对 Item 3 的真实订阅执行 `DELETE /v1/subscriptions/sub_1TpLd5AKLIiL9hdwKYDaNHQ8`(立即取消,Stripe 侧 status=canceled @ 07:00:32Z)→ Stripe 真实投递 `customer.subscription.deleted`(`evt_1TpNYyAKLIiL9hdwZa08123G`)。
+- **验证的关键点**:license 状态变为 canceled;行**不被删除**;不卡在 active。
+- **实际结果**:PASS(事件后 ~1.2s 内)。
+  - license `abe18793-…`(RM-BM7S-AN8R-X1R4-3JK4):status `active` → **`canceled`**,`canceled_at=2026-07-04T07:00:33.775Z`;
+  - 行保留,plan=team / plan_type=monthly / key / period(07-04→08-04)全部原样不动;
+  - `processed_events` 含该事件,200 处理。
+- **附带效果**:收尾清单要求的"先 cancel 活跃订阅 `sub_1TpLd5…`"已由本项提前完成,该订阅不会再产生续费事件,清理时直接删数据即可。
+- **注**:Item 5(扣款失败)需要一个 active 的订阅 license,届时新建专用订阅,不复用本条(已 canceled)。
+
+## Item 5:扣款失败(invoice.payment_failed)+ P1-7 不被社区版覆盖 ✅
+
+- **触发方式**:
+  1. 新建专用 customer `cus_Up1nPIHB7WPdqJ`(email=`e2e-community@replimap-test.dev`,与 Item 2 的 Clerk 测试用户同邮箱)+ Pro monthly 订阅 `sub_1TpNk4AKLIiL9hdw5SKhWU18`(visa 首扣成功)→ webhook 建 license `62ecc8a1-…`(RM-VN6K-5V9M-AIHV-8IZN,plan=pro,active),**与 Clerk 身份落在同一 D1 user `5bc58735-…`** ✅;
+  2. attach `pm_card_chargeCustomerFail` → 对该订阅建真实发票 `in_1TpNklAKLIiL9hdw7e2CadTn`($29)→ finalize → `/pay` 用失败卡 → `card_declined` → Stripe 投递 `invoice.payment_failed`(`evt_1TpNkpAKLIiL9hdw4rCBdrxu`);
+  3. Clerk BAPI 重新签发真实 session(`sess_3G1q1nsodcJFCqi3CWJeHSZsviM`)+ token,**立即**调 `POST /v1/license/provision-community`。
+- **实际结果**:PASS(全部四个断言)。
+  - license `RM-VN6K…` status `active` → **`past_due`**(事件后 <1s,07:12:48);
+  - **P1-7**:provision-community 返回 HTTP 200 `{"license_key":"RM-VN6K-5V9M-AIHV-8IZN","plan":"pro","status":"past_due","created":false}`——命中 `getNonExpiredLicenseByUserEmail`(取最新非 expired,past_due 算非 expired),付费 license **原样透出**;
+  - 未新建任何 license 行(该 user 仍为 2 行:community active + pro past_due),付费行未被改动;
+  - Item 2 的旧 community license 不干扰断言(lookup 按 createdAt desc 取最新)。
+- **附带验证**:3a 修复在 `invoice.payment_failed` 路径的真实投递验证在此完成(此前仅单测锁定)——clover 形态下事件被正确识别为订阅发票。
+- **额外观察**:新订阅 license 的 `current_period_end` 再次为 null——followups §5 时序问题的又一次现场复现(首期 invoice.paid 先于 subscription.created 到达),与 3a 字段修复无关,维持 open。
+
+## Item 6:退款 lifetime(charge.refunded)❌ 发现缺陷
+
+- **触发方式**:对 Item 1 的真实 charge 执行 `POST /v1/refunds`(charge=`ch_3TpKfgAKLIiL9hdw1nd67oRY`,refund `re_3TpKfgAKLIiL9hdw1dmtZuXi` succeeded,$30 全退)→ Stripe 投递 `charge.refunded`(`evt_3TpKfgAKLIiL9hdw1WKFf6tV`)。
+- **实际结果**:**license 未被撤销**。lifetime license `RM-XRLI-E40S-N9CO-MN09` 保持 `active`,revoked_at/revoked_reason 均为 null。事件本身 200 处理并进入 `processed_events`(即重投也不会再触发撤销)。
+- **直接证据**(wrangler tail 抓取 worker 日志):
+  ```
+  [Stripe] Charge refunded: ch_3TpKfgAKLIiL9hdw1nd67oRY
+  [Stripe] No customer on refunded charge ch_3TpKfgAKLIiL9hdw1nd67oRY   (warn → no-op)
+  ```
+- **根因链(不是 fixture 偏差,生产同样会踩)**:
+  1. `handleChargeRefunded` 唯一的定位路径是 `charge.customer` → `user.customer_id` → 该用户最新 lifetime license;
+  2. 生产 checkout(`billing.ts` `createCheckoutSession`)对 lifetime 走 `mode=payment`,只传 `customer_email`,**未设 `customer_creation=always`**——Stripe payment mode 默认 `if_required`,一般**不创建 Customer** → 真实 lifetime 购买的 charge 同样 `customer=null`;
+  3. 且 lifetime 买家的 D1 `user.customer_id` 也为 null(`checkout.session.completed` 时 `session.customer` 为 null)。两头都断。
+  4. 现有单测的 charge fixture 带 customer,能过但不代表生产形态。
+- **性质**:收入完整性问题(退了钱、license 还在,方向对客户有利)。与 3a 同类。
+- **断言 3(不误伤)**:通过——Item 5 的 pro/past_due 与 Item 2 的 community 均未被改动(no-op 自然不误伤,但此断言在修复后需重验)。
+- **状态**:已按 B 为主 + A 顺手 修复并重验通过,见下方 Item 6a。
+
+## Item 6a(插入):refund license 定位修复 ✅
+
+详细记录见 **`REFUND_LICENSE_LOOKUP_FIX_LOG.md`**。摘要:
+
+- **B(主)**:`handleChargeRefunded` 新增 `charge.payment_intent` → checkout session → `licenses.stripe_session_id` 精确定位;未命中回退 customer 启发式。**A(顺手)**:lifetime checkout session 增加 `customer_creation: 'always'`(经真实 dev API 创建 session 实测确认)。
+- **RED→GREEN**:2 个新测试(customer=null 生产形态 + 多张 lifetime 精确性),修复后 47/47;全量 api 199 + web 4 无回归;部署 dev version `c00bb334`。
+- **真实场景复验**:`stripe trigger` 复刻 lifetime 购买(customer=None,同 stripe@example.com 用户)→ license `RM-TCCB-R80J-IMQQ-H49A` → 真实退款 `re_3TpO0Q…` → **revoked**,reason=`Refunded: charge_ch_3TpO0Q…`,日志显示 `resolved via payment_intent`。同用户另一张 lifetime `RM-XRLI…` 保持 active(多张精确性实证);Item 5/2 的 license 不受影响(断言 3 重验通过)。
+- **已知残留**:`RM-XRLI…` 因原始退款事件已消费(no-op 时代标记 processed)保持 active,收尾清理时删除。
+
 ---
 
 ## 清理台账(9 项全部完成后统一执行)
@@ -91,7 +188,13 @@ Item 3 的 P1 发现按用户决定**立即修复**(理由:收入完整性 + Ite
 | D1 user | `5bc58735-…`(e2e-community@replimap-test.dev) | Item 2 |
 | D1 processed_events | 2026-07-04 全部测试 event id | Items 1+ |
 | Stripe sandbox | fixture 生成的 product/price(prod_Uoy…/price_1TpK… 等) | Item 1 迭代 |
-| Stripe sandbox | customer `cus_UozcAiSe7rlbHG` + **活跃订阅** `sub_1TpLd5AKLIiL9hdwKYDaNHQ8`(Team monthly,清理时需先 cancel,否则 sandbox 会持续续费产生事件) | Item 3 |
+| Stripe sandbox | customer `cus_UozcAiSe7rlbHG` + 订阅 `sub_1TpLd5AKLIiL9hdwKYDaNHQ8`(~~活跃,需先 cancel~~ → **已在 Item 4 取消**,2026-07-04T07:00:32Z,不再产生续费事件) | Item 3 |
 | D1 licenses | `abe18793-…`(RM-BM7S-AN8R-X1R4-3JK4,plan=team) | Item 3 |
 | D1 user | `4316c6f9-…`(e2e-upgrade@replimap-test.dev) | Item 3 |
 | Stripe sandbox | 已支付发票 `in_1TpNPwAKLIiL9hdwqRdwfiuo` + invoice item `ii_1TpNPx…`($99,paid 不可删,随订阅/customer 清理归档) | Item 3a |
+| Stripe sandbox | customer `cus_Up1nPIHB7WPdqJ` + **活跃订阅** `sub_1TpNk4AKLIiL9hdw5SKhWU18`(Pro monthly,默认卡为 visa 可正常续费——**清理时需先 cancel**)+ 未付发票 `in_1TpNkl…` | Item 5 |
+| Clerk(dev) | 新增 session `sess_3G1q1nsodcJFCqi3CWJeHSZsviM`(用户仍是 Item 2 的 `user_3G1TPqmZ3eXxPww8xFmLy9RPFvl`,随用户一起清理) | Item 5 |
+| D1 licenses | `62ecc8a1-…`(RM-VN6K-5V9M-AIHV-8IZN,plan=pro,past_due) | Item 5 |
+| Stripe sandbox | refund `re_3TpKfgAKLIiL9hdw1dmtZuXi`(不可删,归档即可) | Item 6 |
+| D1 licenses | `d3dcaeef-…`(RM-TCCB-R80J-IMQQ-H49A,lifetime,revoked) | Item 6a |
+| Stripe sandbox | refund `re_3TpO0QAKLIiL9hdw03MvmW8U` + trigger fixture 生成的 product/price + 未支付 session `cs_test_b1hA90…`(24h 自动过期,无需处理) | Item 6a |
