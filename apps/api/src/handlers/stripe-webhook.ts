@@ -74,8 +74,16 @@ interface StripeSubscription {
 interface StripeInvoice {
   id: string;
   customer: string;
-  subscription: string;
+  // Absent on API versions ≥2025-03-31 (basil/clover) — see `parent`.
+  subscription?: string | null;
   status: string;
+  // API versions ≥2025-03-31 moved the subscription id here.
+  parent?: {
+    type?: string;
+    subscription_details?: {
+      subscription?: string | null;
+    } | null;
+  } | null;
   lines: {
     data: Array<{
       period: {
@@ -84,6 +92,23 @@ interface StripeInvoice {
       };
     }>;
   };
+}
+
+/**
+ * Resolve the subscription id an invoice belongs to.
+ *
+ * API versions ≥2025-03-31 (basil, clover) removed the top-level
+ * `invoice.subscription` field and moved it to
+ * `parent.subscription_details.subscription`. Older-version events still
+ * carry the top-level field, so keep it as a fallback. An invoice with
+ * neither is genuinely not a subscription invoice.
+ */
+function getInvoiceSubscriptionId(invoice: StripeInvoice): string | null {
+  return (
+    invoice.parent?.subscription_details?.subscription ??
+    invoice.subscription ??
+    null
+  );
 }
 
 interface StripeCheckoutSession {
@@ -502,13 +527,14 @@ async function handleInvoicePaid(
   db: DrizzleDb,
   invoice: StripeInvoice
 ): Promise<void> {
-  if (!invoice.subscription) {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) {
     return; // Not a subscription invoice
   }
 
-  const license = await getLicenseBySubscriptionId(db, invoice.subscription);
+  const license = await getLicenseBySubscriptionId(db, subscriptionId);
   if (!license) {
-    console.error(`No license found for subscription ${invoice.subscription}`);
+    console.error(`No license found for subscription ${subscriptionId}`);
     return;
   }
 
@@ -531,13 +557,14 @@ async function handlePaymentFailed(
   db: DrizzleDb,
   invoice: StripeInvoice
 ): Promise<void> {
-  if (!invoice.subscription) {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  if (!subscriptionId) {
     return;
   }
 
-  const license = await getLicenseBySubscriptionId(db, invoice.subscription);
+  const license = await getLicenseBySubscriptionId(db, subscriptionId);
   if (!license) {
-    console.error(`No license found for subscription ${invoice.subscription}`);
+    console.error(`No license found for subscription ${subscriptionId}`);
     return;
   }
 

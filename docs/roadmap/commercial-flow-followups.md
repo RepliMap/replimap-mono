@@ -81,6 +81,31 @@ Add a CI guard that fails the build if `RATE_LIMIT_DISABLED` appears in `wrangle
 
 ---
 
+## 5. First-cycle period backfill can be lost to event ordering
+
+**Status (2026-07-04):** Open. Observed live on dev during E2E validation Item 3
+(see `E2E_DEV_VALIDATION_LOG.md`): Stripe delivered `invoice.paid` ~1.3s
+*before* `customer.subscription.created`. The license didn't exist yet, so
+`handleInvoicePaid` no-op'd ("No license found") — but the event was still
+marked processed, so event-level idempotency rejects any redelivery. Net
+effect: the first billing cycle's period backfill is permanently lost (the
+license keeps the `nowISO()` fallback from `handleSubscriptionCreated` until
+the *next* renewal invoice).
+
+**Note:** distinct from the `invoice.subscription` field bug fixed on
+2026-07-04 (`INVOICE_SUBSCRIPTION_FIELD_FIX_LOG.md`) — this is pure ordering,
+and persists after that fix.
+
+**How to fix (options):**
+- Don't mark `invoice.paid` processed when no license exists yet — return 500
+  so Stripe retries (mirrors the subscription.created retry path); or
+- Self-heal: on `customer.subscription.created`, fetch the latest invoice for
+  the subscription and backfill periods in the same handler.
+
+**Estimate:** ~1h either way, plus an ordering-permutation test.
+
+---
+
 ## Tracking
 
 These intentionally live in the repo rather than a project tracker — they're tightly coupled to the commercial-flow commits and need to stay discoverable when someone greps for `RATE_LIMIT_DISABLED` or `handleResendKey`. If any one of them grows beyond ~half a day of work, promote to a GitHub issue and link from here.

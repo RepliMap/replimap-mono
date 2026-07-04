@@ -642,6 +642,54 @@ describe('invoice.paid', () => {
     expect(res.status).toBe(200);
     expect(await licenseRows()).toHaveLength(0);
   });
+
+  // API version 2025-03-31+ (basil/clover) removed top-level
+  // invoice.subscription — the id now lives at
+  // parent.subscription_details.subscription. Verified against a live
+  // clover event (evt_1TpLd7AKLIiL9hdw2NceIJUH, 2026-07-04).
+  it('clover shape: resolves the subscription from parent.subscription_details and backfills the period', async () => {
+    await seedSubscriptionLicense();
+    await deliver(
+      subscriptionEvent('customer.subscription.updated', {
+        status: 'past_due',
+      })
+    );
+
+    const res = await deliver(
+      invoiceEvent('invoice.paid', {
+        subscription: null,
+        parent: {
+          type: 'subscription_details',
+          quote_details: null,
+          subscription_details: { metadata: {}, subscription: SUBSCRIPTION },
+        },
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const licenses = await licenseRows();
+    expect(licenses[0].status).toBe('active');
+    expect(licenses[0].current_period_start).toBe(
+      new Date((PERIOD_START + 100) * 1000).toISOString()
+    );
+    expect(licenses[0].current_period_end).toBe(
+      new Date((PERIOD_END + 100) * 1000).toISOString()
+    );
+  });
+
+  it('clover shape: still ignores invoices with no subscription in either location', async () => {
+    await seedSubscriptionLicense();
+    const before = await licenseRows();
+
+    const res = await deliver(
+      invoiceEvent('invoice.paid', {
+        subscription: null,
+        parent: { type: 'quote_details', subscription_details: null },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(await licenseRows()).toEqual(before);
+  });
 });
 
 describe('invoice.payment_failed', () => {
@@ -649,6 +697,25 @@ describe('invoice.payment_failed', () => {
     await seedSubscriptionLicense();
 
     const res = await deliver(invoiceEvent('invoice.payment_failed'));
+    expect(res.status).toBe(200);
+
+    const licenses = await licenseRows();
+    expect(licenses[0].status).toBe('past_due');
+  });
+
+  it('clover shape: resolves the subscription from parent.subscription_details and marks past_due', async () => {
+    await seedSubscriptionLicense();
+
+    const res = await deliver(
+      invoiceEvent('invoice.payment_failed', {
+        subscription: null,
+        parent: {
+          type: 'subscription_details',
+          quote_details: null,
+          subscription_details: { metadata: {}, subscription: SUBSCRIPTION },
+        },
+      })
+    );
     expect(res.status).toBe(200);
 
     const licenses = await licenseRows();
