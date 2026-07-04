@@ -9,6 +9,7 @@ import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
 import { eq, and, ne, sql, desc, gte, count } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { generateId, nowISO, normalizeLicenseKey, normalizeMachineId } from './license';
+import { Errors } from './errors';
 
 // Re-export types from schema for convenience
 export type {
@@ -504,6 +505,15 @@ export async function findOrCreateUser(
   email: string,
   stripeCustomerId?: string
 ): Promise<schema.User> {
+  // Defense in depth: never let a null/empty email reach `.toLowerCase()`
+  // (raw TypeError → 500) or silently create a garbage empty-email user.
+  // Callers get a typed AppError they can convert to a clean 4xx.
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    throw Errors.invalidRequest(
+      'Cannot find or create a user without an email address'
+    );
+  }
+
   const normalizedEmail = email.toLowerCase();
 
   // Try to find existing user

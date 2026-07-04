@@ -15,7 +15,7 @@
 
 import type { Env } from '../types/env';
 import { generateLicenseKey, timestampToISO, nowISO } from '../lib/license';
-import { getPlanFromPriceId, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY } from '../lib/constants';
+import { getPlanFromPriceId, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY, PLAN_RANK } from '../lib/constants';
 import {
   createDb,
   type DrizzleDb,
@@ -88,8 +88,12 @@ interface StripeInvoice {
 
 interface StripeCheckoutSession {
   id: string;
-  customer: string;
-  customer_email: string;
+  customer: string | null;
+  // Stripe only populates the top-level customer_email when it was passed at
+  // session creation. The email the customer actually entered always lands in
+  // customer_details.email, so both must be consulted.
+  customer_email: string | null;
+  customer_details?: { email?: string | null } | null;
   subscription: string | null;
   mode: 'subscription' | 'payment' | 'setup';
   metadata?: Record<string, string>;
@@ -185,8 +189,23 @@ async function handleCheckoutCompleted(
 ): Promise<void> {
   console.log(`[Stripe] Checkout completed: ${session.id}, mode: ${session.mode}`);
 
+  // Resolve the customer email defensively: top-level customer_email is only
+  // set when passed at session creation; the entered address always lands in
+  // customer_details.email. (Mirrors checkout-license.ts.)
+  const email = session.customer_email ?? session.customer_details?.email ?? null;
+  if (!email) {
+    // Nothing we can do without an email. Do NOT throw — a 5xx would make
+    // Stripe retry this same emailless event for ~3 days to no effect.
+    // Acknowledge and skip (the caller marks the event processed → 200).
+    console.warn(
+      `[Stripe] Checkout session ${session.id} has no resolvable email ` +
+      `(customer_email and customer_details.email both empty). Acking and skipping.`
+    );
+    return;
+  }
+
   // Find or create user first (needed for both modes)
-  const user = await findOrCreateUser(db, session.customer_email, session.customer);
+  const user = await findOrCreateUser(db, email, session.customer ?? undefined);
 
   if (session.mode === 'subscription') {
     // For subscriptions, just ensure user exists. License created in subscription.created event.
@@ -220,23 +239,41 @@ async function createLifetimeLicense(
     return;
   }
 
-  // Resolve plan from price mapping
+  // Resolve the plan. CRITICAL: never default to a paid tier. If we cannot
+  // determine the plan from the checkout metadata (our billing.ts always sets
+  // metadata.plan) or from a mapped lifetime price, we must NOT guess — issuing
+  // the wrong tier for a real payment is a revenue-integrity failure.
   const priceMapping = getStripePriceMapping(env);
-  let plan: 'community' | 'pro' | 'team' | 'sovereign' = 'pro';
+  let plan: 'community' | 'pro' | 'team' | 'sovereign' | null = null;
   let priceId: string | null = null;
 
-  // Try to get price from metadata first
-  if (session.metadata?.plan) {
-    plan = session.metadata.plan as typeof plan;
+  // Try metadata first — only accept a recognized plan name.
+  const metaPlan = session.metadata?.plan;
+  if (metaPlan && metaPlan in PLAN_RANK) {
+    plan = metaPlan as NonNullable<typeof plan>;
   }
 
-  // Try to get from line items
+  // Try line items — a mapped price is authoritative and overrides metadata.
   if (session.line_items?.data?.[0]?.price?.id) {
     priceId = session.line_items.data[0].price.id;
     const planInfo = priceMapping[priceId];
     if (planInfo) {
       plan = planInfo.plan;
     }
+  }
+
+  if (!plan) {
+    // A payment was received but we cannot determine which tier to grant.
+    // Do NOT issue a (wrong) license, do NOT 500 (retry yields no new info):
+    // acknowledge, and flag loudly for manual intervention. This ERROR line is
+    // the manual-review signal — alert on the "MANUAL_REVIEW" token via Logpush.
+    console.error(
+      `[Stripe][MANUAL_REVIEW] Lifetime payment with UNRESOLVABLE plan — NO license issued. ` +
+      `session=${session.id}, user=${user.id}, email=${user.email}, ` +
+      `priceId=${priceId ?? 'none'}, metadata.plan=${metaPlan ?? 'none'}. ` +
+      `A payment was received but no plan could be determined; manual intervention required.`
+    );
+    return;
   }
 
   console.log(`[Stripe] Creating Lifetime license: user=${user.id}, plan=${plan}`);

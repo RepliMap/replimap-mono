@@ -26,6 +26,8 @@ import {
 import { handleStripeWebhook } from '../src/handlers/stripe-webhook';
 import { LIFETIME_EXPIRY } from '../src/lib/constants';
 import type { Env } from '../src/types/env';
+import { createDb, findOrCreateUser } from '../src/lib/db';
+import { AppError } from '../src/lib/errors';
 import {
   createRealD1,
   realEnv,
@@ -752,5 +754,188 @@ describe('dispatch edge cases', () => {
     });
     const res = await handleStripeWebhook(req, env);
     expect(res.status).toBe(400);
+  });
+});
+
+// ============================================================================
+// Null / missing email handling (regression for the dev 500 crash)
+// ============================================================================
+
+describe('checkout.session.completed — email resolution', () => {
+  it('falls back to customer_details.email when top-level customer_email is null (payment mode)', async () => {
+    // Stripe delivers sessions with customer_email=null but the entered email
+    // in customer_details.email. The old code crashed (null.toLowerCase → 500).
+    const res = await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        customer: null,
+        customer_email: null,
+        customer_details: { email: 'fallback@example.com' },
+        metadata: { plan: 'pro', billing_period: 'lifetime' },
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const users = await rows<{ email: string }>('SELECT * FROM user');
+    expect(users).toHaveLength(1);
+    expect(users[0].email).toBe('fallback@example.com');
+
+    const licenses = await licenseRows();
+    expect(licenses).toHaveLength(1);
+    expect(licenses[0].plan_type).toBe('lifetime');
+  });
+
+  it('falls back to customer_details.email in subscription mode', async () => {
+    const res = await deliver(
+      checkoutCompletedEvent({
+        customer: null,
+        customer_email: null,
+        customer_details: { email: 'sub-fallback@example.com' },
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const users = await rows<{ email: string }>('SELECT * FROM user');
+    expect(users).toHaveLength(1);
+    expect(users[0].email).toBe('sub-fallback@example.com');
+  });
+
+  it('acks (200) and skips when neither customer_email nor customer_details.email is present', async () => {
+    // Nothing we can do without an email — do NOT 500 (Stripe would retry for
+    // ~3 days to no effect). Acknowledge and skip.
+    const res = await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        customer: null,
+        customer_email: null,
+        customer_details: null,
+        metadata: {},
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ received: true });
+
+    // No user, no license created.
+    expect(await rows('SELECT * FROM user')).toHaveLength(0);
+    expect(await licenseRows()).toHaveLength(0);
+    // Event still marked processed (we acknowledged it).
+    expect(await rows('SELECT * FROM processed_events')).toHaveLength(1);
+  });
+});
+
+// ============================================================================
+// findOrCreateUser null-email guard (defense in depth)
+// ============================================================================
+
+describe('findOrCreateUser email guard', () => {
+  it('throws a typed AppError (not a raw TypeError) for a null email', async () => {
+    const db = createDb(env.DB);
+    await expect(
+      findOrCreateUser(db, null as unknown as string)
+    ).rejects.toBeInstanceOf(AppError);
+  });
+
+  it('throws a typed AppError for an empty / whitespace email', async () => {
+    const db = createDb(env.DB);
+    await expect(findOrCreateUser(db, '')).rejects.toBeInstanceOf(AppError);
+    await expect(findOrCreateUser(db, '   ')).rejects.toBeInstanceOf(AppError);
+  });
+
+  it('still creates a user for a valid email (regression)', async () => {
+    const db = createDb(env.DB);
+    const user = await findOrCreateUser(db, 'Valid@Example.com', 'cus_guard_1');
+    expect(user.email).toBe('valid@example.com');
+    expect(user.customerId).toBe('cus_guard_1');
+  });
+});
+
+// ============================================================================
+// Lifetime plan resolution — never default to a paid tier (revenue integrity)
+// ============================================================================
+
+function captureErrors(): string[] {
+  const messages: string[] = [];
+  vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+    messages.push(args.map(String).join(' '));
+  });
+  return messages;
+}
+
+describe('lifetime plan resolution', () => {
+  it('does NOT issue a license when the plan is unresolvable (empty metadata, no line_items) — acks 200 + logs for manual review', async () => {
+    const errors = captureErrors();
+    const res = await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        customer: null,
+        customer_email: 'paid-noplan@example.com',
+        metadata: {},
+      })
+    );
+
+    // Ack so Stripe stops retrying (retry yields no new info), but issue NOTHING.
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ received: true });
+    expect(await licenseRows()).toHaveLength(0);
+
+    // A payment was received — it must be loudly flagged, not silently dropped.
+    expect(errors.some((m) => m.includes('MANUAL_REVIEW'))).toBe(true);
+    expect(
+      errors.some(
+        (m) =>
+          m.includes('paid-noplan@example.com') && m.includes('cs_test_Session01')
+      )
+    ).toBe(true);
+  });
+
+  it('does NOT issue a license when metadata.plan is an unknown value (garbage), and flags it', async () => {
+    const errors = captureErrors();
+    const res = await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        customer_email: 'paid-garbage@example.com',
+        metadata: { plan: 'gold', billing_period: 'lifetime' },
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await licenseRows()).toHaveLength(0);
+    expect(errors.some((m) => m.includes('MANUAL_REVIEW'))).toBe(true);
+  });
+
+  it('regression: still issues the correct license when metadata.plan is valid (team)', async () => {
+    const res = await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        customer_email: 'paid-team@example.com',
+        metadata: { plan: 'team', billing_period: 'lifetime' },
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const licenses = await licenseRows();
+    expect(licenses).toHaveLength(1);
+    expect(licenses[0].plan).toBe('team');
+    expect(licenses[0].plan_type).toBe('lifetime');
+  });
+
+  it('regression: still issues the correct license when a mapped lifetime price is in line_items (no metadata.plan)', async () => {
+    const res = await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        customer_email: 'paid-price@example.com',
+        metadata: {},
+        line_items: { data: [{ price: { id: 'price_test_team_lifetime' } }] },
+      })
+    );
+    expect(res.status).toBe(200);
+
+    const licenses = await licenseRows();
+    expect(licenses).toHaveLength(1);
+    expect(licenses[0].plan).toBe('team');
   });
 });
