@@ -27,8 +27,8 @@
 | 5 | 扣款失败(invoice.payment_failed + P1-7) | ✅ 2026-07-04 |
 | 6 | 退款 lifetime(charge.refunded) | ✅ 2026-07-04(首测发现缺陷 → 6a 修复后真实场景复验通过) |
 | 6a | (插入)refund license 定位修复(B:payment_intent 精确定位 + A:customer_creation=always) | ✅ 2026-07-04 已修复+部署+真实事件复验 |
-| 7 | customer.deleted → licenses expired | ⬜ |
-| 8 | 幂等性压力测试(迁移 012 UNIQUE 层) | ⬜ |
+| 7 | customer.deleted → licenses expired | ✅ 2026-07-04(注意复合行为:active→expired,past_due→canceled,见小节) |
+| 8 | 幂等性压力测试(迁移 012 UNIQUE 层) | ✅ 2026-07-04(方式:远程 D1 约束直压 + 真实 handler 5 路并发,原因见小节) |
 | 9 | CLI 侧验证(真实 key 功能门禁) | ⬜ |
 | 收尾 | 清理全部测试数据,恢复 D1 基线,行数对比 | ⬜ |
 
@@ -175,6 +175,24 @@ Item 3 的 P1 发现按用户决定**立即修复**(理由:收入完整性 + Ite
 - **真实场景复验**:`stripe trigger` 复刻 lifetime 购买(customer=None,同 stripe@example.com 用户)→ license `RM-TCCB-R80J-IMQQ-H49A` → 真实退款 `re_3TpO0Q…` → **revoked**,reason=`Refunded: charge_ch_3TpO0Q…`,日志显示 `resolved via payment_intent`。同用户另一张 lifetime `RM-XRLI…` 保持 active(多张精确性实证);Item 5/2 的 license 不受影响(断言 3 重验通过)。
 - **已知残留**:`RM-XRLI…` 因原始退款事件已消费(no-op 时代标记 processed)保持 active,收尾清理时删除。
 
+## Item 7:customer.deleted → licenses 失效 ✅
+
+- **触发方式**:`DELETE /v1/customers/cus_Up1nPIHB7WPdqJ`(Item 5 的 customer,名下 2 张 license:community active + pro past_due,且有活跃订阅 `sub_1TpNk4…`)。Stripe 删除 customer 时**自动取消其订阅**,因此实际产生两个事件:`customer.subscription.deleted`(`evt_1TpO4OAKLIiL9hdw22qRwOcD`)+ `customer.deleted`(`evt_1TpO4NAKLIiL9hdwOCc1OATX`),同秒内处理。
+- **实际结果**:PASS(以代码定义为准)。
+  - community `RM-CCEM-C5WC-58MH-RSGR`:active → **`expired`**(`handleCustomerDeleted`,worker 日志 `Expired 1 licenses for deleted customer cus_Up1n…`);
+  - pro `RM-VN6K-5V9M-AIHV-8IZN`:past_due → **`canceled`**(经订阅自动取消的 `subscription.deleted` 路径,canceled_at=07:33:00.565Z);
+  - 两行均保留未删除,无 license 卡在可用状态;各一个事件,无重复处理。
+- **与清单原文的偏差说明**:清单写"所有 license 置为 expired",但 `handleCustomerDeleted` 的代码定义是**只把 status='active' 的置为 expired**;非 active 的付费 license 由 Stripe 自动取消订阅触发的 `subscription.deleted` 置为 canceled。两者都是终态、不可用,复合结果符合设计意图。若要求字面上的"全部 expired",需要改代码——按"以代码定义为准"的原则判定为 PASS。
+- **附带效果**:`cus_Up1nPIHB7WPdqJ` 已从 Stripe 删除,清理台账相应更新。
+
+## Item 8:幂等性压力测试(迁移 012 UNIQUE 层)✅
+
+- **为什么无法用真实 Stripe 投递构造**(清单预案 2 的情形):Stripe 对一个 checkout session 只生成**一次** `checkout.session.completed`,`stripe events resend` 复用同一 event.id——那只压得到 `processed_events` 事件级幂等(Item 1 已验证的那层)。要压 012 层必须"不同 event.id + 同一 session",这只能伪造事件,而对部署 worker 伪造需要其 `STRIPE_WEBHOOK_SECRET`:endpoint secret 创建后 Stripe 不再返回,`.dev.vars` 里的是本地 `stripe listen` 的临时 secret,不可用。轮换部署 secret 会打断真实投递,不做。
+- **实际验证方式(两层合围)**:
+  1. **远程 dev D1 约束直压**:确认 `licenses_session_id_unique_idx`(UNIQUE)存在于远程库;插入携带 Item 1 已占用 session id 的探针行 → **`UNIQUE constraint failed: licenses.stripe_session_id (SQLITE_CONSTRAINT_UNIQUE)` 拒绝**,探针行未落库(count=0)。NULL 多值容忍已有既存证据(库中多行 session_id 为 null 共存)。
+  2. **真实 handler 并发压**(真 `handleStripeWebhook` + 真 HMAC 签名 + 真 D1,唯一非生产处是 Miniflare SQLite 而非远程 D1):新增 **5 路 Promise.all 并发**、5 个**不同 event.id**、同一 session 的 lifetime 投递 → 全部 200、5 个事件全部入账 `processed_events`、**仅 1 张 license**。既有的 2 路并发与"subscription.created 不同 event id 重投"测试同时保持绿。文件内 48/48。
+- **结论**:012 的 UNIQUE 约束在生产形态数据库上确实生效;竞态下 handler 依赖它收敛到单张 license 且无异常(race fallback 吞掉重复插入并返回 200)。两层证据合起来覆盖清单目标;"经部署 HTTP 栈的不同 event.id 并发"因签名不可伪造而不可达,此局限已如实记录(与 PAYMENT_HARDENING_LOG §3 的历史备注一致)。
+
 ---
 
 ## 清理台账(9 项全部完成后统一执行)
@@ -192,7 +210,7 @@ Item 3 的 P1 发现按用户决定**立即修复**(理由:收入完整性 + Ite
 | D1 licenses | `abe18793-…`(RM-BM7S-AN8R-X1R4-3JK4,plan=team) | Item 3 |
 | D1 user | `4316c6f9-…`(e2e-upgrade@replimap-test.dev) | Item 3 |
 | Stripe sandbox | 已支付发票 `in_1TpNPwAKLIiL9hdwqRdwfiuo` + invoice item `ii_1TpNPx…`($99,paid 不可删,随订阅/customer 清理归档) | Item 3a |
-| Stripe sandbox | customer `cus_Up1nPIHB7WPdqJ` + **活跃订阅** `sub_1TpNk4AKLIiL9hdw5SKhWU18`(Pro monthly,默认卡为 visa 可正常续费——**清理时需先 cancel**)+ 未付发票 `in_1TpNkl…` | Item 5 |
+| Stripe sandbox | ~~customer `cus_Up1nPIHB7WPdqJ` + 活跃订阅 `sub_1TpNk4…`~~ → **已在 Item 7 删除**(customer 删除时订阅被 Stripe 自动取消),Stripe 侧无需再处理 | Item 5→7 |
 | Clerk(dev) | 新增 session `sess_3G1q1nsodcJFCqi3CWJeHSZsviM`(用户仍是 Item 2 的 `user_3G1TPqmZ3eXxPww8xFmLy9RPFvl`,随用户一起清理) | Item 5 |
 | D1 licenses | `62ecc8a1-…`(RM-VN6K-5V9M-AIHV-8IZN,plan=pro,past_due) | Item 5 |
 | Stripe sandbox | refund `re_3TpKfgAKLIiL9hdw1dmtZuXi`(不可删,归档即可) | Item 6 |

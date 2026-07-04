@@ -345,6 +345,37 @@ describe('idempotency', () => {
     // Same checkout session → UNIQUE(stripe_session_id) race fallback → one license.
     expect(await licenseRows()).toHaveLength(1);
   });
+
+  it('issues exactly one license under a 5-way concurrent lifetime burst with distinct event ids', async () => {
+    // E2E validation Item 8: stress the migration-012 UNIQUE(stripe_session_id)
+    // layer specifically. Distinct event ids bypass the processed_events
+    // event-level dedup entirely — only the DB constraint (and the
+    // getLicenseBySessionId pre-check) stands between the burst and
+    // duplicate licenses.
+    const burst = ['evt_burst_1', 'evt_burst_2', 'evt_burst_3', 'evt_burst_4', 'evt_burst_5'].map(
+      (id) =>
+        checkoutCompletedEvent(
+          {
+            mode: 'payment',
+            subscription: null,
+            metadata: { plan: 'pro', billing_period: 'lifetime' },
+          },
+          id
+        )
+    );
+
+    const responses = await Promise.all(burst.map((e) => deliver(e)));
+    for (const res of responses) {
+      expect(res.status).toBe(200);
+    }
+
+    expect(await licenseRows()).toHaveLength(1);
+    // All five distinct events must be acknowledged as processed.
+    const processed = await rows<{ event_id: string }>(
+      "SELECT event_id FROM processed_events WHERE event_id LIKE 'evt_burst_%'"
+    );
+    expect(processed).toHaveLength(5);
+  });
 });
 
 // ============================================================================
