@@ -115,7 +115,7 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
 
 ## 二、强烈建议(Should——不阻塞上线,但建议部署当天或紧接着做)
 
-- [ ] **followups §5 时序问题**:`invoice.paid` 可能早于 `customer.subscription.created` 到达(dev 环境两次真实复现,判定为常态而非偶发)。后果是首期账单周期回填丢失,且事件级幂等会挡住任何后续重投修复。建议修复方向:license 不存在时不要把 `invoice.paid` 标记为已处理(返回非 2xx 触发 Stripe 重试),或在 `subscription.created` 里补一次周期回填自愈逻辑。预估工作量约半天。
+- [x] **followups §5 时序问题** —— **已修复并上线 prod**(2026-07-05,commit `2134d8b`,prod 版本 `f62bd94c`)。两个方向都做了:主修复从 `subscription.items.data[]` 读取账单周期(clover API 字段位置,零额外 API 调用),兜底是 license 不存在时 `invoice.paid` 返回 500 且不标记 processed。dev 真实 sandbox 事件验证通过(乱序自然复现,`current_period_end` 正确落库)。详见 `INVOICE_ORDERING_BACKFILL_FIX_LOG.md`。
 - [ ] **GitHub Dependabot 45 个依赖漏洞**(8 high, 20 moderate, 17 low)—— push 时 GitHub 已提示,一直没有专门处理。建议找时间看一下具体是哪些依赖,评估影响。
 - [ ] **checkout-license 的 session_id-as-bearer 时效性**——该 session_id 会出现在 success 页 URL 里,如果被分享出去,持有链接的人可以取回 license key。建议加时效或一次性限制。
 

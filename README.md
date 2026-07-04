@@ -128,6 +128,8 @@ Landing  ──►  /sign-up (Clerk)  ──►  /dashboard (community license a
 
 All three tiers (community / pro / team) and all billing cadences (monthly / annual / lifetime) share this flow. See [`docs/testing/commercial-flow.md`](docs/testing/commercial-flow.md) for the full test harness and prerequisites.
 
+The flow is **live in production** and was validated end-to-end with a real purchase + refund/cancel — evidence in [`PROD_E2E_SMOKE_TEST_LOG.md`](PROD_E2E_SMOKE_TEST_LOG.md). Go-live ops steps (secrets, D1 ledger rules, webhook alignment) live in [`PROD_DEPLOYMENT_CHECKLIST.md`](PROD_DEPLOYMENT_CHECKLIST.md); open items are tracked in [`docs/roadmap/commercial-flow-followups.md`](docs/roadmap/commercial-flow-followups.md).
+
 **E2E tests:**
 
 ```bash

@@ -1,5 +1,11 @@
 # Deployment Guide
 
+> **Payments/API go-live specifics** (prod secrets, Stripe webhook alignment,
+> and the prod-D1 migration ledger rule — prod must NEVER run
+> `wrangler d1 migrations apply`) are in
+> [`PROD_DEPLOYMENT_CHECKLIST.md`](PROD_DEPLOYMENT_CHECKLIST.md).
+> This guide covers generic platform configuration only.
+
 ## Prerequisites
 
 ### Required Secrets (GitHub Repository Settings -> Secrets)
