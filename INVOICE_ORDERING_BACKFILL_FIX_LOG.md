@@ -140,7 +140,9 @@ no longer maps — orthogonal to this fix.
 ## 6. Rollout
 
 - [x] Dev worker deployed + validated with real events
-- [ ] Commit + deploy to prod (`pnpm deploy:prod`) — pending confirmation
+- [x] Commit + deploy to prod — commit `2134d8b`, deployed 2026-07-05 as
+      version `f62bd94c` (`replimap-api-prod` → api.replimap.com; post-deploy
+      smoke: GET /health 200, CI 205/205 green)
 - [ ] Post-prod: next real subscription purchase should land with
       `current_period_end` set; the raced `invoice.paid` (if any) should show
       one 500 then a successful retry in `wrangler tail --env prod`
