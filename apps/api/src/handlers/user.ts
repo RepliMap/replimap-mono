@@ -14,7 +14,12 @@ import {
   normalizeLicenseKey,
   truncateMachineId,
 } from '../lib/license';
-import { PLAN_FEATURES, type PlanType } from '../lib/constants';
+import {
+  PLAN_FEATURES,
+  MAX_MACHINE_CHANGES_PER_MONTH,
+  type PlanType,
+} from '../lib/constants';
+import { OFFLINE_GRACE_DAYS, type Plan } from '../features';
 import { rateLimit } from '../lib/rate-limiter';
 import { createDb, getLicenseByKey, getMonthlyUsageCount, type DrizzleDb } from '../lib/db';
 import { sql } from 'drizzle-orm';
@@ -33,6 +38,13 @@ interface GetLicenseResponse {
     aws_accounts: number;
     machines: number;
     export_formats: string[];
+    /**
+     * Offline grace period in days — authoritative per-plan value from
+     * OFFLINE_GRACE_DAYS (features.ts). Server-issued so the frontend never
+     * derives entitlement values itself. Fails closed to 0 (must be online)
+     * for unknown plan values.
+     */
+    offline_grace_days: number;
   };
   usage: {
     scans_this_month: number;
@@ -50,11 +62,23 @@ interface GetLicenseResponse {
 }
 
 interface MachineInfo {
+  /**
+   * Full machine id. Owner-scoped: this endpoint only ever returns machines
+   * of the license whose key was presented, and the deactivate flow needs the
+   * full id (it filters on license_id AND machine_id, so the id alone can
+   * never touch another license's device).
+   */
+  machine_id: string;
   machine_id_truncated: string;
   machine_name: string | null;
   is_active: boolean;
   first_seen_at: string;
   last_seen_at: string;
+  /** Migration 010 metadata — drives the dashboard device-type badges. */
+  fingerprint_type: string;
+  ci_provider: string | null;
+  ci_repo: string | null;
+  container_type: string | null;
 }
 
 interface GetMachinesResponse {
@@ -150,6 +174,7 @@ export async function handleGetOwnLicense(
         aws_accounts: features.aws_accounts,
         machines: features.machines,
         export_formats: features.export_formats,
+        offline_grace_days: OFFLINE_GRACE_DAYS[plan as unknown as Plan] ?? 0,
       },
       usage: {
         scans_this_month: scansThisMonth,
@@ -219,15 +244,20 @@ export async function handleGetOwnMachines(
     const plan = license.plan as PlanType;
     const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.community;
 
-    // Get machines
+    // Get machines — scoped strictly to the presented key's license
     const machinesResult = await db.all<{
       machine_id: string;
       machine_name: string | null;
       is_active: number;
       first_seen_at: string;
       last_seen_at: string;
+      fingerprint_type: string | null;
+      ci_provider: string | null;
+      ci_repo: string | null;
+      container_type: string | null;
     }>(sql`
-      SELECT machine_id, machine_name, is_active, first_seen_at, last_seen_at
+      SELECT machine_id, machine_name, is_active, first_seen_at, last_seen_at,
+             fingerprint_type, ci_provider, ci_repo, container_type
       FROM license_machines
       WHERE license_id = ${license.id}
       ORDER BY last_seen_at DESC
@@ -242,11 +272,17 @@ export async function handleGetOwnMachines(
     `);
 
     const machines: MachineInfo[] = machinesResult.map((m) => ({
+      machine_id: m.machine_id,
       machine_id_truncated: truncateMachineId(m.machine_id),
       machine_name: m.machine_name,
       is_active: m.is_active === 1,
       first_seen_at: m.first_seen_at,
       last_seen_at: m.last_seen_at,
+      // Rows predating migration 010 have NULL — default to plain machine.
+      fingerprint_type: m.fingerprint_type ?? 'machine',
+      ci_provider: m.ci_provider,
+      ci_repo: m.ci_repo,
+      container_type: m.container_type,
     }));
 
     const response: GetMachinesResponse = {
@@ -254,7 +290,7 @@ export async function handleGetOwnMachines(
       active_count: machines.filter((m) => m.is_active).length,
       limit: features.machines,
       changes_this_month: changesResult?.count ?? 0,
-      changes_limit: 3,
+      changes_limit: MAX_MACHINE_CHANGES_PER_MONTH,
     };
 
     return new Response(JSON.stringify(response), {

@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { LicenseDetails } from '@/types/license';
+import { graceDays } from '@/lib/license-view';
 
 interface LicenseSummaryCardProps {
   license: LicenseDetails | null;
@@ -74,8 +75,8 @@ export function LicenseSummaryCard({ license }: LicenseSummaryCardProps) {
             {license.plan}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            {license.offline_grace_days > 0
-              ? `${license.offline_grace_days} days offline grace`
+            {graceDays(license) > 0
+              ? `${graceDays(license)} days offline grace`
               : 'Requires internet connection'}
           </p>
         </CardContent>

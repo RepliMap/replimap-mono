@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { getMachinesLimit } from '@/lib/api';
+import { machinesToFingerprints } from '@/lib/license-view';
 import { useLicense } from '@/hooks/useLicense';
+import { useMachines } from '@/hooks/useMachines';
 import { LicenseSummaryCard } from '@/components/license-summary-card';
 import { DeviceSummaryCard } from '@/components/device-summary-card';
 import {
@@ -18,6 +19,8 @@ import {
  */
 export function DashboardLicenseSection() {
   const { state } = useLicense();
+  const licenseKey = state.status === 'ready' ? state.licenseKey : null;
+  const { state: machinesState } = useMachines(licenseKey);
 
   if (state.status === 'loading') {
     return <LicenseSectionSkeleton />;
@@ -29,6 +32,17 @@ export function DashboardLicenseSection() {
   const license = state.status === 'ready' ? state.license : null;
   const licenseError = state.status === 'error' ? state.message : null;
 
+  // Device data comes from /v1/me/machines; the cap is server-issued
+  // (machines.limit, falling back to the license's usage.machines_limit
+  // while the devices call is still in flight — same server source).
+  const machines =
+    machinesState.status === 'ready' ? machinesState.data : null;
+  const devices = machinesToFingerprints(machines?.machines);
+  const machinesLimit =
+    machines?.limit ?? license?.usage?.machines_limit ?? 0;
+  const machinesError =
+    machinesState.status === 'error' ? machinesState.message : null;
+
   return (
     <>
       {licenseError && (
@@ -39,13 +53,18 @@ export function DashboardLicenseSection() {
           ⚠️ {licenseError}
         </div>
       )}
+      {machinesError && (
+        <div
+          role="alert"
+          className="mb-6 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-sm text-foreground"
+        >
+          ⚠️ {machinesError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <LicenseSummaryCard license={license} />
-        <DeviceSummaryCard
-          devices={license?.fingerprints ?? []}
-          limit={getMachinesLimit(license?.plan ?? 'community')}
-        />
+        <DeviceSummaryCard devices={devices} limit={machinesLimit} />
         <QuickStartCard hasLicense={!!license} />
       </div>
 

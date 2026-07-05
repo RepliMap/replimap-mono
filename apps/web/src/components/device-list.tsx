@@ -54,9 +54,11 @@ export function DeviceList({
     setError(null);
 
     try {
+      // The deactivate endpoint takes `machine_id` (the full id — the UI's
+      // `fingerprint` field carries it verbatim from /v1/me/machines).
       await deactivateDevice({
         license_key: licenseKey,
-        machine_fingerprint: fingerprint,
+        machine_id: fingerprint,
       });
       if (onDeactivated) {
         onDeactivated();

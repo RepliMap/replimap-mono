@@ -6,6 +6,7 @@
 
 import type {
   LicenseDetails,
+  MachinesResponse,
   DeactivateRequest,
   DeactivateResponse,
   ApiErrorResponse,
@@ -100,9 +101,27 @@ export async function getLicenseDetails(
 }
 
 /**
- * Deactivate a device from the license
+ * Get the devices activated on a license.
  *
- * @param data - License key and fingerprint to deactivate
+ * Like getLicenseDetails, this runs browser-side (see useMachines) so the
+ * request comes from the user's own IP — Cloudflare Bot Fight Mode blocks
+ * Vercel SSR egress. Owner-scoped by license-key possession: the API only
+ * ever returns machines belonging to the presented key's license.
+ */
+export async function getMachines(
+  licenseKey: string
+): Promise<MachinesResponse> {
+  const qs = new URLSearchParams({ license_key: licenseKey }).toString();
+  return request<MachinesResponse>(`/v1/me/machines?${qs}`, {
+    method: 'GET',
+    cache: 'no-store',
+  });
+}
+
+/**
+ * Deactivate a device from the license.
+ *
+ * @param data - License key and full machine_id to deactivate
  * @returns Deactivation result
  */
 export async function deactivateDevice(
@@ -278,22 +297,10 @@ export async function provisionCommunityLicense(
   );
 }
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/**
- * Machine limit by plan
- */
-export function getMachinesLimit(plan: string): number {
-  const limits: Record<string, number> = {
-    community: 1,
-    pro: 2,
-    team: 10,
-    sovereign: -1, // Unlimited
-  };
-  return limits[plan] ?? 1;
-}
+// NOTE: the old getMachinesLimit(plan) helper was deliberately removed — the
+// per-plan device cap is server-issued (usage.machines_limit on /v1/me/license
+// and `limit` on /v1/me/machines). Never re-derive entitlements from the plan
+// name in the frontend.
 
 /**
  * Offline grace days by plan

@@ -121,6 +121,21 @@ ordering-permutation tests in `tests/stripe-webhook.test.ts`.
 
 ## 6. Dashboard license detail: device list always shows 0
 
+**Status (2026-07-05): FIXED** (together with §7, dev-validated; prod deploy
+pending). `/v1/me/machines` now returns the full `machine_id` plus the
+migration-010 fingerprint metadata (`fingerprint_type`/`ci_provider`/
+`ci_repo`/`container_type`); the dashboard loads devices browser-side via a
+new `useMachines` hook and renders them through `machinesToFingerprints()`.
+The Remove button's request body was also fixed (`machine_id`, not
+`machine_fingerprint` — the deactivate endpoint never accepted the latter).
+Device caps are now server-issued everywhere (`limit` from /v1/me/machines,
+`usage.machines_limit` from /v1/me/license); the web-side `getMachinesLimit`
+plan map was deleted. Owner-scoping (license-key possession) was audited and
+pinned by regression tests: a key can only ever list/deactivate its own
+license's machines (`tests/me-endpoints.test.ts`).
+
+<details><summary>Original report (2026-07-05, pre-fix)</summary>
+
 **Status (2026-07-05):** Open. Surfaced right after the dashboard was moved to
 client-side fetching (commit `e6bd1c9`) and the `.fingerprints` crash was fixed
 (`7b829cd`). The `/dashboard/license` page now renders without crashing but the
@@ -148,9 +163,27 @@ fetched.
 
 **Estimate:** ~1–1.5h (fetch + wire into DeviceList + a hook test).
 
+</details>
+
 ---
 
 ## 7. Dashboard license detail: "undefined Days Grace" / "Expires: Never"
+
+**Status (2026-07-05): FIXED** (together with §6, dev-validated; prod deploy
+pending). Resolution per confirmed decisions:
+- `offline_grace_days` is now **server-issued**: added additively as
+  `features.offline_grace_days` on `/v1/me/license`, sourced from the
+  authoritative per-plan `OFFLINE_GRACE_DAYS` map (features.ts: 0/7/14/365),
+  failing closed to 0 for unknown plans. The frontend reads it via
+  `graceDays()` and never derives entitlements from the plan name.
+- Expiry display is **status-dependent** (frontend `expiresAt()` helper):
+  active → "Never"; canceled/past_due → the paid-through date from
+  `subscription.current_period_end`.
+- The frontend `LicenseDetails` type was realigned to the real response shape
+  (nested `features`/`usage`/`subscription`) with a keep-in-sync note against
+  `GetLicenseResponse`.
+
+<details><summary>Original report (2026-07-05, pre-fix)</summary>
 
 **Status (2026-07-05):** Open. Same `/v1/me/license` ↔ `LicenseDetails` contract
 drift as item 6, but non-crashing (cosmetic).
@@ -171,6 +204,51 @@ but `/v1/me/license` returns neither. At runtime `offline_grace_days` is
   `apps/api/src/handlers/user.ts` and the frontend `LicenseDetails` together).
 
 **Estimate:** ~1h (backend option, incl. keeping the two types in sync).
+
+</details>
+
+---
+
+## 8. `/v1/me/*` passes the license key as a URL query parameter (secrets-in-URL)
+
+**Type:** Security hardening — a secrets-in-URL anti-pattern, **not** a routine
+task. Under the current "key = credential" authorization model, a RepliMap
+license key is functionally a password. Passing it as a `?license_key=...`
+query parameter means it leaks into places URLs routinely end up: server/CDN
+access logs, browser history, and potentially third parties via the `Referer`
+header. This is the same "authorization model strength" theme as the P0
+`provision-community` auth fix.
+
+**Scope:** all `/v1/me/*` endpoints that key off the license key —
+`GET /v1/me/license`, `GET /v1/me/machines`, and (by extension of the same
+model) the deactivate flow. Note deactivate already takes the key in the POST
+body, so it's the two GETs that put the key in the URL.
+
+**Status:** Pre-existing design — **not introduced or widened** by the
+followups #6/#7 work (that change returns the full `machine_id`, which is a
+device id, not the license key; it does not add any key-exposure surface).
+Owner-scoping within the current model was audited and is tight (queries filter
+on `license_id`; deactivate filters on `license_id AND machine_id`, so a key
+can only ever touch its own license's machines).
+
+**Two hardening directions (future decision):**
+- **(a) Minimal:** move the key out of the URL — into an `Authorization`
+  header or the POST body — so it no longer lands in logs/history/Referer. Keeps
+  the "key = credential" model; small, localized change to the handlers +
+  the browser `api.ts` calls.
+- **(b) Strong model:** require a Clerk session token **and** verify the
+  token identity owns the license (token↔license binding), so the key alone is
+  no longer a sufficient credential. More thorough, larger change — same theme
+  as the `provision-community` P0 rework.
+
+**Recommendation:** does NOT block launch (the exposure existed before and is
+unchanged by recent work), but **evaluate before onboarding real paying users
+at volume** — the more real customers, the larger the exposure surface as keys
+accumulate in logs and histories. Direction (a) is the cheap risk reducer;
+(b) is the durable fix.
+
+**Estimate:** (a) ~1–2h incl. tests; (b) ~half-day+ incl. binding logic and
+migration of the dashboard/CLI auth story.
 
 ---
 

@@ -1,19 +1,23 @@
 'use client';
 
 import Link from 'next/link';
-import { getMachinesLimit } from '@/lib/api';
-import { licenseFingerprints } from '@/lib/license-view';
+import { graceDays, machinesToFingerprints } from '@/lib/license-view';
 import { useLicense, type LicenseState } from '@/hooks/useLicense';
+import { useMachines, type MachinesState } from '@/hooks/useMachines';
 import { LicenseCard } from '@/components/license-card';
 import { DeviceList } from '@/components/device-list';
 import { GracePeriodInfo } from '@/components/grace-period-info';
+import { Card, CardContent } from '@/components/ui/card';
 
 /**
- * License detail page body. Loads the license from the browser (see useLicense)
- * so Cloudflare Bot Fight Mode does not block it.
+ * License detail page body. License AND devices load from the browser
+ * (see useLicense/useMachines) so Cloudflare Bot Fight Mode does not block
+ * the requests.
  */
 export function LicensePageContent() {
-  const { state, reload } = useLicense();
+  const { state } = useLicense();
+  const licenseKey = state.status === 'ready' ? state.licenseKey : null;
+  const machines = useMachines(licenseKey);
 
   return (
     <div className="min-h-screen bg-background pt-20">
@@ -28,7 +32,11 @@ export function LicensePageContent() {
           </Link>
         </div>
 
-        <LicenseBody state={state} reload={reload} />
+        <LicenseBody
+          state={state}
+          machines={machines.state}
+          reloadMachines={machines.reload}
+        />
       </div>
     </div>
   );
@@ -36,10 +44,12 @@ export function LicensePageContent() {
 
 function LicenseBody({
   state,
-  reload,
+  machines,
+  reloadMachines,
 }: {
   state: LicenseState;
-  reload: () => void;
+  machines: MachinesState;
+  reloadMachines: () => void;
 }) {
   if (state.status === 'loading') {
     return <LoadingState />;
@@ -59,17 +69,54 @@ function LicenseBody({
   return (
     <div className="space-y-6">
       <LicenseCard license={license} />
-      <GracePeriodInfo
-        graceDays={license.offline_grace_days}
-        plan={license.plan}
-      />
-      <DeviceList
-        devices={licenseFingerprints(license)}
+      <GracePeriodInfo graceDays={graceDays(license)} plan={license.plan} />
+      <DevicesSection
+        machines={machines}
         licenseKey={licenseKey}
-        machinesLimit={getMachinesLimit(license.plan)}
-        onDeactivated={reload}
+        onDeactivated={reloadMachines}
       />
     </div>
+  );
+}
+
+/** Device list with its own loading / error / ready states. */
+function DevicesSection({
+  machines,
+  licenseKey,
+  onDeactivated,
+}: {
+  machines: MachinesState;
+  licenseKey: string;
+  onDeactivated: () => void;
+}) {
+  if (machines.status === 'loading' || machines.status === 'idle') {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center" aria-busy="true">
+          <div className="text-3xl mb-2 animate-pulse">📱</div>
+          <p className="text-sm text-muted-foreground">Loading devices…</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (machines.status === 'error') {
+    return (
+      <Card className="border-red-500/30 bg-red-500/5">
+        <CardContent className="py-6 text-center">
+          <p className="text-sm text-muted-foreground">⚠️ {machines.message}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <DeviceList
+      devices={machinesToFingerprints(machines.data.machines)}
+      licenseKey={licenseKey}
+      machinesLimit={machines.data.limit}
+      onDeactivated={onDeactivated}
+    />
   );
 }
 

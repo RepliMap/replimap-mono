@@ -5,13 +5,16 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { LicenseDetails } from '@/types/license';
-import { activeDeviceCount } from '@/lib/license-view';
+import { activeDeviceCount, expiresAt } from '@/lib/license-view';
 
 interface LicenseCardProps {
   license: LicenseDetails;
 }
 
 export function LicenseCard({ license }: LicenseCardProps) {
+  // Status-dependent: active licenses renew (→ "Never"); canceled/past_due
+  // show the paid-through date. See license-view.expiresAt.
+  const paidThrough = expiresAt(license);
   return (
     <Card>
       <CardHeader>
@@ -37,13 +40,13 @@ export function LicenseCard({ license }: LicenseCardProps) {
           <div>
             <dt className="text-sm text-muted-foreground">Expires</dt>
             <dd className="mt-1">
-              {license.expires_at ? (
+              {paidThrough ? (
                 <>
                   <span className="font-semibold">
-                    {new Date(license.expires_at).toLocaleDateString()}
+                    {new Date(paidThrough).toLocaleDateString()}
                   </span>
                   <span className="text-sm text-muted-foreground block">
-                    {formatTimeUntil(new Date(license.expires_at))}
+                    {formatTimeUntil(new Date(paidThrough))}
                   </span>
                 </>
               ) : (

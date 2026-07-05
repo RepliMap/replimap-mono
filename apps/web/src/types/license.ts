@@ -37,30 +37,21 @@ export interface Fingerprint {
 }
 
 /**
- * License details returned by /v1/me/license
+ * Per-plan entitlements as issued by the server (`features` object of
+ * GET /v1/me/license). offline_grace_days is server-issued — the frontend
+ * must never derive entitlement values from the plan name itself.
  */
-export interface LicenseDetails {
-  /** Truncated license key (RM-XXXX-...) */
-  license_key: string;
-  /** Plan name */
-  plan: PlanName;
-  /** License status */
-  status: LicenseStatus;
-  /** Expiration date (ISO 8601) or null for lifetime */
-  expires_at: string | null;
-  /** Offline grace period in days */
+export interface LicenseFeatures {
+  resources_per_scan: number;
+  scans_per_month: number;
+  aws_accounts: number;
+  machines: number;
+  export_formats: string[];
   offline_grace_days: number;
-  /**
-   * List of activated devices. Optional: `GET /v1/me/license` does NOT include
-   * this field (the device list comes from `GET /v1/me/machines`), so it is
-   * absent at runtime for licenses loaded from that endpoint. Access it via
-   * the helpers in `lib/license-view` so a missing array never crashes.
-   */
-  fingerprints?: Fingerprint[];
 }
 
 /**
- * Usage statistics
+ * Usage statistics (`usage` object of GET /v1/me/license)
  */
 export interface LicenseUsage {
   scans_this_month: number;
@@ -70,12 +61,64 @@ export interface LicenseUsage {
   aws_accounts_limit: number;
 }
 
+/** `subscription` object of GET /v1/me/license */
+export interface LicenseSubscription {
+  current_period_start: string | null;
+  current_period_end: string | null;
+  has_payment_method: boolean;
+}
+
 /**
- * Deactivate device request
+ * License details as GET /v1/me/license actually returns them (mirrors
+ * GetLicenseResponse in apps/api/src/handlers/user.ts — keep in sync).
+ * Devices are NOT part of this payload; they come from GET /v1/me/machines.
+ * Read derived display values via the helpers in `lib/license-view`.
+ */
+export interface LicenseDetails {
+  license_key: string;
+  plan: PlanName;
+  status: LicenseStatus;
+  features: LicenseFeatures;
+  usage: LicenseUsage;
+  subscription: LicenseSubscription;
+  created_at: string;
+}
+
+/**
+ * One device as GET /v1/me/machines returns it (mirrors MachineInfo in
+ * apps/api/src/handlers/user.ts — keep in sync).
+ */
+export interface MachineInfo {
+  /** Full machine id — required by the deactivate flow. */
+  machine_id: string;
+  machine_id_truncated: string;
+  machine_name: string | null;
+  is_active: boolean;
+  first_seen_at: string;
+  last_seen_at: string;
+  fingerprint_type: string;
+  ci_provider: string | null;
+  ci_repo: string | null;
+  container_type: string | null;
+}
+
+/** GET /v1/me/machines response envelope. */
+export interface MachinesResponse {
+  machines: MachineInfo[];
+  active_count: number;
+  /** Per-plan device cap (server-authoritative; -1 = unlimited). */
+  limit: number;
+  changes_this_month: number;
+  changes_limit: number;
+}
+
+/**
+ * Deactivate device request — /v1/license/deactivate expects `machine_id`
+ * (unlike activate, which takes `machine_fingerprint`).
  */
 export interface DeactivateRequest {
   license_key: string;
-  machine_fingerprint: string;
+  machine_id: string;
 }
 
 /**
