@@ -121,8 +121,10 @@ ordering-permutation tests in `tests/stripe-webhook.test.ts`.
 
 ## 6. Dashboard license detail: device list always shows 0
 
-**Status (2026-07-05): FIXED** (together with §7, dev-validated; prod deploy
-pending). `/v1/me/machines` now returns the full `machine_id` plus the
+**Status (2026-07-05): FIXED & DEPLOYED TO PROD** (together with §7 — API
+worker version `90bfc4ca`, web via Vercel; `features.offline_grace_days`
+verified live on prod with a real license key). `/v1/me/machines` now
+returns the full `machine_id` plus the
 migration-010 fingerprint metadata (`fingerprint_type`/`ci_provider`/
 `ci_repo`/`container_type`); the dashboard loads devices browser-side via a
 new `useMachines` hook and renders them through `machinesToFingerprints()`.
@@ -169,8 +171,9 @@ fetched.
 
 ## 7. Dashboard license detail: "undefined Days Grace" / "Expires: Never"
 
-**Status (2026-07-05): FIXED** (together with §6, dev-validated; prod deploy
-pending). Resolution per confirmed decisions:
+**Status (2026-07-05): FIXED & DEPLOYED TO PROD** (together with §6 — API
+worker version `90bfc4ca`, web via Vercel). Resolution per confirmed
+decisions:
 - `offline_grace_days` is now **server-issued**: added additively as
   `features.offline_grace_days` on `/v1/me/license`, sourced from the
   authoritative per-plan `OFFLINE_GRACE_DAYS` map (features.ts: 0/7/14/365),
