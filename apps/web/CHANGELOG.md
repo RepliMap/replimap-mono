@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.6.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.3...replimap-web-v0.6.0) (2026-07-07)
+
+
+### Features
+
+* **billing:** switch to live Stripe price IDs, allow www + apex CORS, ([b39d4ac](https://github.com/RepliMap/replimap-mono/commit/b39d4ac62f131257677cd30f01f68422ef809abd))
+* **payments:** harden Stripe webhook flow, add license CSPRNG, and require auth on community provisioning ([a570276](https://github.com/RepliMap/replimap-mono/commit/a5702768272a4c9d565056827c3b8dc55fe3e9cc))
+* **web:** add cta-links helper with checkoutHref/freeSignupHref ([a276fbf](https://github.com/RepliMap/replimap-mono/commit/a276fbf96c743466ce30be196e721ac45fdb2064))
+* **web:** add getCheckoutLicense + provisionCommunityLicense api clients ([3e18dba](https://github.com/RepliMap/replimap-mono/commit/3e18dba37a51adb7f91f3b222dffa3b4802233f7))
+* **web:** poll and display license key on /checkout/success page ([06ba075](https://github.com/RepliMap/replimap-mono/commit/06ba075cc399642fbfcb4cabfbe403a5595354a7))
+* **web:** route header + bottom CTAs to sign-up instead of Tally ([aee075c](https://github.com/RepliMap/replimap-mono/commit/aee075c9b05f3de057c64422e76dee6d6a1eb402))
+* **web:** route hero 'Get Started Free' to Clerk sign-up ([d8226e6](https://github.com/RepliMap/replimap-mono/commit/d8226e6c9c82d6378b329e01f93a9cf1e8b582b0))
+* **web:** route pricing CTAs to checkout + support lifetime in /checkout ([556db81](https://github.com/RepliMap/replimap-mono/commit/556db819e6f81b45e6b134b0852174cf489d32d7))
+
+
+### Bug Fixes
+
+* **dashboard:** populate device list, per-plan limits, grace days, expiry (followups [#6](https://github.com/RepliMap/replimap-mono/issues/6)/[#7](https://github.com/RepliMap/replimap-mono/issues/7)) ([2e4b6d0](https://github.com/RepliMap/replimap-mono/commit/2e4b6d02abce4829ff0686775b18d95878db733d))
+* **web:** add X-Internal-Auth header to provision-community request ([8f83d6f](https://github.com/RepliMap/replimap-mono/commit/8f83d6f9d04b64f3feb9f6950d51b12f672247c8))
+* **web:** force-dynamic on /checkout to fix SSG prerender of Clerk hooks ([8c846b5](https://github.com/RepliMap/replimap-mono/commit/8c846b56b79260f98243eeaebae2828663b3a531))
+* **web:** guard license.fingerprints access against undefined ([7b829cd](https://github.com/RepliMap/replimap-mono/commit/7b829cdbd65cb09be00bc9ac0f5a7e20cbf09d4c))
+* **web:** link Clerk user to license via email, auto-provision community ([30d088f](https://github.com/RepliMap/replimap-mono/commit/30d088f068391b828f949371e3686beba23d3caa))
+* **web:** move license fetch/provision to client-side (Cloudflare Bot Fight Mode blocks Vercel SSR requests) ([e6bd1c9](https://github.com/RepliMap/replimap-mono/commit/e6bd1c9f820b58ff4cae61631bfd13c88bb9d9cb))
+* **web:** pass license_key as query param to /v1/me/license ([1051aaa](https://github.com/RepliMap/replimap-mono/commit/1051aaa860838207fc156ca596eb72c7069cd144))
+
+
+### Documentation
+
+* mark followups [#6](https://github.com/RepliMap/replimap-mono/issues/6)/[#7](https://github.com/RepliMap/replimap-mono/issues/7) fixed; add [#8](https://github.com/RepliMap/replimap-mono/issues/8) (license key as URL query param — ([2e4b6d0](https://github.com/RepliMap/replimap-mono/commit/2e4b6d02abce4829ff0686775b18d95878db733d))
+
 ## [0.5.3](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.2...replimap-web-v0.5.3) (2026-01-23)
 
 
