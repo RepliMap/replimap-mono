@@ -12,6 +12,7 @@ import {
   parseResponse,
   generateMachineId,
   mockLicense,
+  TEST_LICENSE_SIGNING_PUBLIC_KEY_PEM,
 } from './helpers';
 import type { Env } from '../src/types';
 import type { ValidateLicenseResponse, ErrorResponse } from '../src/types/api';
@@ -34,6 +35,29 @@ vi.mock('../src/lib/db', async (importOriginal) => {
     getActiveMachines: vi.fn().mockResolvedValue([]),
   };
 });
+
+// ============================================================================
+// License Blob Verification Helpers (contract §1/§4 — base64url + SPKI PEM)
+// ============================================================================
+
+function base64UrlDecode(str: string): Uint8Array {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/').padEnd(
+    str.length + ((4 - (str.length % 4)) % 4),
+    '='
+  );
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function importSpkiPem(pem: string): Promise<CryptoKey> {
+  const body = pem.replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, '');
+  const binary = atob(body);
+  const der = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) der[i] = binary.charCodeAt(i);
+  return crypto.subtle.importKey('spki', der, { name: 'Ed25519' }, false, ['verify']);
+}
 
 describe('POST /v1/license/validate', () => {
   let env: Env;
@@ -167,6 +191,104 @@ describe('POST /v1/license/validate', () => {
       expect(data.cache_until).toBeDefined();
       expect(data.cli_version).toBeDefined();
       expect(data.cli_version?.status).toBe('ok');
+    });
+
+    it('should include a contract-compliant license_blob when LICENSE_SIGNING_KEY is configured', async () => {
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue({
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'active',
+        current_period_end: mockLicense.current_period_end,
+        machine_is_active: 1,
+        machine_last_seen: new Date().toISOString(),
+        active_machines: 1,
+        monthly_changes: 0,
+        active_aws_accounts: 1,
+      });
+
+      const machineId = generateMachineId();
+      const request = createRequest('POST', '/v1/license/validate', {
+        license_key: 'RM-TEST-1234-5678-ABCD',
+        machine_id: machineId,
+        cli_version: '1.0.0',
+      });
+
+      const response = await handleValidateLicense(request, env, '1.2.3.4');
+      const data = await parseResponse<ValidateLicenseResponse>(response);
+
+      // Existing fields untouched by the addition of license_blob.
+      expect(response.status).toBe(200);
+      expect(data.valid).toBe(true);
+      expect(data.plan).toBe('pro');
+      expect(data.status).toBe('active');
+      expect(data.features.machines).toBe(2);
+
+      // license_blob: two unpadded base64url segments.
+      expect(typeof data.license_blob).toBe('string');
+      const parts = (data.license_blob as string).split('.');
+      expect(parts).toHaveLength(2);
+      for (const part of parts) {
+        expect(part).toMatch(/^[A-Za-z0-9_-]+$/);
+      }
+
+      // Signature verifies against the matching test public key, and the
+      // decoded payload matches contract §2 semantics.
+      const [payloadB64, sigB64] = parts;
+      const payloadBytes = base64UrlDecode(payloadB64);
+      const publicKey = await importSpkiPem(TEST_LICENSE_SIGNING_PUBLIC_KEY_PEM);
+      const isValid = await crypto.subtle.verify(
+        'Ed25519',
+        publicKey,
+        base64UrlDecode(sigB64),
+        payloadBytes
+      );
+      expect(isValid).toBe(true);
+
+      const decoded = JSON.parse(new TextDecoder().decode(payloadBytes));
+      expect(decoded.v).toBe(1);
+      expect(decoded.lic).toBe('RM-TEST-1234-5678-ABCD');
+      expect(decoded.plan).toBe('pro');
+      expect(decoded.machine_id).toBe(machineId.toLowerCase());
+      expect(decoded.kid).toBe('key-test-mono'); // env.LICENSE_SIGNING_KID from createMockEnv
+      // exp = DB current_period_end + pro's offline_grace_days (7 days),
+      // per contract §11 adjudication D.
+      const expectedExp =
+        Math.floor(new Date(mockLicense.current_period_end).getTime() / 1000) + 7 * 86400;
+      expect(decoded.exp).toBe(expectedExp);
+    });
+
+    it('should omit license_blob and return 200 (fail-open) when LICENSE_SIGNING_KEY is not configured', async () => {
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue({
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'active',
+        current_period_end: mockLicense.current_period_end,
+        machine_is_active: 1,
+        machine_last_seen: new Date().toISOString(),
+        active_machines: 1,
+        monthly_changes: 0,
+        active_aws_accounts: 1,
+      });
+
+      const envWithoutSigningKey = createMockEnv({ LICENSE_SIGNING_KEY: undefined });
+      const request = createRequest('POST', '/v1/license/validate', {
+        license_key: 'RM-TEST-1234-5678-ABCD',
+        machine_id: generateMachineId(),
+        cli_version: '1.0.0',
+      });
+
+      const response = await handleValidateLicense(request, envWithoutSigningKey, '1.2.3.4');
+      const data = await parseResponse<ValidateLicenseResponse>(response);
+
+      // Never 500s the hot path — old-client-shaped response, just no blob.
+      expect(response.status).toBe(200);
+      expect(data.valid).toBe(true);
+      expect(data.plan).toBe('pro');
+      expect(data.status).toBe('active');
+      expect(data.features).toBeDefined();
+      expect(data.license_blob).toBeUndefined();
     });
   });
 

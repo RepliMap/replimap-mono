@@ -40,6 +40,18 @@ export interface Env {
   // Store via: wrangler secret put ED25519_PRIVATE_KEY
   ED25519_PRIVATE_KEY: string;
 
+  // License Blob Format Contract v1 signing key (lib/license-blob-signer.ts).
+  // PEM-encoded PKCS8 Ed25519 private key text. Optional by design: when
+  // unset, /v1/license/validate fails OPEN — it omits `license_blob` from
+  // an otherwise-normal response rather than 500ing (see contract §7,
+  // docs/security/license-blob-format.md in the replimap repo).
+  // Store via: wrangler secret put LICENSE_SIGNING_KEY
+  LICENSE_SIGNING_KEY?: string;
+
+  // Key ID (`kid`) recorded in signed license blobs. Optional — falls back
+  // to DEFAULT_LICENSE_SIGNING_KID (lib/constants.ts) when unset.
+  LICENSE_SIGNING_KID?: string;
+
   // Environment variables
   ENVIRONMENT: 'development' | 'production';
   CORS_ORIGIN: string;

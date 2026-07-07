@@ -123,6 +123,24 @@ export function createMockKV(): KVNamespace {
 const TEST_ED25519_PRIVATE_KEY =
   'MC4CAQAwBQYDK2VwBCIEIGC5v0PBhH8RkoiqTt9rEt2mS9SXA2WvCz08lilmjSIO';
 
+// TEST KEY — throwaway Ed25519 keypair for License Blob Format Contract v1
+// signing (lib/license-blob-signer.ts), PEM PKCS8 (the format
+// LICENSE_SIGNING_KEY actually holds — distinct from the legacy base64-DER
+// ED25519_PRIVATE_KEY above). Generated with:
+//   node -e "const c=require('crypto');
+//     const {privateKey}=c.generateKeyPairSync('ed25519');
+//     console.log(privateKey.export({type:'pkcs8',format:'pem'}).toString())"
+// Only used in tests — never signs real licenses, never added to any
+// production PUBLIC_KEYS registry (contract §4/§11.A).
+const TEST_LICENSE_SIGNING_PRIVATE_KEY_PEM = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEINnVIuuR8WTakYKsfFfJKLeOAYKj+PYXJj/ORCZG8jr2
+-----END PRIVATE KEY-----`;
+
+/** Matching public key (SPKI PEM) for tests that want to verify a blob. */
+export const TEST_LICENSE_SIGNING_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEAWabq1kPwCc/veNKy9hsFL2OeXN66xz1hgMR5yQdLX5c=
+-----END PUBLIC KEY-----`;
+
 export function createMockEnv(overrides: Partial<Env> = {}): Env {
   return {
     DB: createMockDB(),
@@ -134,6 +152,10 @@ export function createMockEnv(overrides: Partial<Env> = {}): Env {
     CORS_ORIGIN: '*',
     API_VERSION: 'v1',
     ED25519_PRIVATE_KEY: TEST_ED25519_PRIVATE_KEY,
+    LICENSE_SIGNING_KEY: TEST_LICENSE_SIGNING_PRIVATE_KEY_PEM,
+    // Explicitly test-named kid: never collides with the CLI-side
+    // production slot name ("key-2024-01") once the real key lands there.
+    LICENSE_SIGNING_KID: 'key-test-mono',
     ...overrides,
   };
 }

@@ -126,8 +126,14 @@ export interface ValidateLicenseResponse {
   valid: true;
   plan: string;
   status: string;
-  /** Ed25519 signed license blob for offline validation */
-  license_blob: string;
+  /**
+   * License Blob Format Contract v1 signed blob for offline validation
+   * (docs/security/license-blob-format.md in the replimap repo). Optional:
+   * omitted (fail-open, contract §7) when LICENSE_SIGNING_KEY is not
+   * configured on the Worker — old clients ignore the missing field, new
+   * clients surface "server did not return a signed license".
+   */
+  license_blob?: string;
   features: PlanFeatures;
   usage: UsageInfo;
   expires_at: string | null;

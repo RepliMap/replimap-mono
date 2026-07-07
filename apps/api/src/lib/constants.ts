@@ -124,6 +124,20 @@ export const DEFAULT_CACHE_HOURS = 24;
 export const GRACE_PERIOD_DAYS = 7;
 
 // ============================================================================
+// License Blob Signing (License Blob Format Contract v1)
+// ============================================================================
+
+/**
+ * Default `kid` for contract-compliant license blob signing
+ * (`lib/license-blob-signer.ts`), used when `env.LICENSE_SIGNING_KID` is
+ * not set. Single canonical place for this value — never hardcode the kid
+ * literal elsewhere. Mirrors the Python side's placeholder
+ * `KeyRegistry.CURRENT_KEY_ID` (`replimap/licensing/crypto/keys.py`) until
+ * the real production keypair is provisioned per the deploy runbook.
+ */
+export const DEFAULT_LICENSE_SIGNING_KID = 'key-2024-01';
+
+// ============================================================================
 // Rate Limiting
 // ============================================================================
 

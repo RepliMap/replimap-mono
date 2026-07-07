@@ -18,12 +18,12 @@ import {
   PLAN_FEATURES,
   MAX_MACHINE_CHANGES_PER_MONTH,
   DEFAULT_CACHE_HOURS,
+  DEFAULT_LICENSE_SIGNING_KID,
   checkCliVersion,
   type PlanType,
 } from '../lib/constants';
 import { Plan, getFeatureFlags, PLAN_LIMITS, buildSecureLicenseLimits, getEnabledFeatures } from '../features';
-import { signLicenseBlob, type LicensePayload } from '../lib/ed25519';
-import { detectFingerprintType } from '../lib/fingerprint';
+import { signLicenseBlob, buildContractLicensePayload } from '../lib/license-blob-signer';
 import { Errors, AppError } from '../lib/errors';
 import {
   normalizeLicenseKey,
@@ -97,13 +97,6 @@ export async function handleValidateLicense(
     // Support both machine_fingerprint (new) and machine_id (legacy)
     const rawFingerprint = (body as { machine_fingerprint?: string }).machine_fingerprint || body.machine_id;
     const machineId = normalizeMachineId(rawFingerprint);
-
-    // Detect fingerprint type from machine_info if available
-    const bodyWithMachineInfo = body as { machine_info?: { ci_provider?: string; ci_repo?: string; container_type?: string }; fingerprint_type?: 'machine' | 'ci' | 'container' };
-    const fpMetadata = detectFingerprintType(
-      bodyWithMachineInfo.machine_info,
-      bodyWithMachineInfo.fingerprint_type
-    );
 
     // Verify machine signature if MACHINE_SIGNATURE_SECRET is configured
     // This prevents machine ID forgery
@@ -229,24 +222,38 @@ export async function handleValidateLicense(
     const featureFlags = getFeatureFlags(planEnum);
     const newLimits = PLAN_LIMITS[planEnum] || PLAN_LIMITS[Plan.COMMUNITY];
 
-    // Generate Ed25519 signed license blob
-    const now = Math.floor(Date.now() / 1000);
-    const expSeconds = 24 * 60 * 60; // 24 hours
-
-    const licensePayload: LicensePayload = {
-      license_key: licenseKey,
-      plan: license.plan,
-      status: license.status,
-      machine_fingerprint: machineId,
-      fingerprint_type: fpMetadata.type,
-      limits: buildSecureLicenseLimits(planEnum),
-      features: getEnabledFeatures(planEnum),
-      iat: now,
-      exp: now + expSeconds,
-      nbf: now - 60, // 1 minute clock skew tolerance
-    };
-
-    const licenseBlob = await signLicenseBlob(licensePayload, env.ED25519_PRIVATE_KEY);
+    // Generate the contract-compliant Ed25519 signed license blob (License
+    // Blob Format Contract v1 — docs/security/license-blob-format.md in the
+    // replimap repo). This is the payload the real Python CLI verifier
+    // parses (`lic`/`plan`/`iat`/`exp` required, `machine_id` bound to the
+    // fingerprint the client just sent). Additive to the response envelope:
+    // every other field below is unchanged from before this field existed.
+    //
+    // Fail-open (contract §7): if LICENSE_SIGNING_KEY isn't configured, or
+    // signing throws, we log and fall through WITHOUT `license_blob` rather
+    // than 500ing the hot path. Old clients ignore the missing field; new
+    // clients surface "server did not return a signed license".
+    let licenseBlob: string | undefined;
+    if (env.LICENSE_SIGNING_KEY) {
+      try {
+        const contractLimits = buildSecureLicenseLimits(planEnum);
+        const contractPayload = buildContractLicensePayload({
+          licenseKey,
+          plan: license.plan,
+          machineId,
+          kid: env.LICENSE_SIGNING_KID || DEFAULT_LICENSE_SIGNING_KID,
+          currentPeriodEnd: license.current_period_end,
+          offlineGraceDays: contractLimits.offline_grace_days,
+          features: getEnabledFeatures(planEnum),
+          limits: contractLimits,
+        });
+        licenseBlob = await signLicenseBlob(contractPayload, env.LICENSE_SIGNING_KEY);
+      } catch (err) {
+        console.error('[LICENSE_BLOB] Failed to sign license blob:', err);
+      }
+    } else {
+      console.error('[LICENSE_BLOB] LICENSE_SIGNING_KEY not configured — omitting license_blob');
+    }
 
     // Build success response
     const response: ValidateLicenseResponse & {
@@ -258,7 +265,6 @@ export async function handleValidateLicense(
       valid: true,
       plan: license.plan,
       status: license.status,
-      license_blob: licenseBlob,
       features: {
         resources_per_scan: features.resources_per_scan,
         scans_per_month: features.scans_per_month,
@@ -293,6 +299,11 @@ export async function handleValidateLicense(
         offline_grace_days: newLimits.offline_grace_days ?? 0,
       },
     };
+
+    // Add signed license blob (contract §5, additive envelope)
+    if (licenseBlob) {
+      response.license_blob = licenseBlob;
+    }
 
     // Add version warning if outdated CLI
     if (versionWarning) {
