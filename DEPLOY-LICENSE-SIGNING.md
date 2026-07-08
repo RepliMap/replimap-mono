@@ -1,5 +1,20 @@
 # Deploy Runbook: Ed25519 License-Blob Signing (Offline License #2, Phase 4)
 
+> **STATE UPDATE 2026-07-08 (post-execution):** The signing path IS live on
+> both dev and prod (secret-change + deploys at 2026-07-07T22:09-22:37Z;
+> `LICENSE_SIGNING_KEY` present in both secret stores). Verified end-to-end
+> on prod 2026-07-08: `/v1/license/validate` returns a `license_blob` that
+> CLI v0.4.2 verifies and caches (team activation succeeded). The
+> "Not yet deployed" statements below describe the state when this runbook
+> was written and are OBSOLETE. Two follow-ups discovered during
+> verification: (1) signer sets `nbf = iat = now` with zero leeway — a
+> client whose clock is even 1s behind rejects a fresh blob
+> ("License not valid until ..."); CLI-side 300s leeway fix in the
+> `replimap` repo; consider backdating `nbf` by 60-300s at the NEXT worker
+> deploy (do not deploy solely for this). (2) The signing-code commit cited
+> below as `e7f2cff` now lives in history as `cd58f29` (rebase, identical
+> content).
+
 Manual go-live steps for the License Blob Format Contract v1 signing path.
 
 **State when this runbook was written:**
