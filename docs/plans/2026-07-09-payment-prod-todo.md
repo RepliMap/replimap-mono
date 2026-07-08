@@ -1,5 +1,11 @@
 # 支付链路生产化 TODO(2026-07-09 盘点)
 
+> **执行进度(2026-07-09 会话):A 组全部完成,B-1/B-2/B-5 完成。**
+> A-1 修复+反例测试(`b709db7`);A-2 矛盾已解(旧 401 端点是 sandbox 端点且已删,live 端点有 processed_events 实证;残项:live Dashboard 确认 `customer.deleted` 订阅,需人工);A-3 secrets 全在、鉴权闸门 live 复测 401、CLI 验签确认(残项:正向开通 smoke 需真实浏览器 Clerk session,需人工);A-4 账本 7/4 已对齐,今日复核通过。B-1 核查+CI guard(`faa2b79`);B-2 nbf 回溯 300s(`c317532`);B-5 文档更正+空壳树已删(`71d1c49`)。
+> **API 已部署:dev `98d6b901` + prod `cacc361d`(A-1+B-2 已 live,双端验证 `iat-nbf==300`)。**
+> 剩余:B-3 告警接线、B-4 Dependabot、C 组;及上述两个需人工的残项。
+> 附带发现:pipx 安装的 replimap CLI 0.4.2 缺 `cryptography` 依赖(已本机 `pipx inject` 修复)——疑似 CLI 仓库打包漏声明,应在 replimap 仓库确认。
+
 - 依据:2026-07-09 对 main(HEAD dea20a1,工作树干净,领先 origin 1 commit)的只读读码盘点,证据均为 文件:行号。
 - 本文自包含:执行会话不需要旧会话上下文。**7 月 4 日诊断的记忆已大量过期,以本文为准。**
 - 新会话开场白(建议):`执行 docs/plans/2026-07-09-payment-prod-todo.md,按优先级从 A 组开始;每项验收标准在条目内;Landmine 区红线不可越。`
