@@ -26,6 +26,16 @@ jobs:
           node-version: '24'
           cache: 'pnpm'
 
+      # RATE_LIMIT_DISABLED is a local-e2e-only bypass (followups §4). It must
+      # never ship in a deploy manifest — a prod worker with rate limiting off
+      # is an open door. Secrets are checked manually; this pins the repo side.
+      - name: Guard against rate-limit bypass in deploy config
+        run: |
+          if grep -rn "RATE_LIMIT_DISABLED" apps/api/wrangler.toml; then
+            echo "::error::RATE_LIMIT_DISABLED found in apps/api/wrangler.toml — this dev-only bypass must not be configured via the deploy manifest."
+            exit 1
+          fi
+
       - name: Install dependencies
         run: pnpm install
 

@@ -62,7 +62,9 @@ HTTP stack rather than direct handler invocation.
 
 ## 4. Verify `RATE_LIMIT_DISABLED` is NOT set in production
 
-**Status:** Flag added for local e2e only (`apps/api/src/lib/rate-limiter.ts`). Production deploy must not carry it.
+**Status: ✅ VERIFIED + CI-GUARDED (2026-07-09).** `wrangler secret list --env prod` has no such entry; `apps/api/wrangler.toml` contains no occurrence; CI (`.github/workflows/ci.yml`) now greps `wrangler.toml` and fails the build on any occurrence. The `DEV_BYPASS_RATE_LIMIT` rename suggestion was not taken — the CI guard covers the same risk without touching existing dev/test references.
+
+**Original note:** Flag added for local e2e only (`apps/api/src/lib/rate-limiter.ts`). Production deploy must not carry it.
 
 **How to verify:**
 ```bash
