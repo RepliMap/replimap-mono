@@ -6,7 +6,7 @@
  */
 
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
-import { eq, and, ne, sql, desc, gte, count } from 'drizzle-orm';
+import { eq, and, ne, notInArray, sql, desc, gte, count } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { generateId, nowISO, normalizeLicenseKey, normalizeMachineId } from './license';
 import { Errors } from './errors';
@@ -871,12 +871,19 @@ export async function getLicenseBySessionId(
   return result ?? null;
 }
 
+/** Free-tier plans that can never be the outcome of a Stripe purchase. */
+const FREE_TIER_PLANS: schema.LicensePlan[] = ['community', 'free'];
+
 /**
- * Get the most recent active license for a user identified by email.
+ * Get the most recent active PAID license for a user identified by email.
  * Used by post-payment lookup (subscription checkout_session has no session_id
- * stamped on the license) and by free-tier provisioning idempotency.
+ * stamped on the license). Free-tier plans are excluded: a user who already
+ * holds a community key must not have it surfaced as their purchase result
+ * while the paid webhook is still in flight — no paid license means the
+ * purchase is still pending.
  *
- * Returns null if no user exists for the email, or no active license is found.
+ * Returns null if no user exists for the email, or no active paid license is
+ * found.
  */
 export async function getLicenseByUserEmailLatest(
   db: DrizzleDb,
@@ -892,7 +899,8 @@ export async function getLicenseByUserEmailLatest(
   const license = await db.query.licenses.findFirst({
     where: and(
       eq(schema.licenses.userId, userRow.id),
-      eq(schema.licenses.status, 'active')
+      eq(schema.licenses.status, 'active'),
+      notInArray(schema.licenses.plan, FREE_TIER_PLANS)
     ),
     orderBy: desc(schema.licenses.createdAt),
   });
