@@ -237,10 +237,30 @@ describe('buildContractLicensePayload', () => {
       org: '',
       iat: 1750000000,
       exp: 1750000000 + 365 * 86400,
-      nbf: 1750000000,
+      nbf: 1750000000 - 300,
       nonce: 'fixed-for-test',
       machine_id: 'a'.repeat(32),
     });
+  });
+
+  it('backdates nbf by 300s so a client with a slightly slow clock accepts a fresh blob', () => {
+    // DEPLOY-LICENSE-SIGNING.md follow-up (1): nbf = iat = now meant a client
+    // whose clock was even 1s behind rejected a brand-new blob with
+    // "License not valid until ...". Backdating nbf tolerates real-world
+    // clock skew; iat/exp are unchanged.
+    const payload = buildContractLicensePayload({
+      licenseKey: 'RM-PRO-1234-5678-ABCD',
+      plan: 'pro',
+      machineId: 'a'.repeat(32),
+      kid: 'key-test-mono',
+      currentPeriodEnd: null,
+      offlineGraceDays: 7,
+      now: 1750000000,
+      nonce: 'n',
+    });
+
+    expect(payload.iat).toBe(1750000000);
+    expect(payload.nbf).toBe(1750000000 - 300);
   });
 
   it('includes features/limits only when provided', () => {

@@ -52,7 +52,10 @@ export interface LicenseBlobPayload {
   iat: number;
   /** Expiry, unix seconds UTC. Always present per contract (§9 delta #1). */
   exp: number;
-  /** Not-before, unix seconds UTC. Reference signer always sets nbf = iat. */
+  /**
+   * Not-before, unix seconds UTC. Backdated NBF_LEEWAY_SECONDS from iat so
+   * clients with slightly slow clocks accept a freshly signed blob.
+   */
   nbf: number;
   /** Informational/audit-trail only — not used for anti-replay. */
   nonce: string;
@@ -258,6 +261,14 @@ export function generateLicenseNonce(): string {
     .join('');
 }
 
+/**
+ * How far nbf is backdated from iat. A verifier whose clock lags the worker
+ * by up to this much still accepts a just-signed blob ("License not valid
+ * until ..." otherwise). The CLI verifier applies the same 300s leeway on its
+ * side; the two are independent safety margins.
+ */
+export const NBF_LEEWAY_SECONDS = 300;
+
 export interface BuildLicensePayloadInput {
   licenseKey: string;
   plan: string;
@@ -295,7 +306,7 @@ export function buildContractLicensePayload(
     org: input.org ?? '',
     iat: now,
     exp,
-    nbf: now,
+    nbf: now - NBF_LEEWAY_SECONDS,
     nonce: input.nonce ?? generateLicenseNonce(),
     ...(input.features ? { features: input.features } : {}),
     ...(input.limits ? { limits: input.limits } : {}),
