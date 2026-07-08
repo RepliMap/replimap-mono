@@ -1,9 +1,11 @@
 # RepliMap 支付流程 — 生产部署前检查清单
 
 **创建日期:** 2026-07-04
-**背景:** 本清单汇总自任务 3(端到端支付流程打通)全过程的诊断与加固工作。所有代码修复已在 `fix/payment-flow-hardening` 分支上完成,并在 **dev worker + Stripe sandbox** 环境下用真实数据完整验证通过(见 `E2E_DEV_VALIDATION_LOG.md`)。**Prod 环境目前仍是 2026-01-20 的旧代码,尚未部署任何本轮加固。**
+**背景:** 本清单汇总自任务 3(端到端支付流程打通)全过程的诊断与加固工作。所有代码修复已在 `fix/payment-flow-hardening` 分支上完成,并在 **dev worker + Stripe sandbox** 环境下用真实数据完整验证通过(见 `E2E_DEV_VALIDATION_LOG.md`)。
 
-**核心结论:** 生产商业化链路目前实质上不可用——prod worker 落后代码 3 个月、webhook 签名一直失败(401)、多个真实场景下会静默产生错误数据(错发 license 档位、退款无法撤销 lifetime 授权等)。这份清单的目的是确保上线前把这些已知问题全部闭环,而不是"部署完再说"。
+> **⚠️ 状态更新(2026-07-09):下面这段"核心结论"是 2026-07-04 写清单时的快照,已全部过期。** 加固分支已并入 main 并部署 prod;真实 $29 购买→webhook→license→退款/取消全链路已在 live 环境验证(`PROD_E2E_SMOKE_TEST_LOG.md`);§5 修复(API `f62bd94c`)与 #6/#7(API `90bfc4ca`)也已上 prod。当前以各小节 checkbox 与标注日期为准,不要按这段旧结论重新诊断。
+
+**核心结论(2026-07-04 快照,已过期):** 生产商业化链路目前实质上不可用——prod worker 落后代码 3 个月、webhook 签名一直失败(401)、多个真实场景下会静默产生错误数据(错发 license 档位、退款无法撤销 lifetime 授权等)。这份清单的目的是确保上线前把这些已知问题全部闭环,而不是"部署完再说"。
 
 ---
 
@@ -30,12 +32,13 @@
 pnpm deploy:prod
 ```
 
-`fix/payment-flow-hardening` 分支目前领先 main 8 个 commit,包含本轮全部安全修复、收入完整性修复、测试覆盖。Prod 目前跑的是 2026-01-20 的代码,不含任何本轮内容。
+~~`fix/payment-flow-hardening` 分支目前领先 main 8 个 commit,包含本轮全部安全修复、收入完整性修复、测试覆盖。Prod 目前跑的是 2026-01-20 的代码,不含任何本轮内容。~~
+**(2026-07-09 更正:上述表述已过期——分支早已并入 main 且 prod 已在跑加固后代码,live 购买链路验证见 §1.5。)**
 
 **执行前确认:**
-- [ ] 分支已 merge 到 main(或按你们的发布流程操作)
-- [ ] 本地 CI 四步(build/lint/typecheck/test)全绿
-- [ ] 部署后 `curl https://api.replimap.com/` 确认返回的版本/环境信息已更新
+- [x] 分支已 merge 到 main(2026-07-05 前完成,`main..fix/payment-flow-hardening` 为空)
+- [x] 本地 CI 四步(build/lint/typecheck/test)全绿
+- [x] 部署后 `curl https://api.replimap.com/` 确认返回的版本/环境信息已更新(§5 修复 `f62bd94c`、#6/#7 `90bfc4ca` 均已 live)
 
 ### 1.2 配置 prod secrets
 
@@ -51,7 +54,7 @@ npx wrangler secret put ADMIN_API_KEY --env prod
 
 **已知风险:** `CLERK_ISSUER` 未设置时,`provision-community` 会 fail-closed 返回 503(设计如此,不是 bug),但意味着 dashboard 首屏自助开通 community 会全部失败。**部署当天必须一次性配齐,不能分批。**
 
-- [ ] `wrangler secret list --env prod` 确认全部 5 个 secret 已设置
+- [x] `wrangler secret list --env prod` 确认全部 5 个 secret 已设置(**2026-07-09 核实**:实际存在 8 个——上述 5 个全部在列,另有 `CLERK_PUBLISHABLE_KEY`、`ED25519_PRIVATE_KEY`、`LICENSE_SIGNING_KEY`。`CLERK_ISSUER` 生效的行为证据:prod `provision-community` 无 token 返回 401 而非 fail-closed 503)
 
 ### 1.3 对齐 prod D1 迁移账本(不执行任何迁移)
 
@@ -85,20 +88,19 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
   ('012_restore_session_id_unique.sql', datetime('now'));
 ```
 
-- [ ] 用 `wrangler d1 execute replimap-prod --env prod --remote --command "<上面的 INSERT>"` 执行账本对齐(仅这条 INSERT,不要跑 migrations apply)
-- [ ] 执行后 `SELECT name FROM d1_migrations WHERE name LIKE '01%'` 确认 011、012 已记录
-- [ ] 再跑一次 `wrangler d1 migrations apply replimap-prod --env prod --remote` 应显示 **"No migrations to apply"**(证明账本已对齐、无任何待应用项)
-- [ ] (可选)只读核对 prod 仍保有 payment 表的 `payment_session_id_idx` 和 licenses 的 UNIQUE(stripe_session_id)——账本对齐不碰索引,这两者应原封不动
+- [x] 用 `wrangler d1 execute replimap-prod --env prod --remote --command "<上面的 INSERT>"` 执行账本对齐(已于 2026-07-04 11:16:55 UTC 执行,`d1_migrations` id 13/14)
+- [x] 执行后 `SELECT name FROM d1_migrations WHERE name LIKE '01%'` 确认 011、012 已记录(2026-07-09 复核通过)
+- [x] `wrangler d1 migrations list replimap-prod --env prod --remote` 显示 **"No migrations to apply!"**(2026-07-09 核实;注:用只读的 `migrations list` 验证即可,不要用 `migrations apply` 做验证)
+- [x] 只读核对 prod 仍保有 payment 表的 `payment_session_id_idx` 和 licenses 的 UNIQUE(stripe_session_id)(2026-07-09 核实:`payment_session_id_idx ON payment(session_id)` 与 `licenses_session_id_idx` UNIQUE 均原封不动)
 
 ### 1.4 对齐 prod webhook signing secret
 
-**当前状态:** prod 的 webhook endpoint(`we_1SnXkbAKLIiL9hdwR1W9kOif`,inspiring-splendor)一直返回 `401 Invalid signature`,根因是 Stripe 侧的 signing secret 与 `STRIPE_WEBHOOK_SECRET` 不一致。这是导致"生产 D1 至今 0 行"的直接原因。
+**当前状态(2026-07-09 核实,本节矛盾已解):** 旧的 `we_1SnXkbAKLIiL9hdwR1W9kOif`(inspiring-splendor,401 Invalid signature)是 **sandbox 账号**(`acct_1Sg0CYAKLIiL9hdw`,ID 内嵌账号哈希可证)上指向 prod URL 的端点,**现已删除**——sandbox 账号目前仅剩 dev 端点(`we_1TpJSVAKLIiL9hdw...` → api-dev,含 `customer.deleted` 共 8 类事件)。真正的 live 端点在 live 账号(`acct_...AM46G6RB9J`)上,且与 prod `STRIPE_WEBHOOK_SECRET` 匹配:prod D1 `processed_events` 记录了 2026-07-04 UTC 真实购买的全部 5 类事件(`invoice.paid` / `checkout.session.completed` / `customer.subscription.created` / `charge.refunded` / `customer.subscription.deleted`)均验签+处理成功。
 
-**建议:roll 一个新的 secret**(而不是复用现有值,因为现有值来历不明且已确认失配):
-- [ ] Stripe Dashboard → Webhooks → inspiring-splendor → Roll signing secret
-- [ ] `wrangler secret put STRIPE_WEBHOOK_SECRET --env prod`,粘贴新值
-- [ ] 补充订阅缺失的 `customer.deleted` 事件(当前只有 7 类,少这一个)
-- [ ] 用 Dashboard 的 "Send test events" 发一次测试事件,确认返回 200
+- [x] ~~Roll signing secret~~(不再需要:失配的旧端点已删,live 端点验签成功有 processed_events 实证)
+- [x] `STRIPE_WEBHOOK_SECRET --env prod` 已设置且与 live 端点匹配(同上实证)
+- [ ] **仍待人工**:登录 live Stripe Dashboard 确认 live 端点已订阅 `customer.deleted`(本机只有 sandbox API key,无法远程核实;这是 §1.4 唯一剩余项)
+- [x] live 端点投递 200 有实证(真实购买链路,见 `PROD_E2E_SMOKE_TEST_LOG.md`)
 
 **顺序提醒:** 必须先完成 1.1(部署新代码),再做这一步——如果先对齐密钥、代码还是旧的,Stripe 侧积压的重试事件会被旧代码(无本轮任何加固)处理,可能产生脏数据。
 
@@ -108,7 +110,7 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
 
 参照 `E2E_DEV_VALIDATION_LOG.md` 的方法,在 prod 上验证:
 - [x] 真实 live 交易 → webhook 200 → license 正确落库:本次以 **subscription 模式 + 全额退款/取消**验证(比"test-mode lifetime"更强);`checkout.session.completed`/`customer.subscription.created`/`invoice.paid` 三事件均入 processed_events,退款/取消逆向链路也验证通过,全表零漂移。lifetime checkout 未单独跑,可选补测。
-- [ ] provision-community:鉴权闸门已验证(无 token → 503→401,见前述只读探测);**正向开通(真实 Clerk 登录)+ 伪造他人邮箱被拒(403)仍待验证**。
+- [ ] provision-community:鉴权闸门已验证(2026-07-09 live 复测:无 token → 401,伪造 token → 401,均非 503,证明 Clerk 已配置且 fail-closed 逻辑未触发);**正向开通(真实 Clerk 登录)+ 伪造他人邮箱被拒(403)仍待验证——需要真实浏览器 Clerk session,无法脚本化,留给人工**。
 - [ ] 确认 `[Stripe][MANUAL_REVIEW]` 这类关键错误日志在 prod 上是否有实际可见的监控/告警渠道(**仍未接入**;建议 Cloudflare Logpush 或等效告警,否则"收了钱但发错/不发 license"不会被及时发现)。
 
 ---
