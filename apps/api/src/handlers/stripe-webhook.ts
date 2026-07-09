@@ -35,6 +35,7 @@ import {
 } from '../lib/db';
 import { licenses } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { sendOpsAlert } from '../lib/alerts';
 
 // Stripe event types we handle
 type StripeEventType =
@@ -327,14 +328,15 @@ async function createLifetimeLicense(
   if (!plan) {
     // A payment was received but we cannot determine which tier to grant.
     // Do NOT issue a (wrong) license, do NOT 500 (retry yields no new info):
-    // acknowledge, and flag loudly for manual intervention. This ERROR line is
-    // the manual-review signal — alert on the "MANUAL_REVIEW" token via Logpush.
-    console.error(
-      `[Stripe][MANUAL_REVIEW] Lifetime payment with UNRESOLVABLE plan — NO license issued. ` +
+    // acknowledge, and flag loudly for manual intervention.
+    const manualReviewDetail =
+      `Lifetime payment with UNRESOLVABLE plan — NO license issued. ` +
       `session=${session.id}, user=${user.id}, email=${user.email}, ` +
       `priceId=${priceId ?? 'none'}, metadata.plan=${metaPlan ?? 'none'}. ` +
-      `A payment was received but no plan could be determined; manual intervention required.`
-    );
+      `A payment was received but no plan could be determined; manual intervention required.`;
+    console.error(`[Stripe][MANUAL_REVIEW] ${manualReviewDetail}`);
+    // Push the same signal to a human (fail-open — never blocks the ack).
+    await sendOpsAlert(env, 'Stripe MANUAL_REVIEW', manualReviewDetail);
     return;
   }
 

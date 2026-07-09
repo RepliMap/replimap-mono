@@ -1220,6 +1220,49 @@ describe('lifetime plan resolution', () => {
     ).toBe(true);
   });
 
+  it('fires the ops-alert webhook (when configured) on a MANUAL_REVIEW payment, still acking 200', async () => {
+    const errors = captureErrors();
+    const alertCalls: Array<{ url: string; body: string }> = [];
+    const fetchSpy = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      alertCalls.push({ url: String(url), body: String(init?.body ?? '') });
+      return new Response('ok', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const alertingEnv = {
+      ...env,
+      OPS_ALERT_WEBHOOK: 'https://hooks.example.test/ops',
+    } as typeof env;
+
+    try {
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(
+          checkoutCompletedEvent({
+            mode: 'payment',
+            subscription: null,
+            customer: null,
+            customer_email: 'paid-alertme@example.com',
+            metadata: {},
+          })
+        ),
+        alertingEnv
+      );
+
+      expect(res.status).toBe(200);
+      expect(await licenseRows()).toHaveLength(0);
+      expect(errors.some((m) => m.includes('MANUAL_REVIEW'))).toBe(true);
+
+      // The alert must reach the configured webhook and identify the payment.
+      const ops = alertCalls.filter(
+        (c) => c.url === 'https://hooks.example.test/ops'
+      );
+      expect(ops).toHaveLength(1);
+      expect(ops[0].body).toContain('MANUAL_REVIEW');
+      expect(ops[0].body).toContain('cs_test_Session01');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('does NOT issue a license when metadata.plan is an unknown value (garbage), and flags it', async () => {
     const errors = captureErrors();
     const res = await deliver(

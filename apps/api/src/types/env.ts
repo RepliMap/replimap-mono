@@ -27,6 +27,12 @@ export interface Env {
   STRIPE_PRO_LIFETIME_PRICE_ID?: string;
   STRIPE_TEAM_LIFETIME_PRICE_ID?: string;
 
+  // Ops alert webhook (optional — lib/alerts.ts). Receives a JSON POST
+  // ({text, content}: Slack/Discord/generic-compatible) for critical
+  // operational signals, e.g. [Stripe][MANUAL_REVIEW] payments that issued
+  // no license. Unset = alerting is a silent no-op (fail-open).
+  OPS_ALERT_WEBHOOK?: string;
+
   // Machine signature verification (optional - for enhanced security)
   // If set, CLI must send HMAC-SHA256 signature of machine_id
   MACHINE_SIGNATURE_SECRET?: string;
