@@ -81,3 +81,5 @@ CLAUDE.md
 .claude/
 skills-lock.json
 all_docs_replimap_mono.txt
+.vercel
+.env*

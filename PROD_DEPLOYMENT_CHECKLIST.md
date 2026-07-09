@@ -99,7 +99,7 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
 
 - [x] ~~Roll signing secret~~(不再需要:失配的旧端点已删,live 端点验签成功有 processed_events 实证)
 - [x] `STRIPE_WEBHOOK_SECRET --env prod` 已设置且与 live 端点匹配(同上实证)
-- [ ] **仍待人工**:登录 live Stripe Dashboard 确认 live 端点已订阅 `customer.deleted`(本机只有 sandbox API key,无法远程核实;这是 §1.4 唯一剩余项)
+- [x] live 端点已订阅 `customer.deleted`(**2026-07-09 核实**:经 Vercel prod env 的 live key 只读调用 `GET /v1/webhook_endpoints`——live 端点 `we_1TpRvVAM46G6RB9JU9N54qKv` → api.replimap.com,enabled,api_version 2025-12-15.clover,订阅全部 8 类事件含 `customer.deleted`)
 - [x] live 端点投递 200 有实证(真实购买链路,见 `PROD_E2E_SMOKE_TEST_LOG.md`)
 
 **顺序提醒:** 必须先完成 1.1(部署新代码),再做这一步——如果先对齐密钥、代码还是旧的,Stripe 侧积压的重试事件会被旧代码(无本轮任何加固)处理,可能产生脏数据。
@@ -110,7 +110,7 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
 
 参照 `E2E_DEV_VALIDATION_LOG.md` 的方法,在 prod 上验证:
 - [x] 真实 live 交易 → webhook 200 → license 正确落库:本次以 **subscription 模式 + 全额退款/取消**验证(比"test-mode lifetime"更强);`checkout.session.completed`/`customer.subscription.created`/`invoice.paid` 三事件均入 processed_events,退款/取消逆向链路也验证通过,全表零漂移。lifetime checkout 未单独跑,可选补测。
-- [ ] provision-community:鉴权闸门已验证(2026-07-09 live 复测:无 token → 401,伪造 token → 401,均非 503,证明 Clerk 已配置且 fail-closed 逻辑未触发);**正向开通(真实 Clerk 登录)+ 伪造他人邮箱被拒(403)仍待验证——需要真实浏览器 Clerk session,无法脚本化,留给人工**。
+- [x] provision-community:**全部验证完成(2026-07-09)**。鉴权闸门:无 token → 401,伪造 token → 401(均非 503,证明 Clerk 已配置)。正向路径:用 live Clerk 实例真 session token(Backend API `sign_in_tokens` → FAPI ticket 兑换,自有账号)→ 200,幂等返回既有 license(`created: false`,零脏数据);伪造他人邮箱 → 403 FORBIDDEN("email does not match the authenticated account")。临时 session 已 revoke。脚本化方法:Vercel `env pull` 取 live `CLERK_SECRET_KEY` → `POST /v1/sign_in_tokens` → `POST clerk.replimap.com/v1/client/sign_ins?strategy=ticket` → session JWT(60s TTL)。
 - [ ] 确认 `[Stripe][MANUAL_REVIEW]` 这类关键错误日志在 prod 上是否有实际可见的监控/告警渠道(**仍未接入**;建议 Cloudflare Logpush 或等效告警,否则"收了钱但发错/不发 license"不会被及时发现)。
 
 ---
