@@ -3,7 +3,9 @@
 > **执行进度(2026-07-09 会话):A 组全部完成(含残项),B-1/B-2/B-5 完成。**
 > A-1 修复+反例测试(`b709db7`);A-2 **全闭环**(旧 401 端点是 sandbox 端点且已删;live 端点 `we_1TpRvVAM46G6RB9J...` 经 live key 只读核实:enabled、8 类事件含 `customer.deleted`);A-3 **全闭环**(secrets 全在;无 token/伪造 token → 401;正向路径真 Clerk session → 200 幂等;伪造他人邮箱 → 403;CLI 验签对 prod 确认);A-4 账本 7/4 已对齐,今日复核通过。B-1 核查+CI guard(`faa2b79`);B-2 nbf 回溯 300s(`c317532`);B-5 文档更正+空壳树已删(`71d1c49`)。
 > **API 已部署:dev `98d6b901` + prod `cacc361d`(A-1+B-2 已 live,双端验证 `iat-nbf==300`)。**
-> 剩余:B-3 告警接线(渠道待定夺:Logpush/Tail Worker/通知目标)、B-4 Dependabot;C 组按既定条件延后。
+> B-3 **完成(代码侧)**:`sendOpsAlert()` → `OPS_ALERT_WEBHOOK` webhook,fail-open,已部署 dev `c53deff5` / prod `8f6ddaed`(`a66ea8e`);唯一残步 = 人工 `wrangler secret put OPS_ALERT_WEBHOOK --env prod`(告警含客户 PII,须自有通道)。
+> B-4 **进行中**:45 条 Dependabot 全在 CLI repo(RepliMap/replimap)`uv.lock`,mono 为 0;已定向升级 11 个包至修复线(aiohttp 3.14.1、urllib3 2.7.0、cryptography 49.0.0、lxml 6.1.1、vcrpy 8.3.0 等),全量测试验证中。
+> C 组按既定条件延后。
 > 附带修复:replimap CLI 缺 `cryptography` 运行时依赖(pipx 安装即崩)——已在 CLI 仓库修复(`ab32a44`,pyproject+uv.lock+CHANGELOG),本机已 `pipx inject` 先行解锁。
 
 - 依据:2026-07-09 对 main(HEAD dea20a1,工作树干净,领先 origin 1 commit)的只读读码盘点,证据均为 文件:行号。

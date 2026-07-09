@@ -111,7 +111,7 @@ INSERT INTO d1_migrations (name, applied_at) VALUES
 参照 `E2E_DEV_VALIDATION_LOG.md` 的方法,在 prod 上验证:
 - [x] 真实 live 交易 → webhook 200 → license 正确落库:本次以 **subscription 模式 + 全额退款/取消**验证(比"test-mode lifetime"更强);`checkout.session.completed`/`customer.subscription.created`/`invoice.paid` 三事件均入 processed_events,退款/取消逆向链路也验证通过,全表零漂移。lifetime checkout 未单独跑,可选补测。
 - [x] provision-community:**全部验证完成(2026-07-09)**。鉴权闸门:无 token → 401,伪造 token → 401(均非 503,证明 Clerk 已配置)。正向路径:用 live Clerk 实例真 session token(Backend API `sign_in_tokens` → FAPI ticket 兑换,自有账号)→ 200,幂等返回既有 license(`created: false`,零脏数据);伪造他人邮箱 → 403 FORBIDDEN("email does not match the authenticated account")。临时 session 已 revoke。脚本化方法:Vercel `env pull` 取 live `CLERK_SECRET_KEY` → `POST /v1/sign_in_tokens` → `POST clerk.replimap.com/v1/client/sign_ins?strategy=ticket` → session JWT(60s TTL)。
-- [ ] 确认 `[Stripe][MANUAL_REVIEW]` 这类关键错误日志在 prod 上是否有实际可见的监控/告警渠道(**仍未接入**;建议 Cloudflare Logpush 或等效告警,否则"收了钱但发错/不发 license"不会被及时发现)。
+- [x] `[Stripe][MANUAL_REVIEW]` 告警**代码侧已接线并部署**(2026-07-09,commit `a66ea8e`,dev `c53deff5` / prod `8f6ddaed`):`lib/alerts.ts` 的 `sendOpsAlert()` 在 MANUAL_REVIEW 路径直接 POST `OPS_ALERT_WEBHOOK`(Slack/Discord/通用 webhook 均兼容,fail-open,5s 超时,失败打 `ALERT_DELIVERY_FAILED` 标签)。选型对比 Logpush(Enterprise 门槛)/Tail Worker(Workers Paid + 多一个部署物)见 DECISIONS.md。**最后一步(需人工,一条命令)**:`wrangler secret put OPS_ALERT_WEBHOOK --env prod` 填你的 Slack/Discord incoming webhook——告警含客户 email(PII),必须用自有通道,未设置前保持静默 no-op。
 
 ---
 
