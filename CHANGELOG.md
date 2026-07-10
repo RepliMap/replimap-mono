@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.5.0...replimap-mono-v1.6.0) (2026-07-10)
+
+
+### Features
+
+* **api:** push [Stripe][MANUAL_REVIEW] to an ops-alert webhook (B-3) ([a66ea8e](https://github.com/RepliMap/replimap-mono/commit/a66ea8e2ff012134407fdb781d9880ebf5e39ac6))
+
+
+### Bug Fixes
+
+* **api:** backdate license blob nbf by 300s to tolerate client clock skew ([fa105b8](https://github.com/RepliMap/replimap-mono/commit/fa105b8e077caf440e765e787ad3f9803a306095))
+* **api:** exclude free-tier plans from Path B post-checkout license lookup ([6ef4d4f](https://github.com/RepliMap/replimap-mono/commit/6ef4d4f466ededfc9dbf5fae320d60cea3044684))
+* **web:** align marketing copy with shipped product and ratified positioning ([8d61856](https://github.com/RepliMap/replimap-mono/commit/8d6185677190d0f4b76ab59eaa178ad886e3d178))
+* **web:** full-site accuracy pass — docs verified against CLI v0.4.11 ([56bd074](https://github.com/RepliMap/replimap-mono/commit/56bd0740349be1d97494f75db089dac86d555cb1))
+
+
+### Documentation
+
+* B-3 shipped (ops-alert webhook, needs receiver secret) + B-4 resolved in CLI repo ([f93d0df](https://github.com/RepliMap/replimap-mono/commit/f93d0dfbbe161d42f1e882d04a5b4c67758d90e5))
+* checklist §1.1-§1.5 updated with 2026-07-09 verification evidence ([6610d60](https://github.com/RepliMap/replimap-mono/commit/6610d606ea478183138feb2a0f5e45ab6c68482d))
+* close A-2/A-3 residuals — live-verified via Vercel prod env credentials ([81d8931](https://github.com/RepliMap/replimap-mono/commit/81d89311f90d810f026e4b1d941cc200d928b9dd))
+* payment prod-hardening TODO from 2026-07-09 code inventory ([511faf2](https://github.com/RepliMap/replimap-mono/commit/511faf233608c98e27f47d5790bcf6bae80aea5f))
+* record 2026-07-09 execution — A组 complete, B-1/B-2/B-5 done, deployed ([38726e1](https://github.com/RepliMap/replimap-mono/commit/38726e1e95eaee6bed15a8ffbc561549aa84f042))
+* runbook state update — signing live on dev+prod; nbf leeway follow-ups ([e581a22](https://github.com/RepliMap/replimap-mono/commit/e581a22a4da2770615a70bf8d3cb314a6965fd13))
+
 ## [1.5.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.4.3...replimap-mono-v1.5.0) (2026-07-07)
 
 

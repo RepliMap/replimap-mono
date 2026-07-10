@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.6.0...replimap-web-v0.6.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **web:** align marketing copy with shipped product and ratified positioning ([8d61856](https://github.com/RepliMap/replimap-mono/commit/8d6185677190d0f4b76ab59eaa178ad886e3d178))
+* **web:** full-site accuracy pass — docs verified against CLI v0.4.11 ([56bd074](https://github.com/RepliMap/replimap-mono/commit/56bd0740349be1d97494f75db089dac86d555cb1))
+
 ## [0.6.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.5.3...replimap-web-v0.6.0) (2026-07-07)
 
 
