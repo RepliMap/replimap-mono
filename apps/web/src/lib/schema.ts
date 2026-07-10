@@ -29,15 +29,15 @@ export function generateSiteSchema() {
         applicationSubCategory: 'Infrastructure as Code Tool',
         operatingSystem: 'Linux, macOS, Windows',
         description:
-          'AWS Infrastructure Intelligence Engine - Reverse-engineer infrastructure into Terraform, detect drift, generate IAM policies',
+          'AWS Infrastructure Intelligence Engine - scan brownfield AWS accounts, map dependencies, and generate import-ready Terraform. 100% local.',
         url: 'https://replimap.com',
         downloadUrl: 'https://replimap.com/docs/installation',
-        softwareVersion: '1.0.0',
+        softwareVersion: '0.4.x',
         releaseNotes: 'https://replimap.com/docs/changelog',
         screenshot: 'https://replimap.com/og-image.png',
         featureList: [
           'Reverse-engineer AWS to Terraform',
-          'Infrastructure drift detection',
+          'IaC coverage — find resources in no Terraform state',
           'Least-privilege IAM policy generation',
           'Multi-region scanning',
           'Offline/air-gapped support',

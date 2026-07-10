@@ -19,10 +19,9 @@ import { Callout } from 'fumadocs-ui/components/callout'
 You inherited an AWS account. Or maybe you built it yourself over 3 years of "just one more click."
 
 Now you have:
-- **500+ resources** and no idea what connects to what
-- **No Terraform** — everything was ClickOps
-- **Oversized instances** burning money 24/7
-- **SOC2 audit next month** — good luck
+- **Hundreds of resources** and no idea what connects to what
+- **No Terraform** — or a state file that covers half of what's really there
+- **A hand-off (or an audit) coming** — and no way to prove what exists
 
 ## The Solution
 
@@ -31,11 +30,14 @@ RepliMap scans your AWS, builds a dependency graph, and gives you superpowers:
 ```bash
 $ replimap -p prod scan
 
-✓ Scanned 847 resources in 23.4s
-✓ Mapped 1,203 dependencies
-✓ Found 12 compliance issues
-✓ Identified $2,847/month in savings
+✓ Found 1,584 resources
+✓ Mapped 1,470 dependencies
+✓ Graph cached — next: replimap graph / codify
 ```
+
+(That's real output from a 1,584-resource production account — the same
+account where we found the entire data layer, all 27 RDS instances,
+in no Terraform state at all.)
 
 ## Key Features
 
@@ -51,14 +53,14 @@ $ replimap -p prod scan
     description="Understand what connects to what. Avoid breaking prod."
   />
   <Card
-    title="Optimize Costs"
-    href="/docs/cli-reference#cost"
-    description="Right-Sizer analyzes usage and recommends cheaper instance types."
+    title="IaC Coverage"
+    href="/docs/cli-reference#codify"
+    description="Match live resources against your state files. See what nobody manages."
   />
   <Card
     title="Audit Compliance"
     href="/docs/security"
-    description="Find SOC2/CIS compliance gaps before your auditor does."
+    description="Run a SOC 2-mapped audit against live AWS and export the evidence."
   />
 </Cards>
 
@@ -68,21 +70,24 @@ $ replimap -p prod scan
 |-----------|-------------|
 | **🔒 Read-Only** | We only require read permissions. We never modify your resources. |
 | **📍 Local Processing** | All data stays on your machine. No SaaS cloud to trust. |
-| **⚡ Lightning Fast** | Scan thousands of resources in seconds using parallel execution. |
-| **🔄 Drift Detection** | Know when reality diverges from your Terraform code. |
+| **⚡ Resilient Scanning** | Parallel scanners with per-item retries — 1,500+ resource accounts in minutes. |
+| **📦 Self-Contained Output** | Reports and graphs are single files that load nothing from the internet. |
 
 ## Supported Resources
 
-RepliMap supports 24+ AWS resource types:
+RepliMap scans 30+ AWS resource types — the core of a typical production account:
 
 | Category | Resources |
 |----------|-----------|
-| **Compute** | EC2, Lambda, ECS, EKS, Auto Scaling Groups |
-| **Database** | RDS, Aurora, DynamoDB, ElastiCache |
-| **Network** | VPC, Subnet, Security Group, Route Table, NAT Gateway, ALB/NLB |
-| **Storage** | S3, EBS, EFS |
-| **Security** | IAM Role, IAM Policy, KMS Key, Secrets Manager |
-| **Messaging** | SQS, SNS |
+| **Compute** | EC2, Auto Scaling Groups, Launch Templates, EBS, EIP |
+| **Database** | RDS (+ subnet & parameter groups), ElastiCache (+ subnet groups) |
+| **Network** | VPC, Subnet, Security Group, Route Table, NACL, IGW, NAT Gateway, VPC Endpoint, ALB/NLB (+ listeners & target groups) |
+| **Storage** | S3 buckets & bucket policies |
+| **Security** | IAM Roles, IAM Policies, Instance Profiles |
+| **Messaging & Monitoring** | SQS, SNS, CloudWatch log groups & alarms |
+
+New types are added based on what real scans encounter — if your account
+leans on something we don't cover yet, [tell us](https://github.com/RepliMap/replimap-community/issues).
 
 ## Next Steps
 

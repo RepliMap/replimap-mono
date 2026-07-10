@@ -19,7 +19,7 @@ const faqs = [
   {
     question: "What AWS services are supported?",
     answer:
-      "RepliMap scans 30+ AWS resource types across VPC, EC2, RDS, ElastiCache, Lambda, S3, IAM, ELB/ALB, Auto Scaling, SQS, SNS, CloudWatch and more — the core of a typical production account. New types are added based on what real scans encounter.",
+      "RepliMap scans 30+ AWS resource types across VPC, EC2, RDS, ElastiCache, S3, IAM, ELB/ALB, Auto Scaling, SQS, SNS, CloudWatch and more — the core of a typical production account. New types are added based on what real scans encounter.",
   },
   {
     question: "How does the Lifetime deal work?",

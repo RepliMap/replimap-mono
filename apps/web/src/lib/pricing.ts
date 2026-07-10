@@ -6,11 +6,11 @@
  * - Unlimited resources per scan
  * - Charge when users export/download
  *
- * Tier Structure:
- * - COMMUNITY ($0): Full visibility, JSON export with metadata
- * - PRO ($29): Terraform/CSV export, API access
- * - TEAM ($99): Drift alerts, compliance reports, CI/CD
- * - SOVEREIGN ($2,500): SSO, signed reports, air-gap, white-labeling
+ * Tier Structure (single source of truth: CLI repo technical-reference.md matrix):
+ * - COMMUNITY ($0): full scan/graph/resource .tf files, coverage summary
+ * - PRO ($29): imports.tf scaffold, audit report export, full coverage list
+ * - TEAM ($99): 5 seats, CI --fail-on, webhooks, author tag
+ * - SOVEREIGN ($2,500): SSO, air-gap/offline activation, custom compliance
  */
 
 export type PlanName = "community" | "pro" | "team" | "sovereign";

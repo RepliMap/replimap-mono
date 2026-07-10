@@ -156,7 +156,7 @@ export function Hero() {
               {showOutput && (
                 <div className="text-muted-foreground pl-4 border-l-2 border-border ml-2 space-y-1 pt-2 animate-in fade-in duration-500">
                   <div>
-                    <span className="text-cyan-400">Scanning:</span> VPC, EC2, RDS, Lambda, S3...
+                    <span className="text-cyan-400">Scanning:</span> VPC, EC2, RDS, S3, IAM...
                   </div>
                   <div>
                     <span className="text-emerald-400">✓</span> Found{" "}
@@ -211,8 +211,8 @@ export function Hero() {
           </div>
           <div className="hidden md:block w-px h-4 bg-border" />
           <div className="flex items-center gap-2">
-            <span className="text-emerald-400 font-bold text-lg">1,584</span>
-            <span>resources in one real scan</span>
+            <span className="text-emerald-400 font-bold text-lg">$0</span>
+            <span>full-account scan &amp; Terraform</span>
           </div>
         </div>
       </div>

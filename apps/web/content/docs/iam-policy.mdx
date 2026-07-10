@@ -22,48 +22,32 @@ RepliMap requires **read-only** access to scan your AWS resources. We adhere to 
                 "Sid": "RepliMapReadOnly",
                 "Effect": "Allow",
                 "Action": [
-                    "ec2:DescribeVpcs",
-                    "ec2:DescribeSubnets",
-                    "ec2:DescribeSecurityGroups",
-                    "ec2:DescribeInstances",
-                    "ec2:DescribeTags",
-                    "ec2:DescribeAvailabilityZones",
-                    "ec2:DescribeRouteTables",
-                    "ec2:DescribeInternetGateways",
-                    "ec2:DescribeNatGateways",
-                    "ec2:DescribeVolumes",
-                    "ec2:DescribeLaunchTemplates",
-                    "ec2:DescribeLaunchTemplateVersions",
-                    "rds:DescribeDBInstances",
-                    "rds:DescribeDBSubnetGroups",
-                    "rds:DescribeDBSecurityGroups",
+                    "ec2:Describe*",
+                    "rds:Describe*",
                     "rds:ListTagsForResource",
-                    "elasticache:DescribeCacheClusters",
-                    "elasticache:DescribeCacheSubnetGroups",
+                    "elasticache:Describe*",
                     "elasticache:ListTagsForResource",
-                    "autoscaling:DescribeAutoScalingGroups",
-                    "autoscaling:DescribeLaunchConfigurations",
-                    "elasticloadbalancing:DescribeLoadBalancers",
-                    "elasticloadbalancing:DescribeTargetGroups",
-                    "elasticloadbalancing:DescribeListeners",
-                    "elasticloadbalancing:DescribeTags",
-                    "lambda:ListFunctions",
-                    "lambda:GetFunction",
-                    "lambda:ListTags",
+                    "autoscaling:Describe*",
+                    "elasticloadbalancing:Describe*",
                     "s3:ListAllMyBuckets",
-                    "s3:GetBucketLocation",
-                    "s3:GetBucketTagging",
-                    "s3:GetBucketVersioning",
-                    "s3:GetBucketEncryption",
+                    "s3:GetBucket*",
+                    "s3:GetLifecycleConfiguration",
                     "iam:ListRoles",
                     "iam:ListPolicies",
+                    "iam:ListInstanceProfiles",
+                    "iam:ListRoleTags",
                     "iam:GetRole",
                     "iam:GetPolicy",
-                    "iam:GetPolicyVersion",
                     "sqs:ListQueues",
                     "sqs:GetQueueAttributes",
+                    "sqs:ListQueueTags",
                     "sns:ListTopics",
                     "sns:GetTopicAttributes",
+                    "sns:ListTagsForResource",
+                    "logs:DescribeLogGroups",
+                    "logs:ListTagsLogGroup",
+                    "cloudwatch:DescribeAlarms",
+                    "tag:GetResources",
                     "sts:GetCallerIdentity"
                 ],
                 "Resource": "*"
@@ -149,7 +133,10 @@ replimap scan --profile replimap --region us-east-1
 | EC2 Instance | `ec2:DescribeInstances` | Scan instance configurations |
 | RDS Instance | `rds:DescribeDBInstances` | Scan database configurations |
 | S3 Bucket | `s3:ListAllMyBuckets`, `s3:GetBucket*` | Scan bucket configurations |
-| Lambda | `lambda:ListFunctions`, `lambda:GetFunction` | Scan function configurations |
+| ELB/ALB | `elasticloadbalancing:Describe*` | Scan load balancers, listeners, target groups |
+| IAM | `iam:ListRoles`, `iam:ListPolicies`, `iam:ListRoleTags` | Scan roles, policies, instance profiles |
+| SQS / SNS | `sqs:ListQueues`, `sns:ListTopics` | Scan messaging resources |
+| CloudWatch | `logs:DescribeLogGroups`, `cloudwatch:DescribeAlarms` | Scan log groups and alarms |
 | STS | `sts:GetCallerIdentity` | Verify authentication |
 
 ## What RepliMap Does NOT Do

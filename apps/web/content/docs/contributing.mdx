@@ -1,106 +1,66 @@
 ---
 title: Contributing
-description: How to contribute to RepliMap
+description: How to report bugs, request features, and shape the RepliMap roadmap
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout'
 
-Thank you for your interest in contributing to RepliMap!
+RepliMap is a commercial tool with a local-first architecture. The engine is
+distributed via [PyPI](https://pypi.org/project/replimap/); the
+[replimap-community](https://github.com/RepliMap/replimap-community) repository
+hosts documentation and issue tracking. The best ways to contribute are bug
+reports, feature requests, and telling us what your real accounts need.
 
-## Getting Started
-
-1. **Fork the repository**
-
-2. **Clone your fork:**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/replimap.git
-   cd replimap
-   ```
-
-3. **Install development dependencies:**
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-4. **Create a feature branch:**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-## Development Workflow
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=replimap
-
-# Run specific test file
-pytest tests/test_scanner.py
-```
-
-### Code Style
-
-We use `ruff` for linting and formatting:
-
-```bash
-# Check for issues
-ruff check .
-
-# Auto-fix issues
-ruff check --fix .
-
-# Format code
-ruff format .
-```
-
-### Type Checking
-
-```bash
-mypy replimap
-```
-
-## Pull Request Guidelines
-
-1. Create a feature branch from `main`
-2. Make your changes with clear commit messages
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Update documentation if needed
-6. Submit a pull request with a clear description
-
-### Commit Message Format
-
-```
-type: short description
-
-Longer description if needed.
-
-Fixes #123
-```
-
-Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
-
-## Reporting Issues
-
-### Bug Reports
+## Reporting Bugs
 
 Open an issue on [GitHub](https://github.com/RepliMap/replimap-community/issues) with:
+
 - Description of the bug
 - Steps to reproduce
 - Expected vs actual behavior
 - RepliMap version (`replimap --version`)
-- Python version
-- OS
+- Python version and OS
 
-### Security Issues
+### Include the Error Reference
+
+When a command fails, RepliMap prints an error reference like
+`ERR-EC2-403-A7X9` and saves a detailed local log:
+
+```bash
+# Get a summary of what happened (never a raw traceback dump)
+replimap explain ERR-EC2-403-A7X9
+
+# Full logs live locally under
+ls ~/.replimap/logs/errors/
+```
+
+Paste the `ERR-` code and the `explain` output into your issue — it carries
+the exception type, the command that failed, and a reproduction command,
+without any of your infrastructure data.
+
+<Callout type="info">
+  Error logs are stored **only on your machine**. Nothing is uploaded —
+  review the log before pasting anything from it.
+</Callout>
+
+## Requesting Features & Resource Types
+
+RepliMap scans 30+ AWS resource types today, and new types are prioritized by
+what real accounts need. If your account leans on a service we don't cover
+yet, [open a feature request](https://github.com/RepliMap/replimap-community/issues/new?template=feature_request.md)
+with:
+
+- The AWS service / resource type
+- Roughly how many of them you have
+- What you'd do with them (Terraform generation, graph, coverage, audit)
+
+We read every issue. Your feedback shapes the roadmap.
+
+## Security Issues
 
 <Callout type="warn">
   **Do not open public issues for security vulnerabilities.**
-  
+
   Email [support@replimap.com](mailto:support@replimap.com) instead.
 </Callout>
 
@@ -108,4 +68,4 @@ Open an issue on [GitHub](https://github.com/RepliMap/replimap-community/issues)
 
 - **General**: [hello@replimap.com](mailto:hello@replimap.com)
 - **Technical Support**: [support@replimap.com](mailto:support@replimap.com)
-- **Discussions**: [GitHub Discussions](https://github.com/RepliMap/replimap-community/discussions)
+- **Bug reports**: [GitHub Issues](https://github.com/RepliMap/replimap-community/issues)

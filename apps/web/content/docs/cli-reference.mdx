@@ -13,8 +13,11 @@ These options work with all commands:
 |--------|-------|-------------|
 | `--profile` | `-p` | AWS profile name from `~/.aws/credentials` |
 | `--region` | `-r` | AWS region (e.g., `us-east-1`) |
-| `--quiet` | `-q` | Suppress verbose output |
-| `--version` | | Show version info |
+| `--format` | `-f` | Output format: `text`, `json`, `table` |
+| `--verbose` | `-v` | Increase verbosity (`-v`, `-vv`) |
+| `--quiet` | `-q` | Suppress output (errors only) |
+| `--version` | `-V` | Show version info |
+| `--privacy` | | Show privacy and data-handling info |
 | `--help` | `-h` | Show help for command |
 
 ---
@@ -35,7 +38,9 @@ replimap scan --profile prod --region us-east-1
 | `--entry` | Start from entry point: `alb:my-alb` or `tag:App=MyApp` |
 | `--tag` | Filter by tag: `Environment=Production` |
 | `--cache` | Use cached results for incremental scans |
-| `--trust-center` | Enable Trust Center auditing (Sovereign) |
+| `--types` | Filter by resource types, comma-separated |
+| `--exclude-tag` | Exclude by tag (repeatable) |
+| `--trust-center` | Enable Trust Center API auditing (Team+) |
 
 ### Examples
 
@@ -55,49 +60,52 @@ replimap scan -p prod --cache
 
 ---
 
-## clone
+## codify
 
-Generates Infrastructure-as-Code from the scanned graph.
+Generates Terraform plus an import scaffold from the scanned graph, and
+reports IaC coverage against your existing state files.
 
 ```bash
-replimap clone --profile prod --mode generate --output-dir ./terraform
+replimap codify --profile prod --output-dir ./terraform
 ```
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--mode` | `dry-run` (preview) or `generate` (write files) |
+| `--dry-run` | Preview what will be generated without writing files |
 | `--output-dir` | Output directory for generated code |
-| `--dev-mode` | Enable Right-Sizer for non-prod environments |
-| `--downsize` | Automatically downsize instance types |
-| `--rename-pattern` | Rename resources: `prod:staging` |
+| `--coverage-state` | A tfstate to match against — local path or `s3://bucket/key` (repeatable) |
+| `--coverage-state-dir` | Directory of `*.tfstate` files to match against |
+| `--use-import-script` | Emit `imports.sh` (CLI import commands) instead of `imports.tf` blocks |
+| `--include-global` | Include global resources (IAM, S3) alongside regional ones |
 
 ### Examples
 
 ```bash
-# Preview what will be generated
-replimap clone -p prod --mode dry-run
+# Preview
+replimap codify -p prod --dry-run
 
-# Generate Terraform with cost optimization
-replimap clone -p prod \
-  --mode generate \
-  --output-dir ./staging-tf \
-  --rename-pattern "prod:staging" \
-  --downsize
+# Generate Terraform + import scaffold
+replimap codify -p prod --output-dir ./terraform
+
+# Also report which live resources are in NO state file
+replimap codify -p prod \
+  --coverage-state s3://tf-states/prod/terraform.tfstate \
+  --coverage-state-dir ./states
 ```
 
 ### Generated Files
 
+Resources are grouped one file per service:
+
 ```
-output/
-├── main.tf           # All resources
-├── variables.tf      # Extracted variables
-├── outputs.tf        # Useful outputs
-├── providers.tf      # AWS provider config
-├── data.tf           # Data sources
-├── imports.tf        # TF 1.5+ import blocks
-└── terraform.tfvars.example
+terraform/
+├── vpc.tf / networking.tf / security_groups.tf
+├── ec2.tf / compute.tf / alb.tf
+├── rds.tf / elasticache.tf / s3.tf / storage.tf / messaging.tf
+├── providers.tf / versions.tf
+└── imports.tf        # import scaffold (Pro) — correct import ID format per type
 ```
 
 ---
@@ -114,26 +122,26 @@ replimap graph --profile prod --format html --output infra.html
 
 | Option | Description |
 |--------|-------------|
-| `--format` | `html`, `mermaid`, `json` |
+| `--format` | `html` (interactive D3), `mermaid`, `json` |
 | `--output` | Output file path |
 | `--vpc` | Scope to specific VPC |
 | `--all` | Show all resources (no filtering) |
-| `--sg-rules` | Include security group rules |
-| `--routes` | Include route tables |
+| `--routes` | Include routes and route tables |
 | `--no-collapse` | Disable resource grouping |
-| `--security` | Security-focused view |
+| `--open` / `--no-open` | Open in browser after generation |
 
 ### Interactive Graph Features
 
-The HTML graph includes:
+The HTML graph is a **single self-contained file** — D3 is inlined, nothing
+loads from the internet, so it renders fully air-gapped and can be handed
+to a client as-is. It includes:
 
 | Feature | Description |
 |---------|-------------|
-| **Link Classification** | Toggle traffic vs. dependency views |
-| **Cost Overlay** | Heat map by monthly cost |
-| **Blast Radius** | Click resource to see impact |
-| **Orphan Detection** | Highlight unused resources |
-| **Drift Visualization** | Show drifted resources |
+| **VPC/Subnet Containers** | Hierarchical layout — public/private subnets nested in their VPC |
+| **Blast Radius** | Click a resource to highlight everything it touches |
+| **Search & Filters** | Find resources by name/type; collapsible filter panel |
+| **Legend & Tooltips** | Per-type legend, hover details, zoom/pan |
 
 ---
 
@@ -149,20 +157,36 @@ replimap audit --profile prod --format html --output audit.html
 
 | Option | Description |
 |--------|-------------|
-| `--format` | `console`, `html`, `json` |
-| `--output` | Output file path |
-| `--ci` | Exit with non-zero code on failures |
-| `--scope` | Scope to VPC: `vpc:vpc-12345678` |
+| `--format` | `html` (default), `json` |
+| `--output` | Report path (default: `~/.replimap/reports/<timestamp>/`) |
+| `--framework` | `soc2` (default), `apra_cps234`, `rbnz_bs11`, `nzism`, `all` |
+| `--state` | Terraform state file — switches to SOC 2 evidence mode |
+| `--fail-on-high` | Exit code 1 if HIGH/CRITICAL issues found (CI) |
+| `--fail-on-score` | Exit code 1 if score below threshold (CI) |
+| `--fix` | Generate Terraform remediation code for findings |
+| `--vpc` | Scope to a specific VPC |
+
+The full terminal summary (score, grade, top issues) is free; exporting the
+HTML report and the SOC 2 evidence package is Pro+.
 
 ### Compliance Frameworks
 
-- SOC 2 Type II
-- CIS AWS Foundations Benchmark
-- AWS Well-Architected Framework
+- SOC 2
+- APRA CPS 234
+- RBNZ BS11
+- NZISM
 
 ---
 
 ## drift
+
+<Callout type="warn">
+  **Experimental.** Attribute-level drift comparison is free and marked
+  experimental — on real accounts, `terraform plan` is still the better
+  answer for "did what I manage change?". What RepliMap ships and stands
+  behind is the opposite question: [IaC coverage](#codify) — what exists
+  that no state file manages.
+</Callout>
 
 Detects drift between Terraform state and AWS.
 
@@ -175,18 +199,12 @@ replimap drift --profile prod --state ./terraform.tfstate
 | Option | Description |
 |--------|-------------|
 | `--state` | Path to local tfstate file |
-| `--remote-bucket` | S3 bucket for remote state |
-| `--remote-key` | S3 key for remote state |
+| `--state-bucket` | S3 bucket for remote state (with `--state-key`) |
+| `--state-key` | S3 key for remote state |
 | `--format` | `console`, `html`, `json` |
-| `--ci` | Exit code reflects drift status |
-
-### Exit Codes (CI Mode)
-
-| Code | Meaning |
-|------|---------|
-| 0 | No drift detected |
-| 1 | Drift detected |
-| 2 | Error during detection |
+| `--managed-only` | Only report drift for resources managed in the state |
+| `--fail-on-drift` | Exit code 1 if any drift detected (CI) |
+| `--fail-on-high` | Exit code 1 only for high-severity drift (CI) |
 
 ### Offline Drift Detection
 
@@ -226,10 +244,10 @@ replimap deps sg-12345 --region us-east-1
 
 | Level | Score | Description |
 |-------|-------|-------------|
-| CRITICAL | 90-100 | Core infrastructure (VPC, main DB) |
-| HIGH | 70-89 | Production services |
-| MEDIUM | 40-69 | Supporting resources |
-| LOW | 1-39 | Peripheral resources |
+| CRITICAL | 80-100 | Core infrastructure (VPC, main DB) |
+| HIGH | 60-79 | Production services |
+| MEDIUM | 40-59 | Supporting resources |
+| LOW | 20-39 | Peripheral resources |
 
 <Callout type="warn">
   Impact estimates are based on AWS API metadata only. Application-level dependencies (hardcoded IPs, config files) are NOT detected.
@@ -242,27 +260,27 @@ replimap deps sg-12345 --region us-east-1
 Generates least-privilege IAM policies.
 
 ```bash
-replimap iam for-resource -p prod -r my-lambda -s runtime_read
+replimap iam for-resource -p prod -r i-0abc123 -s runtime_read
 ```
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `-r, --resource` | Resource ID or name |
+| `-r, --resource` | Resource ID or name (required) |
 | `-s, --scope` | Policy scope (see below) |
-| `-E, --enrich` | Enable graph enrichment |
-| `-f, --format` | `json` or `terraform` |
-| `--create-role` | Generate IAM role |
+| `-E, --enrich` | Graph enrichment — discover implicit dependencies |
+| `-f, --format` | `json` (default) or `terraform` |
+| `--create-role` | Generate IAM role in Terraform output |
+| `--depth` | Maximum traversal depth (default 3) |
 
 ### Policy Scopes
 
 | Scope | Description |
 |-------|-------------|
-| `runtime_read` | Read-only for runtime operations |
+| `runtime_read` | Read-only for runtime operations (default) |
 | `runtime_write` | Write access for runtime |
 | `runtime_full` | Full read/write for runtime |
-| `infra_read` | Read access for infrastructure |
 | `infra_deploy` | Full access for deployment |
 
 ---
@@ -280,9 +298,10 @@ replimap cost --region us-east-1
 | Option | Description |
 |--------|-------------|
 | `--vpc` | Scope to specific VPC |
-| `--format` | `table`, `html`, `csv`, `json`, `markdown` |
+| `--format` | `console` (default), `table`, `html`, `csv`, `json`, `markdown` |
 | `--output` | Output file path |
-| `--acknowledge` | Skip confirmation prompt |
+| `--acknowledge` | Acknowledge that output is an estimate (skip prompt) |
+| `--ri-aware` | Consider Reserved Instances and Savings Plans |
 
 <Callout type="info">
   Cost estimates are for planning only. Actual costs may differ due to data transfer, API calls, reserved instances, and other factors.
@@ -312,16 +331,20 @@ replimap license deactivate
 
 ## trust-center
 
-Enterprise audit mode for compliance.
+Audit-grade logging of every AWS API call RepliMap makes (Team+). Prove to
+a client or auditor that the scan was 100% read-only.
 
 ```bash
+# Record API calls during a scan
+replimap scan -p prod --trust-center
+
 # Check status
 replimap trust-center status
 
-# Generate compliance report
+# Generate compliance report (json, csv, or text)
 replimap trust-center report
-replimap trust-center report -f json -o audit.json
-replimap trust-center report -f csv -o api-calls.csv
+replimap trust-center report --report-format json -o audit.json
+replimap trust-center report --report-format csv -o api-calls.csv
 
 # Clear audit sessions
 replimap trust-center clear

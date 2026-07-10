@@ -10,7 +10,8 @@ const footerLinks: Record<string, FooterLink[]> = {
     { label: "Changelog", href: "https://github.com/RepliMap/replimap-community/blob/main/CHANGELOG.md", external: true },
   ],
   resources: [
-    { label: "Documentation", href: "https://github.com/RepliMap/replimap-community#readme", external: true },
+    { label: "Documentation", href: "/docs" },
+    { label: "GitHub", href: "https://github.com/RepliMap/replimap-community", external: true },
   ],
   company: [
     { label: "Support", href: "https://github.com/RepliMap/replimap-community/issues", external: true },

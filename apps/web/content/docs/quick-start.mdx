@@ -29,40 +29,46 @@ Get started with RepliMap in under 2 minutes.
     You'll see output like:
 
     ```
-    Scanning: VPC, EC2, RDS, Lambda, S3...
-    ✓ Scanned 847 resources in 23.4s
-    ✓ Mapped 1,203 dependencies
+    Scanning: VPC, EC2, RDS, S3, IAM...
+    ✓ Found 1,584 resources
+    ✓ Mapped 1,470 dependencies
     ```
   </Step>
 
   <Step>
     ## Generate Terraform
 
-    Turn that scan into production-ready Terraform code:
+    Turn that scan into Terraform plus an import scaffold — an adoption
+    starting point you can `terraform validate` immediately:
 
     ```bash
-    # Preview what will be generated (dry run)
-    replimap clone --profile prod --mode dry-run
+    # Preview what will be generated
+    replimap codify --profile prod --dry-run
 
     # Generate Terraform files
-    replimap clone --profile prod --mode generate --output-dir ./terraform
+    replimap codify --profile prod --output-dir ./terraform
     ```
   </Step>
 
   <Step>
     ## Review Generated Code
 
-    Navigate to the output directory:
+    Resources are grouped into one file per service:
 
     ```
     terraform/
-    ├── main.tf           # All resources
-    ├── variables.tf      # Extracted variables
-    ├── outputs.tf        # Useful outputs
-    ├── providers.tf      # AWS provider config
-    ├── data.tf           # Data sources
-    └── terraform.tfvars.example
+    ├── vpc.tf / networking.tf / security_groups.tf
+    ├── ec2.tf / compute.tf / alb.tf
+    ├── rds.tf / elasticache.tf
+    ├── s3.tf / storage.tf / messaging.tf
+    ├── providers.tf / versions.tf
+    └── imports.tf        # import scaffold (Pro) — one block per resource,
+                          # with the correct import ID format per type
     ```
+
+    Run `terraform init && terraform validate` to check the output against
+    the real provider schema — the free tier includes every resource file,
+    so you can judge the quality before paying for anything.
   </Step>
 </Steps>
 
@@ -82,43 +88,48 @@ replimap scan --profile prod --entry alb:my-app-alb
 replimap scan --profile prod --cache
 ```
 
-## Clone with Transformations
+## Check IaC Coverage
+
+If part of the account is already under Terraform, find out exactly what
+isn't — the ClickOps inventory `terraform plan` structurally can't show you:
 
 ```bash
-# Clone prod to staging with cost optimization
-replimap clone --profile prod \
-  --output-dir ./staging-tf \
-  --rename-pattern "prod:staging" \
-  --downsize \
-  --mode generate
+# Match live resources against one or more state files
+replimap codify --profile prod \
+  --coverage-state s3://tf-states/prod/terraform.tfstate
+
+# Or a whole directory of local states
+replimap codify --profile prod --coverage-state-dir ./states
 ```
 
 <Callout type="info">
-  The `--downsize` flag enables the Right-Sizer engine, which automatically reduces EC2/RDS instance sizes for non-production environments.
+  Coverage is existence matching, not attribute comparison: every scanned
+  resource is checked against every state you provide, and what's left is
+  triaged into real ClickOps, embedded (e.g. EBS volumes owned by an
+  instance), and likely auto-created (service-linked roles).
 </Callout>
 
 ## Visualize Your Infrastructure
 
-Generate an interactive HTML graph:
+Generate an interactive HTML graph — a single self-contained file that
+renders air-gapped:
 
 ```bash
 replimap graph --profile prod --format html --output architecture.html
 open architecture.html
 ```
 
-## Apply to Staging (Optional)
+## Validate the Output
 
 ```bash
 cd ./terraform
 
-# Initialize Terraform
+# Initialize and validate against the real provider schema
 terraform init
+terraform validate
 
-# Review the plan
+# With the Pro import scaffold: import, then aim for "0 to change"
 terraform plan
-
-# Apply
-terraform apply
 ```
 
 ## Next Steps

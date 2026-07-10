@@ -25,7 +25,7 @@ export default function TermsPage() {
             <h2 className="text-2xl font-semibold text-foreground mb-4">2. Description of Service</h2>
             <p className="text-muted-foreground leading-relaxed">
               RepliMap is a command-line tool that helps you reverse-engineer AWS infrastructure into
-              Terraform code, detect configuration drift, and generate IAM policies. The software
+              Terraform code, report IaC coverage, and generate IAM policies. The software
               runs locally on your machine and does not transmit infrastructure data to our servers.
             </p>
           </section>

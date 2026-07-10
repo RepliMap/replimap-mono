@@ -14,7 +14,7 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
 
 ## Install RepliMap
 
-<Tabs items={['pipx (Recommended)', 'pip', 'uv', 'Docker']}>
+<Tabs items={['pipx (Recommended)', 'pip', 'uv']}>
   <Tab value="pipx (Recommended)">
     We recommend `pipx` to install RepliMap in an isolated environment:
 
@@ -40,19 +40,7 @@ import { Tab, Tabs } from 'fumadocs-ui/components/tabs'
   </Tab>
   <Tab value="uv">
     ```bash
-    uv pip install replimap
-    ```
-  </Tab>
-  <Tab value="Docker">
-    No Python installation required:
-
-    ```bash
-    # Pull the image
-    docker pull replimap/replimap:latest
-
-    # Run with your local AWS credentials
-    docker run -v ~/.aws:/root/.aws replimap/replimap \
-      scan --profile prod --region us-east-1
+    uv tool install replimap
     ```
   </Tab>
 </Tabs>
