@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.3.0...replimap-api-v1.4.0) (2026-07-10)
+
+
+### Features
+
+* **api:** push [Stripe][MANUAL_REVIEW] to an ops-alert webhook (B-3) ([a66ea8e](https://github.com/RepliMap/replimap-mono/commit/a66ea8e2ff012134407fdb781d9880ebf5e39ac6))
+
+
+### Bug Fixes
+
+* **api:** backdate license blob nbf by 300s to tolerate client clock skew ([fa105b8](https://github.com/RepliMap/replimap-mono/commit/fa105b8e077caf440e765e787ad3f9803a306095))
+* **api:** exclude free-tier plans from Path B post-checkout license lookup ([6ef4d4f](https://github.com/RepliMap/replimap-mono/commit/6ef4d4f466ededfc9dbf5fae320d60cea3044684))
+
 ## [1.3.0](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.2.8...replimap-api-v1.3.0) (2026-07-07)
 
 
