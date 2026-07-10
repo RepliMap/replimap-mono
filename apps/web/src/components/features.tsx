@@ -5,13 +5,13 @@ const features = [
     icon: FileCode,
     title: "Terraform Generation",
     description:
-      "Reverse-engineer existing AWS resources into clean, production-ready Terraform code.",
+      "Turn an existing AWS account into clean Terraform plus a full import scaffold — an adoption starting point that validates on day one.",
   },
   {
     icon: GitCompare,
-    title: "Drift Detection",
+    title: "IaC Coverage",
     description:
-      "Detect configuration drift between your Terraform state and actual AWS infrastructure.",
+      "See exactly which resources live in no Terraform state at all — the ClickOps inventory that terraform plan structurally can't show you.",
   },
   {
     icon: Shield,
@@ -21,18 +21,20 @@ const features = [
   {
     icon: Network,
     title: "Dependency Mapping",
-    description: "Visualize resource relationships and understand blast radius of changes.",
+    description:
+      "Visualize resource relationships and blast radius in an interactive graph — one self-contained HTML file you can open air-gapped or hand to a client.",
   },
   {
     icon: Zap,
-    title: "Lightning Fast",
-    description: "Scan thousands of resources in seconds with parallel processing.",
+    title: "Resilient Scanning",
+    description:
+      "Parallel scanners cover 1,500+ resource accounts in minutes, with per-item retries so a transient AWS error never silently drops a resource.",
   },
   {
     icon: Lock,
     title: "Security First",
     description:
-      "Runs 100% locally. Your credentials and infrastructure data never leave your machine.",
+      "Runs 100% locally. Credentials and infrastructure data never leave your machine — even generated reports load nothing from the internet.",
   },
 ]
 
@@ -42,11 +44,11 @@ export function Features() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Everything you need to manage AWS at scale
+            Everything you need to take over a brownfield AWS account
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            RepliMap provides a complete toolkit for infrastructure intelligence, from reverse
-            engineering to security hardening.
+            From the first scan to import-ready Terraform and audit evidence — the takeover
+            workflow, end to end.
           </p>
         </div>
 

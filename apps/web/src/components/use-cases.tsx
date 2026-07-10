@@ -4,10 +4,10 @@ import { Clock, Shield, GitCompare, FileCode, Zap, Building2 } from "lucide-reac
 const useCases = [
   {
     icon: Clock,
-    title: "Audit Time Reduction",
-    metric: "2 weeks → 2 hours",
+    title: "Brownfield Takeover",
+    metric: "Weeks → a day",
     description:
-      "Generate complete infrastructure documentation for compliance audits. Export to PDF with one command.",
+      "Walk into an unfamiliar AWS account and walk out with a full inventory, a dependency map, and import-ready Terraform.",
   },
   {
     icon: Shield,
@@ -18,18 +18,18 @@ const useCases = [
   },
   {
     icon: GitCompare,
-    title: "Drift Prevention",
-    metric: "Catch issues early",
+    title: "Audit Evidence",
+    metric: "Evidence, not screenshots",
     description:
-      "Detect configuration drift between your Terraform state and live AWS infrastructure before incidents happen.",
+      "Run a SOC 2-mapped audit against live AWS and export the findings as an evidence package your auditor can actually use.",
   },
 ]
 
 const targetAudience = [
-  { icon: Building2, label: "FinTech & Banking" },
-  { icon: Shield, label: "SOC2 Compliant Teams" },
+  { icon: Zap, label: "DevOps Contractors" },
+  { icon: Building2, label: "Cloud Consultancies" },
+  { icon: Shield, label: "SOC 2-bound Startups" },
   { icon: FileCode, label: "Platform Engineers" },
-  { icon: Zap, label: "DevOps Teams" },
 ]
 
 export function UseCases() {
@@ -39,10 +39,11 @@ export function UseCases() {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Built for infrastructure teams
+            Built for the people who inherit AWS accounts
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            RepliMap helps teams reduce manual work, improve security posture, and maintain infrastructure consistency.
+            Most AWS environments weren&apos;t born in Terraform. RepliMap is for whoever has to
+            clean that up — and prove it&apos;s done.
           </p>
         </div>
 

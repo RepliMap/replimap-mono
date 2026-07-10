@@ -71,7 +71,7 @@ export function Hero() {
         {/* Badge */}
         <div className="mb-6 flex justify-center">
           <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 px-4 py-1.5">
-            🚀 v1.0 Released — Now with IAM Generation
+            New: IaC Coverage — see what&apos;s in no Terraform state
           </Badge>
         </div>
 
@@ -86,8 +86,9 @@ export function Hero() {
 
         {/* Subheadline */}
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-8">
-          Reverse-engineer your AWS infrastructure into Terraform. Detect drift. Generate least-privilege IAM policies.
-          <span className="text-emerald-400 font-medium"> In seconds.</span>
+          Walk into any brownfield AWS account. Scan it, map every dependency, and turn
+          ClickOps into import-ready Terraform.
+          <span className="text-emerald-400 font-medium"> 100% on your machine.</span>
         </p>
 
         {/* CTA Buttons */}
@@ -159,15 +160,16 @@ export function Hero() {
                   </div>
                   <div>
                     <span className="text-emerald-400">✓</span> Found{" "}
-                    <span className="text-foreground">1,847</span> resources
+                    <span className="text-foreground">1,584</span> resources
                   </div>
                   <div>
                     <span className="text-emerald-400">✓</span> Mapped{" "}
-                    <span className="text-foreground">2,156</span> dependencies
+                    <span className="text-foreground">1,470</span> dependencies
                   </div>
                   <div>
-                    <span className="text-emerald-400">✓</span> Generated Terraform in{" "}
-                    <span className="text-cyan-400">./output/</span>
+                    <span className="text-muted-foreground">Next:</span>{" "}
+                    <span className="text-cyan-400">replimap codify</span>
+                    <span className="text-muted-foreground"> — Terraform + import scaffold</span>
                   </div>
                 </div>
               )}
@@ -197,20 +199,20 @@ export function Hero() {
 
           <div className="hidden md:block w-px h-4 bg-border" />
 
-          {/* Stats */}
+          {/* Verifiable facts — no invented social proof */}
           <div className="flex items-center gap-2">
-            <span className="text-emerald-400 font-bold text-lg">500+</span>
-            <span>GitHub Stars</span>
+            <span className="text-emerald-400 font-bold text-lg">0 bytes</span>
+            <span>data egress</span>
           </div>
           <div className="hidden md:block w-px h-4 bg-border" />
           <div className="flex items-center gap-2">
-            <span className="text-emerald-400 font-bold text-lg">50+</span>
-            <span>Contributors</span>
+            <span className="text-emerald-400 font-bold text-lg">30+</span>
+            <span>AWS resource types</span>
           </div>
           <div className="hidden md:block w-px h-4 bg-border" />
           <div className="flex items-center gap-2">
-            <span className="text-emerald-400 font-bold text-lg">10K+</span>
-            <span>Scans Run</span>
+            <span className="text-emerald-400 font-bold text-lg">1,584</span>
+            <span>resources in one real scan</span>
           </div>
         </div>
       </div>

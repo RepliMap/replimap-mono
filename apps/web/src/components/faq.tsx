@@ -14,12 +14,12 @@ const faqs = [
   {
     question: "Can I use RepliMap in air-gapped environments?",
     answer:
-      "Yes. Pro and Team plans support offline license activation with machine ID binding. Sovereign customers get additional support for air-gapped deployments with signed audit reports.",
+      "Scanning and all reports run fully offline once your license is activated: Pro includes a 7-day offline grace period and Team 14 days between license checks, and every generated report (including the interactive dependency graph) is a self-contained file that loads nothing from the internet. Fully offline activation for permanently air-gapped environments is part of the Sovereign plan.",
   },
   {
     question: "What AWS services are supported?",
     answer:
-      "RepliMap supports 50+ AWS services including VPC, EC2, RDS, Lambda, S3, IAM, ECS, EKS, DynamoDB, SQS, SNS, and more. We're constantly adding new services based on user feedback.",
+      "RepliMap scans 30+ AWS resource types across VPC, EC2, RDS, ElastiCache, Lambda, S3, IAM, ELB/ALB, Auto Scaling, SQS, SNS, CloudWatch and more — the core of a typical production account. New types are added based on what real scans encounter.",
   },
   {
     question: "How does the Lifetime deal work?",
@@ -32,9 +32,14 @@ const faqs = [
       "Yes. Upgrades take effect immediately with prorated billing. Downgrades take effect at the end of your current billing cycle. Lifetime license holders can upgrade to a higher lifetime tier by paying the difference.",
   },
   {
-    question: "What if I need more than 10 AWS accounts?",
+    question: "How many AWS accounts can I scan?",
     answer:
-      "Sovereign plans support unlimited AWS accounts. Contact our sales team for custom pricing based on your organization's needs.",
+      "Community covers 1 AWS account. Pro and above are uncapped under fair use — RepliMap is built for contractors and consultancies who rotate through client accounts, so we don't meter the thing your job depends on.",
+  },
+  {
+    question: "Does RepliMap do drift detection?",
+    answer:
+      "Honestly: attribute-level drift comparison is experimental and not something we charge for today. What we ship and stand behind is IaC Coverage — telling you exactly which resources exist in no Terraform state at all, which is the question terraform plan structurally cannot answer.",
   },
 ]
 
