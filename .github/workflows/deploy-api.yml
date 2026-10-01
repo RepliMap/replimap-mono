@@ -1,0 +1,93 @@
+name: Deploy API to Cloudflare
+
+# Push to main ships the API to dev and then prod (2026-09-27 decision:
+# prod auto-deploys; before this only dev was deployed and prod silently
+# lagged ~2.5 months). Chain: verify → dev → prod. Prod deploys only if the
+# same commit passed typecheck/lint/tests and deployed cleanly to dev.
+# Code only — D1 migrations and secrets stay manual (see the internal deployment checklist).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'packages/config/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api-${{ github.ref }}
+  # Never kill a deploy half-way; queue the next one instead.
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @replimap/config build
+      - run: pnpm --filter @replimap/api typecheck
+      - run: pnpm --filter @replimap/api lint
+      - run: pnpm --filter @replimap/api test
+
+  deploy-dev:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @replimap/config build
+      - name: Deploy dev worker (replimap-api)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/api
+          command: deploy --minify
+
+  deploy-prod:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @replimap/config build
+      - name: Deploy prod worker (replimap-api-prod)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/api
+          command: deploy --env prod --minify
+      - name: Smoke test prod
+        # GET only: routes are method-specific and HEAD returns 404.
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://api.replimap.com/health) && [ "$code" = "200" ] && exit 0
+            sleep 5
+          done
+          echo "prod /health returned $code after deploy — roll back with: wrangler rollback --env prod" >&2
+          exit 1

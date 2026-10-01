@@ -1,0 +1,18 @@
+# Default owners for everything
+* @RepliMap/core-team
+
+# Web frontend
+/apps/web/ @RepliMap/frontend-team @RepliMap/core-team
+
+# API backend
+/apps/api/ @RepliMap/backend-team @RepliMap/core-team
+
+# Shared configuration - requires core team review
+/packages/config/ @RepliMap/core-team
+
+# CI/CD and security-sensitive files
+/.github/ @RepliMap/devops-team @RepliMap/core-team
+/SECURITY.md @RepliMap/security-team
+
+# Documentation
+*.md @RepliMap/docs-team @RepliMap/core-team

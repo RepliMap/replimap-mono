@@ -1,0 +1,59 @@
+name: Deploy Web to Cloudflare
+
+# apps/web is a Next.js static export served by the assets-only Worker
+# `replimap-web` (2026-09-27 decision: off Vercel Hobby, no paid plan).
+# REQUIRE_CLERK_KEY=1 makes the build fail unless the live pk_ key is present,
+# so a keyless build can never ship a site without login.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @replimap/config build
+      - run: pnpm --filter @replimap/web typecheck
+      - run: pnpm --filter @replimap/web lint
+      - run: pnpm --filter @replimap/web test
+      - name: Build static export
+        env:
+          REQUIRE_CLERK_KEY: '1'
+          # Publishable key is public by design (it ships in the bundle).
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
+        run: pnpm --filter @replimap/web build
+      - name: Deploy replimap-web
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/web
+          command: deploy
+      - name: Smoke test
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://www.replimap.com/) && [ "$code" = "200" ] && exit 0
+            sleep 5
+          done
+          echo "www returned $code after deploy — roll back with: wrangler rollback (apps/web)" >&2
+          exit 1

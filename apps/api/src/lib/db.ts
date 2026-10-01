@@ -1,0 +1,840 @@
+/**
+ * Database query helpers using Drizzle ORM
+ *
+ * All functions accept a typed Drizzle client instead of raw D1Database.
+ * Handlers should use createDb(env.DB) to create the client.
+ */
+
+import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
+import { eq, and, ne, notInArray, sql, desc, gte, count } from 'drizzle-orm';
+import * as schema from '../db/schema';
+import { generateId, nowISO, normalizeLicenseKey, normalizeMachineId } from './license';
+import { Errors } from './errors';
+
+// Re-export types from schema for convenience
+export type {
+  License,
+  LicenseMachine,
+  LicensePlanType,
+  User,
+  UsageLog,
+  ProcessedEvent,
+  LicenseAwsAccount,
+  UsageEvent,
+  UsageDaily,
+} from '../db/schema';
+
+// ============================================================================
+// Database Client Factory
+// ============================================================================
+
+export type DrizzleDb = DrizzleD1Database<typeof schema>;
+
+/**
+ * Create a typed Drizzle client from a D1Database binding.
+ * Call this in your handler and pass the result to all db functions.
+ *
+ * @example
+ * const db = createDb(env.DB);
+ * const license = await getLicenseByKey(db, 'RM-XXXX-...');
+ */
+export const createDb = (d1: D1Database): DrizzleDb => drizzle(d1, { schema });
+
+// ============================================================================
+// Query Result Types (for complex aggregates)
+// ============================================================================
+
+export interface ValidateLicenseQueryResult {
+  license_id: string;
+  license_key: string;
+  plan: 'free' | 'solo' | 'pro' | 'team';
+  status: 'active' | 'canceled' | 'expired' | 'past_due' | 'revoked';
+  current_period_end: string | null;
+  active_machines: number;
+  monthly_changes: number;
+  machine_is_active: number | null;
+  machine_last_seen: string | null;
+}
+
+// ============================================================================
+// License Queries
+// ============================================================================
+
+/**
+ * Get license by key with machine and change counts.
+ * Optimized query for the hot path (validation).
+ *
+ * NOTE: This uses raw SQL because Drizzle's relational queries don't support
+ * inline subquery aggregates with correlated conditions. The performance of
+ * a single indexed query is critical here.
+ */
+export async function getLicenseForValidation(
+  db: DrizzleDb,
+  licenseKey: string,
+  machineId: string
+): Promise<ValidateLicenseQueryResult | null> {
+  const normalizedKey = normalizeLicenseKey(licenseKey);
+  const normalizedMachineId = normalizeMachineId(machineId);
+
+  // Use Drizzle's sql template for type-safe raw SQL
+  const result = await db.get<ValidateLicenseQueryResult>(sql`
+    SELECT
+      l.id as license_id,
+      l.license_key,
+      l.plan,
+      l.status,
+      l.current_period_end,
+      -- Count active machines
+      (SELECT COUNT(*) FROM license_machines lm
+       WHERE lm.license_id = l.id AND lm.is_active = 1) as active_machines,
+      -- Count machine changes this month
+      (SELECT COUNT(*) FROM machine_changes mc
+       WHERE mc.license_id = l.id
+       AND mc.changed_at >= datetime('now', 'start of month')) as monthly_changes,
+      -- Check if this specific machine is already registered
+      (SELECT is_active FROM license_machines lm
+       WHERE lm.license_id = l.id AND lm.machine_id = ${normalizedMachineId}) as machine_is_active,
+      (SELECT last_seen_at FROM license_machines lm
+       WHERE lm.license_id = l.id AND lm.machine_id = ${normalizedMachineId}) as machine_last_seen
+    FROM licenses l
+    WHERE l.license_key = ${normalizedKey}
+  `);
+
+  return result ?? null;
+}
+
+/**
+ * Get license by key (simple query)
+ */
+export async function getLicenseByKey(
+  db: DrizzleDb,
+  licenseKey: string
+): Promise<schema.License | null> {
+  const normalizedKey = normalizeLicenseKey(licenseKey);
+
+  const result = await db.query.licenses.findFirst({
+    where: eq(schema.licenses.licenseKey, normalizedKey),
+  });
+
+  return result ?? null;
+}
+
+/**
+ * Get license by Stripe subscription ID
+ */
+export async function getLicenseBySubscriptionId(
+  db: DrizzleDb,
+  subscriptionId: string
+): Promise<schema.License | null> {
+  const result = await db.query.licenses.findFirst({
+    where: eq(schema.licenses.stripeSubscriptionId, subscriptionId),
+  });
+
+  return result ?? null;
+}
+
+/**
+ * Get all active machines for a license
+ */
+export async function getActiveMachines(
+  db: DrizzleDb,
+  licenseId: string
+): Promise<schema.LicenseMachine[]> {
+  const result = await db.query.licenseMachines.findMany({
+    where: and(
+      eq(schema.licenseMachines.licenseId, licenseId),
+      eq(schema.licenseMachines.isActive, true)
+    ),
+    orderBy: desc(schema.licenseMachines.lastSeenAt),
+  });
+
+  return result;
+}
+
+/**
+ * Get total count of ALL machines ever registered (active + inactive).
+ * Used for abuse detection.
+ */
+export async function getTotalMachineCount(
+  db: DrizzleDb,
+  licenseId: string
+): Promise<number> {
+  const result = await db
+    .select({ count: count() })
+    .from(schema.licenseMachines)
+    .where(eq(schema.licenseMachines.licenseId, licenseId));
+
+  return result[0]?.count ?? 0;
+}
+
+/**
+ * Get count of ACTIVE devices (seen in last N days).
+ * Used for improved abuse detection.
+ */
+export async function getActiveDeviceCount(
+  db: DrizzleDb,
+  licenseId: string,
+  daysBack: number = 7,
+  excludeCI: boolean = true
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+  const cutoffISO = cutoffDate.toISOString();
+
+  if (excludeCI) {
+    // Exclude CI patterns using raw SQL for LIKE conditions
+    const result = await db.get<{ count: number }>(sql`
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ${licenseId}
+        AND last_seen_at >= ${cutoffISO}
+        AND machine_id NOT LIKE 'ci-%'
+        AND machine_id NOT LIKE 'github-%'
+        AND machine_id NOT LIKE 'gitlab-%'
+        AND machine_id NOT LIKE '%-ci-%'
+        AND machine_id NOT LIKE '%-runner-%'
+    `);
+    return result?.count ?? 0;
+  }
+
+  const result = await db
+    .select({ count: count() })
+    .from(schema.licenseMachines)
+    .where(
+      and(
+        eq(schema.licenseMachines.licenseId, licenseId),
+        gte(schema.licenseMachines.lastSeenAt, cutoffISO)
+      )
+    );
+
+  return result[0]?.count ?? 0;
+}
+
+/**
+ * Get count of NEW devices registered in last N hours.
+ * Used for detecting rapid churn (key sharing).
+ */
+export async function getNewDeviceCount(
+  db: DrizzleDb,
+  licenseId: string,
+  hoursBack: number = 24,
+  excludeCI: boolean = true
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setHours(cutoffDate.getHours() - hoursBack);
+  const cutoffISO = cutoffDate.toISOString();
+
+  if (excludeCI) {
+    const result = await db.get<{ count: number }>(sql`
+      SELECT COUNT(*) as count FROM license_machines
+      WHERE license_id = ${licenseId}
+        AND first_seen_at >= ${cutoffISO}
+        AND machine_id NOT LIKE 'ci-%'
+        AND machine_id NOT LIKE 'github-%'
+        AND machine_id NOT LIKE 'gitlab-%'
+        AND machine_id NOT LIKE '%-ci-%'
+        AND machine_id NOT LIKE '%-runner-%'
+    `);
+    return result?.count ?? 0;
+  }
+
+  const result = await db
+    .select({ count: count() })
+    .from(schema.licenseMachines)
+    .where(
+      and(
+        eq(schema.licenseMachines.licenseId, licenseId),
+        gte(schema.licenseMachines.firstSeenAt, cutoffISO)
+      )
+    );
+
+  return result[0]?.count ?? 0;
+}
+
+/**
+ * Get count of active CI devices for a license
+ */
+export async function getActiveCIDeviceCount(
+  db: DrizzleDb,
+  licenseId: string,
+  daysBack: number = 30
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+  const cutoffISO = cutoffDate.toISOString();
+
+  const result = await db.get<{ count: number }>(sql`
+    SELECT COUNT(*) as count FROM license_machines
+    WHERE license_id = ${licenseId}
+      AND last_seen_at >= ${cutoffISO}
+      AND (
+        machine_id LIKE 'ci-%'
+        OR machine_id LIKE 'github-%'
+        OR machine_id LIKE 'gitlab-%'
+        OR machine_id LIKE '%-ci-%'
+        OR machine_id LIKE '%-runner-%'
+      )
+  `);
+
+  return result?.count ?? 0;
+}
+
+// ============================================================================
+// License Mutations
+// ============================================================================
+
+/**
+ * Create a new license.
+ * Supports both subscription-based and lifetime licenses.
+ */
+export async function createLicense(
+  db: DrizzleDb,
+  data: {
+    userId: string;
+    licenseKey: string;
+    plan: schema.LicensePlan;
+    planType?: schema.LicensePlanType;
+    stripeSubscriptionId?: string;
+    stripePriceId?: string;
+    stripeSessionId?: string;  // For lifetime idempotency
+    currentPeriodStart?: string;
+    currentPeriodEnd?: string;
+  }
+): Promise<schema.License> {
+  const id = generateId();
+  const now = nowISO();
+
+  await db.insert(schema.licenses).values({
+    id,
+    userId: data.userId,
+    licenseKey: data.licenseKey,
+    plan: data.plan,
+    planType: data.planType ?? 'monthly',
+    status: 'active',
+    stripeSubscriptionId: data.stripeSubscriptionId ?? null,
+    stripePriceId: data.stripePriceId ?? null,
+    stripeSessionId: data.stripeSessionId ?? null,
+    currentPeriodStart: data.currentPeriodStart ?? null,
+    currentPeriodEnd: data.currentPeriodEnd ?? null,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const result = await db.query.licenses.findFirst({
+    where: eq(schema.licenses.id, id),
+  });
+
+  return result!;
+}
+
+/**
+ * Update license status
+ */
+export async function updateLicenseStatus(
+  db: DrizzleDb,
+  licenseId: string,
+  status: schema.LicenseStatus
+): Promise<void> {
+  await db
+    .update(schema.licenses)
+    .set({ status, updatedAt: nowISO() })
+    .where(eq(schema.licenses.id, licenseId));
+}
+
+/**
+ * Update license plan and period
+ */
+export async function updateLicensePlan(
+  db: DrizzleDb,
+  licenseId: string,
+  data: {
+    plan?: schema.LicensePlan;
+    planType?: schema.LicensePlanType;
+    status?: schema.LicenseStatus;
+    stripePriceId?: string;
+    currentPeriodStart?: string;
+    currentPeriodEnd?: string;
+  }
+): Promise<void> {
+  const updates: Partial<schema.License> = { updatedAt: nowISO() };
+
+  if (data.plan) updates.plan = data.plan;
+  if (data.planType) updates.planType = data.planType;
+  if (data.status) updates.status = data.status;
+  if (data.stripePriceId) updates.stripePriceId = data.stripePriceId;
+  if (data.currentPeriodStart) updates.currentPeriodStart = data.currentPeriodStart;
+  if (data.currentPeriodEnd) updates.currentPeriodEnd = data.currentPeriodEnd;
+
+  await db
+    .update(schema.licenses)
+    .set(updates)
+    .where(eq(schema.licenses.id, licenseId));
+}
+
+// ============================================================================
+// Machine Queries & Mutations
+// ============================================================================
+
+/** Fingerprint type for machine registration */
+export type FingerprintType = 'machine' | 'ci' | 'container';
+
+/** Fingerprint metadata for registration */
+export interface FingerprintMetadata {
+  ci_provider?: string;
+  ci_repo?: string;
+  container_type?: string;
+}
+
+/**
+ * Register a new machine for a license with fingerprint metadata.
+ *
+ * @param db - Drizzle database client
+ * @param licenseId - License ID to bind machine to
+ * @param machineId - Machine fingerprint (32 char hex)
+ * @param machineName - Optional friendly name for the machine
+ * @param fingerprintType - Type of fingerprint: machine, ci, or container
+ * @param metadata - Additional metadata for CI/container environments
+ */
+export async function registerMachine(
+  db: DrizzleDb,
+  licenseId: string,
+  machineId: string,
+  machineName?: string,
+  fingerprintType: FingerprintType = 'machine',
+  metadata?: FingerprintMetadata
+): Promise<void> {
+  const id = generateId();
+  const now = nowISO();
+  const normalizedMachineId = normalizeMachineId(machineId);
+
+  // Use raw SQL to support new columns that may not be in Drizzle schema yet
+  await db.run(sql`
+    INSERT INTO license_machines (
+      id, license_id, machine_id, machine_name,
+      fingerprint_type, ci_provider, ci_repo, container_type,
+      is_active, first_seen_at, last_seen_at
+    ) VALUES (
+      ${id}, ${licenseId}, ${normalizedMachineId}, ${machineName ?? null},
+      ${fingerprintType}, ${metadata?.ci_provider ?? null},
+      ${metadata?.ci_repo ?? null}, ${metadata?.container_type ?? null},
+      1, ${now}, ${now}
+    )
+  `);
+}
+
+/**
+ * Update machine last_seen_at
+ */
+export async function updateMachineLastSeen(
+  db: DrizzleDb,
+  licenseId: string,
+  machineId: string
+): Promise<void> {
+  const normalizedMachineId = normalizeMachineId(machineId);
+
+  await db
+    .update(schema.licenseMachines)
+    .set({ lastSeenAt: nowISO() })
+    .where(
+      and(
+        eq(schema.licenseMachines.licenseId, licenseId),
+        eq(schema.licenseMachines.machineId, normalizedMachineId)
+      )
+    );
+}
+
+/**
+ * Deactivate a machine
+ */
+export async function deactivateMachine(
+  db: DrizzleDb,
+  licenseId: string,
+  machineId: string
+): Promise<boolean> {
+  const normalizedMachineId = normalizeMachineId(machineId);
+
+  const result = await db
+    .update(schema.licenseMachines)
+    .set({ isActive: false })
+    .where(
+      and(
+        eq(schema.licenseMachines.licenseId, licenseId),
+        eq(schema.licenseMachines.machineId, normalizedMachineId),
+        eq(schema.licenseMachines.isActive, true)
+      )
+    );
+
+  return (result.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Record a machine change (for monthly limit tracking)
+ */
+export async function recordMachineChange(
+  db: DrizzleDb,
+  licenseId: string,
+  newMachineId: string,
+  oldMachineId?: string
+): Promise<void> {
+  const id = generateId();
+  const normalizedNewMachineId = normalizeMachineId(newMachineId);
+
+  await db.insert(schema.machineChanges).values({
+    id,
+    licenseId,
+    oldMachineId: oldMachineId ? normalizeMachineId(oldMachineId) : null,
+    newMachineId: normalizedNewMachineId,
+    changedAt: nowISO(),
+  });
+}
+
+// ============================================================================
+// User Queries & Mutations
+// ============================================================================
+
+/**
+ * Find or create user by email.
+ *
+ * NOTE: The new schema uses `user` table (singular) and `customerId` (not stripe_customer_id).
+ */
+export async function findOrCreateUser(
+  db: DrizzleDb,
+  email: string,
+  stripeCustomerId?: string
+): Promise<schema.User> {
+  // Defense in depth: never let a null/empty email reach `.toLowerCase()`
+  // (raw TypeError → 500) or silently create a garbage empty-email user.
+  // Callers get a typed AppError they can convert to a clean 4xx.
+  if (!email || typeof email !== 'string' || !email.trim()) {
+    throw Errors.invalidRequest(
+      'Cannot find or create a user without an email address'
+    );
+  }
+
+  const normalizedEmail = email.toLowerCase();
+
+  // Try to find existing user
+  let existingUser = await db.query.user.findFirst({
+    where: eq(schema.user.email, normalizedEmail),
+  });
+
+  if (existingUser) {
+    // Update Stripe customer ID if provided and different
+    if (stripeCustomerId && existingUser.customerId !== stripeCustomerId) {
+      await db
+        .update(schema.user)
+        .set({ customerId: stripeCustomerId, updatedAt: new Date() })
+        .where(eq(schema.user.id, existingUser.id));
+      existingUser = { ...existingUser, customerId: stripeCustomerId };
+    }
+    return existingUser;
+  }
+
+  // Create new user
+  const id = generateId();
+  const now = new Date();
+
+  try {
+    await db.insert(schema.user).values({
+      id,
+      name: normalizedEmail.split('@')[0], // Default name from email
+      email: normalizedEmail,
+      normalizedEmail,
+      emailVerified: false,
+      customerId: stripeCustomerId ?? null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  } catch (error) {
+    // Race fallback: a concurrent request (e.g. Stripe redelivering the same
+    // webhook) may have inserted this email between our find and insert.
+    // UNIQUE(email) rejects the loser — recover by re-reading the winner.
+    const concurrent = await db.query.user.findFirst({
+      where: eq(schema.user.email, normalizedEmail),
+    });
+    if (!concurrent) throw error;
+    if (stripeCustomerId && concurrent.customerId !== stripeCustomerId) {
+      await db
+        .update(schema.user)
+        .set({ customerId: stripeCustomerId, updatedAt: new Date() })
+        .where(eq(schema.user.id, concurrent.id));
+      return { ...concurrent, customerId: stripeCustomerId };
+    }
+    return concurrent;
+  }
+
+  const newUser = await db.query.user.findFirst({
+    where: eq(schema.user.id, id),
+  });
+
+  return newUser!;
+}
+
+/**
+ * Get user by Stripe customer ID
+ */
+export async function getUserByStripeCustomerId(
+  db: DrizzleDb,
+  stripeCustomerId: string
+): Promise<schema.User | null> {
+  const result = await db.query.user.findFirst({
+    where: eq(schema.user.customerId, stripeCustomerId),
+  });
+
+  return result ?? null;
+}
+
+// ============================================================================
+// Idempotency
+// ============================================================================
+
+/**
+ * Check if an event has been processed
+ */
+export async function isEventProcessed(
+  db: DrizzleDb,
+  eventId: string
+): Promise<boolean> {
+  const result = await db.query.processedEvents.findFirst({
+    where: eq(schema.processedEvents.eventId, eventId),
+  });
+
+  return result !== undefined;
+}
+
+/**
+ * Mark an event as processed
+ */
+export async function markEventProcessed(
+  db: DrizzleDb,
+  eventId: string,
+  eventType: string
+): Promise<void> {
+  await db
+    .insert(schema.processedEvents)
+    .values({
+      eventId,
+      eventType,
+      processedAt: nowISO(),
+    })
+    .onConflictDoNothing();
+}
+
+// ============================================================================
+// Usage Logging
+// ============================================================================
+
+/**
+ * Log a usage event.
+ *
+ * NOTE: Metadata is now passed directly as an object — Drizzle handles JSON serialization.
+ */
+export async function logUsage(
+  db: DrizzleDb,
+  data: {
+    licenseId: string;
+    machineId?: string;
+    action: schema.UsageAction;
+    resourcesCount?: number;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<void> {
+  const id = generateId();
+
+  await db.insert(schema.usageLogs).values({
+    id,
+    licenseId: data.licenseId,
+    machineId: data.machineId ? normalizeMachineId(data.machineId) : null,
+    action: data.action,
+    resourcesCount: data.resourcesCount ?? 0,
+    metadata: data.metadata ?? null, // Drizzle handles JSON serialization
+    createdAt: nowISO(),
+  });
+}
+
+// ============================================================================
+// Device Cleanup
+// ============================================================================
+
+/**
+ * Wipe all devices for a license (hard delete).
+ * Used when downgrading plans to enforce new device limits.
+ */
+export async function wipeAllDevices(
+  db: DrizzleDb,
+  licenseId: string
+): Promise<number> {
+  const result = await db
+    .delete(schema.licenseMachines)
+    .where(eq(schema.licenseMachines.licenseId, licenseId));
+
+  return result.meta?.changes ?? 0;
+}
+
+/**
+ * Deactivate all devices for a license (soft wipe).
+ */
+export async function deactivateAllDevices(
+  db: DrizzleDb,
+  licenseId: string
+): Promise<number> {
+  const result = await db
+    .update(schema.licenseMachines)
+    .set({ isActive: false })
+    .where(
+      and(
+        eq(schema.licenseMachines.licenseId, licenseId),
+        eq(schema.licenseMachines.isActive, true)
+      )
+    );
+
+  return result.meta?.changes ?? 0;
+}
+
+// ============================================================================
+// Lifetime License Support
+// ============================================================================
+
+/**
+ * Get license by Stripe checkout session ID.
+ * Used for idempotency check on lifetime purchases.
+ */
+export async function getLicenseBySessionId(
+  db: DrizzleDb,
+  sessionId: string
+): Promise<schema.License | null> {
+  const result = await db.query.licenses.findFirst({
+    where: eq(schema.licenses.stripeSessionId, sessionId),
+  });
+
+  return result ?? null;
+}
+
+/** Free-tier plans that can never be the outcome of a Stripe purchase. */
+const FREE_TIER_PLANS: schema.LicensePlan[] = ['community', 'free'];
+
+/**
+ * Get the most recent active PAID license for a user identified by email.
+ * Used by post-payment lookup (subscription checkout_session has no session_id
+ * stamped on the license). Free-tier plans are excluded: a user who already
+ * holds a community key must not have it surfaced as their purchase result
+ * while the paid webhook is still in flight — no paid license means the
+ * purchase is still pending.
+ *
+ * Returns null if no user exists for the email, or no active paid license is
+ * found.
+ */
+export async function getLicenseByUserEmailLatest(
+  db: DrizzleDb,
+  email: string
+): Promise<schema.License | null> {
+  const normalizedEmail = email.toLowerCase();
+
+  const userRow = await db.query.user.findFirst({
+    where: eq(schema.user.email, normalizedEmail),
+  });
+  if (!userRow) return null;
+
+  const license = await db.query.licenses.findFirst({
+    where: and(
+      eq(schema.licenses.userId, userRow.id),
+      eq(schema.licenses.status, 'active'),
+      notInArray(schema.licenses.plan, FREE_TIER_PLANS)
+    ),
+    orderBy: desc(schema.licenses.createdAt),
+  });
+
+  return license ?? null;
+}
+
+/**
+ * Get the most recent NON-EXPIRED license for a user identified by email —
+ * any status except 'expired' (active, past_due, canceled, revoked).
+ *
+ * Used by free-tier provisioning idempotency: a paid license that lapsed
+ * into past_due/canceled must still block a fresh community license from
+ * being issued for the same email (it would shadow the billing problem and
+ * leave the user with two keys). Only a fully expired license frees the
+ * email for re-provisioning.
+ */
+export async function getNonExpiredLicenseByUserEmail(
+  db: DrizzleDb,
+  email: string
+): Promise<schema.License | null> {
+  const normalizedEmail = email.toLowerCase();
+
+  const userRow = await db.query.user.findFirst({
+    where: eq(schema.user.email, normalizedEmail),
+  });
+  if (!userRow) return null;
+
+  const license = await db.query.licenses.findFirst({
+    where: and(
+      eq(schema.licenses.userId, userRow.id),
+      ne(schema.licenses.status, 'expired')
+    ),
+    orderBy: desc(schema.licenses.createdAt),
+  });
+
+  return license ?? null;
+}
+
+/**
+ * Get the most recent lifetime license for a user.
+ * Used for refund processing when charge.refunded doesn't include session ID.
+ */
+export async function getLifetimeLicenseByUserId(
+  db: DrizzleDb,
+  userId: string
+): Promise<schema.License | null> {
+  const result = await db.query.licenses.findFirst({
+    where: and(
+      eq(schema.licenses.userId, userId),
+      eq(schema.licenses.planType, 'lifetime')
+    ),
+    orderBy: desc(schema.licenses.createdAt),
+  });
+
+  return result ?? null;
+}
+
+/**
+ * Revoke a license (for refund handling).
+ * Sets status to 'revoked' with reason and timestamp.
+ */
+export async function revokeLicense(
+  db: DrizzleDb,
+  licenseId: string,
+  reason: string
+): Promise<void> {
+  const now = nowISO();
+
+  await db
+    .update(schema.licenses)
+    .set({
+      status: 'revoked',
+      revokedAt: now,
+      revokedReason: reason,
+      updatedAt: now,
+    })
+    .where(eq(schema.licenses.id, licenseId));
+}
+
+/**
+ * Cancel a license (for subscription cancellation).
+ * Sets status to 'canceled' with timestamp.
+ */
+export async function cancelLicense(
+  db: DrizzleDb,
+  licenseId: string
+): Promise<void> {
+  const now = nowISO();
+
+  await db
+    .update(schema.licenses)
+    .set({
+      status: 'canceled',
+      canceledAt: now,
+      updatedAt: now,
+    })
+    .where(eq(schema.licenses.id, licenseId));
+}

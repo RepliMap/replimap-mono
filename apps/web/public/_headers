@@ -1,0 +1,32 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  X-XSS-Protection: 1; mode=block
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://clerk.replimap.com https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://img.clerk.com https://clerk.replimap.com https://*.clerk.com https://*.clerk.accounts.dev; font-src 'self' data:; connect-src 'self' https://api.replimap.com https://clerk.replimap.com https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com https://clerk.replimap.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; frame-ancestors 'none'
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/opengraph-image
+  Content-Type: image/png
+
+# /demo embeds /demo/graph.html in a same-origin iframe, so this page (and only
+# this page) adds 'self' to frame-src. Cloudflare merges duplicate headers
+# instead of replacing them, so the global CSP is detached and restated; it must
+# stay identical to the one above except for frame-src (see demo-headers.test.ts).
+/demo
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://clerk.replimap.com https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://img.clerk.com https://clerk.replimap.com https://*.clerk.com https://*.clerk.accounts.dev; font-src 'self' data:; connect-src 'self' https://api.replimap.com https://clerk.replimap.com https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com https://clerk.replimap.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; frame-ancestors 'none'
+
+# graph.html (served at /demo/graph: Workers Assets strips the .html and 307s
+# /demo/graph.html there, and header rules match the final path) is a self-contained export with inline <script>/<style> and no
+# network access. Allow it to be framed by this origin only, and give it a
+# CSP that grants nothing beyond what it needs: inline script/style, data: images.
+/demo/graph
+  ! X-Frame-Options
+  X-Frame-Options: SAMEORIGIN
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'
+
+# Raw Terraform samples render as text in the browser instead of downloading.
+/demo/terraform/*
+  Content-Type: text/plain; charset=utf-8

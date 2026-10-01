@@ -1,0 +1,181 @@
+# ============================================================================
+# RepliMap API - Cloudflare Workers Configuration
+# ============================================================================
+#
+# ┌─────────────────────────────────────────────────────────────────────────┐
+# │  SAFETY-FIRST DESIGN: Development is default, Production requires flag │
+# └─────────────────────────────────────────────────────────────────────────┘
+#
+# Rationale:
+#   - Mistyped commands affect dev, not prod
+#   - "Explicit is better than implicit" for production
+#   - Team safety: junior devs can't accidentally deploy to prod
+#   - CI/CD clarity: `deploy:prod` is visually obvious in code review
+#
+# ============================================================================
+# Quick Reference
+# ============================================================================
+#
+#   Command                     Target                    Domain
+#   ─────────────────────────────────────────────────────────────────────────
+#   pnpm dev                    Local                     localhost:8787
+#   pnpm deploy                 replimap-api              api-dev.replimap.com
+#   pnpm deploy:prod            replimap-api-prod         api.replimap.com
+#
+# ============================================================================
+
+name = "replimap-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ============================================================================
+# DEFAULT: Development Environment
+# ============================================================================
+#
+# Worker:   replimap-api (existing, has dev secrets configured)
+# Domain:   api-dev.replimap.com
+# Database: replimap-dev
+#
+# All bare commands target this environment:
+#   - wrangler dev
+#   - wrangler deploy
+#   - wrangler secret put XXX
+#   - wrangler d1 migrations apply replimap-dev --remote
+#
+# ============================================================================
+
+# Custom domain for dev API (must stay above [vars], or TOML parses it as vars.routes)
+routes = [
+  { pattern = "api-dev.replimap.com", custom_domain = true }
+]
+
+[vars]
+ENVIRONMENT = "development"
+CORS_ORIGIN = "https://dev.replimap.com,http://localhost:3000"
+# Exact origins allowed in checkout success_url/cancel_url (fail-closed).
+# 3100 is the web e2e port (apps/web/playwright.config.ts).
+CHECKOUT_ALLOWED_ORIGINS = "https://dev.replimap.com,http://localhost:3000,http://localhost:3100"
+API_VERSION = "v1"
+
+# Daily data-retention job (see "Data retention" in README.md). Triggers are
+# not inherited by [env.*] blocks, so prod declares its own below.
+[triggers]
+crons = ["0 3 * * *"]
+
+# D1 Database - Development
+[[d1_databases]]
+binding = "DB"
+database_name = "replimap-dev"
+database_id = "212335fc-ffeb-40d2-8794-c0d84a0991a1"
+
+# KV Namespace - Development (for caching, rate limiting, etc.)
+[[kv_namespaces]]
+binding = "CACHE"
+id = "32520e34a8d54faf90e71692462e9f96"
+preview_id = "58ccea22fa7f4e6689adbec8270356b0"
+
+# ============================================================================
+# PRODUCTION Environment (Requires: --env prod)
+# ============================================================================
+#
+# Worker:   replimap-api-prod (new worker, needs prod secrets)
+# Domain:   api.replimap.com
+# Database: replimap-prod
+#
+# All production commands require explicit --env prod flag:
+#   - wrangler deploy --env prod
+#   - wrangler secret put XXX --env prod
+#   - wrangler d1 migrations apply replimap-prod --env prod --remote
+#   - wrangler tail --env prod
+#
+# ============================================================================
+
+[env.prod]
+name = "replimap-api-prod"
+
+[env.prod.vars]
+ENVIRONMENT = "production"
+CORS_ORIGIN = "https://www.replimap.com,https://replimap.com"
+# Exact origins allowed in checkout success_url/cancel_url (fail-closed).
+CHECKOUT_ALLOWED_ORIGINS = "https://www.replimap.com,https://replimap.com"
+API_VERSION = "v1"
+
+# Daily data-retention job (same schedule as dev)
+[env.prod.triggers]
+crons = ["0 3 * * *"]
+
+# Custom domain for production API
+[[env.prod.routes]]
+pattern = "api.replimap.com"
+custom_domain = true
+
+# D1 Database - Production
+[[env.prod.d1_databases]]
+binding = "DB"
+database_name = "replimap-prod"
+database_id = "0cda6e12-5087-4b1a-8dfe-207960c88f2d"
+
+# KV Namespace - Production
+[[env.prod.kv_namespaces]]
+binding = "CACHE"
+id = "705a8c1a808a4656894a0c787787b76c"
+
+# ============================================================================
+# SECRETS CONFIGURATION
+# ============================================================================
+#
+# Development secrets (replimap-api) - ALREADY CONFIGURED ✅
+#   STRIPE_SECRET_KEY        sk_test_xxx
+#   STRIPE_WEBHOOK_SECRET    whsec_xxx (dev webhook)
+#   CLERK_SECRET_KEY         sk_test_xxx
+#   CLERK_PUBLISHABLE_KEY    pk_test_xxx
+#   ADMIN_API_KEY            (shared or dev-specific)
+#
+# Production secrets (replimap-api-prod) - NEEDS SETUP
+#   npx wrangler secret put STRIPE_SECRET_KEY --env prod
+#   npx wrangler secret put STRIPE_WEBHOOK_SECRET --env prod
+#   npx wrangler secret put CLERK_SECRET_KEY --env prod
+#   npx wrangler secret put CLERK_PUBLISHABLE_KEY --env prod
+#   npx wrangler secret put ADMIN_API_KEY --env prod
+#
+# Optional — license-key email delivery (lib/email.ts). Unset = the
+# resend-key endpoint and post-purchase emails degrade honestly to
+# {sent:false, reason:'email_not_configured'}; nothing breaks.
+#   npx wrangler secret put RESEND_API_KEY --env prod   # re_...
+#   npx wrangler secret put EMAIL_FROM --env prod        # "RepliMap <license@replimap.com>"
+#
+# Optional — ops alert channels (lib/alerts.ts). Either, both, or neither;
+# each is independently fail-open (unset = silent no-op for that channel).
+#   npx wrangler secret put OPS_ALERT_WEBHOOK --env prod # Slack/Discord/generic webhook URL
+#   npx wrangler secret put OPS_ALERT_EMAIL --env prod   # plain var, not a credential —
+#                                                         # fine to set as a secret; also
+#                                                         # needs RESEND_API_KEY + EMAIL_FROM above
+#
+# ============================================================================
+# DATABASE MIGRATIONS
+# ============================================================================
+#
+# Development:
+#   npx wrangler d1 migrations apply replimap-dev --remote
+#
+# Production:
+#   npx wrangler d1 migrations apply replimap-prod --env prod --remote
+#
+# ============================================================================
+# DEPLOYMENT CHECKLIST
+# ============================================================================
+#
+# Initial Setup (one-time):
+#   □ Update custom domain in CF Dashboard:
+#     - replimap-api: api.replimap.com → api-dev.replimap.com
+#   □ Deploy prod: npx wrangler deploy --env prod
+#   □ Configure prod secrets (5 secrets above)
+#   □ Add custom domain for replimap-api-prod: api.replimap.com
+#   □ Verify: curl https://api.replimap.com/health
+#
+# Regular Deployment:
+#   □ pnpm deploy        → Test on api-dev.replimap.com
+#   □ pnpm deploy:prod   → Release to api.replimap.com
+#
+# ============================================================================

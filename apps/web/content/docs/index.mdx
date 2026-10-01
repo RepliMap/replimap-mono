@@ -1,0 +1,118 @@
+---
+title: Introduction
+description: RepliMap - AWS Infrastructure Intelligence Engine
+---
+
+import { Cards, Card } from 'fumadocs-ui/components/card'
+import { Callout } from 'fumadocs-ui/components/callout'
+
+# Welcome to RepliMap
+
+**RepliMap** is an AWS Infrastructure Intelligence Engine that reverse-engineers your AWS infrastructure into Terraform code. Visualize dependencies and audit security in minutes.
+
+<Callout type="info">
+  **100% Local Execution:** RepliMap runs entirely on your machine. Your AWS credentials and infrastructure data never leave your environment.
+</Callout>
+
+## The Problem
+
+You inherited an AWS account. Or maybe you built it yourself over 3 years of "just one more click."
+
+Now you have:
+- **Hundreds of resources** and no idea what connects to what
+- **No Terraform** — or a state file that covers half of what's really there
+- **A hand-off (or an audit) coming** — and no way to prove what exists
+
+## The Solution
+
+RepliMap scans your AWS, builds a dependency graph, and gives you superpowers:
+
+```bash
+$ replimap -p prod scan
+
+✓ Found 1,584 resources
+✓ Mapped 1,470 dependencies
+✓ Graph cached — next: replimap graph / codify
+```
+
+(That's real output from a 1,584-resource production account — the same
+account where we found the entire data layer, all 27 RDS instances,
+in no Terraform state at all.)
+
+## Key Features
+
+<Cards>
+  <Card
+    title="Generate IaC"
+    href="/docs/quick-start"
+    description="From ClickOps to Terraform in minutes. No manual import required."
+  />
+  <Card
+    title="Visualize Dependencies"
+    href="/docs/cli-reference#graph"
+    description="Understand what connects to what. Avoid breaking prod."
+  />
+  <Card
+    title="IaC Coverage"
+    href="/docs/cli-reference#codify"
+    description="Match live resources against your state files. See what nobody manages."
+  />
+  <Card
+    title="Audit Compliance"
+    href="/docs/security"
+    description="Run a SOC 2-mapped audit against live AWS and export the evidence."
+  />
+</Cards>
+
+## Core Principles
+
+| Principle | Description |
+|-----------|-------------|
+| **🔒 Read-Only** | We only require read permissions. We never modify your resources. |
+| **📍 Local Processing** | All data stays on your machine. No SaaS cloud to trust. |
+| **⚡ Resilient Scanning** | Parallel scanners with per-item retries — 1,500+ resource accounts in minutes. |
+| **📦 Self-Contained Output** | Reports and graphs are single files that load nothing from the internet. |
+
+## Supported Resources
+
+Resources are listed here only if RepliMap scans them from the AWS API. Types
+marked **graph only** appear in the dependency graph, `graph` and `deps`, but
+`codify` does not emit them as Terraform (it would need data RepliMap refuses to
+read, such as function code or secret values, or the type is not generated yet).
+Everything else is generated as Terraform (`scan` → `codify`).
+
+`codify` also skips resources owned by a CloudFormation stack (tagged
+`aws:cloudformation:stack-id` / `stack-name`): importing them would make
+Terraform and CloudFormation fight over the same resource. The summary shows how
+many were skipped; pass `--include-cfn-managed` to generate them anyway. They
+stay in the scan graph, and `--coverage-state` reports them as auto-created
+rather than actionable. AWS-reserved `aws:` tags are never written to the
+generated Terraform.
+
+39 codified resource types plus 12 graph-only types:
+
+| Category | Resources |
+|----------|-----------|
+| **Network** | VPC, Subnet, Security Group, Route Table, Internet Gateway, NAT Gateway, VPC Endpoint, Network ACL, Elastic IP |
+| **Compute & Load Balancing** | EC2 Instance, Launch Template, Auto Scaling Group, Application/Network Load Balancer (+ target groups, listeners) |
+| **Database** | RDS Instance, Aurora Cluster (+ Cluster Instance), DB Subnet Group, DB Parameter Group, ElastiCache Cluster, ElastiCache Subnet Group, DynamoDB Table |
+| **Storage** | S3 Bucket, S3 Bucket Policy, EBS Volume |
+| **Messaging & Monitoring** | SQS Queue, SNS Topic, CloudWatch Log Group, CloudWatch Metric Alarm |
+| **IAM** | IAM Role, IAM Instance Profile |
+| **DNS, CDN & Certificates** | Route53 Hosted Zone, Route53 Record (incl. alias, weighted and latency records), ACM Certificate, CloudFront Distribution |
+| **Containers** (ECS / ECR) | ECS Cluster, ECR Repository; **graph only:** ECS Service, ECS Task Definition (environment variable values are never stored) |
+| **Serverless** | Lambda Event Source Mapping; **graph only:** Lambda Function (no code download; environment variable values are never stored) |
+| **Secrets & Encryption** | Secrets Manager Secret (metadata only, never the value), KMS Key (customer-managed, including its key policy), KMS Alias; **graph only:** SSM Parameter (never the value) |
+| **API Gateway** (graph only) | REST API, REST Stage, REST Custom Domain, REST VPC Link, HTTP/WebSocket API, HTTP/WebSocket Stage, HTTP/WebSocket Custom Domain, HTTP/WebSocket VPC Link |
+
+Not yet supported: EKS, EFS, CloudTrail, VPC Flow Logs.
+
+New types are added based on what real scans encounter — if your account
+leans on something we don't cover yet, [tell us](https://github.com/RepliMap/replimap-community/issues).
+
+## Next Steps
+
+<Cards>
+  <Card title="Installation" href="/docs/installation" description="Install RepliMap CLI on your machine" />
+  <Card title="Quick Start" href="/docs/quick-start" description="Run your first scan in 2 minutes" />
+</Cards>

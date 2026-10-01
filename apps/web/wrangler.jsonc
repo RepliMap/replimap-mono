@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "replimap-web",
+  "compatibility_date": "2026-09-27",
+  // replimap.com (apex) is 301'd to www by a zone Redirect Rule before it
+  // reaches the Worker; it is bound here so the hostname stays proxied.
+  "routes": [
+    { "pattern": "www.replimap.com", "custom_domain": true },
+    { "pattern": "replimap.com", "custom_domain": true }
+  ],
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page"
+  }
+}

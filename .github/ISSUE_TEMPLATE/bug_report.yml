@@ -1,0 +1,107 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Thank you for reporting a bug!
+
+        Please fill out the form below to help us investigate.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of RepliMap is affected?
+      options:
+        - CLI (`replimap` command)
+        - Web Dashboard
+        - API
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug
+      placeholder: |
+        When I run `replimap scan`, the process hangs after scanning 50 resources...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this issue?
+      placeholder: |
+        1. Configure AWS credentials with profile 'production'
+        2. Run `replimap scan --profile production`
+        3. Wait for ~2 minutes
+        4. Observe the hang
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: The scan should complete and show a summary of resources found.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error Output
+      description: Any relevant log output (use `replimap --debug` for verbose output)
+      render: shell
+      placeholder: |
+        $ replimap scan --debug
+        [DEBUG] Starting scan...
+        [ERROR] ConnectionTimeout: ...
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `replimap --version` or package version
+      placeholder: "0.5.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (Ubuntu/Debian)
+        - Linux (RHEL/CentOS)
+        - Linux (Other)
+        - Windows (WSL2)
+        - Windows (Native)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version (for CLI issues)
+      description: Output of `python --version`
+      placeholder: "3.11.5"
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information (screenshots, related issues, etc.)

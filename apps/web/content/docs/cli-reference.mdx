@@ -1,0 +1,573 @@
+---
+title: CLI Reference
+description: Complete guide to RepliMap commands
+---
+
+import { Callout } from 'fumadocs-ui/components/callout'
+
+RepliMap ships 23 top-level commands, grouped the same way `replimap --help`
+groups them:
+
+- **Core** — [`scan`](#scan), [`graph`](#graph), [`load`](#load), [`profiles`](#profiles)
+- **Infrastructure as Code** — [`codify`](#codify), [`remediate`](#remediate)
+- **Analysis** — [`analyze`](#analyze), [`deps`](#deps), [`drift`](#drift), [`validate`](#validate), `drift-offline`
+- **Security & Compliance** — [`audit`](#audit), [`residency`](#residency), [`iam`](#iam), [`trust-center`](#trust-center)
+- **Configuration** — [`doctor`](#doctor), [`cache`](#cache), [`scan-cache`](#scan-cache), [`license`](#license), [`upgrade`](#upgrade), [`completion`](#completion)
+- **Help & Debugging** — [`explain`](#explain), [`errors`](#errors)
+
+This page covers common usage and the flags most people reach for. Every
+command also has full `--help` output — pass `-h` for the complete flag list.
+
+## Global Options
+
+These options work with all commands:
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--profile` | `-p` | AWS profile name from `~/.aws/credentials` |
+| `--region` | `-r` | AWS region (e.g., `us-east-1`) |
+| `--format` | `-f` | Output format: `text`, `json`, `table` |
+| `--verbose` | `-v` | Increase verbosity (`-v`, `-vv`) |
+| `--quiet` | `-q` | Suppress output (errors only) |
+| `--version` | `-V` | Show version info |
+| `--privacy` | | Show privacy and data-handling info |
+| `--help` | `-h` | Show help for command |
+
+---
+
+## Core Commands
+
+### scan
+
+Scans AWS resources and builds the dependency graph.
+
+```bash
+replimap scan --profile prod --region us-east-1
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--scope` | Limit to VPC: `vpc:vpc-12345678` or `vpc-name:Production*` |
+| `--entry` | Start from entry point: `alb:my-alb` or `tag:App=MyApp` |
+| `--tag` | Filter by tag: `Environment=Production` |
+| `--types` | Filter by resource types, comma-separated. Accepts service aliases (`rds`, `ec2`, `s3`, `iam`, ...) or literal Terraform types (`aws_db_instance`). Newer service names: `route53`, `dns`, `acm`, `cloudfront`, `cdn`, `edge`, `ecs`, `ecr`, `apigateway`, `lambda`, `dynamodb`, `kms`, `secrets`, `secretsmanager`, `ssm` |
+| `--exclude-tag` | Exclude by tag (repeatable) |
+| `--cache` | Use the scan-result cache for faster incremental scans |
+| `--refresh-cache` | Force-refresh the scan-result cache (distinct from the graph cache used by `--refresh` on other commands) |
+| `--incremental` | Only detect changes since the last scan |
+| `--trust-center` | Enable Trust Center API auditing (Team+) |
+
+#### Examples
+
+```bash
+# Scan a specific VPC
+replimap scan -p prod --scope vpc:vpc-12345678
+
+# Scan by tag
+replimap scan -p prod --entry tag:Application=MyApp
+
+# Scan from an ALB entry point
+replimap scan -p prod --entry alb:my-app-alb
+
+# Filter to just RDS + EC2 (service aliases, not literal Terraform types)
+replimap scan -p prod --types rds,ec2
+
+# Use cache for faster incremental scans
+replimap scan -p prod --cache
+```
+
+<Callout type="info">
+  RDS scanning models Aurora clusters as `aws_rds_cluster` /
+  `aws_rds_cluster_instance` — not generic `aws_db_instance` blocks — so
+  cluster membership and dependency edges survive into `codify`.
+</Callout>
+
+### graph
+
+Generates infrastructure visualizations.
+
+```bash
+replimap graph --profile prod --format html --output infra.html
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--format` | `html` (interactive D3, default), `mermaid`, `json` |
+| `--output` | Output file path |
+| `--vpc` | Scope to specific VPC |
+| `--all` | Show all resources (no filtering) |
+| `--routes` | Include routes and route tables |
+| `--no-collapse` | Disable resource grouping |
+| `--open` / `--no-open` | Open in browser after generation |
+
+#### Interactive Graph Features
+
+The HTML graph is a **single self-contained file** — D3 is inlined, nothing
+loads from the internet, so it renders fully air-gapped and can be handed
+to a client as-is. It includes:
+
+| Feature | Description |
+|---------|-------------|
+| **VPC/Subnet Containers** | Hierarchical layout — public/private subnets nested in their VPC |
+| **Blast Radius** | Click a resource to highlight everything it touches |
+| **Search & Filters** | Find resources by name/type; collapsible filter panel |
+| **Legend & Tooltips** | Per-type legend, hover details, zoom/pan |
+
+### load
+
+Loads and displays a previously saved graph file.
+
+```bash
+replimap load graph.db
+replimap load graph.json
+```
+
+Accepts `.db` (SQLite, current format) or `.json` (legacy format).
+
+### profiles
+
+Lists AWS profiles configured in `~/.aws/config` and `~/.aws/credentials`.
+
+```bash
+replimap profiles
+```
+
+---
+
+## Infrastructure as Code
+
+### codify
+
+Generates Terraform plus an import scaffold from the scanned graph, and
+reports IaC coverage against your existing state files. Terraform is the
+only supported output format.
+
+```bash
+replimap codify --profile prod --output-dir ./terraform
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Preview what will be generated without writing files |
+| `--output-dir` | Output directory for generated code |
+| `--coverage-state` | A tfstate to match against — local path or `s3://bucket/key` (repeatable) |
+| `--coverage-state-dir` | Directory of `*.tfstate` files to match against |
+| `--use-import-script` | Emit `imports.sh` (CLI import commands) instead of `imports.tf` blocks |
+| `--include-global` | Include global resources (IAM, S3) alongside regional ones |
+| `--compliance` | Route generated Terraform sources through compliance.tf (`soc2`, `hipaa`, `pci-dss`, `nist`, `fedramp`, `iso27001`, `gdpr`, `nis2`, `cis`, ...) |
+| `--state-file` | Skip resources already present in an existing `terraform.tfstate` |
+| `--include-cfn-managed` | Also generate resources owned by a CloudFormation stack. By default they are skipped (`--skip-cfn-managed`), and the summary shows how many were skipped |
+
+<Callout type="info">
+  `codify` skips resources owned by a CloudFormation stack (tagged
+  `aws:cloudformation:stack-id` / `stack-name`) by default, because importing
+  them would make Terraform and CloudFormation manage the same resource. They
+  stay in the scan graph, and `--coverage-state` reports them as auto-created
+  rather than actionable. `user_data` on instances and launch templates is never
+  written; it is left to AWS with `lifecycle { ignore_changes }`.
+</Callout>
+
+#### Examples
+
+```bash
+# Preview
+replimap codify -p prod --dry-run
+
+# Generate Terraform + import scaffold
+replimap codify -p prod --output-dir ./terraform
+
+# Also report which live resources are in NO state file
+replimap codify -p prod \
+  --coverage-state s3://tf-states/prod/terraform.tfstate \
+  --coverage-state-dir ./states
+```
+
+#### Generated Files
+
+Resources are grouped one file per service:
+
+```
+terraform/
+├── vpc.tf / networking.tf / security_groups.tf
+├── ec2.tf / compute.tf / alb.tf
+├── rds.tf / elasticache.tf / s3.tf / storage.tf / messaging.tf
+├── providers.tf / versions.tf
+└── imports.tf        # import scaffold (Pro) — correct import ID format per type
+```
+
+<Callout type="info">
+  Aurora clusters generate a real `aws_rds_cluster` plus one
+  `aws_rds_cluster_instance` per member (instead of the standalone,
+  attribute-mismatched `aws_db_instance` blocks earlier versions produced),
+  with `cluster_identifier` on each member resolved to a Terraform reference.
+</Callout>
+
+<Callout type="warn">
+  There used to be a separate `clone` command for spinning up a copy of an
+  account in a new environment. It has been removed — `codify` (adoption of
+  the *existing* account into Terraform) is the maintained path; CloudFormation
+  and Pulumi output, which only `clone` ever produced, are no longer supported.
+</Callout>
+
+### remediate
+
+Generates Terraform remediation code from an `audit --format json` report.
+
+```bash
+replimap remediate audit_report.json --output ./fixes
+```
+
+This is a Pro+ capability (shares the same gate as `audit`'s report export).
+
+---
+
+## Analysis
+
+### analyze
+
+Analyzes a saved or cached graph for critical infrastructure, single points
+of failure, and attack surface. Without a `GRAPH_FILE` argument it uses the
+cached scan for `--profile`/`--region`.
+
+```bash
+replimap analyze -p prod --critical
+replimap analyze graph.db --blast-radius vpc-12345
+replimap analyze graph.db --simplify --output simplified.db
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--critical` | Find critical resources (SPOFs, high blast radius) |
+| `--spof` | Find single points of failure |
+| `--blast-radius` | Compute blast radius for a specific resource ID |
+| `--simplify` | Transitive reduction to simplify the graph |
+| `--attack-surface` | Analyze exposed/public resources |
+| `--report` | Generate a comprehensive analysis report |
+| `--top` | Number of top results to show (default 10) |
+
+### deps
+
+Explores resource dependencies and blast radius.
+
+```bash
+replimap deps sg-12345 --region us-east-1
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--format` | `console`, `tree`, `table`, `html`, `json` |
+| `--depth` | Limit analysis depth |
+| `--analyze` | Deep analysis with specialized analyzers |
+| `--vpc` | Scope to specific VPC |
+
+#### Impact Levels
+
+| Level | Score | Description |
+|-------|-------|-------------|
+| CRITICAL | 80-100 | Core infrastructure (VPC, main DB) |
+| HIGH | 60-79 | Production services |
+| MEDIUM | 40-59 | Supporting resources |
+| LOW | 20-39 | Peripheral resources |
+
+<Callout type="warn">
+  Impact estimates are based on AWS API metadata only. Application-level dependencies (hardcoded IPs, config files) are NOT detected. `deps` is a Pro+ feature.
+</Callout>
+
+### drift
+
+<Callout type="warn">
+  **Experimental.** Attribute-level drift comparison is free and marked
+  experimental — on real accounts, `terraform plan` is still the better
+  answer for "did what I manage change?". What RepliMap ships and stands
+  behind is the opposite question: [IaC coverage](#codify) — what exists
+  that no state file manages.
+</Callout>
+
+Detects drift between Terraform state and AWS.
+
+```bash
+replimap drift --profile prod --state ./terraform.tfstate
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--state` | Path to local tfstate file |
+| `--state-bucket` | S3 bucket for remote state (with `--state-key`) |
+| `--state-key` | S3 key for remote state |
+| `--format` | `console`, `html`, `json` |
+| `--managed-only` | Only report drift for resources managed in the state |
+| `--fail-on-drift` | Exit code 1 if any drift detected (CI) |
+| `--fail-on-high` | Exit code 1 only for high-severity drift (CI) |
+
+#### Offline Drift Detection (`drift-offline`)
+
+Runs against a cached scan instead of hitting AWS live — no Terraform
+installation or AWS connection required.
+
+```bash
+# Offline drift using cached scan
+replimap drift-offline offline -p prod -s ./terraform.tfstate
+
+# Output SARIF for GitHub Security (needs an output path)
+replimap drift-offline offline -p prod -s ./terraform.tfstate --sarif drift-results.sarif
+
+# Compare the current cached scan against a previous one
+replimap drift-offline compare-scans -p prod --previous baseline.db
+```
+
+### validate
+
+Checks infrastructure against topology constraints defined in a YAML file —
+security policies, tagging standards, architectural rules.
+
+```bash
+replimap validate --generate-defaults              # bootstrap constraints.yaml
+replimap validate -p prod -r us-east-1              # validate
+replimap validate -p prod -r us-east-1 --fail-on high  # CI/CD
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--config` | Path to constraints YAML file (default `constraints.yaml`) |
+| `--fail-on` | Fail on severity: `critical`, `high`, `medium`, `low`, `info` |
+| `--generate-defaults` | Generate a default constraints file |
+| `--output` | Output file for the validation report (JSON or Markdown) |
+
+---
+
+## Security & Compliance
+
+### audit
+
+Runs security and compliance checks.
+
+```bash
+replimap audit --profile prod --format html --output audit.html
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--format` | `html` (default), `json` |
+| `--output` | Report path (default: `~/.replimap/reports/<timestamp>/`) |
+| `--framework` | `soc2` (default), `apra_cps234`, `rbnz_bs11`, `nzism`, `all` |
+| `--state` | Terraform state file — switches to SOC 2 evidence mode |
+| `--fail-on-high` | Exit code 1 if HIGH/CRITICAL issues found (CI) |
+| `--fail-on-score` | Exit code 1 if score below threshold (CI) |
+| `--fix` | Generate Terraform remediation code for findings |
+| `--vpc` | Scope to a specific VPC |
+
+The full terminal summary (score, grade, top issues) is free; exporting the
+HTML report and the SOC 2 evidence package is Pro+. `--framework
+apra_cps234`/`rbnz_bs11`/`nzism` require the Sovereign plan; `--framework
+all` degrades to `soc2` with a notice on lower tiers.
+
+#### Compliance Frameworks
+
+- SOC 2
+- APRA CPS 234
+- RBNZ BS11
+- NZISM
+
+### residency
+
+Validates data residency for NZ/AU sovereignty — cross-region replication,
+global tables, read replicas, and CloudFront distributions without
+geo-restriction.
+
+```bash
+replimap residency -p prod -r ap-southeast-2
+replimap residency --policy au_only -r ap-southeast-2
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `--policy` | `nz_au` (default), `au_only`, `custom` |
+| `--approved-region` | Approved region, repeatable (for `--policy custom`) |
+
+### iam
+
+Generates least-privilege IAM policies from graph analysis.
+
+```bash
+replimap iam for-resource -p prod -r i-0abc123 -s runtime_read
+replimap iam list-compute -p prod
+```
+
+#### Options (`for-resource`)
+
+| Option | Description |
+|--------|-------------|
+| `-r, --resource` | Resource ID or name (required) |
+| `-s, --scope` | Policy scope (see below) |
+| `-E, --enrich` | Graph enrichment — discover implicit dependencies |
+| `-f, --format` | `json` (default) or `terraform` |
+| `--create-role` | Generate IAM role in Terraform output |
+| `--depth` | Maximum traversal depth (default 3) |
+
+`iam list-compute` shows which Lambda/EC2/ECS resources can have a policy
+generated for them.
+
+#### Policy Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `runtime_read` | Read-only for runtime operations (default) |
+| `runtime_write` | Write access for runtime |
+| `runtime_full` | Full read/write for runtime |
+| `infra_deploy` | Full access for deployment |
+
+### trust-center
+
+Audit-grade logging of every AWS API call RepliMap makes (Team+). Prove to
+a client or auditor that the scan was 100% read-only.
+
+```bash
+# Record API calls during a scan
+replimap scan -p prod --trust-center
+
+# Check status
+replimap trust-center status
+
+# Generate compliance report (json, csv, or text)
+replimap trust-center report
+replimap trust-center report --report-format json -o audit.json
+replimap trust-center report --report-format csv -o api-calls.csv
+
+# Clear audit sessions
+replimap trust-center clear
+```
+
+---
+
+## Configuration
+
+### doctor
+
+Runs environment health checks: Python version, AWS credentials,
+permissions, network connectivity.
+
+```bash
+replimap doctor
+replimap doctor --profile prod --region us-west-2
+```
+
+### cache
+
+Manages the cached AWS credentials used to skip re-authentication.
+
+```bash
+replimap cache status
+replimap cache clear
+```
+
+### scan-cache
+
+Manages the incremental scan-result cache used by `scan --cache` /
+`--incremental` — separate from the credential cache above.
+
+```bash
+replimap scan-cache status
+replimap scan-cache info --region us-west-2
+replimap scan-cache clear --region us-west-2
+```
+
+### license
+
+Manage your RepliMap license.
+
+```bash
+# View license status
+replimap license status
+
+# View usage statistics
+replimap license usage
+
+# Activate a license key
+replimap license activate RM-XXXX-XXXX-XXXX-XXXX
+
+# Print this machine's id (from 0.6.1; no network call)
+replimap license machine-id
+
+# Import a signed license file (from 0.6.1; Sovereign only; no network call)
+replimap license activate --file ./replimap-license.txt
+
+# Deactivate license
+replimap license deactivate
+```
+
+#### Air-gapped activation
+
+Available on the Sovereign plan from CLI 0.6.1. The isolated host makes no network call.
+
+1. On the isolated host, run `replimap license machine-id` and note the id it prints.
+2. Send the id to [hello@replimap.com](mailto:hello@replimap.com). We issue a signed license file for that machine on request; this is not self-service.
+3. Copy the file to the isolated host and run `replimap license activate --file <path>`.
+
+Requirements:
+
+- The machine id must be persistent. If the host has no OS machine id (for example a container or an ephemeral runner), keep `~/.replimap` across runs, or the id changes and the file no longer matches.
+- The system clock must be correct. The file is rejected if the clock is wrong or has been moved backwards.
+- The file is bound to one machine and expires on the date set when it is issued. After that date, request a new file.
+
+### upgrade
+
+Opens the checkout flow for a plan upgrade.
+
+```bash
+replimap upgrade pro
+replimap upgrade team
+replimap upgrade sovereign
+```
+
+### completion
+
+Generates shell completion scripts.
+
+```bash
+replimap completion bash
+replimap completion zsh
+replimap completion fish
+replimap completion install   # instructions for your shell
+```
+
+---
+
+## Help & Debugging
+
+### explain
+
+Gets detailed information — root cause, fix command, docs — for a
+RepliMap error code.
+
+```bash
+replimap explain RM-E001
+replimap explain ERR-EC2-403-A7X9
+```
+
+### errors
+
+Lists all RepliMap error codes.
+
+```bash
+replimap errors
+replimap errors --search permission
+replimap errors --category auth
+```
