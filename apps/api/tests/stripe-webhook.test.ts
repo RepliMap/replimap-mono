@@ -1160,6 +1160,118 @@ describe('charge.refunded', () => {
     expect(licenses[0].status).toBe('active');
   });
 
+  describe('subscription refund ops alert', () => {
+    const ALERT_URL = 'https://hooks.example.test/ops';
+    const alertingEnv = () =>
+      ({ ...env, OPS_ALERT_WEBHOOK: ALERT_URL }) as typeof env;
+
+    it('sends exactly one ops alert and leaves the license untouched', async () => {
+      // Arrange
+      await seedSubscriptionLicense();
+      const before = await licenseRows();
+      const alertBodies: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+          if (String(url) === ALERT_URL) alertBodies.push(String(init?.body ?? ''));
+          return new Response('ok', { status: 200 });
+        })
+      );
+
+      // Act
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(
+          chargeEvent({ amount: 2900, amount_refunded: 2900, currency: 'usd' })
+        ),
+        alertingEnv()
+      );
+
+      // Assert
+      expect(res.status).toBe(200);
+      expect(alertBodies).toHaveLength(1);
+      const body = alertBodies[0];
+      expect(body).toContain('ch_test_Charge01');
+      expect(body).toContain(CUSTOMER);
+      expect(body).toContain(SUBSCRIPTION);
+      expect(body).toContain('FULL');
+      expect(body).toContain('2900');
+      expect(body).toContain('plan=pro');
+      expect(body).toContain('status=active');
+      expect(body).not.toContain(before[0].license_key);
+      expect(await licenseRows()).toEqual(before);
+    });
+
+    it('labels a partial refund as PARTIAL', async () => {
+      // Arrange
+      await seedSubscriptionLicense();
+      const alertBodies: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+          alertBodies.push(String(init?.body ?? ''));
+          return new Response('ok', { status: 200 });
+        })
+      );
+
+      // Act
+      await handleStripeWebhook(
+        await signedWebhookRequest(
+          chargeEvent({ amount: 2900, amount_refunded: 1000, currency: 'usd' })
+        ),
+        alertingEnv()
+      );
+
+      // Assert
+      expect(alertBodies).toHaveLength(1);
+      expect(alertBodies[0]).toContain('PARTIAL');
+    });
+
+    it('does not alert for a lifetime refund and still revokes it', async () => {
+      // Arrange
+      await deliver(
+        checkoutCompletedEvent({
+          mode: 'payment',
+          subscription: null,
+          metadata: { plan: 'pro', billing_period: 'lifetime' },
+        })
+      );
+      const fetchSpy = vi.fn(async () => new Response('ok', { status: 200 }));
+      vi.stubGlobal('fetch', fetchSpy);
+
+      // Act
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(chargeEvent()),
+        alertingEnv()
+      );
+
+      // Assert
+      expect(res.status).toBe(200);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect((await licenseRows())[0].status).toBe('revoked');
+    });
+
+    it('still returns 200 and keeps the license when alert delivery fails', async () => {
+      // Arrange
+      await seedSubscriptionLicense();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          throw new Error('alert receiver down');
+        })
+      );
+
+      // Act
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(chargeEvent({ amount: 2900, amount_refunded: 2900 })),
+        alertingEnv()
+      );
+
+      // Assert
+      expect(res.status).toBe(200);
+      expect((await licenseRows())[0].status).toBe('active');
+    });
+  });
+
   it('acknowledges a charge without a customer', async () => {
     const res = await deliver(chargeEvent({ customer: null }));
     expect(res.status).toBe(200);

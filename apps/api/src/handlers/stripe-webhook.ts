@@ -33,8 +33,8 @@ import {
   markEventProcessed,
   deactivateAllDevices,
 } from '../lib/db';
-import { licenses } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { licenses, type License } from '../db/schema';
+import { eq, and, desc, isNotNull } from 'drizzle-orm';
 import { sendOpsAlert } from '../lib/alerts';
 import { sendLicenseKeyEmail } from '../lib/email';
 
@@ -175,6 +175,9 @@ interface StripeCharge {
   customer: string | null;
   metadata?: Record<string, string>;
   payment_intent?: string;
+  amount?: number;
+  amount_refunded?: number;
+  currency?: string;
 }
 
 /**
@@ -746,9 +749,11 @@ async function handleCustomerDeleted(
  * Handle charge.refunded
  * Revokes lifetime licenses when payment is refunded.
  *
- * NOTE: This only affects lifetime licenses. Subscription refunds are handled
- * through subscription.deleted event which is triggered by Stripe when a
- * subscription is canceled after refund.
+ * NOTE: Only lifetime licenses are revoked. Subscription licenses are never
+ * touched here (revoking is an owner policy decision; normally Stripe sends
+ * subscription.deleted when the subscription is canceled after a refund).
+ * A refund on a subscription license only raises an ops alert, so a refund
+ * without a cancellation does not go unnoticed.
  */
 async function handleChargeRefunded(
   db: DrizzleDb,
@@ -785,6 +790,17 @@ async function handleChargeRefunded(
   const license = await getLifetimeLicenseByUserId(db, user.id);
 
   if (!license) {
+    const subscriptionLicense = await db.query.licenses.findFirst({
+      where: and(
+        eq(licenses.userId, user.id),
+        isNotNull(licenses.stripeSubscriptionId)
+      ),
+      orderBy: desc(licenses.createdAt),
+    });
+    if (subscriptionLicense) {
+      await alertSubscriptionRefund(env, charge, subscriptionLicense);
+      return;
+    }
     console.log(`[Stripe] No lifetime license found for user ${user.id}, ignoring refund`);
     return;
   }
@@ -803,6 +819,35 @@ async function handleChargeRefunded(
   // Revoke the license
   await revokeLicense(db, license.id, `Refunded: charge_${charge.id}`);
   console.log(`[Stripe] Lifetime license ${license.id} revoked due to refund`);
+}
+
+/**
+ * Alert ops that a subscription charge was refunded. Does NOT change the
+ * license (revoking is an owner policy decision). Only the license id is
+ * included, never the license key. Fail-open: sendOpsAlert never throws.
+ */
+async function alertSubscriptionRefund(
+  env: Env,
+  charge: StripeCharge,
+  license: License
+): Promise<void> {
+  const amount = charge.amount;
+  const refunded = charge.amount_refunded;
+  const kind =
+    amount === undefined || refunded === undefined
+      ? 'UNKNOWN'
+      : refunded >= amount
+        ? 'FULL'
+        : 'PARTIAL';
+  const detail =
+    `Subscription charge refunded; license NOT changed (owner decision). ` +
+    `charge=${charge.id}, customer=${charge.customer ?? 'none'}, ` +
+    `subscription=${license.stripeSubscriptionId ?? 'none'}, ` +
+    `refund=${kind} (refunded=${refunded ?? 'unknown'} of ` +
+    `charged=${amount ?? 'unknown'} ${charge.currency ?? ''}, minor units), ` +
+    `license=${license.id}, plan=${license.plan}, status=${license.status}.`;
+  console.warn(`[Stripe][SUBSCRIPTION_REFUND] ${detail}`);
+  await sendOpsAlert(env, 'Stripe SUBSCRIPTION_REFUND', detail);
 }
 
 /**
@@ -859,6 +904,7 @@ async function revokeLicenseByPaymentIntent(
       `[Stripe] License ${license.id} for session ${sessionId} is not ` +
       `lifetime (${license.planType}), ignoring refund`
     );
+    await alertSubscriptionRefund(env, charge, license);
     return true;
   }
 
