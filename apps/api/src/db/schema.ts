@@ -253,6 +253,11 @@ export const licenseMachines = sqliteTable("license_machines", {
     lastSeenAt: text("last_seen_at")
         .default(sql`(datetime('now'))`)
         .notNull(),
+    // Added by migration 010
+    fingerprintType: text("fingerprint_type").default("machine"),
+    ciProvider: text("ci_provider"),
+    ciRepo: text("ci_repo"),
+    containerType: text("container_type"),
 }, (table) => ({
     licenseMachinesLicenseIdIdx: index("license_machines_license_id_idx").on(table.licenseId),
     licenseMachinesUnique: unique("license_machines_unique").on(table.licenseId, table.machineId),
