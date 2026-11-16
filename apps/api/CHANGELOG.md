@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.5.1](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.5.0...replimap-api-v1.5.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **api:** accept the license key from an X-License-Key header on /v1/me/* ([3247788](https://github.com/RepliMap/replimap-mono/commit/3247788550961f11c422b4a31b12155f2fe15c3a))
+* **api:** add the migration 010 columns to the Drizzle schema ([a5b29fd](https://github.com/RepliMap/replimap-mono/commit/a5b29fd3e456a3e3de75f4c0c70ef8ac801f32b0))
+* **api:** alert ops when a subscription charge is refunded ([19eac9d](https://github.com/RepliMap/replimap-mono/commit/19eac9db603dd1b85b7cd2858c781e925aaabce5))
+* **api:** allow past_due licenses for 7 days after the period end ([405a088](https://github.com/RepliMap/replimap-mono/commit/405a088f73787a198f316144966a697915b62373))
+* **api:** apply the current Stripe subscription on customer.subscription.updated ([470ae95](https://github.com/RepliMap/replimap-mono/commit/470ae95657526ffd1c4c88efe2aefe1e1eb33c9c))
+* **api:** check the Clerk azp claim and require a verified primary email ([c4bf65a](https://github.com/RepliMap/replimap-mono/commit/c4bf65a169e744c9420168eebebcc8edc74f5881))
+* **api:** end access when a subscription is terminated early or unpaid ([63d4aea](https://github.com/RepliMap/replimap-mono/commit/63d4aeaecc3f1bf43def1fd3316f57901e983898))
+* **api:** enforce device limit when re-activating a known machine ([73e6367](https://github.com/RepliMap/replimap-mono/commit/73e6367c4619c3d557654b528569adab1c571595))
+* **api:** fail-open rate limiter on Workers Rate Limiting binding ([04ccbfd](https://github.com/RepliMap/replimap-mono/commit/04ccbfd444ad7f3f03f1770815944bb55fa6b87c))
+* **api:** keep validate's background writes alive with waitUntil ([64e9e18](https://github.com/RepliMap/replimap-mono/commit/64e9e1896fad1d4bd0fb00b79a0fae03f75eaa97))
+* **api:** make PRO and TEAM AWS accounts unlimited ([71ca3a5](https://github.com/RepliMap/replimap-mono/commit/71ca3a54d442714631c6aa1df9c0fa3422fdd8af))
+* **api:** name both license key inputs in the /v1/me/* missing-key error ([8f85826](https://github.com/RepliMap/replimap-mono/commit/8f85826aeff5e313738d73e764277286a9b25d6d))
+* **api:** never un-revoke a license from a Stripe webhook ([ff462d9](https://github.com/RepliMap/replimap-mono/commit/ff462d9db25757e7bc3ec0e7e4b6f43ca480664b))
+* **api:** per-email limit and uniform response for resend-key ([216c709](https://github.com/RepliMap/replimap-mono/commit/216c7090efa9abe2df1cf79a0bb45bf4f34decb7))
+* **api:** refuse lifetime and unknown billing periods at checkout ([38e032a](https://github.com/RepliMap/replimap-mono/commit/38e032a250b9c34daa550828f5ff02f85866722b))
+* **api:** register a new machine atomically against the device limit ([06729ad](https://github.com/RepliMap/replimap-mono/commit/06729ad2af92762542ad9512d034560f33f4dde6))
+* **api:** require the license owner's Clerk session for the billing portal ([7e86865](https://github.com/RepliMap/replimap-mono/commit/7e8686587a5b28ae98ee429a6baf03cb1076b3ac))
+* **api:** reuse the Stripe customer and refuse a second subscription at checkout ([cae2006](https://github.com/RepliMap/replimap-mono/commit/cae20064df6e252cf6eec8541df40d0ff48be820))
+* **api:** reveal less on public routes and in Stripe errors ([8594f27](https://github.com/RepliMap/replimap-mono/commit/8594f27c6e7e37e2ed930dae5c6664b9c21c8c87))
+* **api:** revoke license and alert ops on charge.dispute.created ([0a4d237](https://github.com/RepliMap/replimap-mono/commit/0a4d237055296c668138cc5824b396b1af1a2aed))
+* **api:** revoke lifetime licenses only on a full refund ([07c45bb](https://github.com/RepliMap/replimap-mono/commit/07c45bb2d75bfeabd539290d9e7c4356b5565fb8))
+* **api:** time out Stripe/Clerk calls and cache Clerk JWKS ([0ec282a](https://github.com/RepliMap/replimap-mono/commit/0ec282ac774d53c91e261c87fdac84605d4fd800))
+
 ## [1.5.0](https://github.com/RepliMap/replimap-mono/compare/replimap-api-v1.4.1...replimap-api-v1.5.0) (2026-10-01)
 
 
