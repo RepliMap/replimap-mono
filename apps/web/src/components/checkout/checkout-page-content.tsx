@@ -297,10 +297,12 @@ function CheckoutForm() {
               <Shield className="w-3 h-3" />
               <span>Secure checkout by Stripe</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Terminal className="w-3 h-3" />
-              <span>Cancel anytime</span>
-            </div>
+            {billingPeriod !== "lifetime" && (
+              <div className="flex items-center gap-1">
+                <Terminal className="w-3 h-3" />
+                <span>Cancel anytime</span>
+              </div>
+            )}
           </div>
           <p>Your data never leaves your machine. RepliMap runs 100% locally.</p>
         </div>
