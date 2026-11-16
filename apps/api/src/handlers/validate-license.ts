@@ -68,8 +68,16 @@ import { sql } from 'drizzle-orm';
 export async function handleValidateLicense(
   request: Request,
   env: Env,
-  clientIP: string
+  clientIP: string,
+  ctx?: ExecutionContext
 ): Promise<Response> {
+  // Background writes: keep the Worker alive for them via waitUntil when a
+  // context is available; otherwise (tests, direct calls) just let the
+  // already-caught promise run.
+  const defer = (promise: Promise<unknown>): void => {
+    if (ctx) ctx.waitUntil(promise);
+  };
+
   // Rate limiting
   const rateLimitHeaders = await rateLimit(env, 'validate', clientIP);
 
@@ -200,16 +208,19 @@ export async function handleValidateLicense(
       license.machine_last_seen,  // Used for throttled updates
       license.active_machines,
       license.monthly_changes,
-      features.machines
+      features.machines,
+      defer
     );
 
     // Log usage (non-blocking)
-    logUsage(db, {
-      licenseId: license.license_id,
-      machineId,
-      action: 'validate',
-      metadata: { cli_version: body.cli_version },
-    }).catch(console.error);
+    defer(
+      logUsage(db, {
+        licenseId: license.license_id,
+        machineId,
+        action: 'validate',
+        metadata: { cli_version: body.cli_version },
+      }).catch(console.error)
+    );
 
     // Check CLI version compatibility
     const cliVersionCheck = checkCliVersion(body.cli_version);
@@ -452,7 +463,8 @@ async function handleMachineBinding(
   machineLastSeen: string | null,  // Used for throttled updates
   activeMachines: number,
   monthlyChanges: number,
-  machineLimit: number
+  machineLimit: number,
+  defer: (promise: Promise<unknown>) => void
 ): Promise<void> {
   // Case 1: Machine already registered and active
   if (machineIsActive === 1) {
@@ -460,10 +472,12 @@ async function handleMachineBinding(
     // This prevents write amplification (SQLite single-writer bottleneck)
     const shouldUpdate = shouldUpdateLastSeen(machineLastSeen);
     if (shouldUpdate) {
-      // Fire-and-forget update to avoid blocking the response
-      updateMachineLastSeen(db, licenseId, machineId).catch((err) => {
-        console.error('[DB] Failed to update last_seen:', err);
-      });
+      // Non-blocking update; waitUntil keeps it from being dropped
+      defer(
+        updateMachineLastSeen(db, licenseId, machineId).catch((err) => {
+          console.error('[DB] Failed to update last_seen:', err);
+        })
+      );
     }
     return;
   }

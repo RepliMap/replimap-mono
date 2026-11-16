@@ -134,7 +134,11 @@ function matchPathParam(path: string, pattern: string): string | null {
 // Request Router
 // ============================================================================
 
-async function handleRequest(request: Request, env: Env): Promise<Response> {
+async function handleRequest(
+  request: Request,
+  env: Env,
+  ctx?: ExecutionContext
+): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
@@ -165,7 +169,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // License Endpoints
     // ========================================================================
     if (path === '/v1/license/validate' && method === 'POST') {
-      response = await handleValidateLicense(request, env, clientIP);
+      response = await handleValidateLicense(request, env, clientIP, ctx);
     } else if (path === '/v1/license/deactivate' && method === 'POST') {
       response = await handleDeactivateLicense(request, env, clientIP);
     } else if (path === '/v1/license/provision-community' && method === 'POST') {
@@ -385,8 +389,8 @@ export async function handleScheduled(
 // ============================================================================
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    return handleRequest(request, env);
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
+    return handleRequest(request, env, ctx);
   },
 
   async scheduled(

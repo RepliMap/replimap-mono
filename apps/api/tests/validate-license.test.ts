@@ -558,4 +558,54 @@ describe('POST /v1/license/validate', () => {
       expect(data.error_code).toBe('LICENSE_PAST_DUE');
     });
   });
+
+  describe('background writes use ctx.waitUntil', () => {
+    function staleActiveMachine() {
+      return {
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'active',
+        current_period_end: mockLicense.current_period_end,
+        machine_is_active: 1,
+        machine_last_seen: new Date(Date.now() - 2 * 3_600_000).toISOString(), // > 1h: update due
+        active_machines: 1,
+        monthly_changes: 0,
+        active_aws_accounts: 0,
+      };
+    }
+    const request = () =>
+      createRequest('POST', '/v1/license/validate', {
+        license_key: 'RM-TEST-1234-5678-ABCD',
+        machine_id: generateMachineId(),
+      });
+
+    it('passes logUsage and updateMachineLastSeen promises to waitUntil', async () => {
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue(staleActiveMachine());
+      const waitUntil = vi.fn();
+      const ctx = { waitUntil, passThroughOnException: vi.fn() } as unknown as ExecutionContext;
+
+      const response = await handleValidateLicense(request(), env, '1.2.3.4', ctx);
+
+      expect(response.status).toBe(200);
+      expect(db.updateMachineLastSeen).toHaveBeenCalledTimes(1);
+      expect(db.logUsage).toHaveBeenCalledTimes(1);
+      expect(waitUntil).toHaveBeenCalledTimes(2);
+      for (const [p] of waitUntil.mock.calls) expect(p).toBeInstanceOf(Promise);
+    });
+
+    it('without a context, still fires the writes and a failing write does not fail the request', async () => {
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue(staleActiveMachine());
+      vi.mocked(db.logUsage).mockRejectedValueOnce(new Error('D1 down'));
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const response = await handleValidateLicense(request(), env, '1.2.3.4');
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(response.status).toBe(200);
+      expect(db.logUsage).toHaveBeenCalledTimes(1);
+      expect(db.updateMachineLastSeen).toHaveBeenCalledTimes(1);
+      expect(errSpy).toHaveBeenCalled();
+    });
+  });
 });
