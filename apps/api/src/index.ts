@@ -10,7 +10,7 @@
  * - POST /v1/webhooks/stripe - Handle Stripe subscription events
  * - GET /health - Health check
  *
- * User Self-Service Endpoints (auth via license_key):
+ * User Self-Service Endpoints (auth via X-License-Key header or ?license_key=):
  * - GET /v1/me/license - Get own license details
  * - GET /v1/me/machines - Get machines for own license
  * - POST /v1/me/resend-key - Resend license key via email
@@ -65,7 +65,7 @@ function getCorsHeaders(env: Env, origin: string | null): Record<string, string>
   return {
     'Access-Control-Allow-Origin': allowedOrigin === '*' ? '*' : (origin || '*'),
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, X-License-Key',
     'Access-Control-Max-Age': '86400', // 24 hours
   };
 }

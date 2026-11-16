@@ -26,6 +26,7 @@ import {
 } from 'vitest';
 import { handleGetOwnLicense, handleGetOwnMachines } from '../src/handlers/user';
 import { handleDeactivateLicense } from '../src/handlers/deactivate-license';
+import worker from '../src/index';
 import { MAX_MACHINE_CHANGES_PER_MONTH } from '../src/lib/constants';
 import { createRealD1, realEnv, type RealD1 } from './real-d1';
 import type { Env } from '../src/types/env';
@@ -266,5 +267,66 @@ describe('owner scoping (license-key possession model)', () => {
     expect(res.status).toBe(200);
     expect(await machineActive('m_pro')).toBe(false);
     expect(await machineActive('m_team')).toBe(true);
+  });
+});
+
+// ============================================================================
+// License key transport: X-License-Key header (preferred) + legacy query
+// ============================================================================
+
+describe('license key transport', () => {
+  const headerRequest = (path: string, key: string) =>
+    new Request(`https://api.test${path}`, { headers: { 'X-License-Key': key } });
+
+  it('GET /v1/me/license accepts the key from X-License-Key', async () => {
+    const res = await handleGetOwnLicense(
+      headerRequest('/v1/me/license', KEY_PRO),
+      env,
+      '1.2.3.4'
+    );
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { license_key: string }).license_key).toBe(KEY_PRO);
+  });
+
+  it('GET /v1/me/machines accepts the key from X-License-Key', async () => {
+    const res = await handleGetOwnMachines(
+      headerRequest('/v1/me/machines', KEY_TEAM),
+      env,
+      '1.2.3.4'
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as MachinesBody;
+    expect(body.machines.map((m) => m.machine_id)).toEqual([MACHINE_TEAM]);
+  });
+
+  it('the legacy ?license_key= query parameter still works', async () => {
+    const lic = await handleGetOwnLicense(licenseRequest(KEY_PRO), env, '1.2.3.4');
+    const mach = await handleGetOwnMachines(machinesRequest(KEY_PRO), env, '1.2.3.4');
+    expect(lic.status).toBe(200);
+    expect(mach.status).toBe(200);
+  });
+
+  it('400 when neither header nor query carries a key', async () => {
+    const res = await handleGetOwnLicense(
+      new Request('https://api.test/v1/me/license'),
+      env,
+      '1.2.3.4'
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('CORS preflight allows the X-License-Key header', async () => {
+    const res = await worker.fetch(
+      new Request('https://api.test/v1/me/license', {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'https://www.replimap.com',
+          'Access-Control-Request-Headers': 'x-license-key',
+        },
+      }),
+      { ...env, CORS_ORIGIN: 'https://www.replimap.com' }
+    );
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Allow-Headers')).toContain('X-License-Key');
   });
 });
