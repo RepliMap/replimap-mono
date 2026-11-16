@@ -28,7 +28,7 @@ vi.mock('../src/lib/db', async (importOriginal) => {
     getNewDeviceCount: vi.fn().mockResolvedValue(0),
     getActiveCIDeviceCount: vi.fn().mockResolvedValue(0),
     updateMachineLastSeen: vi.fn().mockResolvedValue(undefined),
-    registerMachine: vi.fn().mockResolvedValue(undefined),
+    registerMachine: vi.fn().mockResolvedValue('registered'),
     recordMachineChange: vi.fn().mockResolvedValue(undefined),
     logUsage: vi.fn().mockResolvedValue(undefined),
     getMonthlyUsageCount: vi.fn().mockResolvedValue(0),
