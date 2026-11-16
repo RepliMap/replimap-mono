@@ -600,6 +600,38 @@ async function handleSubscriptionCreated(
 }
 
 /**
+ * Re-fetch a subscription from Stripe so out-of-order update events apply the
+ * current state. Falls back to the event payload (logged) when the fetch fails.
+ */
+async function fetchCurrentSubscription(
+  env: Env,
+  fromEvent: StripeSubscription
+): Promise<StripeSubscription> {
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(fromEvent.id)}`,
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
+    );
+    if (res.ok) {
+      const current = (await res.json()) as StripeSubscription;
+      if (current?.id === fromEvent.id && current.items?.data) return current;
+    }
+    console.warn(
+      `[Stripe] Subscription ${fromEvent.id} re-fetch failed (status ${res.status}); applying the event payload`
+    );
+  } catch (error) {
+    console.warn(
+      `[Stripe] Subscription ${fromEvent.id} re-fetch threw: ` +
+      `${error instanceof Error ? error.message : String(error)}; applying the event payload`
+    );
+  }
+  return fromEvent;
+}
+
+/**
  * Handle customer.subscription.updated
  * Updates plan and/or status
  *
@@ -609,14 +641,18 @@ async function handleSubscriptionCreated(
  */
 async function handleSubscriptionUpdated(
   db: DrizzleDb,
-  subscription: StripeSubscription,
+  eventSubscription: StripeSubscription,
   env: Env
 ): Promise<void> {
-  const license = await getLicenseBySubscriptionId(db, subscription.id);
+  const license = await getLicenseBySubscriptionId(db, eventSubscription.id);
   if (!license) {
-    console.error(`No license found for subscription ${subscription.id}`);
+    console.error(`No license found for subscription ${eventSubscription.id}`);
     return;
   }
+
+  // Stripe does not guarantee delivery order: a late, older update must not
+  // overwrite newer plan/status. Apply the subscription's current state.
+  const subscription = await fetchCurrentSubscription(env, eventSubscription);
 
   // Get updated plan from price ID. Strict resolution — see
   // handleSubscriptionCreated for rationale. An unresolvable price ID here

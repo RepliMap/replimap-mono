@@ -671,6 +671,69 @@ describe('customer.subscription.created', () => {
 // ============================================================================
 
 describe('customer.subscription.updated', () => {
+  // Default: the Stripe re-fetch is unavailable, so the handler applies the
+  // event payload (fallback path). Tests below override this stub.
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 503 })));
+  });
+
+  /** Stub GET /v1/subscriptions/{id} to return `current`. */
+  function stripeCurrentSubscription(current: Record<string, unknown>) {
+    const spy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe(`https://api.stripe.com/v1/subscriptions/${SUBSCRIPTION}`);
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return new Response(JSON.stringify(current), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', spy);
+    return spy;
+  }
+
+  it('out-of-order: a stale update payload is ignored in favour of the current Stripe state', async () => {
+    await seedSubscriptionLicense(); // pro
+    // Current state at Stripe: upgraded to team, active.
+    const current = subscriptionEvent('customer.subscription.updated', {
+      items: { data: [{ price: { id: TEAM_MONTHLY_PRICE } }] },
+      status: 'active',
+    }).data.object;
+    const spy = stripeCurrentSubscription(current);
+
+    // A late, older event still says pro + past_due.
+    const res = await deliver(
+      subscriptionEvent('customer.subscription.updated', {
+        items: { data: [{ price: { id: PRO_MONTHLY_PRICE } }] },
+        status: 'past_due',
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const [license] = await licenseRows();
+    expect(license.plan).toBe('team');
+    expect(license.status).toBe('active');
+  });
+
+  it('falls back to the event payload (and logs) when the Stripe re-fetch throws', async () => {
+    await seedSubscriptionLicense();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      })
+    );
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const res = await deliver(
+      subscriptionEvent('customer.subscription.updated', {
+        items: { data: [{ price: { id: TEAM_MONTHLY_PRICE } }] },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect((await licenseRows())[0].plan).toBe('team');
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('re-fetch'))).toBe(true);
+  });
+
   it('upgrade pro→team updates the plan and keeps devices active', async () => {
     await seedSubscriptionLicense();
     const [{ id: licenseId }] = await licenseRows();
