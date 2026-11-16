@@ -459,6 +459,15 @@ async function handleMachineBinding(
     return;
   }
 
+  // Cases 2-3 add an active machine (re-activation or new): enforce the
+  // device limit for both, so deactivate/reactivate cannot bypass it.
+  if (machineLimit !== -1 && activeMachines >= machineLimit) {
+    // Get list of active machines for error message
+    const machines = await getActiveMachines(db, licenseId);
+    const truncatedIds = machines.map((m) => truncateMachineId(m.machineId));
+    throw Errors.machineLimitExceeded(truncatedIds, machineLimit);
+  }
+
   // Case 2: Machine was registered but deactivated
   if (machineIsActive === 0) {
     // This would be a re-activation - counts as a change
@@ -476,15 +485,7 @@ async function handleMachineBinding(
     return;
   }
 
-  // Case 3: New machine - check limits
-  if (machineLimit !== -1 && activeMachines >= machineLimit) {
-    // Get list of active machines for error message
-    const machines = await getActiveMachines(db, licenseId);
-    const truncatedIds = machines.map((m) => truncateMachineId(m.machineId));
-    throw Errors.machineLimitExceeded(truncatedIds, machineLimit);
-  }
-
-  // Case 4: Check monthly change limit
+  // Case 3: New machine - check monthly change limit
   if (monthlyChanges >= MAX_MACHINE_CHANGES_PER_MONTH) {
     throw Errors.machineChangeLimitExceeded(nextMonthStartISO());
   }

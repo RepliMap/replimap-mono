@@ -469,4 +469,49 @@ describe('POST /v1/license/validate', () => {
       expect(data.cli_version?.status).toBe('unsupported');
     });
   });
+
+  describe('machine re-activation respects the device limit', () => {
+    function inactiveMachineLicense(activeMachines: number) {
+      return {
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'active',
+        current_period_end: mockLicense.current_period_end,
+        machine_is_active: 0, // known machine, previously deactivated
+        machine_last_seen: null,
+        active_machines: activeMachines,
+        monthly_changes: 0,
+        active_aws_accounts: 0,
+      };
+    }
+
+    it('rejects re-activating a third machine on Pro with 2 active', async () => {
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue(inactiveMachineLicense(2));
+      const request = createRequest('POST', '/v1/license/validate', {
+        license_key: 'RM-TEST-1234-5678-ABCD',
+        machine_id: generateMachineId(),
+      });
+
+      const response = await handleValidateLicense(request, env, '1.2.3.4');
+      const data = await parseResponse<ErrorResponse>(response);
+
+      expect(response.status).toBe(403);
+      expect(data.error_code).toBe('MACHINE_LIMIT_EXCEEDED');
+      expect(db.recordMachineChange).not.toHaveBeenCalled();
+    });
+
+    it('still re-activates when under the limit', async () => {
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue(inactiveMachineLicense(1));
+      const request = createRequest('POST', '/v1/license/validate', {
+        license_key: 'RM-TEST-1234-5678-ABCD',
+        machine_id: generateMachineId(),
+      });
+
+      const response = await handleValidateLicense(request, env, '1.2.3.4');
+
+      expect(response.status).toBe(200);
+      expect(db.recordMachineChange).toHaveBeenCalledTimes(1);
+    });
+  });
 });
