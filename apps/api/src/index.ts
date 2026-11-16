@@ -289,8 +289,6 @@ async function handleRequest(
         status: 'ok',
         timestamp: new Date().toISOString(),
         version: env.API_VERSION || '2.1.0',
-        // Retained for response compatibility; the pricing data itself is no longer served
-        pricing_data_date: '2025-12-26',
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -299,11 +297,6 @@ async function handleRequest(
       response = new Response(JSON.stringify({
         name: 'RepliMap License API',
         version: env.API_VERSION || 'v1.2.0',
-        environment: env.ENVIRONMENT,
-        features: {
-          new: ['audit_fix', 'snapshot', 'snapshot_diff', 'graph_full', 'graph_security'],
-          renamed: [{ old: 'blast', new: 'deps' }],
-        },
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },

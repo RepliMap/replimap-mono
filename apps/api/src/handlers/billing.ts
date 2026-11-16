@@ -87,10 +87,14 @@ async function stripeRequest(
   const data = await response.json() as Record<string, unknown>;
 
   if (!response.ok) {
+    // Log Stripe's detail; never pass it to the client.
     const error = data.error as Record<string, string> | undefined;
+    console.error(
+      `[Stripe] ${endpoint} failed (status ${response.status}): ${error?.message ?? 'no message'}`
+    );
     throw new AppError(
       'INTERNAL_ERROR',
-      error?.message || 'Stripe API error',
+      'The payment provider rejected the request. Please retry or contact support@replimap.com.',
       response.status >= 500 ? 502 : 400
     );
   }

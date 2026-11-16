@@ -301,10 +301,11 @@ describe('Billing Endpoints', () => {
         status: 400,
         json: async () => ({
           error: {
-            message: 'Invalid request',
+            message: 'No such price: price_internal_detail',
           },
         }),
       });
+      const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const request = await checkoutRequest({
         plan: 'pro',
@@ -318,6 +319,10 @@ describe('Billing Endpoints', () => {
 
       expect(response.status).toBe(400);
       expect(data.error_code).toBe('INTERNAL_ERROR');
+      // Stripe's message is logged, never returned to the client.
+      expect(data.message).not.toContain('price_internal_detail');
+      expect(errorLog.mock.calls.some((c) => String(c[0]).includes('price_internal_detail'))).toBe(true);
+      errorLog.mockRestore();
     });
 
     it('Stripe call has a timeout; a network failure/timeout yields 502, not 500', async () => {

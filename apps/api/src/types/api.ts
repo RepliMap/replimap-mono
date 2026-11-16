@@ -178,7 +178,6 @@ export interface HealthResponse {
   status: 'ok' | 'error';
   timestamp: string;
   version?: string;
-  pricing_data_date?: string;  // Date when AWS pricing data was last updated
 }
 
 // ============================================================================
