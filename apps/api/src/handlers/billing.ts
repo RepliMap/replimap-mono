@@ -12,6 +12,7 @@ import {
   PLAN_TO_STRIPE_PRICE,
   PLAN_TO_STRIPE_ANNUAL_PRICE,
   STRIPE_LIFETIME_PRICE_TO_PLAN,
+  OUTBOUND_FETCH_TIMEOUT_MS,
 } from '../lib/constants';
 import { rateLimit } from '../lib/rate-limiter';
 import { createDb } from '../lib/db';
@@ -62,14 +63,25 @@ async function stripeRequest(
     }
   }
 
-  const response = await fetch(`https://api.stripe.com/v1/${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: formData.toString(),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`https://api.stripe.com/v1/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+      signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+    });
+  } catch {
+    // Network error or timeout: same 502 as checkout-license.ts
+    throw new AppError(
+      'INTERNAL_ERROR',
+      'Could not reach the payment provider. Please retry shortly.',
+      502
+    );
+  }
 
   const data = await response.json() as Record<string, unknown>;
 

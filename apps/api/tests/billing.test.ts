@@ -320,6 +320,41 @@ describe('Billing Endpoints', () => {
       expect(data.error_code).toBe('INTERNAL_ERROR');
     });
 
+    it('Stripe call has a timeout; a network failure/timeout yields 502, not 500', async () => {
+      mockFetch.mockImplementationOnce(async (_url: string, init?: RequestInit) => {
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      });
+
+      const request = await checkoutRequest({
+        plan: 'pro',
+        success_url: 'https://www.replimap.com/checkout/success',
+        cancel_url: 'https://www.replimap.com/checkout',
+      });
+      const response = await handleCreateCheckout(request, env, '1.2.3.4');
+
+      expect(response.status).toBe(502);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('401 (not 500) when the Clerk JWKS fetch fails or times out', async () => {
+      const request = await checkoutRequest({
+        plan: 'pro',
+        success_url: 'https://www.replimap.com/checkout/success',
+        cancel_url: 'https://www.replimap.com/checkout',
+      });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+        })
+      );
+
+      const response = await handleCreateCheckout(request, env, '1.2.3.4');
+
+      expect(response.status).toBe(401);
+    });
+
     describe('auth, binding and redirect allowlist', () => {
       const validBody = {
         plan: 'pro',

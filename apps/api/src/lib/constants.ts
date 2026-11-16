@@ -141,6 +141,9 @@ export const DEFAULT_LICENSE_SIGNING_KID = 'key-2024-01';
 // Rate Limiting
 // ============================================================================
 
+/** Timeout for outbound Stripe/Clerk API calls (a hung upstream must not hang the Worker). */
+export const OUTBOUND_FETCH_TIMEOUT_MS = 8_000;
+
 export const RATE_LIMITS = {
   validate: {
     requests: 100,

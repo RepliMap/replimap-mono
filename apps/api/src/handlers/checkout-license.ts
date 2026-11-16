@@ -24,6 +24,7 @@
 import type { Env } from '../types/env';
 import { Errors, AppError } from '../lib/errors';
 import { rateLimit } from '../lib/rate-limiter';
+import { OUTBOUND_FETCH_TIMEOUT_MS } from '../lib/constants';
 import { isClerkConfigured, verifyClerkSession } from '../lib/clerk';
 import {
   createDb,
@@ -62,7 +63,10 @@ async function fetchStripeSession(
   try {
     response = await fetch(
       `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,
-      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
     );
   } catch {
     throw new AppError(

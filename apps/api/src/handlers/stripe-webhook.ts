@@ -16,7 +16,7 @@
 
 import type { Env } from '../types/env';
 import { generateLicenseKey, timestampToISO, nowISO } from '../lib/license';
-import { getPlanFromPriceIdStrict, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY, PLAN_RANK } from '../lib/constants';
+import { getPlanFromPriceIdStrict, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY, PLAN_RANK, OUTBOUND_FETCH_TIMEOUT_MS } from '../lib/constants';
 import {
   createDb,
   type DrizzleDb,
@@ -493,7 +493,10 @@ async function handleSubscriptionCreated(
   if (!user) {
     const customerRes = await fetch(
       `https://api.stripe.com/v1/customers/${encodeURIComponent(subscription.customer)}`,
-      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
     );
     if (!customerRes.ok) {
       console.warn(
@@ -929,7 +932,10 @@ async function findSessionIdByPaymentIntent(
       `https://api.stripe.com/v1/checkout/sessions?payment_intent=${encodeURIComponent(
         paymentIntent
       )}&limit=1`,
-      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
     );
     if (!res.ok) {
       console.warn(
@@ -979,7 +985,10 @@ async function handleDisputeCreated(
   try {
     const res = await fetch(
       `https://api.stripe.com/v1/charges/${encodeURIComponent(dispute.charge)}`,
-      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
     );
     if (res.ok) {
       const charge = (await res.json()) as { customer?: string | null; payment_intent?: string | null };
