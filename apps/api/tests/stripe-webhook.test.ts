@@ -1353,6 +1353,83 @@ describe('charge.refunded', () => {
 });
 
 // ============================================================================
+// Webhooks never un-revoke
+// ============================================================================
+
+describe('revoked licenses stay revoked through webhooks', () => {
+  const ALERT_URL = 'https://hooks.example.test/ops';
+
+  async function seedRevokedSubscriptionLicense(): Promise<void> {
+    await seedSubscriptionLicense();
+    await env.DB.prepare(
+      "UPDATE licenses SET status = 'revoked', revoked_reason = 'test'"
+    ).run();
+  }
+
+  it('invoice.paid keeps a revoked license revoked and alerts ops', async () => {
+    await seedRevokedSubscriptionLicense();
+    const alertBodies: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (String(url) === ALERT_URL) alertBodies.push(String(init?.body ?? ''));
+        return new Response('ok', { status: 200 });
+      })
+    );
+
+    const res = await handleStripeWebhook(
+      await signedWebhookRequest(invoiceEvent('invoice.paid')),
+      { ...env, OPS_ALERT_WEBHOOK: ALERT_URL } as typeof env
+    );
+
+    expect(res.status).toBe(200);
+    const [license] = await licenseRows();
+    expect(license.status).toBe('revoked');
+    // period still recorded
+    expect(license.current_period_end).toBe(
+      new Date((PERIOD_END + 100) * 1000).toISOString()
+    );
+    expect(alertBodies).toHaveLength(1);
+    expect(alertBodies[0]).toContain('PAID_REVOKED');
+    expect(alertBodies[0]).toContain(SUBSCRIPTION);
+    expect(alertBodies[0]).not.toContain(license.license_key);
+  });
+
+  it('subscription.updated (active) keeps a revoked license revoked', async () => {
+    await seedRevokedSubscriptionLicense();
+    const res = await deliver(
+      subscriptionEvent('customer.subscription.updated', {
+        status: 'active',
+        items: { data: [{ price: { id: TEAM_MONTHLY_PRICE } }] },
+      })
+    );
+    expect(res.status).toBe(200);
+    const [license] = await licenseRows();
+    expect(license.status).toBe('revoked');
+    expect(license.plan).toBe('team');
+  });
+
+  it('subscription.deleted and invoice.payment_failed keep a revoked license revoked', async () => {
+    await seedRevokedSubscriptionLicense();
+    await deliver(invoiceEvent('invoice.payment_failed'));
+    await deliver(subscriptionEvent('customer.subscription.deleted'));
+    expect((await licenseRows())[0].status).toBe('revoked');
+  });
+
+  it('invoice.paid on a non-revoked license sends no alert', async () => {
+    await seedSubscriptionLicense();
+    const fetchSpy = vi.fn(async () => new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await handleStripeWebhook(
+      await signedWebhookRequest(invoiceEvent('invoice.paid')),
+      { ...env, OPS_ALERT_WEBHOOK: ALERT_URL } as typeof env
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect((await licenseRows())[0].status).toBe('active');
+  });
+});
+
+// ============================================================================
 // customer.deleted
 // ============================================================================
 

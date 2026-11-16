@@ -683,7 +683,8 @@ async function handleSubscriptionDeleted(
  */
 async function handleInvoicePaid(
   db: DrizzleDb,
-  invoice: StripeInvoice
+  invoice: StripeInvoice,
+  env: Env
 ): Promise<{ success: boolean; retry?: boolean }> {
   const subscriptionId = getInvoiceSubscriptionId(invoice);
   if (!subscriptionId) {
@@ -703,6 +704,18 @@ async function handleInvoicePaid(
       `before its license exists. Triggering retry.`
     );
     return { success: false, retry: true };
+  }
+
+  if (license.status === 'revoked') {
+    // The license stays revoked (updateLicensePlan never un-revokes); a human
+    // decides whether to refund/cancel the subscription or reinstate.
+    const detail =
+      `Payment received for a REVOKED license; license stays revoked. ` +
+      `invoice=${invoice.id}, customer=${invoice.customer}, ` +
+      `subscription=${subscriptionId}, license=${license.id}, plan=${license.plan}. ` +
+      `Cancel/refund the subscription or reinstate manually.`;
+    console.warn(`[Stripe][PAID_REVOKED] ${detail}`);
+    await sendOpsAlert(env, 'Stripe PAID_REVOKED', detail);
   }
 
   // Get period from invoice line items. Setting absolute values keeps this
@@ -1067,7 +1080,8 @@ export async function handleStripeWebhook(
       case 'invoice.paid': {
         const result = await handleInvoicePaid(
           db,
-          event.data.object as unknown as StripeInvoice
+          event.data.object as unknown as StripeInvoice,
+          env
         );
         if (!result.success && result.retry) {
           // Early return skips markEventProcessed — Stripe will redeliver

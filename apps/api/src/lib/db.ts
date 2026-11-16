@@ -6,6 +6,7 @@
  */
 
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
+import type { SQLiteUpdateSetSource } from 'drizzle-orm/sqlite-core';
 import { eq, and, ne, notInArray, sql, desc, gte, count } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { generateId, nowISO, normalizeLicenseKey, normalizeMachineId } from './license';
@@ -329,6 +330,15 @@ export async function createLicense(
 /**
  * Update license status
  */
+/**
+ * Status assignment that can never move a license OUT of 'revoked'
+ * (refund/chargeback/admin revocations are terminal; a later Stripe webhook
+ * must not silently restore access). Evaluated atomically in SQL.
+ */
+function statusUnlessRevoked(status: schema.LicenseStatus) {
+  return sql<schema.LicenseStatus>`CASE WHEN ${schema.licenses.status} = 'revoked' THEN 'revoked' ELSE ${status} END`;
+}
+
 export async function updateLicenseStatus(
   db: DrizzleDb,
   licenseId: string,
@@ -336,7 +346,7 @@ export async function updateLicenseStatus(
 ): Promise<void> {
   await db
     .update(schema.licenses)
-    .set({ status, updatedAt: nowISO() })
+    .set({ status: statusUnlessRevoked(status), updatedAt: nowISO() })
     .where(eq(schema.licenses.id, licenseId));
 }
 
@@ -355,11 +365,11 @@ export async function updateLicensePlan(
     currentPeriodEnd?: string;
   }
 ): Promise<void> {
-  const updates: Partial<schema.License> = { updatedAt: nowISO() };
+  const updates: SQLiteUpdateSetSource<typeof schema.licenses> = { updatedAt: nowISO() };
 
   if (data.plan) updates.plan = data.plan;
   if (data.planType) updates.planType = data.planType;
-  if (data.status) updates.status = data.status;
+  if (data.status) updates.status = statusUnlessRevoked(data.status);
   if (data.stripePriceId) updates.stripePriceId = data.stripePriceId;
   if (data.currentPeriodStart) updates.currentPeriodStart = data.currentPeriodStart;
   if (data.currentPeriodEnd) updates.currentPeriodEnd = data.currentPeriodEnd;
@@ -836,5 +846,5 @@ export async function cancelLicense(
       canceledAt: now,
       updatedAt: now,
     })
-    .where(eq(schema.licenses.id, licenseId));
+    .where(and(eq(schema.licenses.id, licenseId), ne(schema.licenses.status, 'revoked')));
 }
