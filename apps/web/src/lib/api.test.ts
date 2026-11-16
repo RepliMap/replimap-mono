@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   ApiError,
   classifyCheckoutLookupError,
+  createBillingPortalSession,
   createCheckoutSession,
   getCheckoutLicense,
   getLicenseDetails,
@@ -221,4 +222,29 @@ describe('license key transport (/v1/me/*)', () => {
       );
     }
   );
+});
+
+describe('createBillingPortalSession', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('forwards the Clerk token as a bearer header', async () => {
+    const fetchSpy = vi.fn(
+      async () => new Response(JSON.stringify({ portal_url: 'https://billing.stripe.com/x' }))
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await createBillingPortalSession(
+      'RM-AAAA-BBBB-CCCC-DDDD',
+      'https://www.replimap.com/dashboard',
+      'clerk_session_token_xyz'
+    );
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url.endsWith('/v1/billing/portal')).toBe(true);
+    expect((init.headers as Record<string, string>)['Authorization']).toBe(
+      'Bearer clerk_session_token_xyz'
+    );
+  });
 });

@@ -221,16 +221,21 @@ interface CreatePortalResponse {
  * Create a Stripe Customer Portal session for subscription management
  *
  * @param licenseKey - The user's license key
- * @param returnUrl - URL to redirect back to after portal
+ * @param returnUrl - URL to redirect back to after portal (must be on an
+ *   allowed web origin)
+ * @param authToken - The caller's Clerk session token; the API only opens the
+ *   portal when the token email matches the license owner
  * @returns Portal URL to redirect the user to Stripe
  */
 export async function createBillingPortalSession(
   licenseKey: string,
-  returnUrl: string
+  returnUrl: string,
+  authToken: string | null
 ): Promise<CreatePortalResponse> {
   return request<CreatePortalResponse>('/v1/billing/portal', {
     method: 'POST',
     body: JSON.stringify({ license_key: licenseKey, return_url: returnUrl }),
+    authToken: authToken ?? undefined,
   });
 }
 
