@@ -98,12 +98,6 @@ interface ResendKeyRequest {
 interface ResendKeyResponse {
   sent: boolean;
   message: string;
-  /**
-   * Present when sent=false — machine-readable reason a caller/UI can branch
-   * on (e.g. show a "try again later" vs. a generic message). Additive field:
-   * existing consumers reading only `sent`/`message` are unaffected.
-   */
-  reason?: string;
 }
 
 // ============================================================================
@@ -319,10 +313,10 @@ export async function handleGetOwnMachines(
  * POST /v1/me/resend-key
  *
  * Sends via Resend (lib/email.ts) when RESEND_API_KEY/EMAIL_FROM are
- * configured; degrades honestly to {sent:false, reason:'email_not_configured'}
- * otherwise. Always returns a generic sent:true for a nonexistent account
- * (anti email-enumeration) — see the comment at the found/not-found branch
- * below before changing that behavior.
+ * configured. Always returns the same generic sent:true response — whether or
+ * not the account exists and whether or not delivery succeeded — so it cannot
+ * be used to enumerate accounts; delivery failures are logged server-side.
+ * Rate-limited per IP and per normalized email address.
  */
 export async function handleResendKey(
   request: Request,
@@ -346,12 +340,16 @@ export async function handleResendKey(
       throw Errors.invalidRequest('Missing email');
     }
 
+    const email = String(body.email).trim().toLowerCase();
+
     // Validate email format
-    if (!isValidEmail(body.email)) {
+    if (!isValidEmail(email)) {
       throw Errors.invalidRequest('Invalid email format');
     }
 
-    const email = body.email.toLowerCase();
+    // Per-address limit (on top of the per-IP one) so one inbox cannot be
+    // flooded from many IPs. Keyed by a hash so raw addresses are not stored.
+    await rateLimit(env, 'resend_email', await sha256Hex(email));
 
     // Find user and their licenses (Note: uses 'user' table with new schema)
     const result = await db.all<{
@@ -368,42 +366,26 @@ export async function handleResendKey(
       LIMIT 5
     `);
 
-    // Anti-enumeration: only attempt to send (and only vary the response) when
-    // a matching account was found. A request for a nonexistent email always
-    // gets the same generic `sent:true` response below — do not "fix" that
-    // branch to reflect send status; there is nothing to send, and returning
-    // sent:false there would leak account existence.
-    let response: ResendKeyResponse;
-
+    // Anti-enumeration: the response is identical whether or not an account
+    // exists and whether or not delivery succeeded. Outcomes are logged
+    // server-side only.
     if (result.length > 0) {
       const emailResult = await sendLicenseKeyEmail(env, {
         to: email,
         licenses: result.map((r) => ({ plan: r.plan, licenseKey: r.license_key })),
       });
-
-      console.log(
+      const line =
         `License resend requested for ${maskEmail(email)}, found ${result.length} ` +
-          `license(s), sent=${emailResult.sent}` +
-          (emailResult.reason ? ` reason=${emailResult.reason}` : '')
-      );
-
-      response = emailResult.sent
-        ? {
-            sent: true,
-            message: 'If an account exists with this email, license keys have been sent.',
-          }
-        : {
-            sent: false,
-            message:
-              'We found your account but could not deliver the email right now. Please try again shortly.',
-            reason: emailResult.reason,
-          };
-    } else {
-      response = {
-        sent: true,
-        message: 'If an account exists with this email, license keys have been sent.',
-      };
+        `license(s), sent=${emailResult.sent}` +
+        (emailResult.reason ? ` reason=${emailResult.reason}` : '');
+      if (emailResult.sent) console.log(line);
+      else console.warn(`[RESEND_KEY][NOT_SENT] ${line}`);
     }
+
+    const response: ResendKeyResponse = {
+      sent: true,
+      message: 'If an account exists with this email, license keys have been sent.',
+    };
 
     return new Response(JSON.stringify(response), {
       status: 200,
@@ -429,6 +411,11 @@ export async function handleResendKey(
 // ============================================================================
 // Helpers
 // ============================================================================
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

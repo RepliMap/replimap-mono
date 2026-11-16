@@ -225,9 +225,9 @@ simple = { limit = 1, period = 60 }
 #   npx wrangler secret put CLERK_PUBLISHABLE_KEY --env prod
 #   npx wrangler secret put ADMIN_API_KEY --env prod
 #
-# Optional — license-key email delivery (lib/email.ts). Unset = the
-# resend-key endpoint and post-purchase emails degrade honestly to
-# {sent:false, reason:'email_not_configured'}; nothing breaks.
+# Optional — license-key email delivery (lib/email.ts). Unset = emails are
+# skipped and logged (resend-key still answers its generic response);
+# nothing breaks.
 #   npx wrangler secret put RESEND_API_KEY --env prod   # re_...
 #   npx wrangler secret put EMAIL_FROM --env prod        # "RepliMap <license@replimap.com>"
 #

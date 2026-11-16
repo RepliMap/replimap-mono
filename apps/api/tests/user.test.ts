@@ -284,8 +284,7 @@ describe('User Self-Service Endpoints', () => {
       expect(data.message).toContain('If an account exists');
     });
 
-    it('degrades honestly (sent:false, reason:email_not_configured) when email delivery is unconfigured, without leaking that the account exists differently', async () => {
-      // Mock createDb to return a license
+    it('returns the generic response when email delivery is unconfigured (no account leak)', async () => {
       vi.mocked(db.createDb).mockReturnValue({
         get: vi.fn().mockResolvedValue(null),
         all: vi.fn().mockResolvedValue([{
@@ -294,6 +293,7 @@ describe('User Self-Service Endpoints', () => {
           status: 'active',
         }]),
       } as unknown as ReturnType<typeof db.createDb>);
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       // createMockEnv() does not set RESEND_API_KEY/EMAIL_FROM.
       const request = createRequest('POST', '/v1/me/resend-key', {
@@ -301,13 +301,14 @@ describe('User Self-Service Endpoints', () => {
       });
 
       const response = await handleResendKey(request, env, '1.2.3.4');
-      const data = await response.json() as { sent: boolean; message: string; reason?: string };
+      const data = await response.json();
 
-      // Still 200 (not a client error) and still no exception — the caller
-      // did nothing wrong, the deployment is just missing email config.
       expect(response.status).toBe(200);
-      expect(data.sent).toBe(false);
-      expect(data.reason).toBe('email_not_configured');
+      expect(data).toEqual({
+        sent: true,
+        message: 'If an account exists with this email, license keys have been sent.',
+      });
+      expect(String(warn.mock.calls[0]?.[0])).toContain('email_not_configured');
     });
 
     it('actually calls the Resend API and returns sent:true when email is configured and delivery succeeds', async () => {
@@ -348,41 +349,71 @@ describe('User Self-Service Endpoints', () => {
       }
     });
 
-    it('returns sent:false with reason:provider_error when Resend rejects the request (account still not leaked as absent)', async () => {
-      vi.mocked(db.createDb).mockReturnValue({
-        get: vi.fn().mockResolvedValue(null),
-        all: vi.fn().mockResolvedValue([{
-          license_key: mockLicense.license_key,
-          plan: 'pro',
-          status: 'active',
-        }]),
-      } as unknown as ReturnType<typeof db.createDb>);
-
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(async () => new Response('{"message":"invalid api key"}', { status: 401 }))
-      );
-
+    it('returns a byte-identical response for: no account, delivery failure, delivery success', async () => {
+      const withLicense = () =>
+        vi.mocked(db.createDb).mockReturnValue({
+          get: vi.fn().mockResolvedValue(null),
+          all: vi.fn().mockResolvedValue([{
+            license_key: mockLicense.license_key,
+            plan: 'pro',
+            status: 'active',
+          }]),
+        } as unknown as ReturnType<typeof db.createDb>);
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
       const configuredEnv: Env = {
         ...env,
-        RESEND_API_KEY: 're_test_bad_key',
+        RESEND_API_KEY: 're_test_key',
         EMAIL_FROM: 'RepliMap <license@replimap.com>',
+      };
+      const send = async (e: Env, email: string) => {
+        const res = await handleResendKey(
+          createRequest('POST', '/v1/me/resend-key', { email }),
+          e,
+          '1.2.3.4'
+        );
+        return { status: res.status, body: await res.text() };
       };
 
       try {
-        const request = createRequest('POST', '/v1/me/resend-key', {
-          email: 'test@example.com',
-        });
+        // No account
+        vi.mocked(db.createDb).mockReturnValue({
+          get: vi.fn().mockResolvedValue(null),
+          all: vi.fn().mockResolvedValue([]),
+        } as unknown as ReturnType<typeof db.createDb>);
+        const absent = await send(env, 'nobody@example.com');
 
-        const response = await handleResendKey(request, configuredEnv, '1.2.3.4');
-        const data = await response.json() as { sent: boolean; reason?: string };
+        // Account, provider rejects
+        withLicense();
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('{"message":"invalid api key"}', { status: 401 })));
+        const failed = await send(configuredEnv, 'failed@example.com');
 
-        expect(response.status).toBe(200);
-        expect(data.sent).toBe(false);
-        expect(data.reason).toBe('provider_error');
+        // Account, delivered
+        vi.stubGlobal('fetch', vi.fn(async () => new Response('{"id":"email_test"}', { status: 200 })));
+        const delivered = await send(configuredEnv, 'ok@example.com');
+
+        expect(failed).toEqual(absent);
+        expect(delivered).toEqual(absent);
+        expect(absent.status).toBe(200);
       } finally {
         vi.unstubAllGlobals();
       }
+    });
+
+    it('rate-limits per normalized email address across different IPs', async () => {
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue(null),
+        all: vi.fn().mockResolvedValue([]),
+      } as unknown as ReturnType<typeof db.createDb>);
+      const send = (email: string, ip: string) =>
+        handleResendKey(createRequest('POST', '/v1/me/resend-key', { email }), env, ip);
+
+      expect((await send('Victim@Example.com', '10.0.0.1')).status).toBe(200);
+      const second = await send(' victim@example.com ', '10.0.0.2');
+      const data = await parseResponse<ErrorResponse>(second);
+      expect(second.status).toBe(429);
+      expect(data.error_code).toBe('RATE_LIMIT_EXCEEDED');
+      // A different address is unaffected
+      expect((await send('other@example.com', '10.0.0.3')).status).toBe(200);
     });
   });
 });
