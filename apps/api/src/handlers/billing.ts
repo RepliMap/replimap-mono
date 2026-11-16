@@ -292,6 +292,11 @@ export async function handleCreateCheckout(
  *
  * Creates a portal session for subscription management.
  * Returns a URL to redirect the user to Stripe's hosted customer portal.
+ *
+ * AUTH: a license key alone is not enough. Requires a valid Clerk session
+ * token whose email equals the license owner's email (403 otherwise), the
+ * same binding GET /v1/checkout/session/{id}/license uses. return_url must be
+ * on an exact origin in CHECKOUT_ALLOWED_ORIGINS (fail-closed).
  */
 export async function handleCreateBillingPortal(
   request: Request,
@@ -301,6 +306,22 @@ export async function handleCreateBillingPortal(
   const rateLimitHeaders = await rateLimit(env, 'activate', clientIP);
 
   try {
+    // Auth first: fail closed when Clerk is not configured, then require a
+    // valid session token.
+    if (!isClerkConfigured(env)) {
+      throw new AppError(
+        'SERVER_CONFIG_ERROR',
+        'Authentication is not configured for this endpoint',
+        503
+      );
+    }
+    const identity = await verifyClerkSession(request, env);
+    if (!identity) {
+      throw Errors.unauthorized(
+        'A valid Clerk session token is required (Authorization: Bearer <token>)'
+      );
+    }
+
     // Validate Stripe is configured
     if (!env.STRIPE_SECRET_KEY) {
       throw new AppError(
@@ -334,6 +355,10 @@ export async function handleCreateBillingPortal(
     if (!isValidUrl(body.return_url)) {
       throw Errors.invalidRequest('Invalid URL format');
     }
+    const allowedOrigins = parseAllowedOrigins(env.CHECKOUT_ALLOWED_ORIGINS);
+    if (!allowedOrigins || !allowedOrigins.has(new URL(body.return_url).origin)) {
+      throw Errors.invalidRequest('return_url must be on an allowed origin');
+    }
 
     // Create Drizzle client
     const db = createDb(env.DB);
@@ -343,8 +368,9 @@ export async function handleCreateBillingPortal(
     const result = await db.get<{
       stripe_subscription_id: string | null;
       customer_id: string | null;
+      email: string | null;
     }>(sql`
-      SELECT l.stripe_subscription_id, u.customer_id
+      SELECT l.stripe_subscription_id, u.customer_id, u.email
       FROM licenses l
       JOIN user u ON l.user_id = u.id
       WHERE l.license_key = ${licenseKey}
@@ -352,6 +378,15 @@ export async function handleCreateBillingPortal(
 
     if (!result) {
       throw Errors.licenseNotFound();
+    }
+
+    // Ownership: the token email must be the license owner's email.
+    if (!result.email || result.email.toLowerCase() !== identity.email) {
+      throw new AppError(
+        'FORBIDDEN',
+        'This license does not belong to the authenticated account',
+        403
+      );
     }
 
     if (!result.customer_id) {

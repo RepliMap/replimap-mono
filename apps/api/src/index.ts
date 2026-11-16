@@ -6,7 +6,7 @@
  * - POST /v1/license/deactivate - Deactivate license from machine
  * - POST /v1/license/provision-community - Provision a Community license (Clerk auth)
  * - POST /v1/checkout/session - Create Stripe Checkout session
- * - POST /v1/billing/portal - Create Stripe Customer Portal session
+ * - POST /v1/billing/portal - Create Stripe Customer Portal session (Clerk auth, owner only)
  * - POST /v1/webhooks/stripe - Handle Stripe subscription events
  * - GET /health - Health check
  *

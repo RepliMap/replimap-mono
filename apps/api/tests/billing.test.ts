@@ -480,98 +480,158 @@ describe('Billing Endpoints', () => {
   });
 
   describe('POST /v1/billing/portal', () => {
-    it('should reject request when Stripe is not configured', async () => {
-      env = createMockEnv({ STRIPE_SECRET_KEY: undefined });
+    const RETURN_URL = 'https://www.replimap.com/dashboard';
+    const KEY = 'RM-TEST-1234-5678-ABCD';
 
-      const request = createRequest('POST', '/v1/billing/portal', {
-        license_key: 'RM-TEST-1234-5678-ABCD',
-        return_url: 'https://example.com/dashboard',
+    async function portalRequest(
+      body: Record<string, unknown>,
+      opts: { token?: string | null } = {}
+    ): Promise<Request> {
+      const token =
+        opts.token === undefined
+          ? await clerk.mintToken({ userId: USER_ID, email: USER_EMAIL })
+          : opts.token;
+      return createRequest(
+        'POST',
+        '/v1/billing/portal',
+        body,
+        token ? { Authorization: `Bearer ${token}` } : {}
+      );
+    }
+
+    function dbReturns(row: unknown) {
+      vi.mocked(db.createDb).mockReturnValue({
+        get: vi.fn().mockResolvedValue(row),
+      } as unknown as ReturnType<typeof db.createDb>);
+    }
+
+    function portalOk() {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ url: 'https://billing.stripe.com/session/test_123' }),
       });
+    }
 
+    const ownedRow = {
+      stripe_subscription_id: 'sub_123',
+      customer_id: 'cus_123',
+      email: USER_EMAIL,
+    };
+
+    it('should reject request when Stripe is not configured', async () => {
+      env = createMockEnv({ ...authedEnvOverrides, STRIPE_SECRET_KEY: undefined });
+      const request = await portalRequest({ license_key: KEY, return_url: RETURN_URL });
       const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
-      const data = await parseResponse<ErrorResponse>(response);
-
       expect(response.status).toBe(503);
     });
 
     it('should reject invalid license key format', async () => {
-      const request = createRequest('POST', '/v1/billing/portal', {
-        license_key: 'invalid-key',
-        return_url: 'https://example.com/dashboard',
-      });
-
+      const request = await portalRequest({ license_key: 'invalid-key', return_url: RETURN_URL });
       const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
       const data = await parseResponse<ErrorResponse>(response);
-
       expect(response.status).toBe(400);
       expect(data.error_code).toBe('INVALID_LICENSE_FORMAT');
     });
 
     it('should return 404 for non-existent license', async () => {
-      // Mock createDb to return null for license lookup
-      vi.mocked(db.createDb).mockReturnValue({
-        get: vi.fn().mockResolvedValue(null),
-      } as unknown as ReturnType<typeof db.createDb>);
-
-      const request = createRequest('POST', '/v1/billing/portal', {
+      dbReturns(null);
+      const request = await portalRequest({
         license_key: 'RM-XXXX-XXXX-XXXX-XXXX',
-        return_url: 'https://example.com/dashboard',
+        return_url: RETURN_URL,
       });
-
       const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
       const data = await parseResponse<ErrorResponse>(response);
-
       expect(response.status).toBe(404);
       expect(data.error_code).toBe('LICENSE_NOT_FOUND');
     });
 
     it('should reject license without billing account', async () => {
-      // Mock createDb to return license without billing account
-      vi.mocked(db.createDb).mockReturnValue({
-        get: vi.fn().mockResolvedValue({
-          stripe_subscription_id: null,
-          customer_id: null, // No billing account
-        }),
-      } as unknown as ReturnType<typeof db.createDb>);
-
-      const request = createRequest('POST', '/v1/billing/portal', {
-        license_key: 'RM-TEST-1234-5678-ABCD',
-        return_url: 'https://example.com/dashboard',
-      });
-
+      dbReturns({ ...ownedRow, stripe_subscription_id: null, customer_id: null });
+      const request = await portalRequest({ license_key: KEY, return_url: RETURN_URL });
       const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
       const data = await parseResponse<ErrorResponse>(response);
-
       expect(response.status).toBe(400);
       expect(data.message).toContain('billing account');
     });
 
-    it('should create portal session successfully', async () => {
-      // Mock createDb to return license with billing account
-      vi.mocked(db.createDb).mockReturnValue({
-        get: vi.fn().mockResolvedValue({
-          stripe_subscription_id: 'sub_123',
-          customer_id: 'cus_123',
-        }),
-      } as unknown as ReturnType<typeof db.createDb>);
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          url: 'https://billing.stripe.com/session/test_123',
-        }),
-      });
-
-      const request = createRequest('POST', '/v1/billing/portal', {
-        license_key: 'RM-TEST-1234-5678-ABCD',
-        return_url: 'https://example.com/dashboard',
-      });
-
+    it('should create portal session successfully for the license owner', async () => {
+      dbReturns(ownedRow);
+      portalOk();
+      const request = await portalRequest({ license_key: KEY, return_url: RETURN_URL });
       const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
       const data = await response.json() as { portal_url: string };
-
       expect(response.status).toBe(200);
       expect(data.portal_url).toBe('https://billing.stripe.com/session/test_123');
+      const params = new URLSearchParams(mockFetch.mock.calls[0][1]?.body as string);
+      expect(params.get('customer')).toBe('cus_123');
+      expect(params.get('return_url')).toBe(RETURN_URL);
+    });
+
+    it('401 with a license key but no token, and never calls Stripe', async () => {
+      dbReturns(ownedRow);
+      const request = await portalRequest(
+        { license_key: KEY, return_url: RETURN_URL },
+        { token: null }
+      );
+      const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
+      expect(response.status).toBe(401);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('503 when Clerk is not configured (fail closed)', async () => {
+      dbReturns(ownedRow);
+      const request = await portalRequest({ license_key: KEY, return_url: RETURN_URL });
+      const response = await handleCreateBillingPortal(
+        request,
+        createMockEnv({ CHECKOUT_ALLOWED_ORIGINS: ALLOWED_ORIGINS }),
+        '1.2.3.4'
+      );
+      expect(response.status).toBe(503);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("403 when the token belongs to someone other than the license owner", async () => {
+      dbReturns({ ...ownedRow, email: 'victim@example.com' });
+      const request = await portalRequest({ license_key: KEY, return_url: RETURN_URL });
+      const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
+      expect(response.status).toBe(403);
+      expect(await response.text()).not.toContain('portal_url');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('matches the owner email case-insensitively', async () => {
+      dbReturns({ ...ownedRow, email: 'TEST@Example.com' });
+      portalOk();
+      const request = await portalRequest({ license_key: KEY, return_url: RETURN_URL });
+      const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
+      expect(response.status).toBe(200);
+    });
+
+    it.each([
+      ['foreign origin', 'https://evil.com/dashboard'],
+      ['lookalike suffix origin', 'https://www.replimap.com.evil.com/dashboard'],
+      ['userinfo trick', 'https://www.replimap.com@evil.com/dashboard'],
+      ['http downgrade', 'http://www.replimap.com/dashboard'],
+    ])('400 for return_url on a %s', async (_name, returnUrl) => {
+      dbReturns(ownedRow);
+      const request = await portalRequest({ license_key: KEY, return_url: returnUrl });
+      const response = await handleCreateBillingPortal(request, env, '1.2.3.4');
+      const data = await parseResponse<ErrorResponse>(response);
+      expect(response.status).toBe(400);
+      expect(data.error_code).toBe('INVALID_REQUEST');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('400 when the allowlist is unset (fail closed)', async () => {
+      dbReturns(ownedRow);
+      const request = await portalRequest({ license_key: KEY, return_url: RETURN_URL });
+      const response = await handleCreateBillingPortal(
+        request,
+        createMockEnv({ ...authedEnvOverrides, CHECKOUT_ALLOWED_ORIGINS: undefined }),
+        '1.2.3.4'
+      );
+      expect(response.status).toBe(400);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });
