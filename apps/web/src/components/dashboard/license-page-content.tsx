@@ -7,6 +7,7 @@ import { useMachines, type MachinesState } from '@/hooks/useMachines';
 import { LicenseCard } from '@/components/license-card';
 import { DeviceList } from '@/components/device-list';
 import { GracePeriodInfo } from '@/components/grace-period-info';
+import { ManageBillingButton } from '@/components/dashboard/manage-billing-button';
 import { Card, CardContent } from '@/components/ui/card';
 
 /**
@@ -70,6 +71,9 @@ function LicenseBody({
     <div className="space-y-6">
       <LicenseCard license={license} />
       <GracePeriodInfo graceDays={graceDays(license)} plan={license.plan} />
+      {license.plan !== 'community' && (
+        <ManageBillingButton licenseKey={licenseKey} />
+      )}
       <DevicesSection
         machines={machines}
         licenseKey={licenseKey}
