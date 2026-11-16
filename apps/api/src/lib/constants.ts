@@ -164,6 +164,13 @@ export const RATE_LIMITS = {
     requests: 30,
     window: 60,
   },
+  // Per-email limit for /v1/me/resend-key (keyed by normalized address).
+  // The Workers rate-limit binding only supports 10s/60s periods, so the
+  // intended "3 per hour" is approximated as 1 per minute.
+  resend_email: {
+    requests: 1,
+    window: 60,
+  },
 } as const;
 
 // ============================================================================

@@ -71,7 +71,7 @@ export async function handleValidateLicense(
   clientIP: string
 ): Promise<Response> {
   // Rate limiting
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'validate', clientIP);
 
   // Create Drizzle client
   const db = createDb(env.DB);

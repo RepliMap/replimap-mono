@@ -219,7 +219,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // ========================================================================
     if (!response && path.startsWith('/v1/admin')) {
       // Apply rate limiting first (before auth check to prevent timing attacks)
-      await rateLimit(env.CACHE, 'admin', clientIP);
+      await rateLimit(env, 'admin', clientIP);
 
       // Verify admin API key at router level
       const adminKey = request.headers.get('X-API-Key');

@@ -119,7 +119,7 @@ export async function handleGetOwnLicense(
   env: Env,
   clientIP: string
 ): Promise<Response> {
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'validate', clientIP);
   const db = createDb(env.DB);
 
   try {
@@ -221,7 +221,7 @@ export async function handleGetOwnMachines(
   env: Env,
   clientIP: string
 ): Promise<Response> {
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'validate', clientIP);
   const db = createDb(env.DB);
 
   try {
@@ -330,7 +330,7 @@ export async function handleResendKey(
   clientIP: string
 ): Promise<Response> {
   // Stricter rate limit for resend (prevent abuse)
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'activate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'activate', clientIP);
   const db = createDb(env.DB);
 
   try {
