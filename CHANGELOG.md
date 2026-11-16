@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.8.0...replimap-mono-v1.9.0) (2026-11-16)
+
+
+### Features
+
+* **web:** add a Manage billing button on the license page ([df0e571](https://github.com/RepliMap/replimap-mono/commit/df0e571077858b7dde5dcfa605c9d5f14e370620))
+* **web:** add real /pricing page and drop the redirect ([f7247ad](https://github.com/RepliMap/replimap-mono/commit/f7247ad0820a24a47ef9452dd9f2c340c3dbd6a0))
+* **web:** state the free one-VPC scope for import blocks ([9897726](https://github.com/RepliMap/replimap-mono/commit/98977264328a2517cb3480073c08564aeccf97c4))
+* **web:** stop selling lifetime plans ([eb08d60](https://github.com/RepliMap/replimap-mono/commit/eb08d60184e65d7e1ca98c635f51852b70a9b58f))
+
+
+### Bug Fixes
+
+* **api:** accept the license key from an X-License-Key header on /v1/me/* ([3247788](https://github.com/RepliMap/replimap-mono/commit/3247788550961f11c422b4a31b12155f2fe15c3a))
+* **api:** add the migration 010 columns to the Drizzle schema ([a5b29fd](https://github.com/RepliMap/replimap-mono/commit/a5b29fd3e456a3e3de75f4c0c70ef8ac801f32b0))
+* **api:** alert ops when a subscription charge is refunded ([19eac9d](https://github.com/RepliMap/replimap-mono/commit/19eac9db603dd1b85b7cd2858c781e925aaabce5))
+* **api:** allow past_due licenses for 7 days after the period end ([405a088](https://github.com/RepliMap/replimap-mono/commit/405a088f73787a198f316144966a697915b62373))
+* **api:** apply the current Stripe subscription on customer.subscription.updated ([470ae95](https://github.com/RepliMap/replimap-mono/commit/470ae95657526ffd1c4c88efe2aefe1e1eb33c9c))
+* **api:** check the Clerk azp claim and require a verified primary email ([c4bf65a](https://github.com/RepliMap/replimap-mono/commit/c4bf65a169e744c9420168eebebcc8edc74f5881))
+* **api:** end access when a subscription is terminated early or unpaid ([63d4aea](https://github.com/RepliMap/replimap-mono/commit/63d4aeaecc3f1bf43def1fd3316f57901e983898))
+* **api:** enforce device limit when re-activating a known machine ([73e6367](https://github.com/RepliMap/replimap-mono/commit/73e6367c4619c3d557654b528569adab1c571595))
+* **api:** fail-open rate limiter on Workers Rate Limiting binding ([04ccbfd](https://github.com/RepliMap/replimap-mono/commit/04ccbfd444ad7f3f03f1770815944bb55fa6b87c))
+* **api:** keep validate's background writes alive with waitUntil ([64e9e18](https://github.com/RepliMap/replimap-mono/commit/64e9e1896fad1d4bd0fb00b79a0fae03f75eaa97))
+* **api:** make PRO and TEAM AWS accounts unlimited ([71ca3a5](https://github.com/RepliMap/replimap-mono/commit/71ca3a54d442714631c6aa1df9c0fa3422fdd8af))
+* **api:** name both license key inputs in the /v1/me/* missing-key error ([8f85826](https://github.com/RepliMap/replimap-mono/commit/8f85826aeff5e313738d73e764277286a9b25d6d))
+* **api:** never un-revoke a license from a Stripe webhook ([ff462d9](https://github.com/RepliMap/replimap-mono/commit/ff462d9db25757e7bc3ec0e7e4b6f43ca480664b))
+* **api:** per-email limit and uniform response for resend-key ([216c709](https://github.com/RepliMap/replimap-mono/commit/216c7090efa9abe2df1cf79a0bb45bf4f34decb7))
+* **api:** refuse lifetime and unknown billing periods at checkout ([38e032a](https://github.com/RepliMap/replimap-mono/commit/38e032a250b9c34daa550828f5ff02f85866722b))
+* **api:** register a new machine atomically against the device limit ([06729ad](https://github.com/RepliMap/replimap-mono/commit/06729ad2af92762542ad9512d034560f33f4dde6))
+* **api:** require the license owner's Clerk session for the billing portal ([7e86865](https://github.com/RepliMap/replimap-mono/commit/7e8686587a5b28ae98ee429a6baf03cb1076b3ac))
+* **api:** reuse the Stripe customer and refuse a second subscription at checkout ([cae2006](https://github.com/RepliMap/replimap-mono/commit/cae20064df6e252cf6eec8541df40d0ff48be820))
+* **api:** reveal less on public routes and in Stripe errors ([8594f27](https://github.com/RepliMap/replimap-mono/commit/8594f27c6e7e37e2ed930dae5c6664b9c21c8c87))
+* **api:** revoke license and alert ops on charge.dispute.created ([0a4d237](https://github.com/RepliMap/replimap-mono/commit/0a4d237055296c668138cc5824b396b1af1a2aed))
+* **api:** revoke lifetime licenses only on a full refund ([07c45bb](https://github.com/RepliMap/replimap-mono/commit/07c45bb2d75bfeabd539290d9e7c4356b5565fb8))
+* **api:** time out Stripe/Clerk calls and cache Clerk JWKS ([0ec282a](https://github.com/RepliMap/replimap-mono/commit/0ec282ac774d53c91e261c87fdac84605d4fd800))
+* **web:** generate sitemap docs from source, add /pricing; allow /_next/ in robots ([1f62ae7](https://github.com/RepliMap/replimap-mono/commit/1f62ae78095aea76eaa69a6ded21c5511f7b4af7))
+* **web:** hide Cancel anytime for lifetime checkout ([15fb949](https://github.com/RepliMap/replimap-mono/commit/15fb949027d411e933fefc4d816d495d725cb7a7))
+* **web:** list Clerk and Cloudflare in privacy page ([9b036e9](https://github.com/RepliMap/replimap-mono/commit/9b036e9df22ee33280ffe533bdb7a4d1a294c4eb))
+* **web:** send Strict-Transport-Security ([e0818ce](https://github.com/RepliMap/replimap-mono/commit/e0818ce056ffe69408b1543ecd58875c37631cf6))
+* **web:** send the Clerk token when opening the billing portal ([6f7d866](https://github.com/RepliMap/replimap-mono/commit/6f7d866a90162c0700828ab98823b837eb5ba71d))
+* **web:** send the license key in X-License-Key instead of the URL ([4d80cc3](https://github.com/RepliMap/replimap-mono/commit/4d80cc38b80ffa64959273e5a550751117445e84))
+* **web:** use real CI flag names in plan features ([c196892](https://github.com/RepliMap/replimap-mono/commit/c196892562973d1788f96d820dffb47c62909643))
+* **web:** www URLs, availability, Sovereign offer in JSON-LD; drop stale softwareVersion ([b1ac7a6](https://github.com/RepliMap/replimap-mono/commit/b1ac7a69a3eb40f763a1709c2f60f1a8c74bec84))
+
 ## [1.8.0](https://github.com/RepliMap/replimap-mono/compare/replimap-mono-v1.7.0...replimap-mono-v1.8.0) (2026-10-01)
 
 

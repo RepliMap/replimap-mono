@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.8.0...replimap-web-v0.9.0) (2026-11-16)
+
+
+### Features
+
+* **web:** add a Manage billing button on the license page ([df0e571](https://github.com/RepliMap/replimap-mono/commit/df0e571077858b7dde5dcfa605c9d5f14e370620))
+* **web:** add real /pricing page and drop the redirect ([f7247ad](https://github.com/RepliMap/replimap-mono/commit/f7247ad0820a24a47ef9452dd9f2c340c3dbd6a0))
+* **web:** state the free one-VPC scope for import blocks ([9897726](https://github.com/RepliMap/replimap-mono/commit/98977264328a2517cb3480073c08564aeccf97c4))
+* **web:** stop selling lifetime plans ([eb08d60](https://github.com/RepliMap/replimap-mono/commit/eb08d60184e65d7e1ca98c635f51852b70a9b58f))
+
+
+### Bug Fixes
+
+* **web:** generate sitemap docs from source, add /pricing; allow /_next/ in robots ([1f62ae7](https://github.com/RepliMap/replimap-mono/commit/1f62ae78095aea76eaa69a6ded21c5511f7b4af7))
+* **web:** hide Cancel anytime for lifetime checkout ([15fb949](https://github.com/RepliMap/replimap-mono/commit/15fb949027d411e933fefc4d816d495d725cb7a7))
+* **web:** list Clerk and Cloudflare in privacy page ([9b036e9](https://github.com/RepliMap/replimap-mono/commit/9b036e9df22ee33280ffe533bdb7a4d1a294c4eb))
+* **web:** send Strict-Transport-Security ([e0818ce](https://github.com/RepliMap/replimap-mono/commit/e0818ce056ffe69408b1543ecd58875c37631cf6))
+* **web:** send the Clerk token when opening the billing portal ([6f7d866](https://github.com/RepliMap/replimap-mono/commit/6f7d866a90162c0700828ab98823b837eb5ba71d))
+* **web:** send the license key in X-License-Key instead of the URL ([4d80cc3](https://github.com/RepliMap/replimap-mono/commit/4d80cc38b80ffa64959273e5a550751117445e84))
+* **web:** use real CI flag names in plan features ([c196892](https://github.com/RepliMap/replimap-mono/commit/c196892562973d1788f96d820dffb47c62909643))
+* **web:** www URLs, availability, Sovereign offer in JSON-LD; drop stale softwareVersion ([b1ac7a6](https://github.com/RepliMap/replimap-mono/commit/b1ac7a69a3eb40f763a1709c2f60f1a8c74bec84))
+
 ## [0.8.0](https://github.com/RepliMap/replimap-mono/compare/replimap-web-v0.7.0...replimap-web-v0.8.0) (2026-10-01)
 
 
