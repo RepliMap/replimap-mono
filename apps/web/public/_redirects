@@ -1,1 +1,1 @@
-/pricing /#pricing 301
+# No redirects. /pricing is a real page (src/app/pricing/page.tsx).

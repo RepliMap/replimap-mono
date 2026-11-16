@@ -12,7 +12,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard/', '/api/', '/sign-in/', '/sign-up/', '/_next/'],
+        disallow: ['/dashboard/', '/api/', '/sign-in/', '/sign-up/'],
       },
       // Explicitly welcome AI crawlers
       {

@@ -9,7 +9,7 @@
  * Tier Structure (single source of truth: CLI repo technical-reference.md matrix):
  * - COMMUNITY ($0): full scan/graph/resource .tf files, coverage summary
  * - PRO ($29): imports.tf scaffold, audit report export, full coverage list
- * - TEAM ($99): CI --fail-on, Trust Center report, 10 devices
+ * - TEAM ($99): CI --fail-on-high/--fail-on-score, Trust Center report, 10 devices
  * - SOVEREIGN ($2,500): air-gapped activation by signed license file, APRA/RBNZ/NZISM
  *   compliance packs
  */
@@ -102,7 +102,7 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "7 days offline grace period", included: true },
       { text: "48h email support SLA", included: true },
       { text: "2 activated devices", included: true },
-      { text: "CI mode with blocking checks (--fail-on)", included: false },
+      { text: "CI mode with blocking checks (--fail-on-high, --fail-on-score)", included: false },
     ],
     cta: "Start Pro",
     highlighted: true,
@@ -118,7 +118,7 @@ export const PLANS: Record<PlanName, Plan> = {
     features: [
       { text: "Everything in Pro", included: true },
       { text: "10 activated devices", included: true },
-      { text: "CI mode with blocking checks (--fail-on)", included: true },
+      { text: "CI mode with blocking checks (--fail-on-high, --fail-on-score)", included: true },
       { text: "Trust Center report (audit trail of the AWS API calls RepliMap made)", included: true },
       { text: "14 days offline grace period", included: true },
       { text: "24h priority support SLA", included: true },
