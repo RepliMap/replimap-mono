@@ -340,6 +340,15 @@ export async function handleValidateLicense(
   }
 }
 
+/** Days a license stays usable after its period end (active or past_due). */
+const PERIOD_END_GRACE_DAYS = 7;
+
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
 /**
  * Check license status and update if expired
  */
@@ -361,8 +370,12 @@ async function checkLicenseStatus(
     throw Errors.licenseRevoked();
   }
 
-  // Check if past due
+  // Past due: Stripe is still retrying the payment. Allow until 7 days after
+  // the period end (same grace as an active license), then reject.
   if (license.status === 'past_due') {
+    if (license.current_period_end && !isPast(addDaysISO(license.current_period_end, PERIOD_END_GRACE_DAYS))) {
+      return;
+    }
     throw Errors.licensePastDue();
   }
 
@@ -381,11 +394,7 @@ async function checkLicenseStatus(
   // Check if active but period has ended
   if (license.status === 'active' && license.current_period_end && isPast(license.current_period_end)) {
     // Grace period: allow 7 days after period end before marking expired
-    const periodEnd = new Date(license.current_period_end);
-    const gracePeriodEnd = new Date(periodEnd);
-    gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 7);
-
-    if (new Date() > gracePeriodEnd) {
+    if (isPast(addDaysISO(license.current_period_end, PERIOD_END_GRACE_DAYS))) {
       await updateLicenseStatus(db, license.license_id, 'expired');
       throw Errors.licenseExpired(formatDate(license.current_period_end));
     }

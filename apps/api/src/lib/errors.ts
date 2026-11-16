@@ -110,7 +110,7 @@ export const Errors = {
       403,
       {
         action: 'Contact support at support@replimap.com to update your payment method',
-        guidance: 'Your subscription is active but payment failed. Update your card to avoid interruption.',
+        guidance: 'Your subscription payment failed and the 7-day grace period has ended. Update your payment method to restore access.',
       }
     );
   },

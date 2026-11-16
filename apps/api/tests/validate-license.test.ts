@@ -514,4 +514,47 @@ describe('POST /v1/license/validate', () => {
       expect(db.recordMachineChange).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('past_due grace period', () => {
+    const DAY = 86_400_000;
+    function pastDueLicense(periodEndOffsetMs: number) {
+      return {
+        license_id: mockLicense.id,
+        license_key: mockLicense.license_key,
+        plan: 'pro',
+        status: 'past_due',
+        current_period_end: new Date(Date.now() + periodEndOffsetMs).toISOString(),
+        machine_is_active: 1,
+        machine_last_seen: new Date().toISOString(),
+        active_machines: 1,
+        monthly_changes: 0,
+        active_aws_accounts: 0,
+      };
+    }
+    const validate = () =>
+      handleValidateLicense(
+        createRequest('POST', '/v1/license/validate', {
+          license_key: 'RM-TEST-1234-5678-ABCD',
+          machine_id: generateMachineId(),
+        }),
+        env,
+        '1.2.3.4'
+      );
+
+    it('allows past_due within 7 days after the period end', async () => {
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue(pastDueLicense(-3 * DAY));
+      const response = await validate();
+      const data = await parseResponse<ValidateLicenseResponse>(response);
+      expect(response.status).toBe(200);
+      expect(data.status).toBe('past_due');
+    });
+
+    it('rejects past_due more than 7 days after the period end', async () => {
+      vi.mocked(db.getLicenseForValidation).mockResolvedValue(pastDueLicense(-8 * DAY));
+      const response = await validate();
+      const data = await parseResponse<ErrorResponse>(response);
+      expect(response.status).toBe(403);
+      expect(data.error_code).toBe('LICENSE_PAST_DUE');
+    });
+  });
 });

@@ -55,6 +55,10 @@ describe('Errors factories - support URL domain', () => {
     );
   });
 
+  it('licensePastDue does not claim the subscription is active', () => {
+    expect(Errors.licensePastDue().guidance).not.toContain('is active');
+  });
+
   it('licenseRevoked uses the real support mailbox', () => {
     expect(Errors.licenseRevoked().action).toBe('Contact support at support@replimap.com');
   });
