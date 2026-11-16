@@ -177,7 +177,35 @@ interface StripeCharge {
   payment_intent?: string;
   amount?: number;
   amount_refunded?: number;
+  refunded?: boolean;
   currency?: string;
+}
+
+/** True when the charge is fully refunded (amounts win over the flag). */
+function isFullRefund(charge: StripeCharge): boolean {
+  if (typeof charge.amount === 'number' && typeof charge.amount_refunded === 'number') {
+    return charge.amount_refunded >= charge.amount;
+  }
+  return charge.refunded === true;
+}
+
+/**
+ * Alert ops that a lifetime charge was only partially refunded. The license
+ * is left unchanged: only a full refund revokes. Never includes the key.
+ */
+async function alertPartialRefund(
+  env: Env,
+  charge: StripeCharge,
+  license: License
+): Promise<void> {
+  const detail =
+    `Lifetime charge PARTIALLY refunded; license NOT revoked. ` +
+    `charge=${charge.id}, customer=${charge.customer ?? 'none'}, ` +
+    `refunded=${charge.amount_refunded ?? 'unknown'} of ` +
+    `charged=${charge.amount ?? 'unknown'} ${charge.currency ?? ''} (minor units), ` +
+    `license=${license.id}, plan=${license.plan}, status=${license.status}.`;
+  console.warn(`[Stripe][PARTIAL_REFUND] ${detail}`);
+  await sendOpsAlert(env, 'Stripe PARTIAL_REFUND', detail);
 }
 
 /**
@@ -816,6 +844,11 @@ async function handleChargeRefunded(
     return;
   }
 
+  if (!isFullRefund(charge)) {
+    await alertPartialRefund(env, charge, license);
+    return;
+  }
+
   // Revoke the license
   await revokeLicense(db, license.id, `Refunded: charge_${charge.id}`);
   console.log(`[Stripe] Lifetime license ${license.id} revoked due to refund`);
@@ -912,6 +945,11 @@ async function revokeLicenseByPaymentIntent(
     console.log(
       `[Stripe] License ${license.id} already ${license.status}, ignoring refund`
     );
+    return true;
+  }
+
+  if (!isFullRefund(charge)) {
+    await alertPartialRefund(env, charge, license);
     return true;
   }
 

@@ -1051,6 +1051,11 @@ describe('charge.refunded', () => {
       object: {
         id: 'ch_test_Charge01',
         customer: CUSTOMER,
+        // Real charge.refunded events always carry these (full refund here).
+        amount: 4900,
+        amount_refunded: 4900,
+        refunded: true,
+        currency: 'usd',
         ...overrides,
       },
     },
@@ -1269,6 +1274,75 @@ describe('charge.refunded', () => {
       // Assert
       expect(res.status).toBe(200);
       expect((await licenseRows())[0].status).toBe('active');
+    });
+  });
+
+  describe('partial refunds', () => {
+    const ALERT_URL = 'https://hooks.example.test/ops';
+    const seedLifetime = () =>
+      deliver(
+        checkoutCompletedEvent({
+          mode: 'payment',
+          subscription: null,
+          metadata: { plan: 'pro', billing_period: 'lifetime' },
+        })
+      );
+
+    it('partial refund of a lifetime charge alerts ops and leaves the license active', async () => {
+      await seedLifetime();
+      const alertBodies: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+          if (String(url) === ALERT_URL) alertBodies.push(String(init?.body ?? ''));
+          return new Response('ok', { status: 200 });
+        })
+      );
+
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(
+          chargeEvent({ amount: 19900, amount_refunded: 5000, refunded: false })
+        ),
+        { ...env, OPS_ALERT_WEBHOOK: ALERT_URL } as typeof env
+      );
+
+      expect(res.status).toBe(200);
+      expect((await licenseRows())[0].status).toBe('active');
+      expect(alertBodies).toHaveLength(1);
+      expect(alertBodies[0]).toContain('PARTIAL_REFUND');
+      expect(alertBodies[0]).toContain('ch_test_Charge01');
+    });
+
+    it('partial refund resolved via payment_intent also leaves the license active', async () => {
+      await seedLifetime();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () =>
+          new Response(JSON.stringify({ data: [{ id: 'cs_test_Session01' }] }), { status: 200 })
+        )
+      );
+
+      const res = await deliver(
+        chargeEvent({
+          customer: null,
+          payment_intent: 'pi_test_PI01',
+          amount: 19900,
+          amount_refunded: 100,
+          refunded: false,
+        })
+      );
+
+      expect(res.status).toBe(200);
+      expect((await licenseRows())[0].status).toBe('active');
+    });
+
+    it('full refund (amount_refunded >= amount) still revokes', async () => {
+      await seedLifetime();
+      const res = await deliver(
+        chargeEvent({ amount: 19900, amount_refunded: 19900, refunded: true })
+      );
+      expect(res.status).toBe(200);
+      expect((await licenseRows())[0].status).toBe('revoked');
     });
   });
 
