@@ -16,6 +16,7 @@ import {
   parseResponse,
 } from './helpers';
 import type { Env } from '../src/types';
+import { PLAN_TO_STRIPE_PRICE, PLAN_TO_STRIPE_ANNUAL_PRICE } from '../src/lib/constants';
 import type { ErrorResponse } from '../src/types/api';
 import * as db from '../src/lib/db';
 import {
@@ -264,15 +265,7 @@ describe('Billing Endpoints', () => {
       expect(data.session_id).toBe('cs_test_123');
     });
 
-    it('should create lifetime checkout session with mode=payment', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 'cs_test_lifetime_123',
-          url: 'https://checkout.stripe.com/pay/cs_test_lifetime_123',
-        }),
-      });
-
+    it('refuses lifetime checkout (no longer sold) without calling Stripe', async () => {
       const request = await checkoutRequest({
         plan: 'pro',
         billing_period: 'lifetime',
@@ -282,17 +275,56 @@ describe('Billing Endpoints', () => {
       });
 
       const response = await handleCreateCheckout(request, env, '1.2.3.4');
-      const data = await response.json() as { checkout_url: string };
+      const data = await parseResponse<ErrorResponse>(response);
 
+      expect(response.status).toBe(400);
+      expect(data.error_code).toBe('INVALID_REQUEST');
+      expect(data.message).toContain('Lifetime plans are no longer sold');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unknown billing_period instead of falling back to monthly', async () => {
+      const request = await checkoutRequest({
+        plan: 'pro',
+        billing_period: 'weekly',
+        email: 'test@example.com',
+        success_url: 'https://www.replimap.com/checkout/success',
+        cancel_url: 'https://www.replimap.com/checkout',
+      });
+
+      const response = await handleCreateCheckout(request, env, '1.2.3.4');
+      const data = await parseResponse<ErrorResponse>(response);
+
+      expect(response.status).toBe(400);
+      expect(data.error_code).toBe('INVALID_REQUEST');
+      expect(data.message).toContain('billing_period');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['monthly', undefined, PLAN_TO_STRIPE_PRICE.pro],
+      ['explicit monthly', 'monthly', PLAN_TO_STRIPE_PRICE.pro],
+      ['annual', 'annual', PLAN_TO_STRIPE_ANNUAL_PRICE.pro],
+    ])('creates a %s subscription checkout with the matching price', async (_label, period, price) => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'cs_test_sub', url: 'https://checkout.stripe.com/pay/cs_test_sub' }),
+      });
+
+      const request = await checkoutRequest({
+        plan: 'pro',
+        ...(period ? { billing_period: period } : {}),
+        email: 'test@example.com',
+        success_url: 'https://www.replimap.com/checkout/success',
+        cancel_url: 'https://www.replimap.com/checkout',
+      });
+
+      const response = await handleCreateCheckout(request, env, '1.2.3.4');
       expect(response.status).toBe(200);
-      expect(data.checkout_url).toBe('https://checkout.stripe.com/pay/cs_test_lifetime_123');
-
-      // Verify mode=payment (one-time) was passed, not subscription
-      const fetchCall = mockFetch.mock.calls[0];
-      const requestBody = fetchCall[1]?.body as string;
-      expect(requestBody).toContain('mode=payment');
-      expect(requestBody).not.toContain('mode=subscription');
-      expect(requestBody).not.toContain('subscription_data');
+      const params = new URLSearchParams(mockFetch.mock.calls[0][1]?.body as string);
+      expect(params.get('mode')).toBe('subscription');
+      expect(params.get('line_items[0][price]')).toBe(price);
+      expect(params.get('subscription_data[metadata][plan]')).toBe('pro');
     });
 
     it('should handle Stripe API errors', async () => {
@@ -462,27 +494,13 @@ describe('Billing Endpoints', () => {
           expect(mockFetch).not.toHaveBeenCalled();
         });
 
-        it('still allows a lifetime purchase by an existing subscriber, on the same customer', async () => {
+        it('refuses lifetime for an existing subscriber too; Stripe is not called', async () => {
           existingUser({ customer_id: 'cus_existing', has_live_subscription: 1 });
-          stripeOk();
           const res = await post({ ...validBody, billing_period: 'lifetime' });
-          expect(res.status).toBe(200);
-          const params = new URLSearchParams(mockFetch.mock.calls[0][1]?.body as string);
-          expect(params.get('mode')).toBe('payment');
-          expect(params.get('customer')).toBe('cus_existing');
-          // Stripe rejects customer_creation together with customer.
-          expect(params.has('customer_creation')).toBe(false);
-        });
-
-        it('new buyer: customer_email + customer_creation=always for lifetime', async () => {
-          existingUser({ customer_id: null, has_live_subscription: 0 });
-          stripeOk();
-          const res = await post({ ...validBody, billing_period: 'lifetime' });
-          expect(res.status).toBe(200);
-          const params = new URLSearchParams(mockFetch.mock.calls[0][1]?.body as string);
-          expect(params.get('customer_email')).toBe(USER_EMAIL);
-          expect(params.has('customer')).toBe(false);
-          expect(params.get('customer_creation')).toBe('always');
+          const data = await parseResponse<ErrorResponse>(res);
+          expect(res.status).toBe(400);
+          expect(data.message).toContain('Lifetime plans are no longer sold');
+          expect(mockFetch).not.toHaveBeenCalled();
         });
       });
 

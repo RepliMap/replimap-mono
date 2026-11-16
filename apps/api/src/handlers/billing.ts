@@ -11,7 +11,6 @@ import { validateLicenseKey, normalizeLicenseKey } from '../lib/license';
 import {
   PLAN_TO_STRIPE_PRICE,
   PLAN_TO_STRIPE_ANNUAL_PRICE,
-  STRIPE_LIFETIME_PRICE_TO_PLAN,
   OUTBOUND_FETCH_TIMEOUT_MS,
 } from '../lib/constants';
 import { rateLimit } from '../lib/rate-limiter';
@@ -26,7 +25,8 @@ import { sql } from 'drizzle-orm';
 
 interface CreateCheckoutRequest {
   plan: 'pro' | 'team' | 'sovereign';
-  billing_period?: 'monthly' | 'annual' | 'lifetime';
+  /** 'monthly' (default) or 'annual'; anything else is refused. Untrusted input. */
+  billing_period?: string;
   /** Optional. If present it must match the authenticated token identity. */
   email?: string;
   success_url: string;
@@ -197,22 +197,27 @@ export async function handleCreateCheckout(
       );
     }
 
-    // Validate plan and resolve price ID based on billing period
-    const billingPeriod = body.billing_period || 'monthly';
-
-    let priceId: string | undefined;
-    let isLifetime = false;
-    if (billingPeriod === 'lifetime') {
-      // Reverse-lookup lifetime price by plan name
-      priceId = Object.entries(STRIPE_LIFETIME_PRICE_TO_PLAN).find(
-        ([, info]) => info.plan === body.plan
-      )?.[0];
-      isLifetime = true;
-    } else if (billingPeriod === 'annual') {
-      priceId = PLAN_TO_STRIPE_ANNUAL_PRICE[body.plan];
-    } else {
-      priceId = PLAN_TO_STRIPE_PRICE[body.plan];
+    // Lifetime plans are no longer sold (2026-11). Existing lifetime licenses
+    // keep working via the webhook/license paths; only new checkouts stop.
+    if (body.billing_period === 'lifetime') {
+      throw Errors.invalidRequest(
+        'Lifetime plans are no longer sold. Choose monthly or annual billing.'
+      );
     }
+
+    // Validate plan and resolve price ID based on billing period. An unknown
+    // period is an explicit error, never a silent monthly fallback.
+    const billingPeriod = body.billing_period || 'monthly';
+    if (billingPeriod !== 'monthly' && billingPeriod !== 'annual') {
+      throw Errors.invalidRequest(
+        `Invalid billing_period "${String(billingPeriod)}"; use monthly or annual`
+      );
+    }
+
+    const priceId: string | undefined =
+      billingPeriod === 'annual'
+        ? PLAN_TO_STRIPE_ANNUAL_PRICE[body.plan]
+        : PLAN_TO_STRIPE_PRICE[body.plan];
 
     if (!priceId) {
       throw Errors.invalidRequest(
@@ -237,7 +242,6 @@ export async function handleCreateCheckout(
 
     // Existing buyer: reuse their Stripe customer, and refuse a second
     // concurrent subscription (plan changes go through the billing portal).
-    // Lifetime purchases by a subscriber stay allowed.
     const existing = await createDb(env.DB).get<{
       customer_id: string | null;
       has_live_subscription: number;
@@ -252,16 +256,13 @@ export async function handleCreateCheckout(
       FROM user u
       WHERE u.email = ${identity.email}
     `);
-    if (!isLifetime && existing?.has_live_subscription) {
+    if (existing?.has_live_subscription) {
       throw Errors.subscriptionExists();
     }
     const customerId = existing?.customer_id || undefined;
 
-    // Lifetime = one-time payment, subscription = recurring
-    // Stripe's API requires mode=payment for one-time line items and
-    // disallows subscription_data in that case.
     const checkoutBody: Record<string, string | number | boolean | undefined> = {
-      'mode': isLifetime ? 'payment' : 'subscription',
+      'mode': 'subscription',
       'payment_method_types[0]': 'card',
       // customer and customer_email are mutually exclusive in Stripe.
       'customer': customerId,
@@ -273,19 +274,9 @@ export async function handleCreateCheckout(
       'cancel_url': body.cancel_url,
       'metadata[plan]': body.plan,
       'metadata[billing_period]': billingPeriod,
+      'subscription_data[metadata][plan]': body.plan,
       'allow_promotion_codes': true,
     };
-
-    if (!isLifetime) {
-      checkoutBody['subscription_data[metadata][plan]'] = body.plan;
-    } else if (!customerId) {
-      // Payment mode defaults to customer_creation=if_required, which
-      // usually creates NO Customer — the resulting charge then has
-      // customer=null and refund handling can only resolve the license via
-      // payment_intent. Always create one so the buyer's user row gets a
-      // customer_id and customer-based flows (refunds, support lookups) work.
-      checkoutBody['customer_creation'] = 'always';
-    }
 
     const session = await stripeRequest(env, 'checkout/sessions', checkoutBody);
 
