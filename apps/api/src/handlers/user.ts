@@ -131,7 +131,7 @@ export async function handleGetOwnLicense(
     const licenseKey = getRequestLicenseKey(request);
 
     if (!licenseKey) {
-      throw Errors.invalidRequest('Missing X-License-Key header');
+      throw Errors.invalidRequest('Missing license key (X-License-Key header or license_key query parameter)');
     }
 
     validateLicenseKey(licenseKey);
@@ -232,7 +232,7 @@ export async function handleGetOwnMachines(
     const licenseKey = getRequestLicenseKey(request);
 
     if (!licenseKey) {
-      throw Errors.invalidRequest('Missing X-License-Key header');
+      throw Errors.invalidRequest('Missing license key (X-License-Key header or license_key query parameter)');
     }
 
     validateLicenseKey(licenseKey);
