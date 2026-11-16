@@ -14,6 +14,7 @@
 
 import type { Env } from '../types/env';
 import { OUTBOUND_FETCH_TIMEOUT_MS } from './constants';
+import { parseAllowedOrigins } from './security';
 
 export interface ClerkIdentity {
   /** Clerk user id (the `sub` claim). */
@@ -33,6 +34,7 @@ interface JwtPayload {
   sub?: string;
   exp?: number;
   nbf?: number;
+  azp?: string;
   email?: string;
 }
 
@@ -147,7 +149,11 @@ async function resolveEmailFromBackend(
 ): Promise<string | null> {
   let user: {
     primary_email_address_id?: string;
-    email_addresses?: Array<{ id: string; email_address: string }>;
+    email_addresses?: Array<{
+      id: string;
+      email_address: string;
+      verification?: { status?: string } | null;
+    }>;
   };
   try {
     const res = await fetch(
@@ -163,12 +169,13 @@ async function resolveEmailFromBackend(
     console.warn('[Clerk] user lookup failed:', error instanceof Error ? error.message : String(error));
     return null;
   }
-  const addresses = user.email_addresses ?? [];
-  const primary = addresses.find(
+  // Only the primary address, and only once verified: never fall back to
+  // another (possibly unverified) address on the account.
+  const primary = (user.email_addresses ?? []).find(
     (a) => a.id === user.primary_email_address_id
   );
-  const chosen = primary ?? addresses[0];
-  return chosen?.email_address ?? null;
+  if (!primary || primary.verification?.status !== 'verified') return null;
+  return primary.email_address ?? null;
 }
 
 /**
@@ -204,6 +211,19 @@ export async function verifyClerkSession(
   // Pin the issuer — never trust a token minted by another instance.
   if (!payload.iss || payload.iss !== env.CLERK_ISSUER) return null;
   if (!payload.sub) return null;
+
+  // Authorized party: when present it must be one of our web origins
+  // (CHECKOUT_ALLOWED_ORIGINS; fail-closed when that is unset).
+  if (payload.azp !== undefined) {
+    const allowed = parseAllowedOrigins(env.CHECKOUT_ALLOWED_ORIGINS);
+    let azpOrigin: string | null = null;
+    try {
+      azpOrigin = new URL(String(payload.azp)).origin;
+    } catch {
+      // Malformed azp never matches.
+    }
+    if (!allowed || !azpOrigin || !allowed.has(azpOrigin)) return null;
+  }
 
   const now = Math.floor(Date.now() / 1000);
   // exp is mandatory: a token missing (or with a non-numeric) exp must never

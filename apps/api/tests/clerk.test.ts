@@ -76,4 +76,87 @@ describe('verifyClerkSession', () => {
     });
     await expect(verifyClerkSession(await authed({}), env)).resolves.toBeNull();
   });
+
+  describe('authorized party (azp)', () => {
+    const azpEnv = {
+      ...env,
+      CHECKOUT_ALLOWED_ORIGINS: 'https://www.replimap.com,https://replimap.com',
+    } as Env;
+    const withAzp = async (azp: string) =>
+      new Request('https://api.test/x', {
+        headers: {
+          Authorization: `Bearer ${await clerk.mintToken({ userId: 'user_1', email: 'a@example.com', azp })}`,
+        },
+      });
+
+    it('accepts a token whose azp is an allowed web origin', async () => {
+      clerk.installFetchStub();
+      expect(await verifyClerkSession(await withAzp('https://www.replimap.com'), azpEnv)).not.toBeNull();
+    });
+
+    it.each([
+      ['a foreign origin', 'https://evil.example'],
+      ['a lookalike origin', 'https://www.replimap.com.evil.example'],
+      ['a malformed value', 'not a url'],
+    ])('rejects a token whose azp is %s', async (_name, azp) => {
+      clerk.installFetchStub();
+      expect(await verifyClerkSession(await withAzp(azp), azpEnv)).toBeNull();
+    });
+
+    it('rejects a token carrying azp when no origin allowlist is configured (fail closed)', async () => {
+      clerk.installFetchStub();
+      expect(await verifyClerkSession(await withAzp('https://www.replimap.com'), env)).toBeNull();
+    });
+
+    it('still accepts a token without azp', async () => {
+      clerk.installFetchStub();
+      expect(await verifyClerkSession(await authed(), azpEnv)).not.toBeNull();
+    });
+  });
+
+  describe('backend email resolution', () => {
+    function stubUser(user: Record<string, unknown>) {
+      const stub = clerk.installFetchStub();
+      const original = stub.getMockImplementation()!;
+      stub.mockImplementation(async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (String(url).startsWith('https://api.clerk.com/')) {
+          return new Response(JSON.stringify(user), { status: 200 });
+        }
+        return original(url, init);
+      });
+    }
+
+    it('uses the verified primary address', async () => {
+      stubUser({
+        primary_email_address_id: 'idn_p',
+        email_addresses: [
+          { id: 'idn_x', email_address: 'other@example.com', verification: { status: 'verified' } },
+          { id: 'idn_p', email_address: 'Primary@Example.com', verification: { status: 'verified' } },
+        ],
+      });
+      const identity = await verifyClerkSession(await authed({}), env);
+      expect(identity?.email).toBe('primary@example.com');
+    });
+
+    it('rejects an unverified primary address (no fallback to another address)', async () => {
+      stubUser({
+        primary_email_address_id: 'idn_p',
+        email_addresses: [
+          { id: 'idn_p', email_address: 'p@example.com', verification: { status: 'unverified' } },
+          { id: 'idn_x', email_address: 'x@example.com', verification: { status: 'verified' } },
+        ],
+      });
+      expect(await verifyClerkSession(await authed({}), env)).toBeNull();
+    });
+
+    it('rejects an account without a primary address instead of using addresses[0]', async () => {
+      stubUser({
+        primary_email_address_id: null,
+        email_addresses: [
+          { id: 'idn_x', email_address: 'x@example.com', verification: { status: 'verified' } },
+        ],
+      });
+      expect(await verifyClerkSession(await authed({}), env)).toBeNull();
+    });
+  });
 });

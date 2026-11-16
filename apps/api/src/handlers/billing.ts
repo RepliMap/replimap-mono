@@ -17,6 +17,7 @@ import {
 import { rateLimit } from '../lib/rate-limiter';
 import { createDb } from '../lib/db';
 import { isClerkConfigured, verifyClerkSession } from '../lib/clerk';
+import { parseAllowedOrigins } from '../lib/security';
 import { sql } from 'drizzle-orm';
 
 // ============================================================================
@@ -459,28 +460,6 @@ export async function handleCreateBillingPortal(
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
-}
-
-/**
- * Parse the comma-separated origin allowlist into a Set of exact origins.
- * Returns null (fail closed) when unset/empty or when any entry is '*'.
- */
-function parseAllowedOrigins(raw: string | undefined): Set<string> | null {
-  if (!raw) return null;
-  const entries = raw
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
-  if (entries.length === 0 || entries.includes('*')) return null;
-  const origins = new Set<string>();
-  for (const entry of entries) {
-    try {
-      origins.add(new URL(entry).origin);
-    } catch {
-      // Ignore malformed entries; they can never match.
-    }
-  }
-  return origins.size > 0 ? origins : null;
 }
 
 function isValidUrl(url: string): boolean {
