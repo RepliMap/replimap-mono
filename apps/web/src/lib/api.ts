@@ -84,7 +84,7 @@ async function request<T>(
 /**
  * Get license details for the authenticated user
  *
- * The API accepts the license key as a `?license_key=` query param
+ * The license key travels in the X-License-Key header, never the URL
  * (see handleGetOwnLicense).
  *
  * @param licenseKey - The user's license key
@@ -93,10 +93,10 @@ async function request<T>(
 export async function getLicenseDetails(
   licenseKey: string
 ): Promise<LicenseDetails> {
-  const qs = new URLSearchParams({ license_key: licenseKey }).toString();
-  return request<LicenseDetails>(`/v1/me/license?${qs}`, {
+  return request<LicenseDetails>('/v1/me/license', {
     method: 'GET',
     cache: 'no-store',
+    licenseKey,
   });
 }
 
@@ -111,10 +111,10 @@ export async function getLicenseDetails(
 export async function getMachines(
   licenseKey: string
 ): Promise<MachinesResponse> {
-  const qs = new URLSearchParams({ license_key: licenseKey }).toString();
-  return request<MachinesResponse>(`/v1/me/machines?${qs}`, {
+  return request<MachinesResponse>('/v1/me/machines', {
     method: 'GET',
     cache: 'no-store',
+    licenseKey,
   });
 }
 
