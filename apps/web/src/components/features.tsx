@@ -5,7 +5,7 @@ const features = [
     icon: FileCode,
     title: "Terraform Generation",
     description:
-      "Turn an existing AWS account into clean, full-account Terraform resource files on every plan — plus an import scaffold (imports.tf) on Pro, so brownfield adoption validates on day one.",
+      "Turn an existing AWS account into clean, full-account Terraform resource files on every plan — plus an import scaffold (imports.tf) for one VPC on the free plan and for the whole account on Pro, so brownfield adoption validates on day one.",
   },
   {
     icon: GitCompare,
@@ -47,7 +47,7 @@ export function Features() {
             Everything you need to take over a brownfield AWS account
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            From the first scan to import-ready Terraform and audit evidence — the takeover
+            From the first scan to Terraform with import blocks and audit evidence — the takeover
             workflow, end to end.
           </p>
         </div>

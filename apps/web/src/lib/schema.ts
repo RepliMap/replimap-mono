@@ -30,7 +30,7 @@ export function generateSiteSchema() {
         applicationSubCategory: 'Infrastructure as Code Tool',
         operatingSystem: 'Linux, macOS, Windows',
         description:
-          'AWS Infrastructure Intelligence Engine - scan brownfield AWS accounts, map dependencies, and generate import-ready Terraform. 100% local.',
+          'AWS Infrastructure Intelligence Engine - scan brownfield AWS accounts, map dependencies, and generate Terraform with import blocks (free for one VPC; the whole account on Pro). 100% local.',
         url: 'https://www.replimap.com',
         downloadUrl: 'https://www.replimap.com/docs/installation',
         releaseNotes: 'https://www.replimap.com/docs/changelog',

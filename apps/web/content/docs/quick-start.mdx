@@ -47,6 +47,9 @@ Get started with RepliMap in under 2 minutes.
 
     # Generate Terraform files
     replimap codify --profile prod --output-dir ./terraform
+
+    # Free plan: imports.tf for one VPC
+    replimap codify --profile prod --vpc vpc-0abc123 --output-dir ./terraform
     ```
   </Step>
 
@@ -62,8 +65,8 @@ Get started with RepliMap in under 2 minutes.
     ├── rds.tf / elasticache.tf
     ├── s3.tf / storage.tf / messaging.tf
     ├── providers.tf / versions.tf
-    └── imports.tf        # import scaffold (Pro) — one block per resource,
-                          # with the correct import ID format per type
+    └── imports.tf        # import scaffold — one VPC free (--vpc), whole account on Pro;
+                          # one block per resource, correct import ID format per type
     ```
 
     Run `terraform init && terraform validate` to check the output against
@@ -128,7 +131,8 @@ cd ./terraform
 terraform init
 terraform validate
 
-# With the Pro import scaffold: import, then aim for "0 to change"
+# With the import scaffold (one VPC free, whole account on Pro):
+# import, then aim for "0 to change"
 terraform plan
 ```
 

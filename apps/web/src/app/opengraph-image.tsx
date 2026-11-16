@@ -46,7 +46,7 @@ export default async function Image() {
         <div
           style={{ fontSize: '24px', color: '#94a3b8', textAlign: 'center', maxWidth: '800px' }}
         >
-          Map every dependency • Import-ready Terraform • Read-only, runs locally
+          Map every dependency • Terraform with import blocks • Read-only, runs locally
         </div>
         <div
           style={{

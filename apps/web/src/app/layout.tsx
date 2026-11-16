@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     template: "%s | RepliMap",
   },
   description:
-    "Walk into any brownfield AWS account. Map every dependency and turn ClickOps into import-ready Terraform. Read-only, and your infrastructure data stays on your machine.",
+    "Walk into any brownfield AWS account. Map every dependency and turn ClickOps into Terraform with import blocks (free for one VPC; the whole account on Pro). Read-only, and your infrastructure data stays on your machine.",
   keywords: [
     "AWS",
     "Terraform",
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
 
   openGraph: {
     title: "RepliMap - AWS Infrastructure Intelligence",
-    description: "Map every dependency in a brownfield AWS account and turn ClickOps into import-ready Terraform. Read-only, runs locally.",
+    description: "Map every dependency in a brownfield AWS account and turn ClickOps into Terraform with import blocks, free for one VPC. Read-only, runs locally.",
     url: "https://www.replimap.com",
     siteName: "RepliMap",
     images: [
@@ -82,7 +82,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "RepliMap - AWS Infrastructure Intelligence",
-    description: "Map every dependency in a brownfield AWS account and turn ClickOps into import-ready Terraform. Read-only, runs locally.",
+    description: "Map every dependency in a brownfield AWS account and turn ClickOps into Terraform with import blocks, free for one VPC. Read-only, runs locally.",
     images: ["/og-image.png"],
   },
 

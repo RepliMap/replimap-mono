@@ -7,8 +7,8 @@
  * - Charge when users export/download
  *
  * Tier Structure (single source of truth: CLI repo technical-reference.md matrix):
- * - COMMUNITY ($0): full scan/graph/resource .tf files, coverage summary
- * - PRO ($29): imports.tf scaffold, audit report export, full coverage list
+ * - COMMUNITY ($0): full scan/graph/resource .tf files, coverage summary, imports.tf for one VPC
+ * - PRO ($29): whole-account imports.tf scaffold, audit report export, full coverage list
  * - TEAM ($99): CI --fail-on-high/--fail-on-score, Trust Center report, 10 devices
  * - SOVEREIGN ($2,500): air-gapped activation by signed license file, APRA/RBNZ/NZISM
  *   compliance packs
@@ -75,7 +75,8 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "IaC coverage summary (unmanaged counts)", included: true },
       { text: "Audit score + terminal summary", included: true },
       { text: "Requires internet connection", included: true, badge: "Online only" },
-      { text: "imports.tf import scaffold", included: false },
+      { text: "imports.tf for one VPC (codify --vpc)", included: true },
+      { text: "imports.tf for the whole account", included: false },
       { text: "Audit HTML report / SOC 2 evidence export", included: false },
       { text: "Full unmanaged-resource list + coverage.json", included: false },
     ],
