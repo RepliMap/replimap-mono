@@ -139,6 +139,8 @@ simple = { limit = 1, period = 60 }
 
 [env.prod]
 name = "replimap-api-prod"
+# Prod is served only on the api.replimap.com custom domain; no *.workers.dev URL.
+workers_dev = false
 
 [env.prod.vars]
 ENVIRONMENT = "production"

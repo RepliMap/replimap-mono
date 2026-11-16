@@ -17,6 +17,7 @@ import {
 import { rateLimit } from '../lib/rate-limiter';
 import { createDb } from '../lib/db';
 import { isClerkConfigured, verifyClerkSession } from '../lib/clerk';
+import { parseAllowedOrigins } from '../lib/security';
 import { sql } from 'drizzle-orm';
 
 // ============================================================================
@@ -86,10 +87,14 @@ async function stripeRequest(
   const data = await response.json() as Record<string, unknown>;
 
   if (!response.ok) {
+    // Log Stripe's detail; never pass it to the client.
     const error = data.error as Record<string, string> | undefined;
+    console.error(
+      `[Stripe] ${endpoint} failed (status ${response.status}): ${error?.message ?? 'no message'}`
+    );
     throw new AppError(
       'INTERNAL_ERROR',
-      error?.message || 'Stripe API error',
+      'The payment provider rejected the request. Please retry or contact support@replimap.com.',
       response.status >= 500 ? 502 : 400
     );
   }
@@ -230,13 +235,37 @@ export async function handleCreateCheckout(
       );
     }
 
+    // Existing buyer: reuse their Stripe customer, and refuse a second
+    // concurrent subscription (plan changes go through the billing portal).
+    // Lifetime purchases by a subscriber stay allowed.
+    const existing = await createDb(env.DB).get<{
+      customer_id: string | null;
+      has_live_subscription: number;
+    }>(sql`
+      SELECT u.customer_id,
+        EXISTS (
+          SELECT 1 FROM licenses l
+          WHERE l.user_id = u.id
+            AND l.stripe_subscription_id IS NOT NULL
+            AND l.status IN ('active', 'past_due')
+        ) AS has_live_subscription
+      FROM user u
+      WHERE u.email = ${identity.email}
+    `);
+    if (!isLifetime && existing?.has_live_subscription) {
+      throw Errors.subscriptionExists();
+    }
+    const customerId = existing?.customer_id || undefined;
+
     // Lifetime = one-time payment, subscription = recurring
     // Stripe's API requires mode=payment for one-time line items and
     // disallows subscription_data in that case.
     const checkoutBody: Record<string, string | number | boolean | undefined> = {
       'mode': isLifetime ? 'payment' : 'subscription',
       'payment_method_types[0]': 'card',
-      'customer_email': identity.email,
+      // customer and customer_email are mutually exclusive in Stripe.
+      'customer': customerId,
+      'customer_email': customerId ? undefined : identity.email,
       'client_reference_id': identity.userId,
       'line_items[0][price]': priceId,
       'line_items[0][quantity]': 1,
@@ -249,7 +278,7 @@ export async function handleCreateCheckout(
 
     if (!isLifetime) {
       checkoutBody['subscription_data[metadata][plan]'] = body.plan;
-    } else {
+    } else if (!customerId) {
       // Payment mode defaults to customer_creation=if_required, which
       // usually creates NO Customer — the resulting charge then has
       // customer=null and refund handling can only resolve the license via
@@ -292,6 +321,11 @@ export async function handleCreateCheckout(
  *
  * Creates a portal session for subscription management.
  * Returns a URL to redirect the user to Stripe's hosted customer portal.
+ *
+ * AUTH: a license key alone is not enough. Requires a valid Clerk session
+ * token whose email equals the license owner's email (403 otherwise), the
+ * same binding GET /v1/checkout/session/{id}/license uses. return_url must be
+ * on an exact origin in CHECKOUT_ALLOWED_ORIGINS (fail-closed).
  */
 export async function handleCreateBillingPortal(
   request: Request,
@@ -301,6 +335,22 @@ export async function handleCreateBillingPortal(
   const rateLimitHeaders = await rateLimit(env, 'activate', clientIP);
 
   try {
+    // Auth first: fail closed when Clerk is not configured, then require a
+    // valid session token.
+    if (!isClerkConfigured(env)) {
+      throw new AppError(
+        'SERVER_CONFIG_ERROR',
+        'Authentication is not configured for this endpoint',
+        503
+      );
+    }
+    const identity = await verifyClerkSession(request, env);
+    if (!identity) {
+      throw Errors.unauthorized(
+        'A valid Clerk session token is required (Authorization: Bearer <token>)'
+      );
+    }
+
     // Validate Stripe is configured
     if (!env.STRIPE_SECRET_KEY) {
       throw new AppError(
@@ -334,6 +384,10 @@ export async function handleCreateBillingPortal(
     if (!isValidUrl(body.return_url)) {
       throw Errors.invalidRequest('Invalid URL format');
     }
+    const allowedOrigins = parseAllowedOrigins(env.CHECKOUT_ALLOWED_ORIGINS);
+    if (!allowedOrigins || !allowedOrigins.has(new URL(body.return_url).origin)) {
+      throw Errors.invalidRequest('return_url must be on an allowed origin');
+    }
 
     // Create Drizzle client
     const db = createDb(env.DB);
@@ -343,8 +397,9 @@ export async function handleCreateBillingPortal(
     const result = await db.get<{
       stripe_subscription_id: string | null;
       customer_id: string | null;
+      email: string | null;
     }>(sql`
-      SELECT l.stripe_subscription_id, u.customer_id
+      SELECT l.stripe_subscription_id, u.customer_id, u.email
       FROM licenses l
       JOIN user u ON l.user_id = u.id
       WHERE l.license_key = ${licenseKey}
@@ -352,6 +407,15 @@ export async function handleCreateBillingPortal(
 
     if (!result) {
       throw Errors.licenseNotFound();
+    }
+
+    // Ownership: the token email must be the license owner's email.
+    if (!result.email || result.email.toLowerCase() !== identity.email) {
+      throw new AppError(
+        'FORBIDDEN',
+        'This license does not belong to the authenticated account',
+        403
+      );
     }
 
     if (!result.customer_id) {
@@ -400,28 +464,6 @@ export async function handleCreateBillingPortal(
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
-}
-
-/**
- * Parse the comma-separated origin allowlist into a Set of exact origins.
- * Returns null (fail closed) when unset/empty or when any entry is '*'.
- */
-function parseAllowedOrigins(raw: string | undefined): Set<string> | null {
-  if (!raw) return null;
-  const entries = raw
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
-  if (entries.length === 0 || entries.includes('*')) return null;
-  const origins = new Set<string>();
-  for (const entry of entries) {
-    try {
-      origins.add(new URL(entry).origin);
-    } catch {
-      // Ignore malformed entries; they can never match.
-    }
-  }
-  return origins.size > 0 ? origins : null;
 }
 
 function isValidUrl(url: string): boolean {

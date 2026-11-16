@@ -153,6 +153,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
+  | 'SUBSCRIPTION_EXISTS'
   | 'SERVER_CONFIG_ERROR'
   | 'INTERNAL_ERROR';
 
@@ -177,7 +178,6 @@ export interface HealthResponse {
   status: 'ok' | 'error';
   timestamp: string;
   version?: string;
-  pricing_data_date?: string;  // Date when AWS pricing data was last updated
 }
 
 // ============================================================================

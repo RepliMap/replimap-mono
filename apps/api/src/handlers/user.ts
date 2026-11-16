@@ -105,8 +105,19 @@ interface ResendKeyResponse {
 // ============================================================================
 
 /**
+ * License key from the X-License-Key header (preferred: keeps it out of URLs
+ * and access logs), falling back to the legacy ?license_key= query parameter.
+ */
+function getRequestLicenseKey(request: Request): string | null {
+  return (
+    request.headers.get('X-License-Key') ||
+    new URL(request.url).searchParams.get('license_key')
+  );
+}
+
+/**
  * Get own license details
- * GET /v1/me/license?license_key=RM-XXXX-XXXX-XXXX-XXXX
+ * GET /v1/me/license (key in X-License-Key; ?license_key= still accepted)
  */
 export async function handleGetOwnLicense(
   request: Request,
@@ -117,11 +128,10 @@ export async function handleGetOwnLicense(
   const db = createDb(env.DB);
 
   try {
-    const url = new URL(request.url);
-    const licenseKey = url.searchParams.get('license_key');
+    const licenseKey = getRequestLicenseKey(request);
 
     if (!licenseKey) {
-      throw Errors.invalidRequest('Missing license_key query parameter');
+      throw Errors.invalidRequest('Missing license key (X-License-Key header or license_key query parameter)');
     }
 
     validateLicenseKey(licenseKey);
@@ -208,7 +218,7 @@ export async function handleGetOwnLicense(
 
 /**
  * Get machines for own license
- * GET /v1/me/machines?license_key=RM-XXXX-XXXX-XXXX-XXXX
+ * GET /v1/me/machines (key in X-License-Key; ?license_key= still accepted)
  */
 export async function handleGetOwnMachines(
   request: Request,
@@ -219,11 +229,10 @@ export async function handleGetOwnMachines(
   const db = createDb(env.DB);
 
   try {
-    const url = new URL(request.url);
-    const licenseKey = url.searchParams.get('license_key');
+    const licenseKey = getRequestLicenseKey(request);
 
     if (!licenseKey) {
-      throw Errors.invalidRequest('Missing license_key query parameter');
+      throw Errors.invalidRequest('Missing license key (X-License-Key header or license_key query parameter)');
     }
 
     validateLicenseKey(licenseKey);

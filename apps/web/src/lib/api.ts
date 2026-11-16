@@ -84,7 +84,7 @@ async function request<T>(
 /**
  * Get license details for the authenticated user
  *
- * The API accepts the license key as a `?license_key=` query param
+ * The license key travels in the X-License-Key header, never the URL
  * (see handleGetOwnLicense).
  *
  * @param licenseKey - The user's license key
@@ -93,10 +93,10 @@ async function request<T>(
 export async function getLicenseDetails(
   licenseKey: string
 ): Promise<LicenseDetails> {
-  const qs = new URLSearchParams({ license_key: licenseKey }).toString();
-  return request<LicenseDetails>(`/v1/me/license?${qs}`, {
+  return request<LicenseDetails>('/v1/me/license', {
     method: 'GET',
     cache: 'no-store',
+    licenseKey,
   });
 }
 
@@ -111,10 +111,10 @@ export async function getLicenseDetails(
 export async function getMachines(
   licenseKey: string
 ): Promise<MachinesResponse> {
-  const qs = new URLSearchParams({ license_key: licenseKey }).toString();
-  return request<MachinesResponse>(`/v1/me/machines?${qs}`, {
+  return request<MachinesResponse>('/v1/me/machines', {
     method: 'GET',
     cache: 'no-store',
+    licenseKey,
   });
 }
 
@@ -221,16 +221,21 @@ interface CreatePortalResponse {
  * Create a Stripe Customer Portal session for subscription management
  *
  * @param licenseKey - The user's license key
- * @param returnUrl - URL to redirect back to after portal
+ * @param returnUrl - URL to redirect back to after portal (must be on an
+ *   allowed web origin)
+ * @param authToken - The caller's Clerk session token; the API only opens the
+ *   portal when the token email matches the license owner
  * @returns Portal URL to redirect the user to Stripe
  */
 export async function createBillingPortalSession(
   licenseKey: string,
-  returnUrl: string
+  returnUrl: string,
+  authToken: string | null
 ): Promise<CreatePortalResponse> {
   return request<CreatePortalResponse>('/v1/billing/portal', {
     method: 'POST',
     body: JSON.stringify({ license_key: licenseKey, return_url: returnUrl }),
+    authToken: authToken ?? undefined,
   });
 }
 

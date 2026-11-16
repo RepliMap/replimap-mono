@@ -39,6 +39,8 @@ export interface ClerkHarness {
     notBeforeSeconds?: number;
     /** Omit the exp claim entirely (to test the missing-exp rejection path). */
     omitExp?: boolean;
+    /** Authorized party (azp) claim. */
+    azp?: string;
   }) => Promise<string>;
   /** Install the fetch stub (JWKS + Clerk backend users). Returns the spy. */
   installFetchStub: (opts?: {
@@ -77,6 +79,7 @@ export async function createClerkHarness(): Promise<ClerkHarness> {
     expiresInSeconds?: number;
     notBeforeSeconds?: number;
     omitExp?: boolean;
+    azp?: string;
   }): Promise<string> {
     const now = Math.floor(Date.now() / 1000);
     const header = { alg: 'RS256', typ: 'JWT', kid: TEST_KID };
@@ -90,6 +93,7 @@ export async function createClerkHarness(): Promise<ClerkHarness> {
       payload.exp = now + (opts.expiresInSeconds ?? 3600);
     }
     if (opts.email !== undefined) payload.email = opts.email;
+    if (opts.azp !== undefined) payload.azp = opts.azp;
 
     const signingInput = `${jsonToB64Url(header)}.${jsonToB64Url(payload)}`;
     const signature = await crypto.subtle.sign(
@@ -132,8 +136,12 @@ export async function createClerkHarness(): Promise<ClerkHarness> {
             id: userId,
             primary_email_address_id: 'idn_primary',
             email_addresses: [
-              { id: 'idn_primary', email_address: email },
-              { id: 'idn_other', email_address: `other+${userId}@example.com` },
+              { id: 'idn_primary', email_address: email, verification: { status: 'verified' } },
+              {
+                id: 'idn_other',
+                email_address: `other+${userId}@example.com`,
+                verification: { status: 'unverified' },
+              },
             ],
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }

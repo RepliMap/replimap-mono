@@ -177,6 +177,18 @@ export const Errors = {
     );
   },
 
+  subscriptionExists(): AppError {
+    return new AppError(
+      'SUBSCRIPTION_EXISTS',
+      'You already have an active subscription. Change your plan in the billing portal instead of starting a second subscription.',
+      409,
+      {
+        action: 'Open the billing portal to change or manage your plan',
+        guidance: 'A second subscription would bill you twice. Plan changes are made on your existing subscription in the billing portal.',
+      }
+    );
+  },
+
   rateLimitExceeded(retryAfter: number): AppError {
     return new AppError(
       'RATE_LIMIT_EXCEEDED',

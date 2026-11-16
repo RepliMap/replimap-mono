@@ -394,12 +394,21 @@ export interface FingerprintMetadata {
   container_type?: string;
 }
 
+/** Outcome of an atomic machine registration. */
+export type RegisterMachineResult = 'registered' | 'already_registered' | 'limit_reached';
+
 /**
  * Register a new machine for a license with fingerprint metadata.
+ *
+ * Atomic: the device-limit check and the insert are one statement, so
+ * parallel validations cannot overshoot the limit. A UNIQUE(license_id,
+ * machine_id) conflict (the same machine registered concurrently) is reported
+ * as 'already_registered', not thrown.
  *
  * @param db - Drizzle database client
  * @param licenseId - License ID to bind machine to
  * @param machineId - Machine fingerprint (32 char hex)
+ * @param machineLimit - Max active machines for the plan; -1 = unlimited
  * @param machineName - Optional friendly name for the machine
  * @param fingerprintType - Type of fingerprint: machine, ci, or container
  * @param metadata - Additional metadata for CI/container environments
@@ -408,27 +417,46 @@ export async function registerMachine(
   db: DrizzleDb,
   licenseId: string,
   machineId: string,
+  machineLimit: number,
   machineName?: string,
   fingerprintType: FingerprintType = 'machine',
   metadata?: FingerprintMetadata
-): Promise<void> {
+): Promise<RegisterMachineResult> {
   const id = generateId();
   const now = nowISO();
   const normalizedMachineId = normalizeMachineId(machineId);
 
   // Use raw SQL to support new columns that may not be in Drizzle schema yet
-  await db.run(sql`
-    INSERT INTO license_machines (
-      id, license_id, machine_id, machine_name,
-      fingerprint_type, ci_provider, ci_repo, container_type,
-      is_active, first_seen_at, last_seen_at
-    ) VALUES (
-      ${id}, ${licenseId}, ${normalizedMachineId}, ${machineName ?? null},
-      ${fingerprintType}, ${metadata?.ci_provider ?? null},
-      ${metadata?.ci_repo ?? null}, ${metadata?.container_type ?? null},
-      1, ${now}, ${now}
-    )
-  `);
+  try {
+    const result = await db.run(sql`
+      INSERT INTO license_machines (
+        id, license_id, machine_id, machine_name,
+        fingerprint_type, ci_provider, ci_repo, container_type,
+        is_active, first_seen_at, last_seen_at
+      )
+      SELECT
+        ${id}, ${licenseId}, ${normalizedMachineId}, ${machineName ?? null},
+        ${fingerprintType}, ${metadata?.ci_provider ?? null},
+        ${metadata?.ci_repo ?? null}, ${metadata?.container_type ?? null},
+        1, ${now}, ${now}
+      WHERE ${machineLimit} = -1 OR (
+        SELECT COUNT(*) FROM license_machines
+        WHERE license_id = ${licenseId} AND is_active = 1
+      ) < ${machineLimit}
+    `);
+    return (result.meta?.changes ?? 0) > 0 ? 'registered' : 'limit_reached';
+  } catch (error) {
+    if (isUniqueConstraintError(error)) return 'already_registered';
+    throw error;
+  }
+}
+
+/** True when the error (or a wrapped cause, as Drizzle wraps D1 errors) is a UNIQUE violation. */
+function isUniqueConstraintError(error: unknown): boolean {
+  for (let e: unknown = error; e instanceof Error; e = e.cause) {
+    if (e.message.includes('UNIQUE constraint failed')) return true;
+  }
+  return false;
 }
 
 /**
@@ -528,8 +556,10 @@ export async function findOrCreateUser(
   });
 
   if (existingUser) {
-    // Update Stripe customer ID if provided and different
-    if (stripeCustomerId && existingUser.customerId !== stripeCustomerId) {
+    // Store the Stripe customer ID only if none is stored yet: the first one
+    // is kept. Callers compare the returned customerId with the one they
+    // presented to detect (and alert on) a mismatch.
+    if (stripeCustomerId && !existingUser.customerId) {
       await db
         .update(schema.user)
         .set({ customerId: stripeCustomerId, updatedAt: new Date() })
@@ -562,7 +592,7 @@ export async function findOrCreateUser(
       where: eq(schema.user.email, normalizedEmail),
     });
     if (!concurrent) throw error;
-    if (stripeCustomerId && concurrent.customerId !== stripeCustomerId) {
+    if (stripeCustomerId && !concurrent.customerId) {
       await db
         .update(schema.user)
         .set({ customerId: stripeCustomerId, updatedAt: new Date() })

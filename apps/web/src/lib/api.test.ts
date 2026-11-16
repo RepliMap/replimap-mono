@@ -13,8 +13,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   ApiError,
   classifyCheckoutLookupError,
+  createBillingPortalSession,
   createCheckoutSession,
   getCheckoutLicense,
+  getLicenseDetails,
+  getMachines,
   getOrProvisionLicenseKey,
 } from './api';
 
@@ -192,5 +195,56 @@ describe('classifyCheckoutLookupError', () => {
 
   it('other 4xx are fatal', () => {
     expect(classifyCheckoutLookupError(new ApiError('E', 'x', 400))).toBe('fatal');
+  });
+});
+
+describe('license key transport (/v1/me/*)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ['getLicenseDetails', getLicenseDetails, '/v1/me/license'],
+    ['getMachines', getMachines, '/v1/me/machines'],
+  ] as const)(
+    '%s sends the key in X-License-Key, never in the URL',
+    async (_name, fn, path) => {
+      const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }));
+      vi.stubGlobal('fetch', fetchSpy);
+
+      await fn('RM-AAAA-BBBB-CCCC-DDDD');
+
+      const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url.endsWith(path)).toBe(true);
+      expect(url).not.toContain('RM-AAAA');
+      expect((init.headers as Record<string, string>)['X-License-Key']).toBe(
+        'RM-AAAA-BBBB-CCCC-DDDD'
+      );
+    }
+  );
+});
+
+describe('createBillingPortalSession', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('forwards the Clerk token as a bearer header', async () => {
+    const fetchSpy = vi.fn(
+      async () => new Response(JSON.stringify({ portal_url: 'https://billing.stripe.com/x' }))
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await createBillingPortalSession(
+      'RM-AAAA-BBBB-CCCC-DDDD',
+      'https://www.replimap.com/dashboard',
+      'clerk_session_token_xyz'
+    );
+
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url.endsWith('/v1/billing/portal')).toBe(true);
+    expect((init.headers as Record<string, string>)['Authorization']).toBe(
+      'Bearer clerk_session_token_xyz'
+    );
   });
 });
