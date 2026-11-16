@@ -10,7 +10,8 @@
  *
  * Flow for Lifetime Deals:
  *   checkout.session.completed (mode=payment) → Creates user + license immediately
- *   charge.refunded → Revokes lifetime license
+ *   charge.refunded → Revokes lifetime license (full refunds only)
+ *   charge.dispute.created → Revokes the disputed license + ops alert
  */
 
 import type { Env } from '../types/env';
@@ -47,7 +48,8 @@ type StripeEventType =
   | 'customer.deleted'
   | 'invoice.paid'
   | 'invoice.payment_failed'
-  | 'charge.refunded';
+  | 'charge.refunded'
+  | 'charge.dispute.created';
 
 interface StripeEvent {
   id: string;
@@ -897,6 +899,129 @@ async function alertSubscriptionRefund(
 }
 
 /**
+ * Look up the Checkout Session that created a payment_intent. Returns
+ * undefined when there is none or the lookup fails (logged), so callers
+ * fall back to customer resolution.
+ */
+async function findSessionIdByPaymentIntent(
+  env: Env,
+  paymentIntent: string
+): Promise<string | undefined> {
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/checkout/sessions?payment_intent=${encodeURIComponent(
+        paymentIntent
+      )}&limit=1`,
+      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+    );
+    if (!res.ok) {
+      console.warn(
+        `[Stripe] Session lookup for payment_intent ${paymentIntent} ` +
+        `failed (status ${res.status}). Falling back to customer resolution.`
+      );
+      return undefined;
+    }
+    const body = (await res.json()) as { data?: Array<{ id?: string }> };
+    return body.data?.[0]?.id;
+  } catch (error) {
+    console.warn(
+      `[Stripe] Session lookup for payment_intent ${paymentIntent} ` +
+      `threw: ${error instanceof Error ? error.message : String(error)}. ` +
+      `Falling back to customer resolution.`
+    );
+    return undefined;
+  }
+}
+
+interface StripeDispute {
+  id: string;
+  charge: string;
+  payment_intent?: string | null;
+  amount?: number;
+  currency?: string;
+  reason?: string;
+}
+
+/**
+ * Handle charge.dispute.created (chargeback): revoke the license the
+ * disputed charge paid for — lifetime or subscription — and alert ops.
+ *
+ * Resolution mirrors charge.refunded: payment_intent → checkout session →
+ * license; otherwise the charge's customer → most recent lifetime license,
+ * else most recent subscription license. The dispute object carries no
+ * customer, so the charge is fetched from Stripe for it. An unresolvable
+ * dispute is alerted and acknowledged (a retry would not add information).
+ */
+async function handleDisputeCreated(
+  db: DrizzleDb,
+  dispute: StripeDispute,
+  env: Env
+): Promise<void> {
+  let customer: string | null = null;
+  let paymentIntent = dispute.payment_intent ?? null;
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/charges/${encodeURIComponent(dispute.charge)}`,
+      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+    );
+    if (res.ok) {
+      const charge = (await res.json()) as { customer?: string | null; payment_intent?: string | null };
+      customer = charge.customer ?? null;
+      paymentIntent = paymentIntent ?? charge.payment_intent ?? null;
+    } else {
+      console.warn(`[Stripe] Charge lookup for dispute ${dispute.id} failed (status ${res.status})`);
+    }
+  } catch (error) {
+    console.warn(
+      `[Stripe] Charge lookup for dispute ${dispute.id} threw: ` +
+      `${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  let license: License | null | undefined;
+  if (paymentIntent) {
+    const sessionId = await findSessionIdByPaymentIntent(env, paymentIntent);
+    if (sessionId) license = await getLicenseBySessionId(db, sessionId);
+  }
+  if (!license && customer) {
+    const user = await getUserByStripeCustomerId(db, customer);
+    if (user) {
+      license =
+        (await getLifetimeLicenseByUserId(db, user.id)) ??
+        (await db.query.licenses.findFirst({
+          where: and(eq(licenses.userId, user.id), isNotNull(licenses.stripeSubscriptionId)),
+          orderBy: desc(licenses.createdAt),
+        }));
+    }
+  }
+
+  const disputeInfo =
+    `dispute=${dispute.id}, charge=${dispute.charge}, customer=${customer ?? 'unknown'}, ` +
+    `amount=${dispute.amount ?? 'unknown'} ${dispute.currency ?? ''} (minor units), ` +
+    `reason=${dispute.reason ?? 'unknown'}`;
+
+  if (!license) {
+    const detail = `Chargeback opened but NO license could be resolved — nothing revoked. ${disputeInfo}. Manual review required.`;
+    console.error(`[Stripe][DISPUTE] ${detail}`);
+    await sendOpsAlert(env, 'Stripe DISPUTE', detail);
+    return;
+  }
+
+  const previousStatus = license.status;
+  if (previousStatus !== 'revoked') {
+    await revokeLicense(db, license.id, `Disputed: ${dispute.id} (charge_${dispute.charge})`);
+  }
+  const detail =
+    `Chargeback opened; license revoked. ${disputeInfo}, license=${license.id}, ` +
+    `plan=${license.plan}, plan_type=${license.planType}, previous_status=${previousStatus}, ` +
+    `subscription=${license.stripeSubscriptionId ?? 'none'}` +
+    (license.stripeSubscriptionId ? ' (subscription is NOT canceled in Stripe — cancel it manually).' : '.') +
+    ` Respond to the dispute in the Stripe dashboard.`;
+  console.warn(`[Stripe][DISPUTE] ${detail}`);
+  await sendOpsAlert(env, 'Stripe DISPUTE', detail);
+}
+
+/**
  * Resolve the exact license a refunded charge paid for:
  * charge.payment_intent → checkout session → licenses.stripe_session_id.
  *
@@ -910,32 +1035,7 @@ async function revokeLicenseByPaymentIntent(
   charge: StripeCharge,
   env: Env
 ): Promise<boolean> {
-  let sessionId: string | undefined;
-  try {
-    const res = await fetch(
-      `https://api.stripe.com/v1/checkout/sessions?payment_intent=${encodeURIComponent(
-        charge.payment_intent ?? ''
-      )}&limit=1`,
-      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
-    );
-    if (!res.ok) {
-      console.warn(
-        `[Stripe] Session lookup for payment_intent ${charge.payment_intent} ` +
-        `failed (status ${res.status}). Falling back to customer resolution.`
-      );
-      return false;
-    }
-    const body = (await res.json()) as { data?: Array<{ id?: string }> };
-    sessionId = body.data?.[0]?.id;
-  } catch (error) {
-    console.warn(
-      `[Stripe] Session lookup for payment_intent ${charge.payment_intent} ` +
-      `threw: ${error instanceof Error ? error.message : String(error)}. ` +
-      `Falling back to customer resolution.`
-    );
-    return false;
-  }
-
+  const sessionId = await findSessionIdByPaymentIntent(env, charge.payment_intent ?? '');
   if (!sessionId) {
     return false; // Charge wasn't made through Checkout (or session expired).
   }
@@ -1115,6 +1215,14 @@ export async function handleStripeWebhook(
         await handleChargeRefunded(
           db,
           event.data.object as unknown as StripeCharge,
+          env
+        );
+        break;
+
+      case 'charge.dispute.created':
+        await handleDisputeCreated(
+          db,
+          event.data.object as unknown as StripeDispute,
           env
         );
         break;

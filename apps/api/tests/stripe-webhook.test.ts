@@ -1353,6 +1353,134 @@ describe('charge.refunded', () => {
 });
 
 // ============================================================================
+// charge.dispute.created (chargebacks)
+// ============================================================================
+
+describe('charge.dispute.created', () => {
+  const ALERT_URL = 'https://hooks.example.test/ops';
+  const alertingEnv = () => ({ ...env, OPS_ALERT_WEBHOOK: ALERT_URL }) as typeof env;
+  const disputeEvent = (overrides: Record<string, unknown> = {}, id = eventId()) => ({
+    id,
+    type: 'charge.dispute.created',
+    data: {
+      object: {
+        id: 'dp_test_Dispute01',
+        object: 'dispute',
+        charge: 'ch_test_Disputed01',
+        payment_intent: 'pi_test_PI01',
+        amount: 19900,
+        currency: 'usd',
+        reason: 'fraudulent',
+        status: 'needs_response',
+        ...overrides,
+      },
+    },
+  });
+
+  /** Stub Stripe (charge + session lookups) and capture ops alerts. */
+  function stubStripe(opts: { sessionId?: string; customer?: string | null; chargeStatus?: number }) {
+    const alerts: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (u === ALERT_URL) {
+          alerts.push(String(init?.body ?? ''));
+          return new Response('ok', { status: 200 });
+        }
+        if (u.startsWith('https://api.stripe.com/v1/charges/')) {
+          return new Response(
+            JSON.stringify({ id: 'ch_test_Disputed01', customer: opts.customer ?? null }),
+            { status: opts.chargeStatus ?? 200 }
+          );
+        }
+        if (u.startsWith('https://api.stripe.com/v1/checkout/sessions')) {
+          return new Response(
+            JSON.stringify({ data: opts.sessionId ? [{ id: opts.sessionId }] : [] }),
+            { status: 200 }
+          );
+        }
+        throw new Error(`unexpected fetch ${u}`);
+      })
+    );
+    return alerts;
+  }
+
+  it('revokes the lifetime license resolved via payment_intent and alerts ops', async () => {
+    await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        metadata: { plan: 'pro', billing_period: 'lifetime' },
+      })
+    );
+    const alerts = stubStripe({ sessionId: 'cs_test_Session01' });
+
+    const res = await handleStripeWebhook(await signedWebhookRequest(disputeEvent()), alertingEnv());
+
+    expect(res.status).toBe(200);
+    const [license] = await licenseRows();
+    expect(license.status).toBe('revoked');
+    expect(license.revoked_reason).toContain('dp_test_Dispute01');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain('DISPUTE');
+    expect(alerts[0]).toContain('dp_test_Dispute01');
+    expect(alerts[0]).not.toContain(license.license_key);
+  });
+
+  it('revokes a subscription license resolved via the charge customer', async () => {
+    await seedSubscriptionLicense();
+    const alerts = stubStripe({ customer: CUSTOMER });
+
+    const res = await handleStripeWebhook(
+      await signedWebhookRequest(disputeEvent({ payment_intent: null })),
+      alertingEnv()
+    );
+
+    expect(res.status).toBe(200);
+    expect((await licenseRows())[0].status).toBe('revoked');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain(SUBSCRIPTION);
+  });
+
+  it('unresolvable dispute: alerts, acks 200, marks processed, changes nothing', async () => {
+    await seedSubscriptionLicense();
+    const alerts = stubStripe({ chargeStatus: 404 });
+
+    const event = disputeEvent();
+    const res = await handleStripeWebhook(await signedWebhookRequest(event), alertingEnv());
+
+    expect(res.status).toBe(200);
+    expect((await licenseRows())[0].status).toBe('active');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain('NO license');
+    expect(
+      await rows(`SELECT * FROM processed_events WHERE event_id = '${event.id}'`)
+    ).toHaveLength(1);
+  });
+
+  it('is idempotent under redelivery of the same event', async () => {
+    await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        metadata: { plan: 'pro', billing_period: 'lifetime' },
+      })
+    );
+    const alerts = stubStripe({ sessionId: 'cs_test_Session01' });
+    const event = disputeEvent({}, 'evt_dispute_dup');
+
+    const first = await handleStripeWebhook(await signedWebhookRequest(event), alertingEnv());
+    const second = await handleStripeWebhook(await signedWebhookRequest(event), alertingEnv());
+
+    expect(first.status).toBe(200);
+    expect(await second.json()).toEqual({ received: true, duplicate: true });
+    expect(alerts).toHaveLength(1);
+    expect((await licenseRows())[0].status).toBe('revoked');
+  });
+});
+
+// ============================================================================
 // Webhooks never un-revoke
 // ============================================================================
 
