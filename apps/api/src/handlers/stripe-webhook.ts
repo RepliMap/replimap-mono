@@ -315,6 +315,7 @@ async function handleCheckoutCompleted(
 
   // Find or create user first (needed for both modes)
   const user = await findOrCreateUser(db, email, session.customer ?? undefined);
+  await alertCustomerMismatch(env, user, session.customer, session.id);
 
   if (session.mode === 'subscription') {
     // For subscriptions, just ensure user exists. License created in subscription.created event.
@@ -329,6 +330,29 @@ async function handleCheckoutCompleted(
   }
 
   console.log(`[Stripe] Ignoring checkout mode: ${session.mode}`);
+}
+
+/**
+ * findOrCreateUser keeps the first stored Stripe customer id. When an event
+ * presents a different customer for the same user, flag it for ops: later
+ * customer-keyed events (refunds, disputes, customer.deleted) for the new
+ * customer will not resolve this user.
+ */
+async function alertCustomerMismatch(
+  env: Env,
+  user: { id: string; customerId: string | null },
+  presentedCustomerId: string | null | undefined,
+  refId: string
+): Promise<void> {
+  if (!presentedCustomerId || !user.customerId || user.customerId === presentedCustomerId) {
+    return;
+  }
+  const detail =
+    `Stripe customer mismatch: user=${user.id} keeps customer=${user.customerId}, ` +
+    `but ref=${refId} presented customer=${presentedCustomerId}. The stored id was ` +
+    `not overwritten; check for a duplicate Stripe customer.`;
+  console.warn(`[Stripe][CUSTOMER_MISMATCH] ${detail}`);
+  await sendOpsAlert(env, 'Stripe CUSTOMER_MISMATCH', detail);
 }
 
 /**
@@ -516,6 +540,7 @@ async function handleSubscriptionCreated(
       return { success: false, retry: true };
     }
     user = await findOrCreateUser(db, customer.email, subscription.customer);
+    await alertCustomerMismatch(env, user, subscription.customer, subscription.id);
   }
 
   // Get plan from price ID. Strict resolution: an unrecognized price ID

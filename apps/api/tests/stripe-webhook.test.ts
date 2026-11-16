@@ -468,6 +468,55 @@ describe('checkout.session.completed', () => {
     );
   });
 
+  it('keeps the first stored customer id and alerts ops when a later checkout presents a different one', async () => {
+    const alertCalls: Array<{ url: string; body: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        alertCalls.push({ url: String(url), body: String(init?.body ?? '') });
+        return new Response('ok', { status: 200 });
+      })
+    );
+    const alertingEnv = { ...env, OPS_ALERT_WEBHOOK: 'https://hooks.example.test/ops' } as typeof env;
+
+    await handleStripeWebhook(await signedWebhookRequest(checkoutCompletedEvent()), alertingEnv);
+    expect(alertCalls).toHaveLength(0);
+
+    const res = await handleStripeWebhook(
+      await signedWebhookRequest(
+        checkoutCompletedEvent({ id: 'cs_test_Session02', customer: 'cus_SecondCustomer' })
+      ),
+      alertingEnv
+    );
+    expect(res.status).toBe(200);
+
+    const users = await rows<{ customer_id: string }>('SELECT customer_id FROM user');
+    expect(users).toHaveLength(1);
+    expect(users[0].customer_id).toBe(CUSTOMER);
+
+    const ops = alertCalls.filter((c) => c.url === 'https://hooks.example.test/ops');
+    expect(ops).toHaveLength(1);
+    expect(ops[0].body).toContain('CUSTOMER_MISMATCH');
+    expect(ops[0].body).toContain('cus_SecondCustomer');
+  });
+
+  it('fills in a customer id for an existing user that has none, without alerting', async () => {
+    await env.DB.prepare(
+      `INSERT INTO user (id, email, name) VALUES ('u_pre', '${EMAIL}', '')`
+    ).run();
+    const fetchSpy = vi.fn(async () => new Response('ok'));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const res = await handleStripeWebhook(
+      await signedWebhookRequest(checkoutCompletedEvent()),
+      { ...env, OPS_ALERT_WEBHOOK: 'https://hooks.example.test/ops' } as typeof env
+    );
+    expect(res.status).toBe(200);
+    const users = await rows<{ customer_id: string }>('SELECT customer_id FROM user');
+    expect(users[0].customer_id).toBe(CUSTOMER);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('setup mode: acknowledged without side effects', async () => {
     const res = await deliver(checkoutCompletedEvent({ mode: 'setup' }));
     expect(res.status).toBe(200);

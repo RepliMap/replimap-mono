@@ -153,6 +153,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
+  | 'SUBSCRIPTION_EXISTS'
   | 'SERVER_CONFIG_ERROR'
   | 'INTERNAL_ERROR';
 

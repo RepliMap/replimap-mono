@@ -230,13 +230,37 @@ export async function handleCreateCheckout(
       );
     }
 
+    // Existing buyer: reuse their Stripe customer, and refuse a second
+    // concurrent subscription (plan changes go through the billing portal).
+    // Lifetime purchases by a subscriber stay allowed.
+    const existing = await createDb(env.DB).get<{
+      customer_id: string | null;
+      has_live_subscription: number;
+    }>(sql`
+      SELECT u.customer_id,
+        EXISTS (
+          SELECT 1 FROM licenses l
+          WHERE l.user_id = u.id
+            AND l.stripe_subscription_id IS NOT NULL
+            AND l.status IN ('active', 'past_due')
+        ) AS has_live_subscription
+      FROM user u
+      WHERE u.email = ${identity.email}
+    `);
+    if (!isLifetime && existing?.has_live_subscription) {
+      throw Errors.subscriptionExists();
+    }
+    const customerId = existing?.customer_id || undefined;
+
     // Lifetime = one-time payment, subscription = recurring
     // Stripe's API requires mode=payment for one-time line items and
     // disallows subscription_data in that case.
     const checkoutBody: Record<string, string | number | boolean | undefined> = {
       'mode': isLifetime ? 'payment' : 'subscription',
       'payment_method_types[0]': 'card',
-      'customer_email': identity.email,
+      // customer and customer_email are mutually exclusive in Stripe.
+      'customer': customerId,
+      'customer_email': customerId ? undefined : identity.email,
       'client_reference_id': identity.userId,
       'line_items[0][price]': priceId,
       'line_items[0][quantity]': 1,
@@ -249,7 +273,7 @@ export async function handleCreateCheckout(
 
     if (!isLifetime) {
       checkoutBody['subscription_data[metadata][plan]'] = body.plan;
-    } else {
+    } else if (!customerId) {
       // Payment mode defaults to customer_creation=if_required, which
       // usually creates NO Customer — the resulting charge then has
       // customer=null and refund handling can only resolve the license via

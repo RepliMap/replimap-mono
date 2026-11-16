@@ -430,6 +430,57 @@ describe('Billing Endpoints', () => {
         );
       });
 
+      describe('existing customer and subscription', () => {
+        function existingUser(row: { customer_id: string | null; has_live_subscription: number }) {
+          vi.mocked(db.createDb).mockReturnValue({
+            get: vi.fn().mockResolvedValue(row),
+          } as unknown as ReturnType<typeof db.createDb>);
+        }
+
+        it('reuses the stored Stripe customer instead of customer_email', async () => {
+          existingUser({ customer_id: 'cus_existing', has_live_subscription: 0 });
+          stripeOk();
+          const res = await post(validBody);
+          expect(res.status).toBe(200);
+          const params = new URLSearchParams(mockFetch.mock.calls[0][1]?.body as string);
+          expect(params.get('customer')).toBe('cus_existing');
+          expect(params.has('customer_email')).toBe(false);
+        });
+
+        it('409 SUBSCRIPTION_EXISTS for a second subscription; Stripe is not called', async () => {
+          existingUser({ customer_id: 'cus_existing', has_live_subscription: 1 });
+          const res = await post({ ...validBody, plan: 'team', billing_period: 'annual' });
+          const data = await parseResponse<ErrorResponse>(res);
+          expect(res.status).toBe(409);
+          expect(data.error_code).toBe('SUBSCRIPTION_EXISTS');
+          expect(data.message).toContain('billing portal');
+          expect(mockFetch).not.toHaveBeenCalled();
+        });
+
+        it('still allows a lifetime purchase by an existing subscriber, on the same customer', async () => {
+          existingUser({ customer_id: 'cus_existing', has_live_subscription: 1 });
+          stripeOk();
+          const res = await post({ ...validBody, billing_period: 'lifetime' });
+          expect(res.status).toBe(200);
+          const params = new URLSearchParams(mockFetch.mock.calls[0][1]?.body as string);
+          expect(params.get('mode')).toBe('payment');
+          expect(params.get('customer')).toBe('cus_existing');
+          // Stripe rejects customer_creation together with customer.
+          expect(params.has('customer_creation')).toBe(false);
+        });
+
+        it('new buyer: customer_email + customer_creation=always for lifetime', async () => {
+          existingUser({ customer_id: null, has_live_subscription: 0 });
+          stripeOk();
+          const res = await post({ ...validBody, billing_period: 'lifetime' });
+          expect(res.status).toBe(200);
+          const params = new URLSearchParams(mockFetch.mock.calls[0][1]?.body as string);
+          expect(params.get('customer_email')).toBe(USER_EMAIL);
+          expect(params.has('customer')).toBe(false);
+          expect(params.get('customer_creation')).toBe('always');
+        });
+      });
+
       it.each([
         ['foreign success_url', { success_url: 'https://evil.com/success' }],
         ['foreign cancel_url', { cancel_url: 'https://evil.com/cancel' }],

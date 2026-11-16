@@ -528,8 +528,10 @@ export async function findOrCreateUser(
   });
 
   if (existingUser) {
-    // Update Stripe customer ID if provided and different
-    if (stripeCustomerId && existingUser.customerId !== stripeCustomerId) {
+    // Store the Stripe customer ID only if none is stored yet: the first one
+    // is kept. Callers compare the returned customerId with the one they
+    // presented to detect (and alert on) a mismatch.
+    if (stripeCustomerId && !existingUser.customerId) {
       await db
         .update(schema.user)
         .set({ customerId: stripeCustomerId, updatedAt: new Date() })
@@ -562,7 +564,7 @@ export async function findOrCreateUser(
       where: eq(schema.user.email, normalizedEmail),
     });
     if (!concurrent) throw error;
-    if (stripeCustomerId && concurrent.customerId !== stripeCustomerId) {
+    if (stripeCustomerId && !concurrent.customerId) {
       await db
         .update(schema.user)
         .set({ customerId: stripeCustomerId, updatedAt: new Date() })
