@@ -6,6 +6,7 @@
  */
 
 import { drizzle, type DrizzleD1Database } from 'drizzle-orm/d1';
+import type { SQLiteUpdateSetSource } from 'drizzle-orm/sqlite-core';
 import { eq, and, ne, notInArray, sql, desc, gte, count } from 'drizzle-orm';
 import * as schema from '../db/schema';
 import { generateId, nowISO, normalizeLicenseKey, normalizeMachineId } from './license';
@@ -329,6 +330,15 @@ export async function createLicense(
 /**
  * Update license status
  */
+/**
+ * Status assignment that can never move a license OUT of 'revoked'
+ * (refund/chargeback/admin revocations are terminal; a later Stripe webhook
+ * must not silently restore access). Evaluated atomically in SQL.
+ */
+function statusUnlessRevoked(status: schema.LicenseStatus) {
+  return sql<schema.LicenseStatus>`CASE WHEN ${schema.licenses.status} = 'revoked' THEN 'revoked' ELSE ${status} END`;
+}
+
 export async function updateLicenseStatus(
   db: DrizzleDb,
   licenseId: string,
@@ -336,7 +346,7 @@ export async function updateLicenseStatus(
 ): Promise<void> {
   await db
     .update(schema.licenses)
-    .set({ status, updatedAt: nowISO() })
+    .set({ status: statusUnlessRevoked(status), updatedAt: nowISO() })
     .where(eq(schema.licenses.id, licenseId));
 }
 
@@ -355,11 +365,11 @@ export async function updateLicensePlan(
     currentPeriodEnd?: string;
   }
 ): Promise<void> {
-  const updates: Partial<schema.License> = { updatedAt: nowISO() };
+  const updates: SQLiteUpdateSetSource<typeof schema.licenses> = { updatedAt: nowISO() };
 
   if (data.plan) updates.plan = data.plan;
   if (data.planType) updates.planType = data.planType;
-  if (data.status) updates.status = data.status;
+  if (data.status) updates.status = statusUnlessRevoked(data.status);
   if (data.stripePriceId) updates.stripePriceId = data.stripePriceId;
   if (data.currentPeriodStart) updates.currentPeriodStart = data.currentPeriodStart;
   if (data.currentPeriodEnd) updates.currentPeriodEnd = data.currentPeriodEnd;
@@ -384,12 +394,21 @@ export interface FingerprintMetadata {
   container_type?: string;
 }
 
+/** Outcome of an atomic machine registration. */
+export type RegisterMachineResult = 'registered' | 'already_registered' | 'limit_reached';
+
 /**
  * Register a new machine for a license with fingerprint metadata.
+ *
+ * Atomic: the device-limit check and the insert are one statement, so
+ * parallel validations cannot overshoot the limit. A UNIQUE(license_id,
+ * machine_id) conflict (the same machine registered concurrently) is reported
+ * as 'already_registered', not thrown.
  *
  * @param db - Drizzle database client
  * @param licenseId - License ID to bind machine to
  * @param machineId - Machine fingerprint (32 char hex)
+ * @param machineLimit - Max active machines for the plan; -1 = unlimited
  * @param machineName - Optional friendly name for the machine
  * @param fingerprintType - Type of fingerprint: machine, ci, or container
  * @param metadata - Additional metadata for CI/container environments
@@ -398,27 +417,46 @@ export async function registerMachine(
   db: DrizzleDb,
   licenseId: string,
   machineId: string,
+  machineLimit: number,
   machineName?: string,
   fingerprintType: FingerprintType = 'machine',
   metadata?: FingerprintMetadata
-): Promise<void> {
+): Promise<RegisterMachineResult> {
   const id = generateId();
   const now = nowISO();
   const normalizedMachineId = normalizeMachineId(machineId);
 
   // Use raw SQL to support new columns that may not be in Drizzle schema yet
-  await db.run(sql`
-    INSERT INTO license_machines (
-      id, license_id, machine_id, machine_name,
-      fingerprint_type, ci_provider, ci_repo, container_type,
-      is_active, first_seen_at, last_seen_at
-    ) VALUES (
-      ${id}, ${licenseId}, ${normalizedMachineId}, ${machineName ?? null},
-      ${fingerprintType}, ${metadata?.ci_provider ?? null},
-      ${metadata?.ci_repo ?? null}, ${metadata?.container_type ?? null},
-      1, ${now}, ${now}
-    )
-  `);
+  try {
+    const result = await db.run(sql`
+      INSERT INTO license_machines (
+        id, license_id, machine_id, machine_name,
+        fingerprint_type, ci_provider, ci_repo, container_type,
+        is_active, first_seen_at, last_seen_at
+      )
+      SELECT
+        ${id}, ${licenseId}, ${normalizedMachineId}, ${machineName ?? null},
+        ${fingerprintType}, ${metadata?.ci_provider ?? null},
+        ${metadata?.ci_repo ?? null}, ${metadata?.container_type ?? null},
+        1, ${now}, ${now}
+      WHERE ${machineLimit} = -1 OR (
+        SELECT COUNT(*) FROM license_machines
+        WHERE license_id = ${licenseId} AND is_active = 1
+      ) < ${machineLimit}
+    `);
+    return (result.meta?.changes ?? 0) > 0 ? 'registered' : 'limit_reached';
+  } catch (error) {
+    if (isUniqueConstraintError(error)) return 'already_registered';
+    throw error;
+  }
+}
+
+/** True when the error (or a wrapped cause, as Drizzle wraps D1 errors) is a UNIQUE violation. */
+function isUniqueConstraintError(error: unknown): boolean {
+  for (let e: unknown = error; e instanceof Error; e = e.cause) {
+    if (e.message.includes('UNIQUE constraint failed')) return true;
+  }
+  return false;
 }
 
 /**
@@ -518,8 +556,10 @@ export async function findOrCreateUser(
   });
 
   if (existingUser) {
-    // Update Stripe customer ID if provided and different
-    if (stripeCustomerId && existingUser.customerId !== stripeCustomerId) {
+    // Store the Stripe customer ID only if none is stored yet: the first one
+    // is kept. Callers compare the returned customerId with the one they
+    // presented to detect (and alert on) a mismatch.
+    if (stripeCustomerId && !existingUser.customerId) {
       await db
         .update(schema.user)
         .set({ customerId: stripeCustomerId, updatedAt: new Date() })
@@ -552,7 +592,7 @@ export async function findOrCreateUser(
       where: eq(schema.user.email, normalizedEmail),
     });
     if (!concurrent) throw error;
-    if (stripeCustomerId && concurrent.customerId !== stripeCustomerId) {
+    if (stripeCustomerId && !concurrent.customerId) {
       await db
         .update(schema.user)
         .set({ customerId: stripeCustomerId, updatedAt: new Date() })
@@ -825,7 +865,8 @@ export async function revokeLicense(
  */
 export async function cancelLicense(
   db: DrizzleDb,
-  licenseId: string
+  licenseId: string,
+  periodEnd?: string // set when the subscription ended before its period end
 ): Promise<void> {
   const now = nowISO();
 
@@ -835,6 +876,7 @@ export async function cancelLicense(
       status: 'canceled',
       canceledAt: now,
       updatedAt: now,
+      ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
     })
-    .where(eq(schema.licenses.id, licenseId));
+    .where(and(eq(schema.licenses.id, licenseId), ne(schema.licenses.status, 'revoked')));
 }

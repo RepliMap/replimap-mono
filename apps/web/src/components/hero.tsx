@@ -87,7 +87,7 @@ export function Hero() {
 
         {/* Subheadline */}
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed mb-8">
-          Map every dependency, from DNS to database. Turn ClickOps into import-ready Terraform.
+          Map every dependency, from DNS to database, and turn ClickOps into Terraform with import blocks. Free for one VPC; the whole account on Pro.
           <span className="text-emerald-400 font-medium"> 100% on your machine.</span>
         </p>
 
@@ -195,7 +195,7 @@ export function Hero() {
                   <div>
                     <span className="text-muted-foreground">Next:</span>{" "}
                     <span className="text-cyan-400">replimap codify</span>
-                    <span className="text-muted-foreground"> — Terraform + import scaffold</span>
+                    <span className="text-muted-foreground"> — Terraform + import blocks (one VPC free, whole account on Pro)</span>
                   </div>
                 </div>
               )}

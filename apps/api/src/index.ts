@@ -6,11 +6,11 @@
  * - POST /v1/license/deactivate - Deactivate license from machine
  * - POST /v1/license/provision-community - Provision a Community license (Clerk auth)
  * - POST /v1/checkout/session - Create Stripe Checkout session
- * - POST /v1/billing/portal - Create Stripe Customer Portal session
+ * - POST /v1/billing/portal - Create Stripe Customer Portal session (Clerk auth, owner only)
  * - POST /v1/webhooks/stripe - Handle Stripe subscription events
  * - GET /health - Health check
  *
- * User Self-Service Endpoints (auth via license_key):
+ * User Self-Service Endpoints (auth via X-License-Key header or ?license_key=):
  * - GET /v1/me/license - Get own license details
  * - GET /v1/me/machines - Get machines for own license
  * - POST /v1/me/resend-key - Resend license key via email
@@ -65,7 +65,7 @@ function getCorsHeaders(env: Env, origin: string | null): Record<string, string>
   return {
     'Access-Control-Allow-Origin': allowedOrigin === '*' ? '*' : (origin || '*'),
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, X-License-Key',
     'Access-Control-Max-Age': '86400', // 24 hours
   };
 }
@@ -134,7 +134,11 @@ function matchPathParam(path: string, pattern: string): string | null {
 // Request Router
 // ============================================================================
 
-async function handleRequest(request: Request, env: Env): Promise<Response> {
+async function handleRequest(
+  request: Request,
+  env: Env,
+  ctx?: ExecutionContext
+): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
   const method = request.method;
@@ -165,7 +169,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // License Endpoints
     // ========================================================================
     if (path === '/v1/license/validate' && method === 'POST') {
-      response = await handleValidateLicense(request, env, clientIP);
+      response = await handleValidateLicense(request, env, clientIP, ctx);
     } else if (path === '/v1/license/deactivate' && method === 'POST') {
       response = await handleDeactivateLicense(request, env, clientIP);
     } else if (path === '/v1/license/provision-community' && method === 'POST') {
@@ -219,7 +223,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     // ========================================================================
     if (!response && path.startsWith('/v1/admin')) {
       // Apply rate limiting first (before auth check to prevent timing attacks)
-      await rateLimit(env.CACHE, 'admin', clientIP);
+      await rateLimit(env, 'admin', clientIP);
 
       // Verify admin API key at router level
       const adminKey = request.headers.get('X-API-Key');
@@ -285,8 +289,6 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
         status: 'ok',
         timestamp: new Date().toISOString(),
         version: env.API_VERSION || '2.1.0',
-        // Retained for response compatibility; the pricing data itself is no longer served
-        pricing_data_date: '2025-12-26',
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -295,11 +297,6 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       response = new Response(JSON.stringify({
         name: 'RepliMap License API',
         version: env.API_VERSION || 'v1.2.0',
-        environment: env.ENVIRONMENT,
-        features: {
-          new: ['audit_fix', 'snapshot', 'snapshot_diff', 'graph_full', 'graph_security'],
-          renamed: [{ old: 'blast', new: 'deps' }],
-        },
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -385,8 +382,8 @@ export async function handleScheduled(
 // ============================================================================
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    return handleRequest(request, env);
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
+    return handleRequest(request, env, ctx);
   },
 
   async scheduled(

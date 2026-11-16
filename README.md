@@ -32,8 +32,8 @@ graph TB
     end
 
     subgraph "RepliMap Platform"
-        WEB["Dashboard<br/>(Next.js on Vercel)"]
-        API["API<br/>(Hono on CF Workers)"]
+        WEB["Site and dashboard<br/>(Next.js on Cloudflare)"]
+        API["API<br/>(Cloudflare Workers)"]
         DB[("D1 Database")]
         STRIPE["Stripe<br/>Billing"]
         CLERK["Clerk<br/>Auth"]
@@ -60,9 +60,8 @@ graph TB
 
 | Package | Description | Version | Status |
 |---------|-------------|---------|--------|
-| [`@replimap/web`](./apps/web) | Next.js Dashboard | Internal | [![Vercel](https://img.shields.io/badge/Vercel-Live-000?style=flat-square&logo=vercel)](https://replimap.com) |
-| [`@replimap/api`](./apps/api) | Hono API | Internal | [![Cloudflare](https://img.shields.io/badge/CF-Live-F38020?style=flat-square&logo=cloudflare)](https://api.replimap.com) |
-| [`@replimap/config`](./packages/config) | Shared Config | Internal | - |
+| [`@replimap/web`](./apps/web) | Next.js site and dashboard | Internal | [![Cloudflare](https://img.shields.io/badge/CF-Live-F38020?style=flat-square&logo=cloudflare)](https://www.replimap.com) |
+| [`@replimap/api`](./apps/api) | Cloudflare Worker API | Internal | [![Cloudflare](https://img.shields.io/badge/CF-Live-F38020?style=flat-square&logo=cloudflare)](https://api.replimap.com) |
 
 ## Development
 
@@ -126,7 +125,7 @@ Landing  ──►  /sign-up (Clerk)  ──►  /dashboard (community license a
                                                                 success page polls + displays key
 ```
 
-All three tiers (community / pro / team) and all billing cadences (monthly / annual / lifetime) share this flow.
+All three tiers (community / pro / team) and both billing cadences (monthly / annual) share this flow. Lifetime plans are no longer sold; existing lifetime licenses keep working.
 
 The flow is **live in production** and was validated end-to-end with a real purchase + refund/cancel.
 
@@ -181,7 +180,7 @@ Install [Git for Windows](https://gitforwindows.org/) which includes Git Bash, t
 ```
 replimap-mono/
 ├── apps/
-│   ├── web/              # Next.js 16 frontend (Vercel)
+│   ├── web/              # Next.js 16 frontend (Cloudflare Workers static assets)
 │   │   ├── src/
 │   │   │   ├── app/
 │   │   │   │   ├── (auth)/       # Clerk sign-in/sign-up
@@ -192,7 +191,7 @@ replimap-mono/
 │   │   │   └── lib/              # API client, pricing config
 │   │   ├── package.json
 │   │   └── vercel.json
-│   └── api/              # Hono + Cloudflare Workers
+│   └── api/              # Cloudflare Workers
 │       ├── src/
 │       │   ├── handlers/         # billing, webhooks, license, usage
 │       │   ├── lib/              # constants, rate-limiter, errors

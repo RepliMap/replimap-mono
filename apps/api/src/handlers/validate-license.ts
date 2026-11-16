@@ -68,10 +68,18 @@ import { sql } from 'drizzle-orm';
 export async function handleValidateLicense(
   request: Request,
   env: Env,
-  clientIP: string
+  clientIP: string,
+  ctx?: ExecutionContext
 ): Promise<Response> {
+  // Background writes: keep the Worker alive for them via waitUntil when a
+  // context is available; otherwise (tests, direct calls) just let the
+  // already-caught promise run.
+  const defer = (promise: Promise<unknown>): void => {
+    if (ctx) ctx.waitUntil(promise);
+  };
+
   // Rate limiting
-  const rateLimitHeaders = await rateLimit(env.CACHE, 'validate', clientIP);
+  const rateLimitHeaders = await rateLimit(env, 'validate', clientIP);
 
   // Create Drizzle client
   const db = createDb(env.DB);
@@ -200,16 +208,19 @@ export async function handleValidateLicense(
       license.machine_last_seen,  // Used for throttled updates
       license.active_machines,
       license.monthly_changes,
-      features.machines
+      features.machines,
+      defer
     );
 
     // Log usage (non-blocking)
-    logUsage(db, {
-      licenseId: license.license_id,
-      machineId,
-      action: 'validate',
-      metadata: { cli_version: body.cli_version },
-    }).catch(console.error);
+    defer(
+      logUsage(db, {
+        licenseId: license.license_id,
+        machineId,
+        action: 'validate',
+        metadata: { cli_version: body.cli_version },
+      }).catch(console.error)
+    );
 
     // Check CLI version compatibility
     const cliVersionCheck = checkCliVersion(body.cli_version);
@@ -340,6 +351,15 @@ export async function handleValidateLicense(
   }
 }
 
+/** Days a license stays usable after its period end (active or past_due). */
+const PERIOD_END_GRACE_DAYS = 7;
+
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
 /**
  * Check license status and update if expired
  */
@@ -361,8 +381,12 @@ async function checkLicenseStatus(
     throw Errors.licenseRevoked();
   }
 
-  // Check if past due
+  // Past due: Stripe is still retrying the payment. Allow until 7 days after
+  // the period end (same grace as an active license), then reject.
   if (license.status === 'past_due') {
+    if (license.current_period_end && !isPast(addDaysISO(license.current_period_end, PERIOD_END_GRACE_DAYS))) {
+      return;
+    }
     throw Errors.licensePastDue();
   }
 
@@ -381,11 +405,7 @@ async function checkLicenseStatus(
   // Check if active but period has ended
   if (license.status === 'active' && license.current_period_end && isPast(license.current_period_end)) {
     // Grace period: allow 7 days after period end before marking expired
-    const periodEnd = new Date(license.current_period_end);
-    const gracePeriodEnd = new Date(periodEnd);
-    gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 7);
-
-    if (new Date() > gracePeriodEnd) {
+    if (isPast(addDaysISO(license.current_period_end, PERIOD_END_GRACE_DAYS))) {
       await updateLicenseStatus(db, license.license_id, 'expired');
       throw Errors.licenseExpired(formatDate(license.current_period_end));
     }
@@ -443,7 +463,8 @@ async function handleMachineBinding(
   machineLastSeen: string | null,  // Used for throttled updates
   activeMachines: number,
   monthlyChanges: number,
-  machineLimit: number
+  machineLimit: number,
+  defer: (promise: Promise<unknown>) => void
 ): Promise<void> {
   // Case 1: Machine already registered and active
   if (machineIsActive === 1) {
@@ -451,12 +472,26 @@ async function handleMachineBinding(
     // This prevents write amplification (SQLite single-writer bottleneck)
     const shouldUpdate = shouldUpdateLastSeen(machineLastSeen);
     if (shouldUpdate) {
-      // Fire-and-forget update to avoid blocking the response
-      updateMachineLastSeen(db, licenseId, machineId).catch((err) => {
-        console.error('[DB] Failed to update last_seen:', err);
-      });
+      // Non-blocking update; waitUntil keeps it from being dropped
+      defer(
+        updateMachineLastSeen(db, licenseId, machineId).catch((err) => {
+          console.error('[DB] Failed to update last_seen:', err);
+        })
+      );
     }
     return;
+  }
+
+  // Cases 2-3 add an active machine (re-activation or new): enforce the
+  // device limit for both, so deactivate/reactivate cannot bypass it.
+  const limitExceeded = async () => {
+    // Get list of active machines for error message
+    const machines = await getActiveMachines(db, licenseId);
+    const truncatedIds = machines.map((m) => truncateMachineId(m.machineId));
+    return Errors.machineLimitExceeded(truncatedIds, machineLimit);
+  };
+  if (machineLimit !== -1 && activeMachines >= machineLimit) {
+    throw await limitExceeded();
   }
 
   // Case 2: Machine was registered but deactivated
@@ -476,22 +511,22 @@ async function handleMachineBinding(
     return;
   }
 
-  // Case 3: New machine - check limits
-  if (machineLimit !== -1 && activeMachines >= machineLimit) {
-    // Get list of active machines for error message
-    const machines = await getActiveMachines(db, licenseId);
-    const truncatedIds = machines.map((m) => truncateMachineId(m.machineId));
-    throw Errors.machineLimitExceeded(truncatedIds, machineLimit);
-  }
-
-  // Case 4: Check monthly change limit
+  // Case 3: New machine - check monthly change limit
   if (monthlyChanges >= MAX_MACHINE_CHANGES_PER_MONTH) {
     throw Errors.machineChangeLimitExceeded(nextMonthStartISO());
   }
 
-  // Register new machine
-  await registerMachine(db, licenseId, machineId);
-  await recordMachineChange(db, licenseId, machineId);
+  // Register new machine: the limit is re-checked atomically in the insert,
+  // since parallel validations all passed the count above.
+  const outcome = await registerMachine(db, licenseId, machineId, machineLimit);
+  if (outcome === 'limit_reached') {
+    throw await limitExceeded();
+  }
+  // 'already_registered': a concurrent request for this same machine won the
+  // insert and records the change; this one simply succeeds.
+  if (outcome === 'registered') {
+    await recordMachineChange(db, licenseId, machineId);
+  }
 }
 
 /**

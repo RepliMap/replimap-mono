@@ -7,7 +7,7 @@ const useCases = [
     title: "Brownfield Takeover",
     metric: "Weeks → a day",
     description:
-      "Walk into an unfamiliar AWS account and walk out with a full inventory, a dependency map, and import-ready Terraform.",
+      "Walk into an unfamiliar AWS account and walk out with a full inventory, a dependency map, and Terraform with import blocks (free for one VPC; the whole account on Pro).",
   },
   {
     icon: Shield,

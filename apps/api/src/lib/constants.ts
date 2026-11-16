@@ -52,14 +52,14 @@ export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
   pro: {
     resources_per_scan: -1,
     scans_per_month: -1,
-    aws_accounts: 3,
+    aws_accounts: -1,            // Unlimited (fair use), per public pricing
     machines: 2,
     export_formats: ['json', 'terraform', 'csv', 'html', 'markdown'],
   },
   team: {
     resources_per_scan: -1,
     scans_per_month: -1,
-    aws_accounts: 10,
+    aws_accounts: -1,            // Unlimited (fair use), per public pricing
     machines: 10,
     export_formats: ['json', 'terraform', 'csv', 'html', 'markdown', 'pdf'],
   },
@@ -141,6 +141,9 @@ export const DEFAULT_LICENSE_SIGNING_KID = 'key-2024-01';
 // Rate Limiting
 // ============================================================================
 
+/** Timeout for outbound Stripe/Clerk API calls (a hung upstream must not hang the Worker). */
+export const OUTBOUND_FETCH_TIMEOUT_MS = 8_000;
+
 export const RATE_LIMITS = {
   validate: {
     requests: 100,
@@ -162,6 +165,13 @@ export const RATE_LIMITS = {
   // Metrics endpoints: moderate limits for analytics access
   metrics: {
     requests: 30,
+    window: 60,
+  },
+  // Per-email limit for /v1/me/resend-key (keyed by normalized address).
+  // The Workers rate-limit binding only supports 10s/60s periods, so the
+  // intended "3 per hour" is approximated as 1 per minute.
+  resend_email: {
+    requests: 1,
     window: 60,
   },
 } as const;

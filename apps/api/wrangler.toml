@@ -75,6 +75,52 @@ binding = "CACHE"
 id = "32520e34a8d54faf90e71692462e9f96"
 preview_id = "58ccea22fa7f4e6689adbec8270356b0"
 
+# Workers Logs (dashboard log search). Declared per environment below too.
+[observability]
+enabled = true
+
+# Rate limiting (lib/rate-limiter.ts): Workers Rate Limiting binding, one per
+# RATE_LIMITS endpoint in lib/constants.ts (keep limits in sync; period must be
+# 10 or 60). No KV writes. Wrangler 3.x syntax (>=3.45); Wrangler >=4.36 also
+# accepts [[ratelimits]]. Not inherited by [env.*], so prod repeats them with
+# its own namespace_ids. Counts are per Cloudflare location.
+
+[[unsafe.bindings]]
+name = "RL_VALIDATE"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 100, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_ACTIVATE"
+type = "ratelimit"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_DEACTIVATE"
+type = "ratelimit"
+namespace_id = "1003"
+simple = { limit = 10, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_ADMIN"
+type = "ratelimit"
+namespace_id = "1004"
+simple = { limit = 10, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_METRICS"
+type = "ratelimit"
+namespace_id = "1005"
+simple = { limit = 30, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_RESEND_EMAIL"
+type = "ratelimit"
+namespace_id = "1006"
+simple = { limit = 1, period = 60 }
+
 # ============================================================================
 # PRODUCTION Environment (Requires: --env prod)
 # ============================================================================
@@ -93,6 +139,8 @@ preview_id = "58ccea22fa7f4e6689adbec8270356b0"
 
 [env.prod]
 name = "replimap-api-prod"
+# Prod is served only on the api.replimap.com custom domain; no *.workers.dev URL.
+workers_dev = false
 
 [env.prod.vars]
 ENVIRONMENT = "production"
@@ -121,6 +169,46 @@ database_id = "0cda6e12-5087-4b1a-8dfe-207960c88f2d"
 binding = "CACHE"
 id = "705a8c1a808a4656894a0c787787b76c"
 
+[env.prod.observability]
+enabled = true
+
+# Rate limiting bindings - Production (see dev block above)
+[[env.prod.unsafe.bindings]]
+name = "RL_VALIDATE"
+type = "ratelimit"
+namespace_id = "2001"
+simple = { limit = 100, period = 60 }
+
+[[env.prod.unsafe.bindings]]
+name = "RL_ACTIVATE"
+type = "ratelimit"
+namespace_id = "2002"
+simple = { limit = 10, period = 60 }
+
+[[env.prod.unsafe.bindings]]
+name = "RL_DEACTIVATE"
+type = "ratelimit"
+namespace_id = "2003"
+simple = { limit = 10, period = 60 }
+
+[[env.prod.unsafe.bindings]]
+name = "RL_ADMIN"
+type = "ratelimit"
+namespace_id = "2004"
+simple = { limit = 10, period = 60 }
+
+[[env.prod.unsafe.bindings]]
+name = "RL_METRICS"
+type = "ratelimit"
+namespace_id = "2005"
+simple = { limit = 30, period = 60 }
+
+[[env.prod.unsafe.bindings]]
+name = "RL_RESEND_EMAIL"
+type = "ratelimit"
+namespace_id = "2006"
+simple = { limit = 1, period = 60 }
+
 # ============================================================================
 # SECRETS CONFIGURATION
 # ============================================================================
@@ -139,9 +227,9 @@ id = "705a8c1a808a4656894a0c787787b76c"
 #   npx wrangler secret put CLERK_PUBLISHABLE_KEY --env prod
 #   npx wrangler secret put ADMIN_API_KEY --env prod
 #
-# Optional — license-key email delivery (lib/email.ts). Unset = the
-# resend-key endpoint and post-purchase emails degrade honestly to
-# {sent:false, reason:'email_not_configured'}; nothing breaks.
+# Optional — license-key email delivery (lib/email.ts). Unset = emails are
+# skipped and logged (resend-key still answers its generic response);
+# nothing breaks.
 #   npx wrangler secret put RESEND_API_KEY --env prod   # re_...
 #   npx wrangler secret put EMAIL_FROM --env prod        # "RepliMap <license@replimap.com>"
 #

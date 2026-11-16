@@ -7,15 +7,15 @@
  * - Charge when users export/download
  *
  * Tier Structure (single source of truth: CLI repo technical-reference.md matrix):
- * - COMMUNITY ($0): full scan/graph/resource .tf files, coverage summary
- * - PRO ($29): imports.tf scaffold, audit report export, full coverage list
- * - TEAM ($99): CI --fail-on, Trust Center report, 10 devices
+ * - COMMUNITY ($0): full scan/graph/resource .tf files, coverage summary, imports.tf for one VPC
+ * - PRO ($29): whole-account imports.tf scaffold, audit report export, full coverage list
+ * - TEAM ($99): CI --fail-on-high/--fail-on-score, Trust Center report, 10 devices
  * - SOVEREIGN ($2,500): air-gapped activation by signed license file, APRA/RBNZ/NZISM
  *   compliance packs
  */
 
 export type PlanName = "community" | "pro" | "team" | "sovereign";
-export type BillingPeriod = "monthly" | "annual" | "lifetime";
+export type BillingPeriod = "monthly" | "annual";
 
 /** Legacy plan names that map to v4.0 plans */
 export type LegacyPlanName = "free" | "solo" | "enterprise";
@@ -23,7 +23,6 @@ export type LegacyPlanName = "free" | "solo" | "enterprise";
 export interface PlanPrice {
   monthly: number;
   annual: number;
-  lifetime: number | null;
 }
 
 export interface PlanFeature {
@@ -40,7 +39,6 @@ export interface Plan {
   features: PlanFeature[];
   cta: string;
   highlighted: boolean;
-  hasLifetime: boolean;
   badge: string | null;
   /** Offline grace period in days */
   offlineGraceDays: number;
@@ -59,14 +57,14 @@ export interface Plan {
 const SOVEREIGN_FEATURE_CLAIMS = [
   "Air-gapped activation by signed license file (issued on request)",
   "APRA CPS 234 / RBNZ BS11 / NZISM compliance packs",
-  "Dedicated support (4h SLA)",
+  "Support terms agreed in your contract",
 ] as const;
 
 export const PLANS: Record<PlanName, Plan> = {
   community: {
     name: "Community",
     tagline: "See everything. Free.",
-    price: { monthly: 0, annual: 0, lifetime: null },
+    price: { monthly: 0, annual: 0 },
     description: "Scan a full account, map every dependency, and generate real Terraform — free.",
     offlineGraceDays: 0,
     features: [
@@ -77,19 +75,19 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "IaC coverage summary (unmanaged counts)", included: true },
       { text: "Audit score + terminal summary", included: true },
       { text: "Requires internet connection", included: true, badge: "Online only" },
-      { text: "imports.tf import scaffold", included: false },
+      { text: "imports.tf for one VPC (codify --vpc)", included: true },
+      { text: "imports.tf for the whole account", included: false },
       { text: "Audit HTML report / SOC 2 evidence export", included: false },
       { text: "Full unmanaged-resource list + coverage.json", included: false },
     ],
     cta: "Get Started Free",
     highlighted: false,
-    hasLifetime: false,
     badge: null,
   },
   pro: {
     name: "Pro",
     tagline: "The contractor deliverable",
-    price: { monthly: 29, annual: 290, lifetime: 199 },
+    price: { monthly: 29, annual: 290 },
     description: "The two things in a client hand-off: an import-ready scaffold and the audit evidence.",
     offlineGraceDays: 7,
     features: [
@@ -100,39 +98,37 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "Full unmanaged-resource list + coverage.json", included: true },
       { text: "Graph export without watermark", included: true },
       { text: "7 days offline grace period", included: true },
-      { text: "48h email support SLA", included: true },
+      { text: "Email support, replies within 2 business days (NZ time)", included: true },
       { text: "2 activated devices", included: true },
-      { text: "CI mode with blocking checks (--fail-on)", included: false },
+      { text: "CI mode with blocking checks (--fail-on-high, --fail-on-score)", included: false },
     ],
     cta: "Start Pro",
     highlighted: true,
-    hasLifetime: true,
     badge: "Most Popular",
   },
   team: {
     name: "Team",
     tagline: "Organization delivery",
-    price: { monthly: 99, annual: 990, lifetime: 499 },
+    price: { monthly: 99, annual: 990 },
     description: "For consultancies and platform teams that deliver as an organization.",
     offlineGraceDays: 14,
     features: [
       { text: "Everything in Pro", included: true },
       { text: "10 activated devices", included: true },
-      { text: "CI mode with blocking checks (--fail-on)", included: true },
+      { text: "CI mode with blocking checks (--fail-on-high, --fail-on-score)", included: true },
       { text: "Trust Center report (audit trail of the AWS API calls RepliMap made)", included: true },
       { text: "14 days offline grace period", included: true },
-      { text: "24h priority support SLA", included: true },
+      { text: "Priority email support, replies within 1 business day (NZ time)", included: true },
       { text: "Air-gapped activation by signed license file", included: false },
     ],
     cta: "Start Team",
     highlighted: false,
-    hasLifetime: true,
     badge: null,
   },
   sovereign: {
     name: "Sovereign",
     tagline: "Data sovereignty for regulated industries",
-    price: { monthly: 2500, annual: 25000, lifetime: null },
+    price: { monthly: 2500, annual: 25000 },
     description: "When your regulator asks 'Where does the data go?', the answer is: Nowhere.",
     offlineGraceDays: 30,
     features: [
@@ -140,9 +136,8 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "30 days offline grace", included: true },
       ...SOVEREIGN_FEATURE_CLAIMS.map((text) => ({ text, included: true })),
     ],
-    cta: "Request Demo",
+    cta: "Contact us",
     highlighted: false,
-    hasLifetime: false,
     badge: "Sovereign Grade",
   },
 };
@@ -195,8 +190,6 @@ export function formatPrice(
       return `${formattedAmount}/mo`;
     case "annual":
       return `${formattedAmount}/yr`;
-    case "lifetime":
-      return `${formattedAmount}`;
     default:
       return formattedAmount;
   }
@@ -208,8 +201,6 @@ export function getPeriodLabel(period: BillingPeriod): string {
       return "per month";
     case "annual":
       return "per year";
-    case "lifetime":
-      return "one-time";
     default:
       return "";
   }
@@ -219,11 +210,6 @@ export function getAnnualSavings(plan: Plan): number {
   if (!plan.price.annual || !plan.price.monthly) return 0;
   const monthlyTotal = plan.price.monthly * 12;
   return monthlyTotal - plan.price.annual;
-}
-
-export function getLifetimeBreakeven(plan: Plan): number {
-  if (!plan.price.lifetime || !plan.price.monthly) return 0;
-  return Math.ceil(plan.price.lifetime / plan.price.monthly);
 }
 
 // =============================================================================

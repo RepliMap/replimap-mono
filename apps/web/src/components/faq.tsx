@@ -22,14 +22,9 @@ const faqs = [
       "RepliMap scans 50+ AWS resource types (39 generated as Terraform, 12 graph-only) across VPC, EC2, RDS, ElastiCache, DynamoDB, S3, IAM, ELB/ALB, Auto Scaling, Route53, ACM, CloudFront, ECS/ECR, API Gateway, Lambda, Secrets Manager, SSM, KMS, SQS, SNS, CloudWatch and more. Not yet supported: EKS, EFS, CloudTrail and VPC Flow Logs. New types are added based on what real scans encounter.",
   },
   {
-    question: "How does the Lifetime deal work?",
-    answer:
-      "Pay once, use forever. Lifetime licenses include all features of the selected tier (Pro or Team) and all future updates. No recurring charges. Limited availability at Early Bird pricing.",
-  },
-  {
     question: "Can I upgrade or downgrade my plan?",
     answer:
-      "Yes. Upgrades take effect immediately with prorated billing. Downgrades take effect at the end of your current billing cycle. Lifetime license holders can upgrade to a higher lifetime tier by paying the difference.",
+      "Yes. Upgrades take effect immediately with prorated billing. Downgrades take effect at the end of your current billing cycle.",
   },
   {
     question: "How many AWS accounts can I scan?",

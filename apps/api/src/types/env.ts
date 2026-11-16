@@ -84,6 +84,16 @@ export interface Env {
   // Set to 'true' in local dev to bypass rate limiting during e2e runs.
   // Must NEVER be set in production — rate limits are our DoS defence.
   RATE_LIMIT_DISABLED?: string;
+
+  // Workers Rate Limiting bindings ([[unsafe.bindings]] type="ratelimit" in
+  // wrangler.toml), one per RATE_LIMITS endpoint. Optional: when absent the
+  // limiter falls back to a per-isolate in-memory counter (lib/rate-limiter.ts).
+  RL_VALIDATE?: RateLimit;
+  RL_ACTIVATE?: RateLimit;
+  RL_DEACTIVATE?: RateLimit;
+  RL_ADMIN?: RateLimit;
+  RL_METRICS?: RateLimit;
+  RL_RESEND_EMAIL?: RateLimit;
 }
 
 /**

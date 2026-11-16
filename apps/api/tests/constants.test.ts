@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { buildSecureLicenseLimits, Plan } from '../src/features';
 import {
   PLAN_FEATURES,
   MIN_CLI_VERSION,
@@ -37,6 +38,14 @@ describe('Plan Features v4.0', () => {
     expect(PLAN_FEATURES.community.export_formats).not.toContain('terraform'); // v4.0: JSON only for community
   });
 
+  it('PRO and TEAM have unlimited AWS accounts (matches public pricing), incl. the signed blob', () => {
+    expect(PLAN_FEATURES.pro.aws_accounts).toBe(-1);
+    expect(PLAN_FEATURES.team.aws_accounts).toBe(-1);
+    expect(buildSecureLicenseLimits(Plan.PRO).max_accounts).toBe(-1);
+    expect(buildSecureLicenseLimits(Plan.TEAM).max_accounts).toBe(-1);
+    expect(buildSecureLicenseLimits(Plan.COMMUNITY).max_accounts).toBe(1);
+  });
+
   it('should have unlimited resources for all plans (v4.0 philosophy)', () => {
     expect(PLAN_FEATURES.community.resources_per_scan).toBe(-1);
     expect(PLAN_FEATURES.pro.resources_per_scan).toBe(-1);
@@ -51,10 +60,10 @@ describe('Plan Features v4.0', () => {
     expect(PLAN_FEATURES.sovereign.machines).toBe(-1);
   });
 
-  it('should have increasing AWS account limits across tiers', () => {
+  it('should have AWS account limits matching public pricing (paid tiers unlimited)', () => {
     expect(PLAN_FEATURES.community.aws_accounts).toBe(1);
-    expect(PLAN_FEATURES.pro.aws_accounts).toBe(3);
-    expect(PLAN_FEATURES.team.aws_accounts).toBe(10);
+    expect(PLAN_FEATURES.pro.aws_accounts).toBe(-1); // Unlimited (fair use)
+    expect(PLAN_FEATURES.team.aws_accounts).toBe(-1); // Unlimited (fair use)
     expect(PLAN_FEATURES.sovereign.aws_accounts).toBe(-1); // Unlimited
   });
 });

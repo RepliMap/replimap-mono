@@ -8,6 +8,32 @@
 import { AppError } from './errors';
 
 // ============================================================================
+// Origin Allowlist
+// ============================================================================
+
+/**
+ * Parse the comma-separated origin allowlist into a Set of exact origins.
+ * Returns null (fail closed) when unset/empty or when any entry is '*'.
+ */
+export function parseAllowedOrigins(raw: string | undefined): Set<string> | null {
+  if (!raw) return null;
+  const entries = raw
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
+  if (entries.length === 0 || entries.includes('*')) return null;
+  const origins = new Set<string>();
+  for (const entry of entries) {
+    try {
+      origins.add(new URL(entry).origin);
+    } catch {
+      // Ignore malformed entries; they can never match.
+    }
+  }
+  return origins.size > 0 ? origins : null;
+}
+
+// ============================================================================
 // Constant-Time Comparison
 // ============================================================================
 

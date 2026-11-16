@@ -110,7 +110,7 @@ export const Errors = {
       403,
       {
         action: 'Contact support at support@replimap.com to update your payment method',
-        guidance: 'Your subscription is active but payment failed. Update your card to avoid interruption.',
+        guidance: 'Your subscription payment failed and the 7-day grace period has ended. Update your payment method to restore access.',
       }
     );
   },
@@ -174,6 +174,18 @@ export const Errors = {
       `AWS account limit (${limit}) reached for your plan`,
       403,
       { action: 'Upgrade at https://www.replimap.com/pricing', limit }
+    );
+  },
+
+  subscriptionExists(): AppError {
+    return new AppError(
+      'SUBSCRIPTION_EXISTS',
+      'You already have an active subscription. Change your plan in the billing portal instead of starting a second subscription.',
+      409,
+      {
+        action: 'Open the billing portal to change or manage your plan',
+        guidance: 'A second subscription would bill you twice. Plan changes are made on your existing subscription in the billing portal.',
+      }
     );
   },
 

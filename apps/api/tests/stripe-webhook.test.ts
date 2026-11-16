@@ -468,6 +468,55 @@ describe('checkout.session.completed', () => {
     );
   });
 
+  it('keeps the first stored customer id and alerts ops when a later checkout presents a different one', async () => {
+    const alertCalls: Array<{ url: string; body: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        alertCalls.push({ url: String(url), body: String(init?.body ?? '') });
+        return new Response('ok', { status: 200 });
+      })
+    );
+    const alertingEnv = { ...env, OPS_ALERT_WEBHOOK: 'https://hooks.example.test/ops' } as typeof env;
+
+    await handleStripeWebhook(await signedWebhookRequest(checkoutCompletedEvent()), alertingEnv);
+    expect(alertCalls).toHaveLength(0);
+
+    const res = await handleStripeWebhook(
+      await signedWebhookRequest(
+        checkoutCompletedEvent({ id: 'cs_test_Session02', customer: 'cus_SecondCustomer' })
+      ),
+      alertingEnv
+    );
+    expect(res.status).toBe(200);
+
+    const users = await rows<{ customer_id: string }>('SELECT customer_id FROM user');
+    expect(users).toHaveLength(1);
+    expect(users[0].customer_id).toBe(CUSTOMER);
+
+    const ops = alertCalls.filter((c) => c.url === 'https://hooks.example.test/ops');
+    expect(ops).toHaveLength(1);
+    expect(ops[0].body).toContain('CUSTOMER_MISMATCH');
+    expect(ops[0].body).toContain('cus_SecondCustomer');
+  });
+
+  it('fills in a customer id for an existing user that has none, without alerting', async () => {
+    await env.DB.prepare(
+      `INSERT INTO user (id, email, name) VALUES ('u_pre', '${EMAIL}', '')`
+    ).run();
+    const fetchSpy = vi.fn(async () => new Response('ok'));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const res = await handleStripeWebhook(
+      await signedWebhookRequest(checkoutCompletedEvent()),
+      { ...env, OPS_ALERT_WEBHOOK: 'https://hooks.example.test/ops' } as typeof env
+    );
+    expect(res.status).toBe(200);
+    const users = await rows<{ customer_id: string }>('SELECT customer_id FROM user');
+    expect(users[0].customer_id).toBe(CUSTOMER);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('setup mode: acknowledged without side effects', async () => {
     const res = await deliver(checkoutCompletedEvent({ mode: 'setup' }));
     expect(res.status).toBe(200);
@@ -622,6 +671,69 @@ describe('customer.subscription.created', () => {
 // ============================================================================
 
 describe('customer.subscription.updated', () => {
+  // Default: the Stripe re-fetch is unavailable, so the handler applies the
+  // event payload (fallback path). Tests below override this stub.
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 503 })));
+  });
+
+  /** Stub GET /v1/subscriptions/{id} to return `current`. */
+  function stripeCurrentSubscription(current: Record<string, unknown>) {
+    const spy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe(`https://api.stripe.com/v1/subscriptions/${SUBSCRIPTION}`);
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return new Response(JSON.stringify(current), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', spy);
+    return spy;
+  }
+
+  it('out-of-order: a stale update payload is ignored in favour of the current Stripe state', async () => {
+    await seedSubscriptionLicense(); // pro
+    // Current state at Stripe: upgraded to team, active.
+    const current = subscriptionEvent('customer.subscription.updated', {
+      items: { data: [{ price: { id: TEAM_MONTHLY_PRICE } }] },
+      status: 'active',
+    }).data.object;
+    const spy = stripeCurrentSubscription(current);
+
+    // A late, older event still says pro + past_due.
+    const res = await deliver(
+      subscriptionEvent('customer.subscription.updated', {
+        items: { data: [{ price: { id: PRO_MONTHLY_PRICE } }] },
+        status: 'past_due',
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const [license] = await licenseRows();
+    expect(license.plan).toBe('team');
+    expect(license.status).toBe('active');
+  });
+
+  it('falls back to the event payload (and logs) when the Stripe re-fetch throws', async () => {
+    await seedSubscriptionLicense();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      })
+    );
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const res = await deliver(
+      subscriptionEvent('customer.subscription.updated', {
+        items: { data: [{ price: { id: TEAM_MONTHLY_PRICE } }] },
+      })
+    );
+    expect(res.status).toBe(200);
+    expect((await licenseRows())[0].plan).toBe('team');
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('re-fetch'))).toBe(true);
+  });
+
   it('upgrade pro→team updates the plan and keeps devices active', async () => {
     await seedSubscriptionLicense();
     const [{ id: licenseId }] = await licenseRows();
@@ -675,6 +787,12 @@ describe('customer.subscription.updated', () => {
       'SELECT is_active FROM license_machines'
     );
     expect(machines[0].is_active).toBe(0);
+  });
+
+  it('maps Stripe status unpaid to expired (not entitled)', async () => {
+    await seedSubscriptionLicense();
+    await deliver(subscriptionEvent('customer.subscription.updated', { status: 'unpaid' }));
+    expect((await licenseRows())[0].status).toBe('expired');
   });
 
   it('maps Stripe status past_due onto the license', async () => {
@@ -767,6 +885,58 @@ describe('customer.subscription.deleted', () => {
 
     const licenses = await licenseRows();
     expect(licenses[0].status).toBe('canceled');
+  });
+
+  it('immediate cancellation (ended_at before period end) ends access at ended_at', async () => {
+    await seedSubscriptionLicense();
+    const endedAt = PERIOD_END - 10 * 86400;
+
+    const res = await deliver(
+      subscriptionEvent('customer.subscription.deleted', {
+        status: 'canceled',
+        ended_at: endedAt,
+        canceled_at: endedAt,
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const [license] = await licenseRows();
+    expect(license.status).toBe('canceled');
+    expect(license.current_period_end).toBe(new Date(endedAt * 1000).toISOString());
+  });
+
+  it('immediate cancellation without ended_at falls back to canceled_at', async () => {
+    await seedSubscriptionLicense();
+    const canceledAt = PERIOD_END - 5 * 86400;
+    await deliver(
+      subscriptionEvent('customer.subscription.deleted', {
+        status: 'canceled',
+        cancel_at_period_end: false,
+        canceled_at: canceledAt,
+      })
+    );
+    expect((await licenseRows())[0].current_period_end).toBe(
+      new Date(canceledAt * 1000).toISOString()
+    );
+  });
+
+  it('cancel at period end keeps the stored period end (access until then)', async () => {
+    await seedSubscriptionLicense();
+    const before = (await licenseRows())[0].current_period_end;
+
+    await deliver(
+      subscriptionEvent('customer.subscription.deleted', {
+        status: 'canceled',
+        cancel_at_period_end: true,
+        canceled_at: PERIOD_END - 20 * 86400, // when the user clicked cancel
+        ended_at: PERIOD_END,
+      })
+    );
+
+    const [license] = await licenseRows();
+    expect(license.status).toBe('canceled');
+    expect(license.current_period_end).toBe(before);
+    expect(before).toBe(new Date(PERIOD_END * 1000).toISOString());
   });
 });
 
@@ -1051,6 +1221,11 @@ describe('charge.refunded', () => {
       object: {
         id: 'ch_test_Charge01',
         customer: CUSTOMER,
+        // Real charge.refunded events always carry these (full refund here).
+        amount: 4900,
+        amount_refunded: 4900,
+        refunded: true,
+        currency: 'usd',
         ...overrides,
       },
     },
@@ -1160,9 +1335,395 @@ describe('charge.refunded', () => {
     expect(licenses[0].status).toBe('active');
   });
 
+  describe('subscription refund ops alert', () => {
+    const ALERT_URL = 'https://hooks.example.test/ops';
+    const alertingEnv = () =>
+      ({ ...env, OPS_ALERT_WEBHOOK: ALERT_URL }) as typeof env;
+
+    it('sends exactly one ops alert and leaves the license untouched', async () => {
+      // Arrange
+      await seedSubscriptionLicense();
+      const before = await licenseRows();
+      const alertBodies: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+          if (String(url) === ALERT_URL) alertBodies.push(String(init?.body ?? ''));
+          return new Response('ok', { status: 200 });
+        })
+      );
+
+      // Act
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(
+          chargeEvent({ amount: 2900, amount_refunded: 2900, currency: 'usd' })
+        ),
+        alertingEnv()
+      );
+
+      // Assert
+      expect(res.status).toBe(200);
+      expect(alertBodies).toHaveLength(1);
+      const body = alertBodies[0];
+      expect(body).toContain('ch_test_Charge01');
+      expect(body).toContain(CUSTOMER);
+      expect(body).toContain(SUBSCRIPTION);
+      expect(body).toContain('FULL');
+      expect(body).toContain('2900');
+      expect(body).toContain('plan=pro');
+      expect(body).toContain('status=active');
+      expect(body).not.toContain(before[0].license_key);
+      expect(await licenseRows()).toEqual(before);
+    });
+
+    it('labels a partial refund as PARTIAL', async () => {
+      // Arrange
+      await seedSubscriptionLicense();
+      const alertBodies: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+          alertBodies.push(String(init?.body ?? ''));
+          return new Response('ok', { status: 200 });
+        })
+      );
+
+      // Act
+      await handleStripeWebhook(
+        await signedWebhookRequest(
+          chargeEvent({ amount: 2900, amount_refunded: 1000, currency: 'usd' })
+        ),
+        alertingEnv()
+      );
+
+      // Assert
+      expect(alertBodies).toHaveLength(1);
+      expect(alertBodies[0]).toContain('PARTIAL');
+    });
+
+    it('does not alert for a lifetime refund and still revokes it', async () => {
+      // Arrange
+      await deliver(
+        checkoutCompletedEvent({
+          mode: 'payment',
+          subscription: null,
+          metadata: { plan: 'pro', billing_period: 'lifetime' },
+        })
+      );
+      const fetchSpy = vi.fn(async () => new Response('ok', { status: 200 }));
+      vi.stubGlobal('fetch', fetchSpy);
+
+      // Act
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(chargeEvent()),
+        alertingEnv()
+      );
+
+      // Assert
+      expect(res.status).toBe(200);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect((await licenseRows())[0].status).toBe('revoked');
+    });
+
+    it('still returns 200 and keeps the license when alert delivery fails', async () => {
+      // Arrange
+      await seedSubscriptionLicense();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          throw new Error('alert receiver down');
+        })
+      );
+
+      // Act
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(chargeEvent({ amount: 2900, amount_refunded: 2900 })),
+        alertingEnv()
+      );
+
+      // Assert
+      expect(res.status).toBe(200);
+      expect((await licenseRows())[0].status).toBe('active');
+    });
+  });
+
+  describe('partial refunds', () => {
+    const ALERT_URL = 'https://hooks.example.test/ops';
+    const seedLifetime = () =>
+      deliver(
+        checkoutCompletedEvent({
+          mode: 'payment',
+          subscription: null,
+          metadata: { plan: 'pro', billing_period: 'lifetime' },
+        })
+      );
+
+    it('partial refund of a lifetime charge alerts ops and leaves the license active', async () => {
+      await seedLifetime();
+      const alertBodies: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+          if (String(url) === ALERT_URL) alertBodies.push(String(init?.body ?? ''));
+          return new Response('ok', { status: 200 });
+        })
+      );
+
+      const res = await handleStripeWebhook(
+        await signedWebhookRequest(
+          chargeEvent({ amount: 19900, amount_refunded: 5000, refunded: false })
+        ),
+        { ...env, OPS_ALERT_WEBHOOK: ALERT_URL } as typeof env
+      );
+
+      expect(res.status).toBe(200);
+      expect((await licenseRows())[0].status).toBe('active');
+      expect(alertBodies).toHaveLength(1);
+      expect(alertBodies[0]).toContain('PARTIAL_REFUND');
+      expect(alertBodies[0]).toContain('ch_test_Charge01');
+    });
+
+    it('partial refund resolved via payment_intent also leaves the license active', async () => {
+      await seedLifetime();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () =>
+          new Response(JSON.stringify({ data: [{ id: 'cs_test_Session01' }] }), { status: 200 })
+        )
+      );
+
+      const res = await deliver(
+        chargeEvent({
+          customer: null,
+          payment_intent: 'pi_test_PI01',
+          amount: 19900,
+          amount_refunded: 100,
+          refunded: false,
+        })
+      );
+
+      expect(res.status).toBe(200);
+      expect((await licenseRows())[0].status).toBe('active');
+    });
+
+    it('full refund (amount_refunded >= amount) still revokes', async () => {
+      await seedLifetime();
+      const res = await deliver(
+        chargeEvent({ amount: 19900, amount_refunded: 19900, refunded: true })
+      );
+      expect(res.status).toBe(200);
+      expect((await licenseRows())[0].status).toBe('revoked');
+    });
+  });
+
   it('acknowledges a charge without a customer', async () => {
     const res = await deliver(chargeEvent({ customer: null }));
     expect(res.status).toBe(200);
+  });
+});
+
+// ============================================================================
+// charge.dispute.created (chargebacks)
+// ============================================================================
+
+describe('charge.dispute.created', () => {
+  const ALERT_URL = 'https://hooks.example.test/ops';
+  const alertingEnv = () => ({ ...env, OPS_ALERT_WEBHOOK: ALERT_URL }) as typeof env;
+  const disputeEvent = (overrides: Record<string, unknown> = {}, id = eventId()) => ({
+    id,
+    type: 'charge.dispute.created',
+    data: {
+      object: {
+        id: 'dp_test_Dispute01',
+        object: 'dispute',
+        charge: 'ch_test_Disputed01',
+        payment_intent: 'pi_test_PI01',
+        amount: 19900,
+        currency: 'usd',
+        reason: 'fraudulent',
+        status: 'needs_response',
+        ...overrides,
+      },
+    },
+  });
+
+  /** Stub Stripe (charge + session lookups) and capture ops alerts. */
+  function stubStripe(opts: { sessionId?: string; customer?: string | null; chargeStatus?: number }) {
+    const alerts: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        const u = String(url);
+        if (u === ALERT_URL) {
+          alerts.push(String(init?.body ?? ''));
+          return new Response('ok', { status: 200 });
+        }
+        if (u.startsWith('https://api.stripe.com/v1/charges/')) {
+          return new Response(
+            JSON.stringify({ id: 'ch_test_Disputed01', customer: opts.customer ?? null }),
+            { status: opts.chargeStatus ?? 200 }
+          );
+        }
+        if (u.startsWith('https://api.stripe.com/v1/checkout/sessions')) {
+          return new Response(
+            JSON.stringify({ data: opts.sessionId ? [{ id: opts.sessionId }] : [] }),
+            { status: 200 }
+          );
+        }
+        throw new Error(`unexpected fetch ${u}`);
+      })
+    );
+    return alerts;
+  }
+
+  it('revokes the lifetime license resolved via payment_intent and alerts ops', async () => {
+    await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        metadata: { plan: 'pro', billing_period: 'lifetime' },
+      })
+    );
+    const alerts = stubStripe({ sessionId: 'cs_test_Session01' });
+
+    const res = await handleStripeWebhook(await signedWebhookRequest(disputeEvent()), alertingEnv());
+
+    expect(res.status).toBe(200);
+    const [license] = await licenseRows();
+    expect(license.status).toBe('revoked');
+    expect(license.revoked_reason).toContain('dp_test_Dispute01');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain('DISPUTE');
+    expect(alerts[0]).toContain('dp_test_Dispute01');
+    expect(alerts[0]).not.toContain(license.license_key);
+  });
+
+  it('revokes a subscription license resolved via the charge customer', async () => {
+    await seedSubscriptionLicense();
+    const alerts = stubStripe({ customer: CUSTOMER });
+
+    const res = await handleStripeWebhook(
+      await signedWebhookRequest(disputeEvent({ payment_intent: null })),
+      alertingEnv()
+    );
+
+    expect(res.status).toBe(200);
+    expect((await licenseRows())[0].status).toBe('revoked');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain(SUBSCRIPTION);
+  });
+
+  it('unresolvable dispute: alerts, acks 200, marks processed, changes nothing', async () => {
+    await seedSubscriptionLicense();
+    const alerts = stubStripe({ chargeStatus: 404 });
+
+    const event = disputeEvent();
+    const res = await handleStripeWebhook(await signedWebhookRequest(event), alertingEnv());
+
+    expect(res.status).toBe(200);
+    expect((await licenseRows())[0].status).toBe('active');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain('NO license');
+    expect(
+      await rows(`SELECT * FROM processed_events WHERE event_id = '${event.id}'`)
+    ).toHaveLength(1);
+  });
+
+  it('is idempotent under redelivery of the same event', async () => {
+    await deliver(
+      checkoutCompletedEvent({
+        mode: 'payment',
+        subscription: null,
+        metadata: { plan: 'pro', billing_period: 'lifetime' },
+      })
+    );
+    const alerts = stubStripe({ sessionId: 'cs_test_Session01' });
+    const event = disputeEvent({}, 'evt_dispute_dup');
+
+    const first = await handleStripeWebhook(await signedWebhookRequest(event), alertingEnv());
+    const second = await handleStripeWebhook(await signedWebhookRequest(event), alertingEnv());
+
+    expect(first.status).toBe(200);
+    expect(await second.json()).toEqual({ received: true, duplicate: true });
+    expect(alerts).toHaveLength(1);
+    expect((await licenseRows())[0].status).toBe('revoked');
+  });
+});
+
+// ============================================================================
+// Webhooks never un-revoke
+// ============================================================================
+
+describe('revoked licenses stay revoked through webhooks', () => {
+  const ALERT_URL = 'https://hooks.example.test/ops';
+
+  async function seedRevokedSubscriptionLicense(): Promise<void> {
+    await seedSubscriptionLicense();
+    await env.DB.prepare(
+      "UPDATE licenses SET status = 'revoked', revoked_reason = 'test'"
+    ).run();
+  }
+
+  it('invoice.paid keeps a revoked license revoked and alerts ops', async () => {
+    await seedRevokedSubscriptionLicense();
+    const alertBodies: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        if (String(url) === ALERT_URL) alertBodies.push(String(init?.body ?? ''));
+        return new Response('ok', { status: 200 });
+      })
+    );
+
+    const res = await handleStripeWebhook(
+      await signedWebhookRequest(invoiceEvent('invoice.paid')),
+      { ...env, OPS_ALERT_WEBHOOK: ALERT_URL } as typeof env
+    );
+
+    expect(res.status).toBe(200);
+    const [license] = await licenseRows();
+    expect(license.status).toBe('revoked');
+    // period still recorded
+    expect(license.current_period_end).toBe(
+      new Date((PERIOD_END + 100) * 1000).toISOString()
+    );
+    expect(alertBodies).toHaveLength(1);
+    expect(alertBodies[0]).toContain('PAID_REVOKED');
+    expect(alertBodies[0]).toContain(SUBSCRIPTION);
+    expect(alertBodies[0]).not.toContain(license.license_key);
+  });
+
+  it('subscription.updated (active) keeps a revoked license revoked', async () => {
+    await seedRevokedSubscriptionLicense();
+    const res = await deliver(
+      subscriptionEvent('customer.subscription.updated', {
+        status: 'active',
+        items: { data: [{ price: { id: TEAM_MONTHLY_PRICE } }] },
+      })
+    );
+    expect(res.status).toBe(200);
+    const [license] = await licenseRows();
+    expect(license.status).toBe('revoked');
+    expect(license.plan).toBe('team');
+  });
+
+  it('subscription.deleted and invoice.payment_failed keep a revoked license revoked', async () => {
+    await seedRevokedSubscriptionLicense();
+    await deliver(invoiceEvent('invoice.payment_failed'));
+    await deliver(subscriptionEvent('customer.subscription.deleted'));
+    expect((await licenseRows())[0].status).toBe('revoked');
+  });
+
+  it('invoice.paid on a non-revoked license sends no alert', async () => {
+    await seedSubscriptionLicense();
+    const fetchSpy = vi.fn(async () => new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    await handleStripeWebhook(
+      await signedWebhookRequest(invoiceEvent('invoice.paid')),
+      { ...env, OPS_ALERT_WEBHOOK: ALERT_URL } as typeof env
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect((await licenseRows())[0].status).toBe('active');
   });
 });
 

@@ -10,7 +10,7 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-background pt-24 pb-16">
       <div className="max-w-3xl mx-auto px-4">
         <h1 className="text-4xl font-bold text-foreground mb-8">Privacy Policy</h1>
-        <p className="text-muted-foreground mb-4">Last updated: 1 October 2026</p>
+        <p className="text-muted-foreground mb-4">Last updated: 16 November 2026</p>
 
         <div className="prose prose-invert prose-emerald max-w-none space-y-8">
           <section>
@@ -62,6 +62,16 @@ export default function PrivacyPage() {
               <li>
                 <strong className="text-foreground">Payment Information:</strong> Processed securely
                 by Stripe. We do not store credit card numbers.
+              </li>
+              <li>
+                <strong className="text-foreground">Sign-in (Clerk):</strong> Account sign-in on
+                this website is provided by Clerk, which processes your email address to
+                authenticate you.
+              </li>
+              <li>
+                <strong className="text-foreground">Hosting and Analytics (Cloudflare):</strong>{" "}
+                This website is hosted on Cloudflare, and its content security policy permits
+                Cloudflare&apos;s web analytics script.
               </li>
             </ul>
           </section>

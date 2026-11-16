@@ -10,12 +10,13 @@
  *
  * Flow for Lifetime Deals:
  *   checkout.session.completed (mode=payment) → Creates user + license immediately
- *   charge.refunded → Revokes lifetime license
+ *   charge.refunded → Revokes lifetime license (full refunds only)
+ *   charge.dispute.created → Revokes the disputed license + ops alert
  */
 
 import type { Env } from '../types/env';
 import { generateLicenseKey, timestampToISO, nowISO } from '../lib/license';
-import { getPlanFromPriceIdStrict, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY, PLAN_RANK } from '../lib/constants';
+import { getPlanFromPriceIdStrict, isPlanDowngrade, getStripePriceMapping, LIFETIME_EXPIRY, PLAN_RANK, OUTBOUND_FETCH_TIMEOUT_MS } from '../lib/constants';
 import {
   createDb,
   type DrizzleDb,
@@ -33,8 +34,8 @@ import {
   markEventProcessed,
   deactivateAllDevices,
 } from '../lib/db';
-import { licenses } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { licenses, type License } from '../db/schema';
+import { eq, and, desc, isNotNull } from 'drizzle-orm';
 import { sendOpsAlert } from '../lib/alerts';
 import { sendLicenseKeyEmail } from '../lib/email';
 
@@ -47,7 +48,8 @@ type StripeEventType =
   | 'customer.deleted'
   | 'invoice.paid'
   | 'invoice.payment_failed'
-  | 'charge.refunded';
+  | 'charge.refunded'
+  | 'charge.dispute.created';
 
 interface StripeEvent {
   id: string;
@@ -76,6 +78,9 @@ interface StripeSubscription {
   current_period_start?: number;
   current_period_end?: number;
   cancel_at_period_end: boolean;
+  // Unix seconds; set on deleted subscriptions.
+  ended_at?: number | null;
+  canceled_at?: number | null;
 }
 
 /**
@@ -175,6 +180,37 @@ interface StripeCharge {
   customer: string | null;
   metadata?: Record<string, string>;
   payment_intent?: string;
+  amount?: number;
+  amount_refunded?: number;
+  refunded?: boolean;
+  currency?: string;
+}
+
+/** True when the charge is fully refunded (amounts win over the flag). */
+function isFullRefund(charge: StripeCharge): boolean {
+  if (typeof charge.amount === 'number' && typeof charge.amount_refunded === 'number') {
+    return charge.amount_refunded >= charge.amount;
+  }
+  return charge.refunded === true;
+}
+
+/**
+ * Alert ops that a lifetime charge was only partially refunded. The license
+ * is left unchanged: only a full refund revokes. Never includes the key.
+ */
+async function alertPartialRefund(
+  env: Env,
+  charge: StripeCharge,
+  license: License
+): Promise<void> {
+  const detail =
+    `Lifetime charge PARTIALLY refunded; license NOT revoked. ` +
+    `charge=${charge.id}, customer=${charge.customer ?? 'none'}, ` +
+    `refunded=${charge.amount_refunded ?? 'unknown'} of ` +
+    `charged=${charge.amount ?? 'unknown'} ${charge.currency ?? ''} (minor units), ` +
+    `license=${license.id}, plan=${license.plan}, status=${license.status}.`;
+  console.warn(`[Stripe][PARTIAL_REFUND] ${detail}`);
+  await sendOpsAlert(env, 'Stripe PARTIAL_REFUND', detail);
 }
 
 /**
@@ -279,6 +315,7 @@ async function handleCheckoutCompleted(
 
   // Find or create user first (needed for both modes)
   const user = await findOrCreateUser(db, email, session.customer ?? undefined);
+  await alertCustomerMismatch(env, user, session.customer, session.id);
 
   if (session.mode === 'subscription') {
     // For subscriptions, just ensure user exists. License created in subscription.created event.
@@ -293,6 +330,29 @@ async function handleCheckoutCompleted(
   }
 
   console.log(`[Stripe] Ignoring checkout mode: ${session.mode}`);
+}
+
+/**
+ * findOrCreateUser keeps the first stored Stripe customer id. When an event
+ * presents a different customer for the same user, flag it for ops: later
+ * customer-keyed events (refunds, disputes, customer.deleted) for the new
+ * customer will not resolve this user.
+ */
+async function alertCustomerMismatch(
+  env: Env,
+  user: { id: string; customerId: string | null },
+  presentedCustomerId: string | null | undefined,
+  refId: string
+): Promise<void> {
+  if (!presentedCustomerId || !user.customerId || user.customerId === presentedCustomerId) {
+    return;
+  }
+  const detail =
+    `Stripe customer mismatch: user=${user.id} keeps customer=${user.customerId}, ` +
+    `but ref=${refId} presented customer=${presentedCustomerId}. The stored id was ` +
+    `not overwritten; check for a duplicate Stripe customer.`;
+  console.warn(`[Stripe][CUSTOMER_MISMATCH] ${detail}`);
+  await sendOpsAlert(env, 'Stripe CUSTOMER_MISMATCH', detail);
 }
 
 /**
@@ -457,7 +517,10 @@ async function handleSubscriptionCreated(
   if (!user) {
     const customerRes = await fetch(
       `https://api.stripe.com/v1/customers/${encodeURIComponent(subscription.customer)}`,
-      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
     );
     if (!customerRes.ok) {
       console.warn(
@@ -477,6 +540,7 @@ async function handleSubscriptionCreated(
       return { success: false, retry: true };
     }
     user = await findOrCreateUser(db, customer.email, subscription.customer);
+    await alertCustomerMismatch(env, user, subscription.customer, subscription.id);
   }
 
   // Get plan from price ID. Strict resolution: an unrecognized price ID
@@ -536,6 +600,38 @@ async function handleSubscriptionCreated(
 }
 
 /**
+ * Re-fetch a subscription from Stripe so out-of-order update events apply the
+ * current state. Falls back to the event payload (logged) when the fetch fails.
+ */
+async function fetchCurrentSubscription(
+  env: Env,
+  fromEvent: StripeSubscription
+): Promise<StripeSubscription> {
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/subscriptions/${encodeURIComponent(fromEvent.id)}`,
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
+    );
+    if (res.ok) {
+      const current = (await res.json()) as StripeSubscription;
+      if (current?.id === fromEvent.id && current.items?.data) return current;
+    }
+    console.warn(
+      `[Stripe] Subscription ${fromEvent.id} re-fetch failed (status ${res.status}); applying the event payload`
+    );
+  } catch (error) {
+    console.warn(
+      `[Stripe] Subscription ${fromEvent.id} re-fetch threw: ` +
+      `${error instanceof Error ? error.message : String(error)}; applying the event payload`
+    );
+  }
+  return fromEvent;
+}
+
+/**
  * Handle customer.subscription.updated
  * Updates plan and/or status
  *
@@ -545,14 +641,18 @@ async function handleSubscriptionCreated(
  */
 async function handleSubscriptionUpdated(
   db: DrizzleDb,
-  subscription: StripeSubscription,
+  eventSubscription: StripeSubscription,
   env: Env
 ): Promise<void> {
-  const license = await getLicenseBySubscriptionId(db, subscription.id);
+  const license = await getLicenseBySubscriptionId(db, eventSubscription.id);
   if (!license) {
-    console.error(`No license found for subscription ${subscription.id}`);
+    console.error(`No license found for subscription ${eventSubscription.id}`);
     return;
   }
+
+  // Stripe does not guarantee delivery order: a late, older update must not
+  // overwrite newer plan/status. Apply the subscription's current state.
+  const subscription = await fetchCurrentSubscription(env, eventSubscription);
 
   // Get updated plan from price ID. Strict resolution — see
   // handleSubscriptionCreated for rationale. An unresolvable price ID here
@@ -587,9 +687,11 @@ async function handleSubscriptionUpdated(
       status = 'past_due';
       break;
     case 'canceled':
-    case 'unpaid':
       status = 'canceled';
       break;
+    // unpaid: Stripe stopped retrying and the invoice is uncollected — not
+    // entitled ('canceled' would keep access until the period end).
+    case 'unpaid':
     case 'incomplete':
     case 'incomplete_expired':
       status = 'expired';
@@ -642,8 +744,20 @@ async function handleSubscriptionDeleted(
     return;
   }
 
-  await cancelLicense(db, license.id);
-  console.log(`[Stripe] License ${license.id} canceled`);
+  // Terminated early (immediate cancel, unpaid, admin action): access ends
+  // when the subscription ended, not at the stored period end. A normal
+  // cancel-at-period-end has ended_at == period end and keeps it unchanged.
+  // canceled_at is only a fallback for immediate cancels, since for
+  // cancel-at-period-end it is the (earlier) time the user clicked cancel.
+  const endedTs =
+    subscription.ended_at ?? (subscription.cancel_at_period_end ? null : subscription.canceled_at ?? null);
+  const endedISO = typeof endedTs === 'number' ? timestampToISO(endedTs) : undefined;
+  const endsEarly =
+    endedISO !== undefined &&
+    (!license.currentPeriodEnd || new Date(endedISO) < new Date(license.currentPeriodEnd));
+
+  await cancelLicense(db, license.id, endsEarly ? endedISO : undefined);
+  console.log(`[Stripe] License ${license.id} canceled${endsEarly ? ` (ended early at ${endedISO})` : ''}`);
 }
 
 /**
@@ -652,7 +766,8 @@ async function handleSubscriptionDeleted(
  */
 async function handleInvoicePaid(
   db: DrizzleDb,
-  invoice: StripeInvoice
+  invoice: StripeInvoice,
+  env: Env
 ): Promise<{ success: boolean; retry?: boolean }> {
   const subscriptionId = getInvoiceSubscriptionId(invoice);
   if (!subscriptionId) {
@@ -672,6 +787,18 @@ async function handleInvoicePaid(
       `before its license exists. Triggering retry.`
     );
     return { success: false, retry: true };
+  }
+
+  if (license.status === 'revoked') {
+    // The license stays revoked (updateLicensePlan never un-revokes); a human
+    // decides whether to refund/cancel the subscription or reinstate.
+    const detail =
+      `Payment received for a REVOKED license; license stays revoked. ` +
+      `invoice=${invoice.id}, customer=${invoice.customer}, ` +
+      `subscription=${subscriptionId}, license=${license.id}, plan=${license.plan}. ` +
+      `Cancel/refund the subscription or reinstate manually.`;
+    console.warn(`[Stripe][PAID_REVOKED] ${detail}`);
+    await sendOpsAlert(env, 'Stripe PAID_REVOKED', detail);
   }
 
   // Get period from invoice line items. Setting absolute values keeps this
@@ -746,9 +873,11 @@ async function handleCustomerDeleted(
  * Handle charge.refunded
  * Revokes lifetime licenses when payment is refunded.
  *
- * NOTE: This only affects lifetime licenses. Subscription refunds are handled
- * through subscription.deleted event which is triggered by Stripe when a
- * subscription is canceled after refund.
+ * NOTE: Only lifetime licenses are revoked. Subscription licenses are never
+ * touched here (revoking is an owner policy decision; normally Stripe sends
+ * subscription.deleted when the subscription is canceled after a refund).
+ * A refund on a subscription license only raises an ops alert, so a refund
+ * without a cancellation does not go unnoticed.
  */
 async function handleChargeRefunded(
   db: DrizzleDb,
@@ -785,6 +914,17 @@ async function handleChargeRefunded(
   const license = await getLifetimeLicenseByUserId(db, user.id);
 
   if (!license) {
+    const subscriptionLicense = await db.query.licenses.findFirst({
+      where: and(
+        eq(licenses.userId, user.id),
+        isNotNull(licenses.stripeSubscriptionId)
+      ),
+      orderBy: desc(licenses.createdAt),
+    });
+    if (subscriptionLicense) {
+      await alertSubscriptionRefund(env, charge, subscriptionLicense);
+      return;
+    }
     console.log(`[Stripe] No lifetime license found for user ${user.id}, ignoring refund`);
     return;
   }
@@ -800,9 +940,172 @@ async function handleChargeRefunded(
     return;
   }
 
+  if (!isFullRefund(charge)) {
+    await alertPartialRefund(env, charge, license);
+    return;
+  }
+
   // Revoke the license
   await revokeLicense(db, license.id, `Refunded: charge_${charge.id}`);
   console.log(`[Stripe] Lifetime license ${license.id} revoked due to refund`);
+}
+
+/**
+ * Alert ops that a subscription charge was refunded. Does NOT change the
+ * license (revoking is an owner policy decision). Only the license id is
+ * included, never the license key. Fail-open: sendOpsAlert never throws.
+ */
+async function alertSubscriptionRefund(
+  env: Env,
+  charge: StripeCharge,
+  license: License
+): Promise<void> {
+  const amount = charge.amount;
+  const refunded = charge.amount_refunded;
+  const kind =
+    amount === undefined || refunded === undefined
+      ? 'UNKNOWN'
+      : refunded >= amount
+        ? 'FULL'
+        : 'PARTIAL';
+  const detail =
+    `Subscription charge refunded; license NOT changed (owner decision). ` +
+    `charge=${charge.id}, customer=${charge.customer ?? 'none'}, ` +
+    `subscription=${license.stripeSubscriptionId ?? 'none'}, ` +
+    `refund=${kind} (refunded=${refunded ?? 'unknown'} of ` +
+    `charged=${amount ?? 'unknown'} ${charge.currency ?? ''}, minor units), ` +
+    `license=${license.id}, plan=${license.plan}, status=${license.status}.`;
+  console.warn(`[Stripe][SUBSCRIPTION_REFUND] ${detail}`);
+  await sendOpsAlert(env, 'Stripe SUBSCRIPTION_REFUND', detail);
+}
+
+/**
+ * Look up the Checkout Session that created a payment_intent. Returns
+ * undefined when there is none or the lookup fails (logged), so callers
+ * fall back to customer resolution.
+ */
+async function findSessionIdByPaymentIntent(
+  env: Env,
+  paymentIntent: string
+): Promise<string | undefined> {
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/checkout/sessions?payment_intent=${encodeURIComponent(
+        paymentIntent
+      )}&limit=1`,
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
+    );
+    if (!res.ok) {
+      console.warn(
+        `[Stripe] Session lookup for payment_intent ${paymentIntent} ` +
+        `failed (status ${res.status}). Falling back to customer resolution.`
+      );
+      return undefined;
+    }
+    const body = (await res.json()) as { data?: Array<{ id?: string }> };
+    return body.data?.[0]?.id;
+  } catch (error) {
+    console.warn(
+      `[Stripe] Session lookup for payment_intent ${paymentIntent} ` +
+      `threw: ${error instanceof Error ? error.message : String(error)}. ` +
+      `Falling back to customer resolution.`
+    );
+    return undefined;
+  }
+}
+
+interface StripeDispute {
+  id: string;
+  charge: string;
+  payment_intent?: string | null;
+  amount?: number;
+  currency?: string;
+  reason?: string;
+}
+
+/**
+ * Handle charge.dispute.created (chargeback): revoke the license the
+ * disputed charge paid for — lifetime or subscription — and alert ops.
+ *
+ * Resolution mirrors charge.refunded: payment_intent → checkout session →
+ * license; otherwise the charge's customer → most recent lifetime license,
+ * else most recent subscription license. The dispute object carries no
+ * customer, so the charge is fetched from Stripe for it. An unresolvable
+ * dispute is alerted and acknowledged (a retry would not add information).
+ */
+async function handleDisputeCreated(
+  db: DrizzleDb,
+  dispute: StripeDispute,
+  env: Env
+): Promise<void> {
+  let customer: string | null = null;
+  let paymentIntent = dispute.payment_intent ?? null;
+  try {
+    const res = await fetch(
+      `https://api.stripe.com/v1/charges/${encodeURIComponent(dispute.charge)}`,
+      {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
+    );
+    if (res.ok) {
+      const charge = (await res.json()) as { customer?: string | null; payment_intent?: string | null };
+      customer = charge.customer ?? null;
+      paymentIntent = paymentIntent ?? charge.payment_intent ?? null;
+    } else {
+      console.warn(`[Stripe] Charge lookup for dispute ${dispute.id} failed (status ${res.status})`);
+    }
+  } catch (error) {
+    console.warn(
+      `[Stripe] Charge lookup for dispute ${dispute.id} threw: ` +
+      `${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  let license: License | null | undefined;
+  if (paymentIntent) {
+    const sessionId = await findSessionIdByPaymentIntent(env, paymentIntent);
+    if (sessionId) license = await getLicenseBySessionId(db, sessionId);
+  }
+  if (!license && customer) {
+    const user = await getUserByStripeCustomerId(db, customer);
+    if (user) {
+      license =
+        (await getLifetimeLicenseByUserId(db, user.id)) ??
+        (await db.query.licenses.findFirst({
+          where: and(eq(licenses.userId, user.id), isNotNull(licenses.stripeSubscriptionId)),
+          orderBy: desc(licenses.createdAt),
+        }));
+    }
+  }
+
+  const disputeInfo =
+    `dispute=${dispute.id}, charge=${dispute.charge}, customer=${customer ?? 'unknown'}, ` +
+    `amount=${dispute.amount ?? 'unknown'} ${dispute.currency ?? ''} (minor units), ` +
+    `reason=${dispute.reason ?? 'unknown'}`;
+
+  if (!license) {
+    const detail = `Chargeback opened but NO license could be resolved — nothing revoked. ${disputeInfo}. Manual review required.`;
+    console.error(`[Stripe][DISPUTE] ${detail}`);
+    await sendOpsAlert(env, 'Stripe DISPUTE', detail);
+    return;
+  }
+
+  const previousStatus = license.status;
+  if (previousStatus !== 'revoked') {
+    await revokeLicense(db, license.id, `Disputed: ${dispute.id} (charge_${dispute.charge})`);
+  }
+  const detail =
+    `Chargeback opened; license revoked. ${disputeInfo}, license=${license.id}, ` +
+    `plan=${license.plan}, plan_type=${license.planType}, previous_status=${previousStatus}, ` +
+    `subscription=${license.stripeSubscriptionId ?? 'none'}` +
+    (license.stripeSubscriptionId ? ' (subscription is NOT canceled in Stripe — cancel it manually).' : '.') +
+    ` Respond to the dispute in the Stripe dashboard.`;
+  console.warn(`[Stripe][DISPUTE] ${detail}`);
+  await sendOpsAlert(env, 'Stripe DISPUTE', detail);
 }
 
 /**
@@ -819,32 +1122,7 @@ async function revokeLicenseByPaymentIntent(
   charge: StripeCharge,
   env: Env
 ): Promise<boolean> {
-  let sessionId: string | undefined;
-  try {
-    const res = await fetch(
-      `https://api.stripe.com/v1/checkout/sessions?payment_intent=${encodeURIComponent(
-        charge.payment_intent ?? ''
-      )}&limit=1`,
-      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
-    );
-    if (!res.ok) {
-      console.warn(
-        `[Stripe] Session lookup for payment_intent ${charge.payment_intent} ` +
-        `failed (status ${res.status}). Falling back to customer resolution.`
-      );
-      return false;
-    }
-    const body = (await res.json()) as { data?: Array<{ id?: string }> };
-    sessionId = body.data?.[0]?.id;
-  } catch (error) {
-    console.warn(
-      `[Stripe] Session lookup for payment_intent ${charge.payment_intent} ` +
-      `threw: ${error instanceof Error ? error.message : String(error)}. ` +
-      `Falling back to customer resolution.`
-    );
-    return false;
-  }
-
+  const sessionId = await findSessionIdByPaymentIntent(env, charge.payment_intent ?? '');
   if (!sessionId) {
     return false; // Charge wasn't made through Checkout (or session expired).
   }
@@ -859,6 +1137,7 @@ async function revokeLicenseByPaymentIntent(
       `[Stripe] License ${license.id} for session ${sessionId} is not ` +
       `lifetime (${license.planType}), ignoring refund`
     );
+    await alertSubscriptionRefund(env, charge, license);
     return true;
   }
 
@@ -866,6 +1145,11 @@ async function revokeLicenseByPaymentIntent(
     console.log(
       `[Stripe] License ${license.id} already ${license.status}, ignoring refund`
     );
+    return true;
+  }
+
+  if (!isFullRefund(charge)) {
+    await alertPartialRefund(env, charge, license);
     return true;
   }
 
@@ -983,7 +1267,8 @@ export async function handleStripeWebhook(
       case 'invoice.paid': {
         const result = await handleInvoicePaid(
           db,
-          event.data.object as unknown as StripeInvoice
+          event.data.object as unknown as StripeInvoice,
+          env
         );
         if (!result.success && result.retry) {
           // Early return skips markEventProcessed — Stripe will redeliver
@@ -1017,6 +1302,14 @@ export async function handleStripeWebhook(
         await handleChargeRefunded(
           db,
           event.data.object as unknown as StripeCharge,
+          env
+        );
+        break;
+
+      case 'charge.dispute.created':
+        await handleDisputeCreated(
+          db,
+          event.data.object as unknown as StripeDispute,
           env
         );
         break;

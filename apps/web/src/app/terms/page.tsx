@@ -10,7 +10,7 @@ export default function TermsPage() {
     <main className="min-h-screen bg-background pt-24 pb-16">
       <div className="max-w-3xl mx-auto px-4">
         <h1 className="text-4xl font-bold text-foreground mb-8">Terms of Service</h1>
-        <p className="text-muted-foreground mb-4">Last updated: January 2026</p>
+        <p className="text-muted-foreground mb-4">Last updated: 16 November 2026</p>
 
         <div className="prose prose-invert prose-emerald max-w-none space-y-8">
           <section>
@@ -50,8 +50,9 @@ export default function TermsPage() {
                 enterprise agreement.
               </li>
               <li>
-                <strong className="text-foreground">Lifetime:</strong> Perpetual license for the
-                purchased tier, including future updates.
+                <strong className="text-foreground">Lifetime:</strong> Lifetime licenses purchased
+                before November 2026 are perpetual licenses for the purchased tier, including future
+                updates. Lifetime licenses are no longer offered.
               </li>
             </ul>
           </section>
@@ -90,8 +91,8 @@ export default function TermsPage() {
             <h2 className="text-2xl font-semibold text-foreground mb-4">7. Refund Policy</h2>
             <p className="text-muted-foreground leading-relaxed">
               Monthly and annual subscriptions may be canceled at any time. Refunds for Lifetime
-              licenses are available within 14 days of purchase if you have not activated the
-              license.
+              licenses purchased before November 2026 are available within 14 days of purchase if
+              you have not activated the license.
             </p>
           </section>
 

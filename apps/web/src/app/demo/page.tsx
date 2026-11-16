@@ -14,7 +14,7 @@ import {
 
 const TITLE = "Demo: a fictional AWS account, mapped and codified"
 const DESCRIPTION =
-  "No install needed. Explore the dependency graph and the import-ready Terraform RepliMap generated for a 100% synthetic AWS account, produced by the real scanners and the real codify pipeline."
+  "No install needed. Explore the dependency graph and the Terraform with import blocks RepliMap generated for a 100% synthetic AWS account, produced by the real scanners and the real codify pipeline."
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -107,7 +107,9 @@ export default function DemoPage() {
               The generated Terraform
             </h2>
             <p className={`${P} mb-4`}>
-              {s.fileCount} files, written to disk by <Code>replimap codify</Code>. Pick a file, or
+              {s.fileCount} files, written to disk by <Code>replimap codify</Code>. This
+              whole-account imports.tf is a Pro feature; the free plan writes imports.tf for one
+              VPC (<Code>codify --vpc</Code>). Pick a file, or
               use the arrow keys in the list.{" "}
               <a className={linkClass} href="/demo/acme-shop-terraform.zip">
                 Download all (.zip)

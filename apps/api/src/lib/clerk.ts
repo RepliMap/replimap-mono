@@ -13,6 +13,8 @@
  */
 
 import type { Env } from '../types/env';
+import { OUTBOUND_FETCH_TIMEOUT_MS } from './constants';
+import { parseAllowedOrigins } from './security';
 
 export interface ClerkIdentity {
   /** Clerk user id (the `sub` claim). */
@@ -32,6 +34,7 @@ interface JwtPayload {
   sub?: string;
   exp?: number;
   nbf?: number;
+  azp?: string;
   email?: string;
 }
 
@@ -67,14 +70,45 @@ function extractBearerToken(request: Request): string | null {
   return match ? match[1].trim() : null;
 }
 
-async function fetchJwks(
-  issuer: string
-): Promise<Array<JsonWebKey & { kid?: string }> | null> {
+type Jwk = JsonWebKey & { kid?: string };
+
+// JWKS cached per isolate; refetched after the TTL or once on an unknown kid
+// (key rotation). Failures are never cached.
+const JWKS_TTL_MS = 10 * 60 * 1000;
+const jwksCache = new Map<string, { keys: Jwk[]; fetchedAt: number }>();
+
+/** Test hook: clear the JWKS cache. */
+export function _resetJwksCacheForTests(): void {
+  jwksCache.clear();
+}
+
+async function fetchJwks(issuer: string): Promise<Jwk[] | null> {
   const url = `${issuer.replace(/\/$/, '')}/.well-known/jwks.json`;
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!res.ok) return null;
-  const body = (await res.json()) as { keys?: Array<JsonWebKey & { kid?: string }> };
-  return body.keys ?? null;
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { keys?: Jwk[] };
+    if (!body.keys) return null;
+    jwksCache.set(issuer, { keys: body.keys, fetchedAt: Date.now() });
+    return body.keys;
+  } catch (error) {
+    // Network error/timeout → unauthenticated (401), never a 500.
+    console.warn('[Clerk] JWKS fetch failed:', error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
+async function findJwk(issuer: string, kid: string): Promise<Jwk | null> {
+  const cached = jwksCache.get(issuer);
+  if (cached && Date.now() - cached.fetchedAt < JWKS_TTL_MS) {
+    const hit = cached.keys.find((k) => k.kid === kid);
+    if (hit) return hit;
+  }
+  const keys = await fetchJwks(issuer);
+  return keys?.find((k) => k.kid === kid) ?? null;
 }
 
 async function verifyJwtSignature(
@@ -113,22 +147,35 @@ async function resolveEmailFromBackend(
   env: Env,
   userId: string
 ): Promise<string | null> {
-  const res = await fetch(
-    `https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`,
-    { headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` } }
-  );
-  if (!res.ok) return null;
-
-  const user = (await res.json()) as {
+  let user: {
     primary_email_address_id?: string;
-    email_addresses?: Array<{ id: string; email_address: string }>;
+    email_addresses?: Array<{
+      id: string;
+      email_address: string;
+      verification?: { status?: string } | null;
+    }>;
   };
-  const addresses = user.email_addresses ?? [];
-  const primary = addresses.find(
+  try {
+    const res = await fetch(
+      `https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`,
+      {
+        headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
+        signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+      }
+    );
+    if (!res.ok) return null;
+    user = (await res.json()) as typeof user;
+  } catch (error) {
+    console.warn('[Clerk] user lookup failed:', error instanceof Error ? error.message : String(error));
+    return null;
+  }
+  // Only the primary address, and only once verified: never fall back to
+  // another (possibly unverified) address on the account.
+  const primary = (user.email_addresses ?? []).find(
     (a) => a.id === user.primary_email_address_id
   );
-  const chosen = primary ?? addresses[0];
-  return chosen?.email_address ?? null;
+  if (!primary || primary.verification?.status !== 'verified') return null;
+  return primary.email_address ?? null;
 }
 
 /**
@@ -154,9 +201,7 @@ export async function verifyClerkSession(
   const header = base64UrlDecodeToJson<JwtHeader>(parts[0]);
   if (!header?.kid) return null;
 
-  const keys = await fetchJwks(env.CLERK_ISSUER as string);
-  if (!keys) return null;
-  const jwk = keys.find((k) => k.kid === header.kid);
+  const jwk = await findJwk(env.CLERK_ISSUER as string, header.kid);
   if (!jwk) return null;
 
   const verified = await verifyJwtSignature(token, jwk);
@@ -166,6 +211,19 @@ export async function verifyClerkSession(
   // Pin the issuer — never trust a token minted by another instance.
   if (!payload.iss || payload.iss !== env.CLERK_ISSUER) return null;
   if (!payload.sub) return null;
+
+  // Authorized party: when present it must be one of our web origins
+  // (CHECKOUT_ALLOWED_ORIGINS; fail-closed when that is unset).
+  if (payload.azp !== undefined) {
+    const allowed = parseAllowedOrigins(env.CHECKOUT_ALLOWED_ORIGINS);
+    let azpOrigin: string | null = null;
+    try {
+      azpOrigin = new URL(String(payload.azp)).origin;
+    } catch {
+      // Malformed azp never matches.
+    }
+    if (!allowed || !azpOrigin || !allowed.has(azpOrigin)) return null;
+  }
 
   const now = Math.floor(Date.now() / 1000);
   // exp is mandatory: a token missing (or with a non-numeric) exp must never
