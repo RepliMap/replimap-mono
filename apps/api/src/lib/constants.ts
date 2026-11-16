@@ -52,14 +52,14 @@ export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
   pro: {
     resources_per_scan: -1,
     scans_per_month: -1,
-    aws_accounts: 3,
+    aws_accounts: -1,            // Unlimited (fair use), per public pricing
     machines: 2,
     export_formats: ['json', 'terraform', 'csv', 'html', 'markdown'],
   },
   team: {
     resources_per_scan: -1,
     scans_per_month: -1,
-    aws_accounts: 10,
+    aws_accounts: -1,            // Unlimited (fair use), per public pricing
     machines: 10,
     export_formats: ['json', 'terraform', 'csv', 'html', 'markdown', 'pdf'],
   },

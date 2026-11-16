@@ -328,7 +328,7 @@ describe('POST /v1/license/validate', () => {
         features: {
           resources_per_scan: -1,
           scans_per_month: -1,
-          aws_accounts: 3,
+          aws_accounts: -1, // unlimited (fair use), per public pricing
           machines: 2,
           export_formats: ['json', 'terraform', 'csv', 'html', 'markdown'],
         },
@@ -339,7 +339,7 @@ describe('POST /v1/license/validate', () => {
         features: {
           resources_per_scan: -1,
           scans_per_month: -1,
-          aws_accounts: 10,
+          aws_accounts: -1, // unlimited (fair use), per public pricing
           machines: 10,
           export_formats: ['json', 'terraform', 'csv', 'html', 'markdown', 'pdf'],
         },
@@ -385,6 +385,7 @@ describe('POST /v1/license/validate', () => {
         expect(response.status).toBe(200);
         expect(data.features).toEqual(features);
         expect(data.limits?.offline_grace_days).toBe(offline_grace_days);
+        expect(data.usage.aws_accounts_limit).toBe(features.aws_accounts);
       });
     }
   });
