@@ -182,7 +182,7 @@ export async function getOrProvisionLicenseKey(
 
 interface CreateCheckoutRequest {
   plan: 'pro' | 'team' | 'sovereign';
-  billing_period: 'monthly' | 'annual' | 'lifetime';
+  billing_period: 'monthly' | 'annual';
   email: string;
   success_url: string;
   cancel_url: string;

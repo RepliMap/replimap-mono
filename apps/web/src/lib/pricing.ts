@@ -15,7 +15,7 @@
  */
 
 export type PlanName = "community" | "pro" | "team" | "sovereign";
-export type BillingPeriod = "monthly" | "annual" | "lifetime";
+export type BillingPeriod = "monthly" | "annual";
 
 /** Legacy plan names that map to v4.0 plans */
 export type LegacyPlanName = "free" | "solo" | "enterprise";
@@ -23,7 +23,6 @@ export type LegacyPlanName = "free" | "solo" | "enterprise";
 export interface PlanPrice {
   monthly: number;
   annual: number;
-  lifetime: number | null;
 }
 
 export interface PlanFeature {
@@ -40,7 +39,6 @@ export interface Plan {
   features: PlanFeature[];
   cta: string;
   highlighted: boolean;
-  hasLifetime: boolean;
   badge: string | null;
   /** Offline grace period in days */
   offlineGraceDays: number;
@@ -66,7 +64,7 @@ export const PLANS: Record<PlanName, Plan> = {
   community: {
     name: "Community",
     tagline: "See everything. Free.",
-    price: { monthly: 0, annual: 0, lifetime: null },
+    price: { monthly: 0, annual: 0 },
     description: "Scan a full account, map every dependency, and generate real Terraform — free.",
     offlineGraceDays: 0,
     features: [
@@ -83,13 +81,12 @@ export const PLANS: Record<PlanName, Plan> = {
     ],
     cta: "Get Started Free",
     highlighted: false,
-    hasLifetime: false,
     badge: null,
   },
   pro: {
     name: "Pro",
     tagline: "The contractor deliverable",
-    price: { monthly: 29, annual: 290, lifetime: 199 },
+    price: { monthly: 29, annual: 290 },
     description: "The two things in a client hand-off: an import-ready scaffold and the audit evidence.",
     offlineGraceDays: 7,
     features: [
@@ -106,13 +103,12 @@ export const PLANS: Record<PlanName, Plan> = {
     ],
     cta: "Start Pro",
     highlighted: true,
-    hasLifetime: true,
     badge: "Most Popular",
   },
   team: {
     name: "Team",
     tagline: "Organization delivery",
-    price: { monthly: 99, annual: 990, lifetime: 499 },
+    price: { monthly: 99, annual: 990 },
     description: "For consultancies and platform teams that deliver as an organization.",
     offlineGraceDays: 14,
     features: [
@@ -126,13 +122,12 @@ export const PLANS: Record<PlanName, Plan> = {
     ],
     cta: "Start Team",
     highlighted: false,
-    hasLifetime: true,
     badge: null,
   },
   sovereign: {
     name: "Sovereign",
     tagline: "Data sovereignty for regulated industries",
-    price: { monthly: 2500, annual: 25000, lifetime: null },
+    price: { monthly: 2500, annual: 25000 },
     description: "When your regulator asks 'Where does the data go?', the answer is: Nowhere.",
     offlineGraceDays: 30,
     features: [
@@ -142,7 +137,6 @@ export const PLANS: Record<PlanName, Plan> = {
     ],
     cta: "Contact us",
     highlighted: false,
-    hasLifetime: false,
     badge: "Sovereign Grade",
   },
 };
@@ -195,8 +189,6 @@ export function formatPrice(
       return `${formattedAmount}/mo`;
     case "annual":
       return `${formattedAmount}/yr`;
-    case "lifetime":
-      return `${formattedAmount}`;
     default:
       return formattedAmount;
   }
@@ -208,8 +200,6 @@ export function getPeriodLabel(period: BillingPeriod): string {
       return "per month";
     case "annual":
       return "per year";
-    case "lifetime":
-      return "one-time";
     default:
       return "";
   }
@@ -219,11 +209,6 @@ export function getAnnualSavings(plan: Plan): number {
   if (!plan.price.annual || !plan.price.monthly) return 0;
   const monthlyTotal = plan.price.monthly * 12;
   return monthlyTotal - plan.price.annual;
-}
-
-export function getLifetimeBreakeven(plan: Plan): number {
-  if (!plan.price.lifetime || !plan.price.monthly) return 0;
-  return Math.ceil(plan.price.lifetime / plan.price.monthly);
 }
 
 // =============================================================================

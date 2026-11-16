@@ -62,7 +62,7 @@ test.describe('Checkout API auth (negative)', () => {
 
     const goodBody = {
       plan: 'pro',
-      billing_period: 'lifetime',
+      billing_period: 'monthly',
       success_url: `${appUrl}/checkout/success`,
       cancel_url: `${appUrl}/checkout`,
     }

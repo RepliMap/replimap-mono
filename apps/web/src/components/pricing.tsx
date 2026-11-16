@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, X, Sparkles, Shield } from "lucide-react"
+import { Check, X, Shield } from "lucide-react"
 import { PLANS, SOVEREIGN_FEATURES, type PlanName, type BillingPeriod } from "@/lib/pricing"
 import { checkoutHref, freeSignupHref, SOVEREIGN_CONTACT } from "@/lib/cta-links"
 
@@ -18,12 +18,10 @@ const plansList = (Object.entries(PLANS) as [PlanName, (typeof PLANS)[PlanName]]
     price: {
       monthly: plan.price.monthly === 0 ? "$0" : `$${plan.price.monthly}`,
       annual: plan.price.annual === 0 ? "$0" : `$${plan.price.annual}`,
-      lifetime: plan.price.lifetime ? `$${plan.price.lifetime}` : null,
     },
     period: {
       monthly: plan.price.monthly === 0 ? "forever" : "per month",
       annual: plan.price.annual === 0 ? "forever" : "per year",
-      lifetime: plan.price.lifetime ? "one-time" : null,
     },
   }))
 
@@ -67,17 +65,6 @@ export function Pricing() {
               Annual
               <span className="text-xs opacity-75">(2 months free)</span>
             </button>
-            <button
-              onClick={() => setBillingPeriod("lifetime")}
-              className={`${
-                billingPeriod === "lifetime"
-                  ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
-                  : "text-muted-foreground hover:text-foreground"
-              } rounded-md px-4 py-2 text-sm font-medium transition-colors flex items-center gap-1`}
-            >
-              <Sparkles className="w-3 h-3" />
-              Lifetime
-            </button>
           </div>
         </div>
 
@@ -97,11 +84,6 @@ export function Pricing() {
                 {plan.badge && (
                   <Badge className="bg-emerald-500 text-white">{plan.badge}</Badge>
                 )}
-                {billingPeriod === "lifetime" && plan.hasLifetime && (
-                  <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0">
-                    Early Bird
-                  </Badge>
-                )}
               </div>
 
               {/* Plan Name & Tagline */}
@@ -111,10 +93,10 @@ export function Pricing() {
               {/* Price */}
               <div className="mb-2">
                 <span className="text-3xl font-bold text-foreground">
-                  {plan.price[billingPeriod] ?? plan.price.monthly}
+                  {plan.price[billingPeriod]}
                 </span>
                 <span className="text-muted-foreground ml-2 text-sm">
-                  {plan.period[billingPeriod] ?? plan.period.monthly}
+                  {plan.period[billingPeriod]}
                 </span>
               </div>
 
@@ -122,36 +104,26 @@ export function Pricing() {
               <p className="text-muted-foreground text-sm mt-2 mb-6">{plan.description}</p>
 
               {/* CTA Button */}
-              {billingPeriod === "lifetime" && !plan.hasLifetime ? (
-                <Button
-                  disabled
-                  className="w-full mb-6"
-                  variant="outline"
+              <Button
+                asChild
+                className={`w-full mb-6 ${
+                  plan.highlighted ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""
+                }`}
+                variant={plan.highlighted ? "default" : "outline"}
+              >
+                <Link
+                  href={
+                    plan.key === "community"
+                      ? freeSignupHref(`pricing_community`)
+                      : checkoutHref(
+                          plan.key as "pro" | "team",
+                          billingPeriod
+                        )
+                  }
                 >
-                  No Lifetime Option
-                </Button>
-              ) : (
-                <Button
-                  asChild
-                  className={`w-full mb-6 ${
-                    plan.highlighted ? "bg-emerald-500 hover:bg-emerald-600 text-white" : ""
-                  }`}
-                  variant={plan.highlighted ? "default" : "outline"}
-                >
-                  <Link
-                    href={
-                      plan.key === "community"
-                        ? freeSignupHref(`pricing_community`)
-                        : checkoutHref(
-                            plan.key as "pro" | "team",
-                            billingPeriod
-                          )
-                    }
-                  >
-                    {plan.cta}
-                  </Link>
-                </Button>
-              )}
+                  {plan.cta}
+                </Link>
+              </Button>
 
               {/* Features List */}
               <ul className="space-y-3 flex-1">

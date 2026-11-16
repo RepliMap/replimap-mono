@@ -7,7 +7,7 @@ import { Footer } from "@/components/footer"
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "RepliMap plans: a free Community tier, Pro, Team and Sovereign. Monthly, annual and lifetime options.",
+    "RepliMap plans: a free Community tier, Pro, Team and Sovereign. Monthly and annual billing.",
   alternates: { canonical: "https://www.replimap.com/pricing" },
 }
 

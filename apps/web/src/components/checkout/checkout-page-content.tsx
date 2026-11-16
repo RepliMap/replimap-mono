@@ -14,7 +14,8 @@ import { ApiError, createCheckoutSession } from "@/lib/api"
 import { ClerkGate } from "@/components/auth-components"
 
 const VALID_PLANS: PlanName[] = ["pro", "team"]
-const VALID_BILLING: BillingPeriod[] = ["monthly", "annual", "lifetime"]
+// Lifetime is no longer sold: ?billing=lifetime (old links) falls back to monthly.
+const VALID_BILLING: BillingPeriod[] = ["monthly", "annual"]
 
 function CheckoutForm() {
   const { user, isLoaded } = useUser()
@@ -49,24 +50,10 @@ function CheckoutForm() {
 
   const plan = PLANS[planParam]
 
-  // Lifetime-unavailable guard: redirect user back to pricing if they hit
-  // /checkout?plan=X&billing=lifetime for a plan with no lifetime offer.
-  const lifetimeUnavailable =
-    billingPeriod === "lifetime" && !plan.hasLifetime
-
   const price =
-    billingPeriod === "lifetime"
-      ? plan.price.lifetime ?? 0
-      : billingPeriod === "annual"
-        ? plan.price.annual
-        : plan.price.monthly
+    billingPeriod === "annual" ? plan.price.annual : plan.price.monthly
 
-  const period =
-    billingPeriod === "lifetime"
-      ? "one-time"
-      : billingPeriod === "annual"
-        ? "per year"
-        : "per month"
+  const period = billingPeriod === "annual" ? "per year" : "per month"
 
   const monthlySavings =
     billingPeriod === "annual" && plan.price.monthly > 0
@@ -93,7 +80,7 @@ function CheckoutForm() {
       const result = await createCheckoutSession(
         {
           plan: planParam as "pro" | "team",
-          billing_period: billingPeriod as "monthly" | "annual" | "lifetime",
+          billing_period: billingPeriod,
           email,
           success_url: `${appUrl}/checkout/success`,
           cancel_url: `${appUrl}/checkout?plan=${planParam}&billing=${billingPeriod}`,
@@ -138,29 +125,10 @@ function CheckoutForm() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">
-            {billingPeriod === "lifetime" ? "Buy" : "Subscribe to"} RepliMap {plan.name}
+            Subscribe to RepliMap {plan.name}
           </h1>
           <p className="text-muted-foreground">{plan.description}</p>
         </div>
-
-        {/* Lifetime unavailable guard */}
-        {lifetimeUnavailable && (
-          <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/5 p-4 mb-6 text-sm text-yellow-200">
-            Lifetime pricing isn&apos;t available for the {plan.name} plan.{" "}
-            <button
-              type="button"
-              onClick={() => setBillingPeriod("monthly")}
-              className="underline hover:text-yellow-100"
-            >
-              Switch to monthly
-            </button>{" "}
-            or{" "}
-            <Link href="/#pricing" className="underline hover:text-yellow-100">
-              pick a different plan
-            </Link>
-            .
-          </div>
-        )}
 
         {/* Plan Card */}
         <div className="rounded-2xl border border-border bg-card/50 p-6 mb-6">
@@ -187,18 +155,6 @@ function CheckoutForm() {
               Annual
               <span className="text-xs opacity-75">(2 months free)</span>
             </button>
-            {plan.hasLifetime && (
-              <button
-                onClick={() => setBillingPeriod("lifetime")}
-                className={`rounded-md px-4 py-2 text-sm font-medium transition-colors flex items-center gap-1 ${
-                  billingPeriod === "lifetime"
-                    ? "bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
-                    : "text-muted-foreground hover:text-foreground bg-muted"
-                }`}
-              >
-                Lifetime
-              </button>
-            )}
           </div>
 
           {/* Price */}
@@ -251,11 +207,7 @@ function CheckoutForm() {
             <span className="text-foreground font-bold text-xl">
               ${price}
               <span className="text-sm font-normal text-muted-foreground ml-1">
-                {billingPeriod === "lifetime"
-                  ? "one-time"
-                  : billingPeriod === "annual"
-                    ? "/yr"
-                    : "/mo"}
+                {billingPeriod === "annual" ? "/yr" : "/mo"}
               </span>
             </span>
           </div>
@@ -271,7 +223,7 @@ function CheckoutForm() {
         {/* CTA */}
         <Button
           onClick={handleCheckout}
-          disabled={loading || lifetimeUnavailable}
+          disabled={loading}
           className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white text-base"
         >
           {loading ? (
@@ -280,13 +232,7 @@ function CheckoutForm() {
               Redirecting to payment...
             </>
           ) : (
-            `Continue to Payment — $${price}${
-              billingPeriod === "lifetime"
-                ? " one-time"
-                : billingPeriod === "annual"
-                  ? "/yr"
-                  : "/mo"
-            }`
+            `Continue to Payment — $${price}${billingPeriod === "annual" ? "/yr" : "/mo"}`
           )}
         </Button>
 
@@ -297,12 +243,10 @@ function CheckoutForm() {
               <Shield className="w-3 h-3" />
               <span>Secure checkout by Stripe</span>
             </div>
-            {billingPeriod !== "lifetime" && (
-              <div className="flex items-center gap-1">
-                <Terminal className="w-3 h-3" />
-                <span>Cancel anytime</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1">
+              <Terminal className="w-3 h-3" />
+              <span>Cancel anytime</span>
+            </div>
           </div>
           <p>Your data never leaves your machine. RepliMap runs 100% locally.</p>
         </div>

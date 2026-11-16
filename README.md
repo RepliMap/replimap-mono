@@ -125,7 +125,7 @@ Landing  ──►  /sign-up (Clerk)  ──►  /dashboard (community license a
                                                                 success page polls + displays key
 ```
 
-All three tiers (community / pro / team) and all billing cadences (monthly / annual / lifetime) share this flow.
+All three tiers (community / pro / team) and both billing cadences (monthly / annual) share this flow. Lifetime plans are no longer sold; existing lifetime licenses keep working.
 
 The flow is **live in production** and was validated end-to-end with a real purchase + refund/cancel.
 
