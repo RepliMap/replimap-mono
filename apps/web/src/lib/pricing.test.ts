@@ -49,7 +49,7 @@ describe('sovereign feature claims — matrix sync', () => {
     expect(joined).toMatch(/apra cps 234/i);
     expect(joined).toMatch(/rbnz bs11/i);
     expect(joined).toMatch(/nzism/i);
-    expect(joined).toMatch(/dedicated support/i);
+    expect(joined).toMatch(/support terms agreed in your contract/i);
   });
 });
 

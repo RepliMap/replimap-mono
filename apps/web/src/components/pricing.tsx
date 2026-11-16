@@ -198,8 +198,8 @@ export function Pricing() {
                 Data sovereignty for regulated industries
               </p>
               <div className="mb-4">
-                <span className="text-3xl font-bold text-foreground">From $2,500</span>
-                <span className="text-muted-foreground ml-2">/month</span>
+                <span className="text-3xl font-bold text-foreground">From $2,500/mo</span>
+                <p className="text-xs text-muted-foreground mt-1">Annual contracts available</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 When your regulator asks &ldquo;Where does the data go?&rdquo;, the answer is: Nowhere.
@@ -216,7 +216,7 @@ export function Pricing() {
             <div className="lg:w-auto">
               <Button asChild className="bg-purple-500 hover:bg-purple-600 text-white">
                 <a href={SOVEREIGN_CONTACT}>
-                  Request Demo
+                  Contact us
                 </a>
               </Button>
             </div>

@@ -59,7 +59,7 @@ export interface Plan {
 const SOVEREIGN_FEATURE_CLAIMS = [
   "Air-gapped activation by signed license file (issued on request)",
   "APRA CPS 234 / RBNZ BS11 / NZISM compliance packs",
-  "Dedicated support (4h SLA)",
+  "Support terms agreed in your contract",
 ] as const;
 
 export const PLANS: Record<PlanName, Plan> = {
@@ -100,7 +100,7 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "Full unmanaged-resource list + coverage.json", included: true },
       { text: "Graph export without watermark", included: true },
       { text: "7 days offline grace period", included: true },
-      { text: "48h email support SLA", included: true },
+      { text: "Email support, replies within 2 business days (NZ time)", included: true },
       { text: "2 activated devices", included: true },
       { text: "CI mode with blocking checks (--fail-on-high, --fail-on-score)", included: false },
     ],
@@ -121,7 +121,7 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "CI mode with blocking checks (--fail-on-high, --fail-on-score)", included: true },
       { text: "Trust Center report (audit trail of the AWS API calls RepliMap made)", included: true },
       { text: "14 days offline grace period", included: true },
-      { text: "24h priority support SLA", included: true },
+      { text: "Priority email support, replies within 1 business day (NZ time)", included: true },
       { text: "Air-gapped activation by signed license file", included: false },
     ],
     cta: "Start Team",
@@ -140,7 +140,7 @@ export const PLANS: Record<PlanName, Plan> = {
       { text: "30 days offline grace", included: true },
       ...SOVEREIGN_FEATURE_CLAIMS.map((text) => ({ text, included: true })),
     ],
-    cta: "Request Demo",
+    cta: "Contact us",
     highlighted: false,
     hasLifetime: false,
     badge: "Sovereign Grade",
