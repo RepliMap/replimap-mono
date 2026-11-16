@@ -677,6 +677,12 @@ describe('customer.subscription.updated', () => {
     expect(machines[0].is_active).toBe(0);
   });
 
+  it('maps Stripe status unpaid to expired (not entitled)', async () => {
+    await seedSubscriptionLicense();
+    await deliver(subscriptionEvent('customer.subscription.updated', { status: 'unpaid' }));
+    expect((await licenseRows())[0].status).toBe('expired');
+  });
+
   it('maps Stripe status past_due onto the license', async () => {
     await seedSubscriptionLicense();
 
@@ -767,6 +773,58 @@ describe('customer.subscription.deleted', () => {
 
     const licenses = await licenseRows();
     expect(licenses[0].status).toBe('canceled');
+  });
+
+  it('immediate cancellation (ended_at before period end) ends access at ended_at', async () => {
+    await seedSubscriptionLicense();
+    const endedAt = PERIOD_END - 10 * 86400;
+
+    const res = await deliver(
+      subscriptionEvent('customer.subscription.deleted', {
+        status: 'canceled',
+        ended_at: endedAt,
+        canceled_at: endedAt,
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const [license] = await licenseRows();
+    expect(license.status).toBe('canceled');
+    expect(license.current_period_end).toBe(new Date(endedAt * 1000).toISOString());
+  });
+
+  it('immediate cancellation without ended_at falls back to canceled_at', async () => {
+    await seedSubscriptionLicense();
+    const canceledAt = PERIOD_END - 5 * 86400;
+    await deliver(
+      subscriptionEvent('customer.subscription.deleted', {
+        status: 'canceled',
+        cancel_at_period_end: false,
+        canceled_at: canceledAt,
+      })
+    );
+    expect((await licenseRows())[0].current_period_end).toBe(
+      new Date(canceledAt * 1000).toISOString()
+    );
+  });
+
+  it('cancel at period end keeps the stored period end (access until then)', async () => {
+    await seedSubscriptionLicense();
+    const before = (await licenseRows())[0].current_period_end;
+
+    await deliver(
+      subscriptionEvent('customer.subscription.deleted', {
+        status: 'canceled',
+        cancel_at_period_end: true,
+        canceled_at: PERIOD_END - 20 * 86400, // when the user clicked cancel
+        ended_at: PERIOD_END,
+      })
+    );
+
+    const [license] = await licenseRows();
+    expect(license.status).toBe('canceled');
+    expect(license.current_period_end).toBe(before);
+    expect(before).toBe(new Date(PERIOD_END * 1000).toISOString());
   });
 });
 

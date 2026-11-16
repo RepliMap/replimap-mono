@@ -78,6 +78,9 @@ interface StripeSubscription {
   current_period_start?: number;
   current_period_end?: number;
   cancel_at_period_end: boolean;
+  // Unix seconds; set on deleted subscriptions.
+  ended_at?: number | null;
+  canceled_at?: number | null;
 }
 
 /**
@@ -620,9 +623,11 @@ async function handleSubscriptionUpdated(
       status = 'past_due';
       break;
     case 'canceled':
-    case 'unpaid':
       status = 'canceled';
       break;
+    // unpaid: Stripe stopped retrying and the invoice is uncollected — not
+    // entitled ('canceled' would keep access until the period end).
+    case 'unpaid':
     case 'incomplete':
     case 'incomplete_expired':
       status = 'expired';
@@ -675,8 +680,20 @@ async function handleSubscriptionDeleted(
     return;
   }
 
-  await cancelLicense(db, license.id);
-  console.log(`[Stripe] License ${license.id} canceled`);
+  // Terminated early (immediate cancel, unpaid, admin action): access ends
+  // when the subscription ended, not at the stored period end. A normal
+  // cancel-at-period-end has ended_at == period end and keeps it unchanged.
+  // canceled_at is only a fallback for immediate cancels, since for
+  // cancel-at-period-end it is the (earlier) time the user clicked cancel.
+  const endedTs =
+    subscription.ended_at ?? (subscription.cancel_at_period_end ? null : subscription.canceled_at ?? null);
+  const endedISO = typeof endedTs === 'number' ? timestampToISO(endedTs) : undefined;
+  const endsEarly =
+    endedISO !== undefined &&
+    (!license.currentPeriodEnd || new Date(endedISO) < new Date(license.currentPeriodEnd));
+
+  await cancelLicense(db, license.id, endsEarly ? endedISO : undefined);
+  console.log(`[Stripe] License ${license.id} canceled${endsEarly ? ` (ended early at ${endedISO})` : ''}`);
 }
 
 /**

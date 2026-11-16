@@ -835,7 +835,8 @@ export async function revokeLicense(
  */
 export async function cancelLicense(
   db: DrizzleDb,
-  licenseId: string
+  licenseId: string,
+  periodEnd?: string // set when the subscription ended before its period end
 ): Promise<void> {
   const now = nowISO();
 
@@ -845,6 +846,7 @@ export async function cancelLicense(
       status: 'canceled',
       canceledAt: now,
       updatedAt: now,
+      ...(periodEnd ? { currentPeriodEnd: periodEnd } : {}),
     })
     .where(and(eq(schema.licenses.id, licenseId), ne(schema.licenses.status, 'revoked')));
 }
